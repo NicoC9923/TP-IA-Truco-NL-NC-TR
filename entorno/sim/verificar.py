@@ -1,6 +1,6 @@
 """Verifica que todo este instalado ANTES de abrir el simulador.
 
-Si falta algo, lo instalamos; si no podemos, decimos exactamente que hacer.
+No instala nada: si falta algo, dice exactamente que comando correr.
 
 Nunca dejamos que el simulador arranque a medias: es peor un simulador que abre
 y falla raro a los dos minutos que uno que no abre y explica por que.
@@ -10,22 +10,17 @@ from __future__ import annotations
 
 import importlib
 import os
-import shutil
-import subprocess
 import sys
-
-# El repo oficial de Unitree. De aca salen los modelos y el bridge DDS.
-REPO_OFICIAL = "https://github.com/unitreerobotics/unitree_mujoco"
 
 # Solo la copia que viene en el repo, para que nunca se use otra que haya
 # quedado en la maquina.
 UBICACIONES_REPO = [os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                  "unitree_mujoco")]
 
-VERDE, ROJO, AMARILLO, GRIS, FIN = "\033[92m", "\033[91m", "\033[93m", "\033[90m", "\033[0m"
+VERDE, ROJO, GRIS, FIN = "\033[92m", "\033[91m", "\033[90m", "\033[0m"
 
 if os.name == "nt" or not sys.stdout.isatty():
-    VERDE = ROJO = AMARILLO = GRIS = FIN = ""
+    VERDE = ROJO = GRIS = FIN = ""
 
 
 class Resultado:
@@ -46,10 +41,6 @@ def _falta(texto: str, detalle: str = "") -> None:
     print(f"  {ROJO}[FALTA]{FIN} {texto}" + (f" {GRIS}{detalle}{FIN}" if detalle else ""))
 
 
-def _arreglando(texto: str) -> None:
-    print(f"  {AMARILLO}[...]{FIN}   {texto}")
-
-
 def buscar_repo_oficial() -> str | None:
     """Devuelve la carpeta del repo oficial si tiene lo que necesitamos."""
     for base in UBICACIONES_REPO:
@@ -60,22 +51,18 @@ def buscar_repo_oficial() -> str | None:
     return None
 
 
-def _pip_install(paquete: str) -> bool:
-    """Instala con pip, en el usuario."""
-    cmd = [sys.executable, "-m", "pip", "install", "--user", paquete]
-    try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-        return r.returncode == 0
-    except Exception:
-        return False
-
-
 def _tiene(modulo: str) -> bool:
     try:
         importlib.import_module(modulo)
         return True
     except Exception:
         return False
+
+
+def _pip(paquete: str) -> str:
+    # Dentro de un venv, pip rechaza --user.
+    en_venv = sys.prefix != sys.base_prefix
+    return f"{sys.executable} -m pip install {'' if en_venv else '--user '}{paquete}"
 
 
 # Las tres DLL que MuJoCo necesita en Windows y que NO vienen con Python.
@@ -105,8 +92,7 @@ def diagnosticar_mujoco() -> tuple[bool, str]:
     Existe porque `_tiene()` se traga la excepcion, y eso hacia un diagnostico
     directamente falso: en Windows sin el Visual C++ Redistributable, `pip
     install mujoco` termina **bien** pero `import mujoco` falla al cargar la
-    DLL. El chequeo decia "falta MuJoCo", intentaba instalarlo de nuevo -- pip
-    contestaba que ya estaba --, y volvia a decir que faltaba.
+    DLL. Decir "falta MuJoCo" ahi manda a reinstalar algo que ya esta.
     """
     try:
         importlib.import_module("mujoco")
@@ -123,13 +109,15 @@ def diagnosticar_mujoco() -> tuple[bool, str]:
                 f"      No viene con Python ni con MuJoCo; se instala aparte:\n"
                 f"        {_URL_VCREDIST}\n"
                 f"      Despues de instalarlo, cerra y volve a abrir la consola.")
+        if "mujoco" in texto.lower() and "no module" in texto.lower():
+            return False, f"Falta MuJoCo. Instalalo con:\n      {_pip('mujoco')}"
         return False, f"No se pudo importar MuJoCo: {texto}"
     except Exception as exc:                                   # noqa: BLE001
         return False, f"No se pudo importar MuJoCo: {exc}"
 
 
-def verificar(instalar: bool = True, dds: bool = False) -> Resultado:
-    """Revisa el entorno.
+def verificar(dds: bool = False) -> Resultado:
+    """Revisa el entorno. No instala nada.
 
     `dds=True` pide ademas CycloneDDS y el SDK de Unitree. Va apagado por
     defecto: son las dos piezas que NO se pueden instalar en macOS ni en
@@ -154,26 +142,9 @@ def verificar(instalar: bool = True, dds: bool = False) -> Resultado:
     if ok_mujoco:
         import mujoco
         _ok("MuJoCo", f"v{mujoco.__version__}")
-    elif "Visual C++" in porque:
-        # Reinstalar no arregla nada: el paquete ya esta. Lo que falta es una
-        # dependencia del sistema operativo.
-        _falta("MuJoCo", "instalado pero no carga")
-        r.problemas.append(porque)
-    elif instalar:
-        _arreglando("Instalando MuJoCo (la ventana 3D)... puede tardar un minuto")
-        _pip_install("mujoco")
-        ok_mujoco, porque = diagnosticar_mujoco()
-        if ok_mujoco:
-            _ok("MuJoCo instalado")
-        else:
-            _falta("MuJoCo")
-            r.problemas.append(
-                porque if "Visual C++" in porque else
-                f"No pude instalar MuJoCo. Proba a mano:\n"
-                f"      {sys.executable} -m pip install --user mujoco")
     else:
-        _falta("MuJoCo")
-        r.problemas.append(porque or "Falta MuJoCo.")
+        _falta("MuJoCo", "instalado pero no carga" if "Visual C++" in porque else "")
+        r.problemas.append(porque)
 
     # 3 y 4. CycloneDDS y el SDK de Unitree: SOLO en modo --dds.
     #
@@ -183,16 +154,11 @@ def verificar(instalar: bool = True, dds: bool = False) -> Resultado:
     if dds:
         if _tiene("cyclonedds"):
             _ok("CycloneDDS")
-        elif instalar and v < (3, 11):
-            _arreglando("Instalando CycloneDDS (modo --dds)...")
-            if _pip_install("cyclonedds==0.10.2") and _tiene("cyclonedds"):
-                _ok("CycloneDDS instalado")
-            else:
-                _falta("CycloneDDS")
-                r.problemas.append(
-                    "No pude instalar CycloneDDS 0.10.2.\n"
-                    f"      Proba: {sys.executable} -m pip install --user "
-                    f"cyclonedds==0.10.2")
+        elif v < (3, 11):
+            _falta("CycloneDDS")
+            r.problemas.append(
+                f"Falta CycloneDDS. Instalalo con:\n"
+                f"      {_pip('cyclonedds==0.10.2')}")
         else:
             _falta("CycloneDDS")
             r.problemas.append(
@@ -217,52 +183,21 @@ def verificar(instalar: bool = True, dds: bool = False) -> Resultado:
         # joystick. Sin esto el import explota y el error no dice por que.
         if _tiene("pygame"):
             _ok("pygame", "lo pide el bridge oficial de Unitree")
-        elif instalar:
-            _arreglando("Instalando pygame (lo pide el bridge oficial)...")
-            if _pip_install("pygame") and _tiene("pygame"):
-                _ok("pygame instalado")
-            else:
-                _falta("pygame")
-                r.problemas.append(
-                    f"Falta pygame. Proba: {sys.executable} -m pip install "
-                    f"--user pygame")
         else:
             _falta("pygame", "lo pide el bridge oficial de Unitree")
-            r.problemas.append("Falta pygame.")
+            r.problemas.append(f"Falta pygame. Instalalo con:\n      {_pip('pygame')}")
 
-    # 5. Los modelos oficiales. Vienen en el repo: normalmente esto no hace
-    # nada. El git clone queda como red de seguridad.
+    # 5. Los modelos oficiales. Vienen en el repo.
     repo = buscar_repo_oficial()
     if repo:
         _ok("Modelos oficiales de Unitree", repo)
         r.repo = repo
-    elif instalar and shutil.which("git"):
-        destino = UBICACIONES_REPO[0]
-        _arreglando(f"Descargando el simulador oficial en {destino}...")
-        os.makedirs(os.path.dirname(destino), exist_ok=True)
-        try:
-            p = subprocess.run(["git", "clone", "--depth", "1", REPO_OFICIAL, destino],
-                               capture_output=True, text=True, timeout=900)
-            repo = buscar_repo_oficial()
-            if repo:
-                _ok("Simulador oficial descargado", repo)
-                r.repo = repo
-            else:
-                _falta("Simulador oficial", p.stderr.strip().splitlines()[-1:] and
-                       p.stderr.strip().splitlines()[-1] or "")
-                r.problemas.append(
-                    f"No pude descargar el simulador oficial. Proba a mano:\n"
-                    f"      git clone {REPO_OFICIAL} {destino}")
-        except Exception as exc:
-            _falta("Simulador oficial", str(exc))
-            r.problemas.append(f"git clone {REPO_OFICIAL} {destino}")
     else:
-        _falta("Simulador oficial de Unitree")
+        _falta("Modelos oficiales de Unitree")
         r.problemas.append(
-            f"Falta el simulador oficial. Descargalo con:\n"
-            f"      git clone {REPO_OFICIAL} {UBICACIONES_REPO[0]}"
-            + ("" if shutil.which("git") else
-               "\n      (primero instala git: https://git-scm.com)"))
+            f"No encuentro los modelos en {UBICACIONES_REPO[0]}.\n"
+            f"      Vienen en el repo: restauralos con\n"
+            f"      git checkout -- entorno/sim/unitree_mujoco")
 
     return r
 
@@ -287,5 +222,4 @@ def informar(r: Resultado) -> bool:
 
 
 if __name__ == "__main__":
-    sin_instalar = "--solo-revisar" in sys.argv
-    raise SystemExit(0 if informar(verificar(instalar=not sin_instalar)) else 1)
+    raise SystemExit(0 if informar(verificar()) else 1)

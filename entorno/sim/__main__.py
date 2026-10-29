@@ -144,7 +144,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     # 1. Verificar el entorno ANTES de prometer nada.
-    r = verificar(instalar=not args.solo_revisar, dds=args.dds)
+    r = verificar(dds=args.dds)
     if not informar(r):
         return 1
     if args.solo_revisar:
