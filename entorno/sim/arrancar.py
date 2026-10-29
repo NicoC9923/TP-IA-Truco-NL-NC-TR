@@ -84,6 +84,7 @@ class SimuladorOficial:
         self.bridge = None
         self.servicio = None
         self._qpos_previo = None
+        self._art_suave = None
 
     # ---------- transporte ----------
     def iniciar_transporte(self):
@@ -133,28 +134,63 @@ class SimuladorOficial:
         q[3], q[4], q[5], q[6] = math.cos(media), 0.0, 0.0, math.sin(media)
 
         art = q[7:]
-        art[:] = 0.0
+        objetivo = [0.0] * len(art)
         for idx, valor in self.robot.pose_de_pie.items():
-            if idx < len(art):
-                art[idx] = valor
+            if idx < len(objetivo):
+                objetivo[idx] = valor
+
+        accion = e.get("accion", "quieto")
+        t_osc = time.perf_counter() * 5.5
 
         if not e.get("de_pie", True):
             for idx, valor in self.robot.pose_sentado.items():
-                if idx < len(art):
-                    art[idx] = valor
-        elif e["accion"] == "saludando":
+                if idx < len(objetivo):
+                    objetivo[idx] = valor
+        elif getattr(self.robot, "gestos", None) and accion in self.robot.gestos:
+            for idx, valor in self.robot.gestos[accion].items():
+                if idx < len(objetivo):
+                    objetivo[idx] = valor
+            if accion in ("saludando", "saludo") and 25 < len(objetivo):
+                objetivo[23] += 0.14 * math.sin(t_osc)
+                objetivo[24] += 0.25 * math.sin(t_osc)
+                objetivo[25] += 0.12 * math.sin(t_osc)
+            elif accion == "dar_la_mano" and 25 < len(objetivo):
+                objetivo[22] += 0.10 * math.sin(t_osc * 1.1)
+                objetivo[25] += 0.18 * math.sin(t_osc * 1.1)
+            elif accion == "festejando" and 25 < len(objetivo):
+                objetivo[15] += 0.18 * math.sin(t_osc)
+                objetivo[22] += 0.18 * math.sin(t_osc)
+                objetivo[18] += 0.20 * math.sin(t_osc)
+                objetivo[25] += 0.20 * math.sin(t_osc)
+                objetivo[12] = 0.10 * math.sin(t_osc * 0.5)
+            elif accion == "desafiando" and 25 < len(objetivo):
+                objetivo[22] += 0.06 * math.sin(t_osc * 0.8)
+                objetivo[25] += 0.08 * math.sin(t_osc * 0.8)
+            elif accion == "mazo" and 12 < len(objetivo):
+                objetivo[12] = 0.28 * math.sin(t_osc * 0.9)
+        elif accion == "saludando":
             for idx, valor in self.robot.saludo.items():
-                if idx < len(art):
-                    art[idx] = valor
+                if idx < len(objetivo):
+                    objetivo[idx] = valor
         elif e["moviendose"]:
             f = e["fase"]
             for idx, amplitud, desfase in self.robot.marcha:
-                if idx < len(art):
-                    art[idx] += amplitud * math.sin(f + desfase)
+                if idx < len(objetivo):
+                    objetivo[idx] += amplitud * math.sin(f + desfase)
+
+        ahora = time.perf_counter()
+        if self._art_suave is None or len(self._art_suave) != len(objetivo):
+            self._art_suave = list(objetivo)
+        else:
+            dt_suave = (ahora - self._qpos_previo[0]) if self._qpos_previo else self.cfg.VIEWER_DT
+            alpha = min(1.0, max(0.08, dt_suave * 10.0))
+            for i in range(len(objetivo)):
+                self._art_suave[i] += (objetivo[i] - self._art_suave[i]) * alpha
+
+        art[:] = self._art_suave
 
         # Velocidad de las articulaciones por diferencia finita. De aca salen
         # el gyro y la velocidad de motor que publica el bridge oficial.
-        ahora = time.perf_counter()
         if self._qpos_previo is not None:
             dt = ahora - self._qpos_previo[0]
             if dt > 1e-6:

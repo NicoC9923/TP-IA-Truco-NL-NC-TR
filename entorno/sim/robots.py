@@ -81,6 +81,7 @@ class Robot:
     marcha: list = field(default_factory=list)
     saludo: dict = field(default_factory=dict)
     pose_sentado: dict = field(default_factory=dict)
+    gestos: dict = field(default_factory=dict)
 
     def ruta_escena(self) -> str | None:
         for base in UBICACIONES:
@@ -100,9 +101,16 @@ class Robot:
 # Indices relativos (qpos real = 7 + indice)
 G1_L_HIP_P, G1_L_KNEE = 0, 3
 G1_R_HIP_P, G1_R_KNEE = 6, 9
-G1_L_SHOULDER_P, G1_L_ELBOW = 15, 18
-G1_R_SHOULDER_P, G1_R_ELBOW = 22, 25
+G1_WAIST_YAW, G1_WAIST_ROLL, G1_WAIST_PITCH = 12, 13, 14
+G1_L_SHOULDER_P, G1_L_SHOULDER_R, G1_L_SHOULDER_Y, G1_L_ELBOW = 15, 16, 17, 18
+G1_L_WRIST_R, G1_L_WRIST_P, G1_L_WRIST_Y = 19, 20, 21
+G1_R_SHOULDER_P, G1_R_SHOULDER_R, G1_R_SHOULDER_Y, G1_R_ELBOW = 22, 23, 24, 25
+G1_R_WRIST_R, G1_R_WRIST_P, G1_R_WRIST_Y = 26, 27, 28
 
+# Nota cinematica del modelo oficial G1 29-DOF:
+# En elbow_joint = 0 rad, el antebrazo apunta hacia adelante (+X, flexionado 90°).
+# Valores positivos (~0.9 rad) extienden el brazo hacia abajo al costado del torso;
+# valores negativos pliegan el antebrazo hacia arriba.
 G1 = Robot(
     clave="g1",
     nombre="Unitree G1",
@@ -110,8 +118,9 @@ G1 = Robot(
     escena="g1/scene_29dof.xml",   # scene.xml tiene ~100 obstaculos del terrain_tool
     altura=0.793,
     pose_de_pie={
-        G1_L_SHOULDER_P: 0.20, G1_R_SHOULDER_P: 0.20,
-        G1_L_ELBOW: -0.30, G1_R_ELBOW: -0.30,
+        G1_L_SHOULDER_P: 0.15, G1_R_SHOULDER_P: 0.15,
+        G1_L_SHOULDER_R: 0.12, G1_R_SHOULDER_R: -0.12,
+        G1_L_ELBOW: 0.90, G1_R_ELBOW: 0.90,
     },
     marcha=[
         (G1_L_HIP_P, 0.40, 0.0),
@@ -121,10 +130,58 @@ G1 = Robot(
         (G1_L_SHOULDER_P, 0.30, math.pi),
         (G1_R_SHOULDER_P, 0.30, 0.0),
     ],
-    saludo={G1_R_SHOULDER_P: -2.4, G1_R_ELBOW: -1.0},
+    saludo={
+        G1_R_SHOULDER_P: -1.35,
+        G1_R_SHOULDER_R: -0.55,
+        G1_R_SHOULDER_Y: -0.30,
+        G1_R_ELBOW: -0.35,
+    },
     # Agachado (FSM Sit / Damp). No es un desplome: es una postura.
     pose_sentado={G1_L_HIP_P: -1.2, G1_R_HIP_P: -1.2,
                   G1_L_KNEE: 1.8, G1_R_KNEE: 1.8},
+    gestos={
+        "saludando": {
+            G1_R_SHOULDER_P: -1.35,
+            G1_R_SHOULDER_R: -0.55,
+            G1_R_SHOULDER_Y: -0.30,
+            G1_R_ELBOW: -0.35,
+        },
+        "saludo": {
+            G1_R_SHOULDER_P: -1.35,
+            G1_R_SHOULDER_R: -0.55,
+            G1_R_SHOULDER_Y: -0.30,
+            G1_R_ELBOW: -0.35,
+        },
+        "dar_la_mano": {
+            G1_WAIST_PITCH: 0.06,
+            G1_R_SHOULDER_P: -0.65,
+            G1_R_SHOULDER_R: -0.10,
+            G1_R_SHOULDER_Y: 0.0,
+            G1_R_ELBOW: 0.35,
+            G1_R_WRIST_R: 0.0,
+            G1_R_WRIST_P: 0.0,
+        },
+        "festejando": {
+            G1_L_SHOULDER_P: -1.75, G1_R_SHOULDER_P: -1.75,
+            G1_L_SHOULDER_R: 0.55, G1_R_SHOULDER_R: -0.55,
+            G1_L_SHOULDER_Y: 0.25, G1_R_SHOULDER_Y: -0.25,
+            G1_L_ELBOW: 0.20, G1_R_ELBOW: 0.20,
+        },
+        "desafiando": {
+            G1_WAIST_PITCH: 0.12,
+            G1_R_SHOULDER_P: -1.05,
+            G1_R_SHOULDER_R: -0.15,
+            G1_R_ELBOW: 0.85,
+            G1_L_SHOULDER_P: 0.15,
+            G1_L_SHOULDER_R: 0.22,
+            G1_L_ELBOW: 0.45,
+        },
+        "mazo": {
+            G1_L_SHOULDER_P: -0.55, G1_R_SHOULDER_P: -0.55,
+            G1_L_SHOULDER_R: 0.35, G1_R_SHOULDER_R: -0.35,
+            G1_L_ELBOW: -0.35, G1_R_ELBOW: -0.35,
+        },
+    },
 )
 
 # --- Go2: cuadrupedo de 12 grados de libertad ---------------------------

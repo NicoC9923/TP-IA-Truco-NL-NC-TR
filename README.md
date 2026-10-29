@@ -22,8 +22,14 @@ py -3 -m pip install --user mujoco
 Cada vez, en dos terminales:
 
 ```bash
-sim --robot go2                  # o doble click en sim.bat (abre el G1); deja la ventana abierta
-cd proyecto && py -3 ejemplo.py  # tu programa
+sim --robot g1                   # o doble click en sim.bat (abre el G1); deja la ventana abierta
+jugar_truco.bat                  # abre la interfaz web de Truco + Voz en http://127.0.0.1:8080
+```
+
+O para correr el ejemplo minimo por consola:
+
+```bash
+cd proyecto && py -3 ejemplo.py
 ```
 
 `sim.bat` (Windows) y `./sim.sh` (Linux/macOS) pasan cualquier flag al

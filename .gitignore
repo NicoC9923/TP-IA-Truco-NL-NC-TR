@@ -23,3 +23,6 @@ Thumbs.db
 
 # Enlace local de Claude a las skills versionadas en .agents.
 .claude/
+
+# Dataset crudo de 79.000 repartos (>100 MB); se versiona truco_stats.json
+T1K22.json

@@ -244,6 +244,11 @@ class ClienteLocal:
         return self._codigo(self._pedir({"orden": "gesto",
                                          "nombre": "dar_la_mano"}))
 
+    def Gesto(self, nombre: str, duracion: float = 2.0) -> int:
+        return self._codigo(self._pedir({"orden": "gesto",
+                                         "nombre": nombre,
+                                         "duracion": duracion}))
+
     def Estado(self) -> dict:
         return self._pedir({"orden": "estado"}).get("estado", {})
 

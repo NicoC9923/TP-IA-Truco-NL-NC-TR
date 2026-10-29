@@ -357,6 +357,32 @@ class Robot:
         time.sleep(2.0)
         return self.verificar_estado()
 
+    def hacer_gesto(self, nombre: str, duracion: float = 2.0,
+                    esperar: bool = True) -> EstadoRobot:
+        """Ejecuta un gesto expresivo ('festejando', 'desafiando', 'mazo', 'saludando', 'dar_la_mano')."""
+        self._exigir_conexion()
+        metodo = getattr(self._cliente, "Gesto", None)
+        if metodo is not None:
+            metodo(nombre, duracion=duracion)
+            if esperar:
+                time.sleep(duracion)
+            return self.verificar_estado()
+        if nombre in ("saludando", "saludo", "festejando"):
+            return self.saludar()
+        return self.verificar_estado()
+
+    def festejar(self, esperar: bool = True) -> EstadoRobot:
+        """Levanta ambos brazos en señal de festejo."""
+        return self.hacer_gesto("festejando", duracion=2.2, esperar=esperar)
+
+    def desafiar(self, esperar: bool = True) -> EstadoRobot:
+        """Pose desafiante al cantar Truco o Falta Envido."""
+        return self.hacer_gesto("desafiando", duracion=1.8, esperar=esperar)
+
+    def gesto_mazo(self, esperar: bool = True) -> EstadoRobot:
+        """Cruza brazos y gira el torso al irse al mazo o rechazar."""
+        return self.hacer_gesto("mazo", duracion=1.8, esperar=esperar)
+
     def _exigir_conexion(self) -> None:
         if self._cliente is None:
             raise NoHaySimulador(

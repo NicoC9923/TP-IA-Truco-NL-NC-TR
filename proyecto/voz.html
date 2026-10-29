@@ -1,0 +1,1175 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Ottoman (Unitree G1) — Truco Argentino & Voz</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card-bg: #ffffff;
+    --primary: #0b66c3;
+    --felt: #1e6b38;
+    --felt-border: #144926;
+    --accent: #d97706;
+    --danger: #dc2626;
+    --success: #16a34a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 1160px;
+    margin: 1rem auto;
+    padding: 0 1rem 2rem;
+    background: var(--bg);
+    color: #1e293b;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+  }
+  header h1 {
+    font-size: 1.35rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.88rem;
+  }
+  .badge-sim {
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-weight: 600;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+  }
+  .badge-sim.conectado {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #22c55e;
+  }
+  .tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.2rem;
+    border-bottom: 2px solid #cbd5e1;
+  }
+  .tab-btn {
+    padding: 0.65rem 1.25rem;
+    cursor: pointer;
+    border: none;
+    background: none;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #64748b;
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab-btn.activo {
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  .seccion { display: none; }
+  .seccion.activa { display: block; }
+
+  .truco-grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 1.2rem;
+  }
+  @media (max-width: 880px) {
+    .truco-grid { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--card-bg);
+    padding: 1rem 1.1rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  }
+
+  /* Webcam con guía */
+  .video-wrapper {
+    position: relative;
+    width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #0f172a;
+    aspect-ratio: 4 / 3;
+  }
+  #video-stream {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+    display: block;
+  }
+  .guia-carta {
+    position: absolute;
+    inset: 14% 24%;
+    border: 2px dashed rgba(255, 255, 255, 0.7);
+    border-radius: 10px;
+    pointer-events: none;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 6px;
+    color: rgba(255,255,255,0.85);
+    font-size: 0.75rem;
+    text-shadow: 0 1px 2px #000;
+  }
+  .btn-cam {
+    width: 100%;
+    margin-top: 0.6rem;
+    padding: 0.75rem;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .btn-cam:hover { background: #09529c; }
+  .btn-cam-sec {
+    width: 100%;
+    margin-top: 0.45rem;
+    padding: 0.5rem;
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .btn-cam-sec:hover { background: #e2e8f0; }
+
+  .btn-voz-truco {
+    width: 100%;
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 2px solid #334155;
+    background: #f8fafc;
+    font-weight: 700;
+    font-size: 0.92rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .btn-voz-truco.escuchando {
+    background: #fee2e2;
+    border-color: var(--danger);
+    color: #991b1b;
+  }
+
+  /* Tanteador y cabecera de mesa */
+  .tanteador-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding: 0.65rem 0.9rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    margin-bottom: 0.8rem;
+  }
+  .marcador-numeros {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #1e3a8a;
+  }
+  .info-turno {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    font-size: 0.84rem;
+  }
+  .chip {
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    background: #e2e8f0;
+    font-weight: 600;
+  }
+
+  /* Burbuja de diálogo de Ottoman */
+  .burbuja-robot {
+    background: #fefce8;
+    border: 1px solid #fde047;
+    border-left: 5px solid #eab308;
+    padding: 0.65rem 0.9rem;
+    border-radius: 8px;
+    margin-bottom: 0.8rem;
+    font-size: 0.98rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+
+  /* Banner de canto pendiente */
+  .alerta-canto {
+    display: none;
+    background: #fff7ed;
+    border: 2px solid #f97316;
+    border-radius: 10px;
+    padding: 0.8rem;
+    margin-bottom: 0.8rem;
+  }
+  .alerta-canto.visible { display: block; }
+  .alerta-titulo {
+    font-weight: 800;
+    color: #9a3412;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+
+  /* Paño verde de la mesa */
+  .mesa-paño {
+    background: radial-gradient(circle, #257d43 0%, var(--felt) 100%);
+    border: 4px solid var(--felt-border);
+    border-radius: 12px;
+    padding: 0.85rem;
+    color: #fff;
+    min-height: 195px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.7rem;
+  }
+  .baza-col {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .baza-titulo {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.95;
+    font-weight: 700;
+  }
+  .baza-cartas-wrap {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 0.15rem;
+  }
+  .naipe-mesa-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+  }
+  .naipe-mesa-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.45);
+    color: #fff;
+  }
+  .naipe-mesa-tag.humano { background: #1d4ed8; }
+  .naipe-mesa-tag.robot { background: #b91c1c; }
+  .naipe-mesa-svg {
+    width: 86px;
+    height: 131px;
+    border-radius: 7px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.45);
+    overflow: hidden;
+    background: #fff;
+  }
+  .naipe-mesa-svg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Cartas en tu mano (Baraja Española Original) */
+  .mano-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0.95rem 0 0.55rem;
+    font-size: 0.92rem;
+  }
+  .mis-cartas-row {
+    display: flex;
+    gap: 1.2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 0.4rem 0;
+  }
+  .btn-naipe-mano {
+    position: relative;
+    width: 148px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.16s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .btn-naipe-mano .carta-marco {
+    width: 148px;
+    height: 226px;
+    border-radius: 10px;
+    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.26);
+    overflow: hidden;
+    background: #fff;
+    transition: box-shadow 0.16s, transform 0.16s;
+  }
+  .btn-naipe-mano .carta-marco img {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    display: block;
+  }
+  .btn-naipe-mano:hover:not(:disabled) {
+    transform: translateY(-10px) scale(1.04);
+  }
+  .btn-naipe-mano:hover:not(:disabled) .carta-marco {
+    box-shadow: 0 14px 24px rgba(11, 102, 195, 0.38);
+    outline: 3px solid var(--primary);
+  }
+  .btn-naipe-mano:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    filter: grayscale(18%);
+  }
+
+  /* Botonera de cantos */
+  .botones-grupo {
+    display: flex;
+    gap: 0.45rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .btn-canto {
+    padding: 0.55rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    font-weight: 700;
+    font-size: 0.86rem;
+    cursor: pointer;
+  }
+  .btn-canto:hover:not(:disabled) { background: #e2e8f0; }
+  .btn-canto:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-canto.truco { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+  .btn-canto.envido { background: #e0f2fe; border-color: #38bdf8; color: #075985; }
+  .btn-canto.quiero { background: #dcfce7; border-color: #22c55e; color: #166534; }
+  .btn-canto.no-quiero { background: #fee2e2; border-color: #f87171; color: #991b1b; }
+  .btn-canto.nueva { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+  /* Sección control libre por voz */
+  #hablar {
+    width: 100%;
+    padding: 1.4rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    border-radius: 12px;
+    border: 2px solid #334155;
+    background: #f8fafc;
+    cursor: pointer;
+    user-select: none;
+  }
+  #hablar.escuchando { background: #fee2e2; border-color: var(--danger); color: #991b1b; }
+  .fila { padding: 0.4rem 0; border-bottom: 1px dashed #cbd5e1; font-size: 0.9rem; }
+  .bloqueado { color: var(--danger); font-weight: 700; }
+  .desconocido { color: var(--accent); }
+  .ejecutado { color: var(--success); font-weight: 600; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>🤖 Ottoman (Unitree G1) — Truco Argentino & Control por Voz</h1>
+    <div class="header-controls">
+      <label style="cursor:pointer; display:flex; align-items:center; gap:0.3rem;">
+        <input type="checkbox" id="chk-tts" checked> 🔊 Voz de Ottoman (TTS)
+      </label>
+      <span id="badge-robot" class="badge-sim">⏳ Verificando simulador...</span>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn activo" onclick="cambiarTab('truco')">🃏 Jugar al Truco (Webcam + 474k Manos)</button>
+    <button class="tab-btn" onclick="cambiarTab('voz')">🎤 Control Libre por Voz (Caminar / Gestos)</button>
+  </div>
+
+  <!-- ==================== SECCION 1: TRUCO ==================== -->
+  <div id="seccion-truco" class="seccion activa">
+    <div class="truco-grid">
+      <!-- Columna Izquierda: Webcam + Micrófono de Mesa -->
+      <div class="panel">
+        <h3 style="margin:0 0 0.5rem 0; font-size:1rem;">📷 Webcam (Mostrá tu carta física)</h3>
+        <div class="video-wrapper">
+          <video id="video-stream" autoplay playsinline muted></video>
+          <div class="guia-carta">Encuadrá tu carta acá</div>
+        </div>
+        <button id="btn-capturar" class="btn-cam">📸 Mostrar a Cámara y Jugar Carta</button>
+        <button id="btn-escanear-libre" class="btn-cam-sec">🔍 Solo Detectar Carta (Modo Prueba)</button>
+        <div id="deteccion-info" style="margin-top:0.55rem; font-size:0.86rem; color:#334155;">
+          Estado cámara: <i>lista para escanear...</i>
+        </div>
+
+        <hr style="border:none; border-top:1px solid #e2e8f0; margin:0.85rem 0;">
+
+        <h3 style="margin:0 0 0.35rem 0; font-size:0.95rem;">🎙️ Cantar o Jugar por Micrófono</h3>
+        <div style="font-size:0.78rem; color:#64748b; margin-bottom:0.35rem;">
+          Decí: <i>"¡Envido!", "¡Real envido!", "¡Truco!", "¡Quiero!", "¡No quiero!", "¡Al mazo!"</i> o el nombre de tu carta.
+        </div>
+        <button id="btn-voz-mesa" class="btn-voz-truco">🎤 Mantené presionado para hablar en la mesa</button>
+        <form id="form-voz-mesa" style="display:flex; gap:0.4rem; margin-top:0.45rem;">
+          <input id="input-voz-mesa" type="text" placeholder="O escribí tu canto acá (ej: envido, quiero, truco)..." style="flex:1; padding:0.45rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
+          <button type="submit" class="btn-canto">Enviar</button>
+        </form>
+      </div>
+
+      <!-- Columna Derecha: Mesa, Tanteador, Cartas y Cantos -->
+      <div class="panel">
+        <div class="tanteador-bar">
+          <div class="marcador-numeros" id="tanteador">👤 Vos 0 — 0 Ottoman 🤖</div>
+          <div class="info-turno">
+            <span class="chip" id="chip-mano">Mano: Vos</span>
+            <span class="chip" id="chip-apuesta">En juego: 1 pt</span>
+            <select id="sel-meta" onchange="cambiarMetaPuntos()" style="padding:0.2rem 0.4rem; border-radius:6px; border:1px solid #94a3b8; font-size:0.82rem;">
+              <option value="15">A 15 pts</option>
+              <option value="30">A 30 pts</option>
+            </select>
+            <button class="btn-canto" onclick="reiniciarPartido()" style="padding:0.22rem 0.55rem; font-size:0.78rem;">🔄 Reiniciar</button>
+          </div>
+        </div>
+
+        <!-- Diálogo de Ottoman -->
+        <div class="burbuja-robot">
+          <div><b>🤖 Ottoman dice:</b> <span id="frase-robot">¡Listo para jugar!</span></div>
+          <button class="btn-canto" onclick="repetirVozRobot()" title="Escuchar de nuevo" style="padding:0.25rem 0.5rem; font-size:0.78rem;">🔊</button>
+        </div>
+
+        <!-- Banner cuando Ottoman canta algo y espera respuesta -->
+        <div id="alerta-canto" class="alerta-canto">
+          <div class="alerta-titulo" id="alerta-titulo">🔥 ¡Ottoman te cantó!</div>
+          <div id="alerta-botones" class="botones-grupo" style="margin-top:0.3rem;"></div>
+        </div>
+
+        <!-- Paño de la mesa dividida en las 3 bazas -->
+        <div class="mesa-paño" id="mesa-cartas">
+          <div class="baza-col"><div class="baza-titulo">1ra Baza</div><i>—</i></div>
+          <div class="baza-col"><div class="baza-titulo">2da Baza</div><i>—</i></div>
+          <div class="baza-col"><div class="baza-titulo">3ra Baza</div><i>—</i></div>
+        </div>
+
+        <!-- Tus cartas disponibles -->
+        <div class="mano-header">
+          <b>🃏 Tus cartas (Baraja Española — tocá una carta o mostrala a cámara):</b>
+          <span class="chip" id="chip-envido-humano">Tus tantos de Envido: --</span>
+        </div>
+        <div id="mis-cartas" class="mis-cartas-row"></div>
+
+        <!-- Botones de acción en la partida -->
+        <div class="botones-grupo">
+          <button id="btn-envido" class="btn-canto envido" onclick="cantarEnvido('ENVIDO')">Envido</button>
+          <button id="btn-real-envido" class="btn-canto envido" onclick="cantarEnvido('REAL_ENVIDO')">Real Envido</button>
+          <button id="btn-falta-envido" class="btn-canto envido" onclick="cantarEnvido('FALTA_ENVIDO')">Falta Envido</button>
+          <button id="btn-truco" class="btn-canto truco" onclick="cantarTruco()">¡Truco!</button>
+          <button id="btn-mazo" class="btn-canto no-quiero" onclick="irseAlMazo()">🏳️ Irse al Mazo</button>
+          <button id="btn-nueva-mano" class="btn-canto nueva" onclick="nuevaMano()">🃏 Nueva Mano</button>
+        </div>
+
+        <!-- Historial de la partida -->
+        <div style="margin-top:0.9rem; border-top:1px solid #e2e8f0; padding-top:0.6rem;">
+          <b style="font-size:0.85rem; color:#475569;">📋 Historial de la partida:</b>
+          <div id="truco-log" style="max-height:115px; overflow-y:auto; font-size:0.83rem; margin-top:0.35rem; color:#334155;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SECCION 2: CONTROL LIBRE POR VOZ ==================== -->
+  <div id="seccion-voz" class="seccion">
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.8rem; margin-bottom:1rem;">
+        <div id="idioma">
+          <label style="margin-right:1rem; cursor:pointer;"><input type="radio" name="idioma" value="es-AR" checked> 🇦🇷 Español</label>
+          <label style="cursor:pointer;"><input type="radio" name="idioma" value="en-US"> 🇺🇸 English</label>
+        </div>
+        <div class="botones-grupo" style="margin-top:0;">
+          <button class="btn-canto" onclick="enviarComandoLibre('saludá')">👋 Saludar</button>
+          <button class="btn-canto" onclick="enviarComandoLibre('festejá')">🙌 Festejar</button>
+          <button class="btn-canto" onclick="enviarComandoLibre('dame la mano')">🤝 Dar la mano</button>
+          <button class="btn-canto no-quiero" onclick="enviarComandoLibre('detente')">🛑 Detenerse</button>
+        </div>
+      </div>
+
+      <button id="hablar">🎤 Mantené presionado para darle órdenes a Ottoman</button>
+      <div id="estado" style="margin-top:0.6rem; color:#475569; min-height:1.2em;"></div>
+
+      <form id="form-texto" style="display:flex; gap:0.5rem; margin-top:0.8rem;">
+        <input id="texto-manual" type="text" placeholder='Ej: "avanzá 2 metros", "girá 90 grados a la derecha", "festejá"' style="flex:1; padding:0.55rem; border:1px solid #cbd5e1; border-radius:8px;">
+        <button type="submit" class="btn-canto nueva">Enviar Orden</button>
+      </form>
+
+      <div id="log" style="margin-top:1rem;"></div>
+    </div>
+  </div>
+
+<script>
+  const ICONOS_PALO = { Espada: '⚔️', Basto: '🌿', Oro: '🪙', Copa: '🏆' };
+  let ultimaFraseHablada = '';
+  let estadoActual = null;
+
+  // ==================== GENERADOR GRAFICO DE BARAJA ESPAÑOLA ====================
+  function dibujarSimboloPalo(palo, esAs = false) {
+    if (palo === 'Oro') {
+      return `
+        <g>
+          ${esAs ? `<circle cx="0" cy="0" r="24" fill="none" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3 2"/>` : ''}
+          <circle cx="0" cy="0" r="16" fill="#fbbf24" stroke="#b45309" stroke-width="2"/>
+          <circle cx="0" cy="0" r="12.5" fill="#f59e0b" stroke="#dc2626" stroke-width="1.2"/>
+          <!-- Rayos del sol -->
+          <path d="M0,-11 L2,-5 L8,-8 L4,-2 L11,0 L4,2 L8,8 L2,5 L0,11 L-2,5 L-8,8 L-4,2 L-11,0 L-4,-2 L-8,-8 L-2,-5 Z" fill="#fef08a" stroke="#b45309" stroke-width="0.6"/>
+          <circle cx="0" cy="0" r="5.2" fill="#fde047" stroke="#b45309" stroke-width="0.9"/>
+          <circle cx="-1.8" cy="-1.2" r="0.8" fill="#78350f"/>
+          <circle cx="1.8" cy="-1.2" r="0.8" fill="#78350f"/>
+          <path d="M-2,1.8 Q0,3.2 2,1.8" fill="none" stroke="#78350f" stroke-width="0.8"/>
+        </g>`;
+    }
+    if (palo === 'Copa') {
+      return `
+        <g>
+          <!-- Pie y base del cáliz -->
+          <path d="M-9,16 L9,16 L6,12 L-6,12 Z" fill="#f59e0b" stroke="#78350f" stroke-width="1.2"/>
+          <rect x="-2.5" y="4" width="5" height="8" rx="1.5" fill="#fbbf24" stroke="#78350f" stroke-width="1.2"/>
+          <ellipse cx="0" cy="8" rx="4.5" ry="2" fill="#dc2626" stroke="#78350f" stroke-width="1"/>
+          <!-- Asas laterales -->
+          <path d="M-11,-6 C-17,-6 -17,3 -9,3" fill="none" stroke="#f59e0b" stroke-width="2.2"/>
+          <path d="M11,-6 C17,-6 17,3 9,3" fill="none" stroke="#f59e0b" stroke-width="2.2"/>
+          <!-- Vaso principal -->
+          <path d="M-12,-9 C-12,3 -6,6 0,6 C6,6 12,3 12,-9 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.4"/>
+          <path d="M-13,-9 L13,-9" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+          <!-- Tapa / corona de la copa -->
+          <path d="M-10,-10 Q0,-18 10,-10 Z" fill="#fbbf24" stroke="#78350f" stroke-width="1.1"/>
+          <circle cx="0" cy="-16" r="2.2" fill="#dc2626" stroke="#78350f" stroke-width="0.9"/>
+        </g>`;
+    }
+    if (palo === 'Espada') {
+      return `
+        <g>
+          ${esAs ? `
+            <!-- Corona y cinta real del Ancho de Espada -->
+            <ellipse cx="0" cy="2" rx="19" ry="12" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-dasharray="4 2"/>
+            <path d="M-16,8 Q0,15 16,8" fill="none" stroke="#dc2626" stroke-width="2.5"/>
+          ` : ''}
+          <!-- Hoja de acero -->
+          <polygon points="0,-21 -3.8,6 0,9 3.8,6" fill="#e2e8f0" stroke="#1e293b" stroke-width="1.3"/>
+          <polygon points="0,-21 0,8 3.6,6" fill="#94a3b8"/>
+          <line x1="0" y1="-16" x2="0" y2="5" stroke="#475569" stroke-width="0.9"/>
+          <!-- Guardamano dorado -->
+          <path d="M-11,6 Q0,9 11,6 Q13,4 10,3 Q0,6 -10,3 Q-13,4 -11,6 Z" fill="#fbbf24" stroke="#78350f" stroke-width="1.1"/>
+          <!-- Empuñadura y pomo -->
+          <rect x="-2.2" y="7" width="4.4" height="8" rx="1.2" fill="#dc2626" stroke="#78350f" stroke-width="1"/>
+          <circle cx="0" cy="17" r="3.2" fill="#fbbf24" stroke="#78350f" stroke-width="1.1"/>
+        </g>`;
+    }
+    // Basto
+    return `
+      <g>
+        <!-- Tronco de madera nudosa (ensancha arriba) -->
+        <path d="M-3.5,17 L-6.5,-11 C-7,-17 7,-17 6.5,-11 L3.5,17 C2,19 -2,19 -3.5,17 Z" fill="#854d0e" stroke="#422006" stroke-width="1.4"/>
+        <path d="M-2,-13 C-1,-4 -1,6 -1.5,15" stroke="#a16207" stroke-width="1.6" fill="none"/>
+        <!-- Franjas decorativas en el mango -->
+        <path d="M-4,11 L4,11 M-4.4,7 L4.4,7" stroke="#fbbf24" stroke-width="1.8"/>
+        <!-- Hojas verdes brotando -->
+        <path d="M-5.5,-3 C-13,-7 -14,-1 -6,1 Z" fill="#16a34a" stroke="#14532d" stroke-width="1"/>
+        <path d="M5.5,-6 C13,-10 14,-4 6,-2 Z" fill="#22c55e" stroke="#14532d" stroke-width="1"/>
+        <path d="M-4,3 C-11,1 -11,6 -4.5,6 Z" fill="#22c55e" stroke="#14532d" stroke-width="1"/>
+      </g>`;
+  }
+
+  function dibujarFiguraCorte(valor, palo) {
+    const titulo = valor === 12 ? 'REY' : (valor === 11 ? 'CABALLO' : 'SOTA');
+    const colorTunica = palo === 'Espada' ? '#2563eb' : (palo === 'Basto' ? '#15803d' : (palo === 'Copa' ? '#dc2626' : '#d97706'));
+    const colorCapa = palo === 'Espada' ? '#dc2626' : (palo === 'Basto' ? '#b45309' : (palo === 'Copa' ? '#1d4ed8' : '#b91c1c'));
+
+    return `
+      <g transform="translate(70, 112)">
+        <!-- Fondo aureola suave -->
+        <ellipse cx="0" cy="-4" rx="42" ry="62" fill="#fef9c3" opacity="0.55"/>
+
+        ${valor === 11 ? `
+          <!-- Silueta de Caballo rampante para el 11 -->
+          <path d="M-30,45 L-18,15 L-26,0 L-14,-12 L-4,-5 L16,12 L28,45 Z" fill="#9a3412" stroke="#431407" stroke-width="1.6"/>
+          <path d="M-26,0 L-34,6 L-28,12 L-20,6" fill="#9a3412" stroke="#431407" stroke-width="1.4"/>
+        ` : ''}
+
+        <!-- Capa y túnica medieval -->
+        <path d="M-28,50 C-26,8 -18,-10 0,-10 C18,-10 26,8 28,50 Z" fill="${colorCapa}" stroke="#1e293b" stroke-width="1.6"/>
+        <path d="M-18,50 L-12,-8 L12,-8 L18,50 Z" fill="${colorTunica}" stroke="#1e293b" stroke-width="1.4"/>
+        <!-- Cinturón dorado -->
+        <rect x="-15" y="18" width="30" height="5" fill="#fbbf24" stroke="#78350f" stroke-width="1"/>
+
+        <!-- Rostro y cuello -->
+        <rect x="-5" y="-17" width="10" height="8" fill="#fed7aa"/>
+        <circle cx="0" cy="-26" r="12.5" fill="#ffedd5" stroke="#431407" stroke-width="1.4"/>
+        <circle cx="-4" cy="-27" r="1.4" fill="#1e293b"/>
+        <circle cx="4" cy="-27" r="1.4" fill="#1e293b"/>
+
+        ${valor === 12 ? `
+          <!-- Barba blanca/dorada de Rey y Corona Real -->
+          <path d="M-10,-21 Q0,-10 10,-21" fill="#fde68a" stroke="#78350f" stroke-width="1.2"/>
+          <path d="M-13,-35 L-9,-47 L-3,-39 L0,-48 L3,-39 L9,-47 L13,-35 Z" fill="#fbbf24" stroke="#78350f" stroke-width="1.3"/>
+        ` : `
+          <!-- Sombrero/birrete medieval para Sota y Caballo -->
+          <path d="M-14,-35 Q0,-46 14,-35 Z" fill="${colorCapa}" stroke="#1e293b" stroke-width="1.3"/>
+          <path d="M-16,-35 L16,-35" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
+        `}
+
+        <!-- Emblema del palo sostenido en mano derecha -->
+        <g transform="translate(27, -20) scale(1.15)">
+          ${dibujarSimboloPalo(palo, false)}
+        </g>
+
+        <!-- Cinta inferior con el rango -->
+        <rect x="-32" y="42" width="64" height="15" rx="4" fill="#fffbeb" stroke="#78350f" stroke-width="1.2"/>
+        <text x="0" y="52.5" text-anchor="middle" font-size="9.5" font-weight="800" fill="#1e293b" font-family="Georgia, serif">${titulo}</text>
+      </g>`;
+  }
+
+  function generarPintasMarco(palo) {
+    // Las pintas tradicionales españolas en el borde superior e inferior del recuadro:
+    // Oro: continuo (0 cortes), Copa: 1 corte, Espada: 2 cortes, Basto: 3 cortes
+    const cortes = palo === 'Oro' ? 0 : (palo === 'Copa' ? 1 : (palo === 'Espada' ? 2 : 3));
+    if (cortes === 0) return '';
+    let rects = '';
+    const posiciones = {
+      1: [66],
+      2: [52, 80],
+      3: [44, 66, 88]
+    }[cortes] || [];
+    posiciones.forEach(x => {
+      rects += `<rect x="${x}" y="9" width="8" height="6" fill="#fffdf6"/>`;
+      rects += `<rect x="${x}" y="195" width="8" height="6" fill="#fffdf6"/>`;
+    });
+    return rects;
+  }
+
+  function generarCartaEspanolaSVG(valor, palo) {
+    // Coordenadas (x, y, escala, rotacion) de los palos según el número (1 al 7)
+    const layouts = {
+      1: [[70, 105, 2.05, 0]],
+      2: [[70, 60, 1.25, 0], [70, 150, 1.25, 180]],
+      3: [[70, 50, 1.12, 0], [70, 105, 1.12, 0], [70, 160, 1.12, 180]],
+      4: [[44, 60, 1.08, 0], [96, 60, 1.08, 0], [44, 150, 1.08, 180], [96, 150, 1.08, 180]],
+      5: [[44, 54, 1.02, 0], [96, 54, 1.02, 0], [70, 105, 1.02, 0], [44, 156, 1.02, 180], [96, 156, 1.02, 180]],
+      6: [[44, 50, 0.98, 0], [96, 50, 0.98, 0], [44, 105, 0.98, 0], [96, 105, 0.98, 0], [44, 160, 0.98, 180], [96, 160, 0.98, 180]],
+      7: [[44, 48, 0.94, 0], [96, 48, 0.94, 0], [70, 78, 0.94, 0], [44, 110, 0.94, 0], [96, 110, 0.94, 0], [44, 162, 0.94, 180], [96, 162, 0.94, 180]]
+    };
+
+    let contenidoCentral = '';
+    if (valor >= 10) {
+      contenidoCentral = dibujarFiguraCorte(valor, palo);
+    } else {
+      const coords = layouts[valor] || layouts[1];
+      contenidoCentral = coords.map(([cx, cy, sc, rot]) =>
+        `<g transform="translate(${cx}, ${cy}) rotate(${rot}) scale(${sc})">
+          ${dibujarSimboloPalo(palo, valor === 1)}
+        </g>`
+      ).join('');
+    }
+
+    const colorIndice = palo === 'Copa' ? '#b91c1c' : (palo === 'Oro' ? '#b45309' : (palo === 'Espada' ? '#1e3a8a' : '#14532d'));
+
+    return `
+      <svg viewBox="0 0 140 210" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        <!-- Naipe base marfil -->
+        <rect x="1.5" y="1.5" width="137" height="207" rx="10" fill="#fffdf6" stroke="#334155" stroke-width="2"/>
+        <!-- Recuadro interior tradicional con pintas -->
+        <rect x="11" y="11" width="118" height="188" rx="4" fill="none" stroke="#1e293b" stroke-width="1.8"/>
+        ${generarPintasMarco(palo)}
+
+        <!-- Números en las esquinas -->
+        <text x="17" y="29" font-size="16" font-weight="800" font-family="Georgia, serif" fill="${colorIndice}">${valor}</text>
+        <g transform="translate(123, 181) rotate(180)">
+          <text x="0" y="0" font-size="16" font-weight="800" font-family="Georgia, serif" fill="${colorIndice}">${valor}</text>
+        </g>
+
+        <!-- Arte central de la Baraja Española -->
+        ${contenidoCentral}
+      </svg>`;
+  }
+
+  function cambiarTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
+    document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
+    if (tab === 'truco') {
+      document.querySelectorAll('.tab-btn')[0].classList.add('activo');
+      document.getElementById('seccion-truco').classList.add('activa');
+    } else {
+      document.querySelectorAll('.tab-btn')[1].classList.add('activo');
+      document.getElementById('seccion-voz').classList.add('activa');
+    }
+  }
+
+  // ==================== SINTESIS DE VOZ (TTS) ====================
+  function hablarRobot(texto, forzar = false) {
+    if (!texto) return;
+    if (!forzar && texto === ultimaFraseHablada) return;
+    ultimaFraseHablada = texto;
+    if (!document.getElementById('chk-tts').checked) return;
+    if (!('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(texto);
+      u.lang = 'es-AR';
+      u.rate = 1.05;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  function repetirVozRobot() {
+    if (estadoActual?.ultima_frase_robot) {
+      hablarRobot(estadoActual.ultima_frase_robot, true);
+    }
+  }
+
+  // ==================== WEBCAM ====================
+  const video = document.getElementById('video-stream');
+  const detInfo = document.getElementById('deteccion-info');
+
+  navigator.mediaDevices?.getUserMedia({ video: { width: 640, height: 480 } })
+    .then(stream => { video.srcObject = stream; })
+    .catch(err => {
+      detInfo.innerHTML = `<span style="color:#dc2626;">Sin acceso a cámara (${err.message || err}). Podés jugar tocando tus cartas o por voz.</span>`;
+    });
+
+  function capturarFrameBase64() {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    return canvas.toDataURL('image/jpeg', 0.85);
+  }
+
+  document.getElementById('btn-capturar').addEventListener('click', async () => {
+    const b64 = capturarFrameBase64();
+    detInfo.textContent = 'Analizando carta en cámara...';
+    try {
+      const resp = await fetch('/truco/detectar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagen: b64, usar_mano: true })
+      });
+      const data = await resp.json();
+      if (data.valor > 0) {
+        const icono = ICONOS_PALO[data.palo] || '🃏';
+        detInfo.innerHTML = `Detectada: <b>${icono} ${data.nombre || (data.valor + ' de ' + data.palo)}</b> (${(data.confianza * 100).toFixed(0)}% conf.)`;
+        await tirarCartaDirecta({ valor: data.valor, palo: data.palo });
+      } else {
+        detInfo.textContent = 'No se pudo distinguir una carta en el cuadro.';
+      }
+    } catch (e) {
+      detInfo.textContent = 'Error al procesar imagen: ' + e;
+    }
+  });
+
+  document.getElementById('btn-escanear-libre').addEventListener('click', async () => {
+    const b64 = capturarFrameBase64();
+    detInfo.textContent = 'Escaneando carta libre...';
+    try {
+      const resp = await fetch('/truco/detectar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imagen: b64, usar_mano: false })
+      });
+      const data = await resp.json();
+      const libre = data.deteccion_libre || data;
+      const icono = ICONOS_PALO[libre.palo] || '🃏';
+      detInfo.innerHTML = `Modo libre: <b>${icono} ${libre.valor} de ${libre.palo}</b> (${(libre.confianza * 100).toFixed(0)}% conf.)`;
+    } catch (e) {
+      detInfo.textContent = 'Error al escanear: ' + e;
+    }
+  });
+
+  // ==================== RENDERIZADO DE ESTADO DE TRUCO ====================
+  function renderizarEstado(data) {
+    if (!data) return;
+    estadoActual = data;
+
+    // Badge simulador
+    const badge = document.getElementById('badge-robot');
+    if (data.robot_conectado) {
+      badge.textContent = '🟢 Robot G1 Conectado';
+      badge.classList.add('conectado');
+    } else {
+      badge.textContent = '🟡 Sin Simulador (abrí sim.bat)';
+      badge.classList.remove('conectado');
+    }
+
+    // Tanteador y chips
+    document.getElementById('tanteador').textContent =
+      `👤 Vos ${data.tanteador.humano} — ${data.tanteador.robot} Ottoman 🤖`;
+    document.getElementById('sel-meta').value = String(data.tanteador.meta || 15);
+    document.getElementById('chip-mano').textContent =
+      `Mano: ${data.es_mano === 'humano' ? '👤 Vos' : '🤖 Ottoman'}`;
+    document.getElementById('chip-apuesta').textContent =
+      `Truco: ${data.apuesta_truco === 'NADA' ? '1 pt' : data.apuesta_truco + ' (' + data.puntos_truco_actuales + ' pts)'}`;
+    document.getElementById('chip-envido-humano').textContent =
+      `Tus tantos de Envido: ${data.tantos_humano}`;
+
+    // Frase y voz de Ottoman
+    if (data.ultima_frase_robot) {
+      document.getElementById('frase-robot').textContent = data.ultima_frase_robot;
+      hablarRobot(data.ultima_frase_robot);
+    }
+
+    // Alerta de canto pendiente de respuesta del humano
+    const divAlerta = document.getElementById('alerta-canto');
+    const divAlertaBtns = document.getElementById('alerta-botones');
+    if (data.canto_pendiente) {
+      divAlerta.classList.add('visible');
+      const cp = data.canto_pendiente;
+      document.getElementById('alerta-titulo').textContent =
+        `🔥 ¡Ottoman te cantó ${cp.canto.replace(/_/g, ' ')}! ¿Qué respondés?`;
+      divAlertaBtns.innerHTML = '';
+      const etiquetas = {
+        QUIERO: '✅ ¡Quiero!',
+        NO_QUIERO: '❌ No Quiero',
+        ENVIDO_ENVIDO: '💙 ¡Envido (4 pts)!',
+        ENVIDO: '💙 ¡El Envido está primero!',
+        REAL_ENVIDO: '💙 ¡Real Envido!',
+        FALTA_ENVIDO: '🔥 ¡Falta Envido!',
+        RETRUCO: '🔥 ¡Quiero Retruco!',
+        VALE_CUATRO: '🔥 ¡Quiero Vale Cuatro!'
+      };
+      cp.opciones.forEach(op => {
+        const b = document.createElement('button');
+        b.className = 'btn-canto ' + (op === 'QUIERO' ? 'quiero' : (op === 'NO_QUIERO' ? 'no-quiero' : 'truco'));
+        b.textContent = etiquetas[op] || op;
+        b.onclick = () => responderCanto(op);
+        divAlertaBtns.appendChild(b);
+      });
+    } else {
+      divAlerta.classList.remove('visible');
+    }
+
+    // Paño de las 3 bazas con cartas españolas ilustradas
+    const divMesa = document.getElementById('mesa-cartas');
+    divMesa.innerHTML = '';
+    for (let r = 1; r <= 3; r++) {
+      const col = document.createElement('div');
+      col.className = 'baza-col';
+      const ganR = data.ganadores_ronda?.[r - 1];
+      let ganTag = '';
+      if (ganR === 'humano') ganTag = ' (👤 Vos)';
+      else if (ganR === 'robot') ganTag = ' (🤖 Ottoman)';
+      else if (ganR === 'parda') ganTag = ' (🤝 Parda)';
+
+      const tit = document.createElement('div');
+      tit.className = 'baza-titulo';
+      tit.textContent = `${r}ra Baza${ganTag}`;
+      col.appendChild(tit);
+
+      const jugadasR = (data.mesa || []).filter(m => m.ronda === r);
+      if (jugadasR.length === 0) {
+        const vacio = document.createElement('div');
+        vacio.style.opacity = '0.55';
+        vacio.style.marginTop = '2.4rem';
+        vacio.textContent = r === data.ronda && !data.mano_terminada ? 'En juego...' : '—';
+        col.appendChild(vacio);
+      } else {
+        const wrap = document.createElement('div');
+        wrap.className = 'baza-cartas-wrap';
+        jugadasR.forEach(m => {
+          const item = document.createElement('div');
+          item.className = 'naipe-mesa-item';
+          item.title = `${m.carta.valor} de ${m.carta.palo}`;
+          item.innerHTML = `
+            <span class="naipe-mesa-tag ${m.quien}">${m.quien === 'robot' ? '🤖 Ottoman' : '👤 Vos'}</span>
+            <div class="naipe-mesa-svg">
+              <img src="/cartas/${m.carta.valor}_${m.carta.palo}.png?v=fournier" alt="${m.carta.valor} de ${m.carta.palo}">
+            </div>
+          `;
+          wrap.appendChild(item);
+        });
+        col.appendChild(wrap);
+      }
+      divMesa.appendChild(col);
+    }
+
+    // Cartas disponibles del humano (imágenes originales de la Baraja Española)
+    const divMisCartas = document.getElementById('mis-cartas');
+    divMisCartas.innerHTML = '';
+    const disp = data.cartas_humano_disponibles || [];
+    const puedeTirar = !data.mano_terminada && !data.canto_pendiente && data.turno_carta === 'humano';
+    disp.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = 'btn-naipe-mano';
+      btn.disabled = !puedeTirar;
+      btn.title = `${c.valor} de ${c.palo}`;
+      btn.innerHTML = `
+        <div class="carta-marco">
+          <img src="/cartas/${c.valor}_${c.palo}.png?v=fournier" alt="${c.valor} de ${c.palo}">
+        </div>
+      `;
+      btn.onclick = () => tirarCartaDirecta(c);
+      divMisCartas.appendChild(btn);
+    });
+
+    // Habilitar / deshabilitar botones de canto
+    const envDisp = Boolean(data.envido_disponible);
+    document.getElementById('btn-envido').disabled = !envDisp;
+    document.getElementById('btn-real-envido').disabled = !envDisp;
+    document.getElementById('btn-falta-envido').disabled = !envDisp;
+
+    const btnTruco = document.getElementById('btn-truco');
+    if (data.siguiente_truco_humano && !data.mano_terminada && !data.canto_pendiente) {
+      btnTruco.disabled = false;
+      const nombresTruco = { TRUCO: '¡Truco!', RETRUCO: '¡Quiero Retruco!', VALE_CUATRO: '¡Quiero Vale Cuatro!' };
+      btnTruco.textContent = nombresTruco[data.siguiente_truco_humano] || '¡Truco!';
+    } else {
+      btnTruco.disabled = true;
+    }
+
+    document.getElementById('btn-mazo').disabled = Boolean(data.mano_terminada);
+
+    // Log
+    const trucoLog = document.getElementById('truco-log');
+    if (Array.isArray(data.log)) {
+      trucoLog.innerHTML = data.log.map(l => `<div style="padding:2px 0;">${l}</div>`).join('');
+    }
+  }
+
+  async function actualizarEstadoTruco() {
+    try {
+      const res = await fetch('/truco/estado');
+      const data = await res.json();
+      renderizarEstado(data);
+    } catch (e) {}
+  }
+
+  async function tirarCartaDirecta(carta) {
+    const res = await fetch('/truco/jugar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ carta })
+    });
+    const d = await res.json();
+    if (d.estado) renderizarEstado(d.estado);
+    else actualizarEstadoTruco();
+  }
+
+  async function cantarEnvido(canto) {
+    const res = await fetch('/truco/envido', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ canto })
+    });
+    const d = await res.json();
+    if (d.estado) renderizarEstado(d.estado);
+    else actualizarEstadoTruco();
+  }
+
+  async function cantarTruco() {
+    const res = await fetch('/truco/truco', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
+    });
+    const d = await res.json();
+    if (d.estado) renderizarEstado(d.estado);
+    else actualizarEstadoTruco();
+  }
+
+  async function responderCanto(respuesta) {
+    const res = await fetch('/truco/responder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ respuesta })
+    });
+    const d = await res.json();
+    if (d.estado) renderizarEstado(d.estado);
+    else actualizarEstadoTruco();
+  }
+
+  async function irseAlMazo() {
+    const res = await fetch('/truco/mazo', { method: 'POST' });
+    const d = await res.json();
+    if (d.estado) renderizarEstado(d.estado);
+    else actualizarEstadoTruco();
+  }
+
+  async function nuevaMano() {
+    const res = await fetch('/truco/nuevo', { method: 'POST' });
+    const d = await res.json();
+    if (d.estado) renderizarEstado(d.estado);
+    else actualizarEstadoTruco();
+  }
+
+  async function reiniciarPartido() {
+    const meta = parseInt(document.getElementById('sel-meta').value, 10) || 15;
+    const res = await fetch('/truco/reiniciar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meta_puntos: meta })
+    });
+    const d = await res.json();
+    if (d.estado) renderizarEstado(d.estado);
+    else actualizarEstadoTruco();
+  }
+
+  function cambiarMetaPuntos() {
+    reiniciarPartido();
+  }
+
+  async function enviarVozMesa(texto) {
+    if (!texto) return;
+    detInfo.innerHTML = `🎤 Dijiste: <b>"${texto}"</b>`;
+    const res = await fetch('/truco/voz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto })
+    });
+    const d = await res.json();
+    if (d.error) {
+      detInfo.innerHTML = `<span style="color:#dc2626;">${d.error}</span>`;
+    }
+    if (d.estado) renderizarEstado(d.estado);
+    else actualizarEstadoTruco();
+  }
+
+  document.getElementById('form-voz-mesa').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const inp = document.getElementById('input-voz-mesa');
+    const txt = inp.value.trim();
+    if (!txt) return;
+    enviarVozMesa(txt);
+    inp.value = '';
+  });
+
+  // Reconocimiento de voz para la Mesa de Truco y para Control Libre
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recMesa = null;
+  if (SpeechRec) {
+    recMesa = new SpeechRec();
+    recMesa.continuous = false;
+    recMesa.interimResults = false;
+    recMesa.lang = 'es-AR';
+    recMesa.onresult = (e) => {
+      const texto = e.results[0][0].transcript;
+      enviarVozMesa(texto);
+    };
+  }
+
+  const btnVozMesa = document.getElementById('btn-voz-mesa');
+  function empezarVozMesa() {
+    if (!recMesa) { detInfo.textContent = 'Usá Chrome o Edge para reconocimiento de voz.'; return; }
+    btnVozMesa.classList.add('escuchando');
+    btnVozMesa.textContent = '🔴 Escuchando tu canto o jugada...';
+    try { recMesa.start(); } catch {}
+  }
+  function pararVozMesa() {
+    if (!btnVozMesa.classList.contains('escuchando')) return;
+    btnVozMesa.classList.remove('escuchando');
+    btnVozMesa.textContent = '🎤 Mantené presionado para hablar en la mesa';
+    try { recMesa.stop(); } catch {}
+  }
+  btnVozMesa.addEventListener('mousedown', empezarVozMesa);
+  btnVozMesa.addEventListener('mouseup', pararVozMesa);
+  btnVozMesa.addEventListener('mouseleave', pararVozMesa);
+
+  // ==================== CONTROL LIBRE POR VOZ ====================
+  const boton = document.getElementById('hablar');
+  const estado = document.getElementById('estado');
+  const log = document.getElementById('log');
+  function idiomaElegido() {
+    return document.querySelector('input[name="idioma"]:checked')?.value || 'es-AR';
+  }
+
+  let reconocimiento = null;
+  if (SpeechRec) {
+    reconocimiento = new SpeechRec();
+    reconocimiento.continuous = false;
+    reconocimiento.interimResults = false;
+    reconocimiento.onresult = (e) => {
+      const texto = e.results[0][0].transcript;
+      enviarComandoLibre(texto, idiomaElegido());
+    };
+    reconocimiento.onerror = (e) => { estado.textContent = `Error del micrófono: ${e.error}`; };
+  }
+
+  function empezar() {
+    if (!reconocimiento) { estado.textContent = 'Tu navegador no soporta reconocimiento de voz.'; return; }
+    reconocimiento.lang = idiomaElegido();
+    boton.classList.add('escuchando');
+    estado.textContent = 'Escuchando orden para Ottoman...';
+    try { reconocimiento.start(); } catch {}
+  }
+  function parar() {
+    if (!boton.classList.contains('escuchando')) return;
+    boton.classList.remove('escuchando');
+    try { reconocimiento.stop(); } catch {}
+  }
+  boton.addEventListener('mousedown', empezar);
+  boton.addEventListener('mouseup', parar);
+  boton.addEventListener('mouseleave', parar);
+
+  document.getElementById('form-texto').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const campo = document.getElementById('texto-manual');
+    const texto = campo.value.trim();
+    if (!texto) return;
+    enviarComandoLibre(texto, idiomaElegido());
+    campo.value = '';
+  });
+
+  async function enviarComandoLibre(texto, idioma = 'es-AR') {
+    estado.textContent = `Orden enviada: "${texto}"`;
+    try {
+      const resp = await fetch('/comando', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto, idioma }),
+      });
+      const r = await resp.json();
+      agregarLog(texto, r);
+    } catch (err) {
+      agregarLog(texto, { tipo: 'ERROR', mensaje: String(err) });
+    }
+  }
+
+  function agregarLog(texto, r) {
+    const fila = document.createElement('div');
+    fila.className = 'fila';
+    let clase = 'ejecutado';
+    if (r.bloqueado) clase = 'bloqueado';
+    else if (r.tipo === 'DESCONOCIDO') clase = 'desconocido';
+    fila.innerHTML = `<b>"${texto}"</b> → ${r.tipo || '?'} <span class="${clase}">${r.mensaje || ''}</span>`;
+    log.prepend(fila);
+  }
+
+  setInterval(actualizarEstadoTruco, 2000);
+  actualizarEstadoTruco();
+</script>
+</body>
+</html>
