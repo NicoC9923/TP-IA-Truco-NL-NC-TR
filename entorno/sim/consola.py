@@ -4,15 +4,7 @@ Por que existe
 --------------
 En una maquina virtual sin GPU, o por escritorio remoto, MuJoCo no puede crear
 la ventana: `WGL: The driver does not appear to support OpenGL`. El simulador
-cae a modo consola y sigue funcionando.
-
-Pero hasta ahora "modo consola" no mostraba **nada**: la ventana del simulador
-quedaba muda para siempre mientras el robot se movia. El alumno veia su propio
-programa imprimir "Avanzando..." y del otro lado, silencio. Para el TP01 --
-primer contacto, la materia mas visual de todas -- eso es una pantalla negra.
-
-Asi que se dibuja el recorrido en texto. No reemplaza a la ventana 3D, pero
-alcanza para lo que el TP evalua: el alumno **ve el cuadrado que programo**.
+cae a modo consola y sigue funcionando, dibujando el recorrido en texto.
 
     +----------------------------------+
     |                                  |
@@ -102,7 +94,7 @@ class VistaConsola:
         """La ventana del mundo que se muestra, siempre cuadrada.
 
         Si no fuera cuadrada, un cuadrado de 0.40 m de lado se veria como un
-        rectangulo y el alumno pensaria que su programa esta mal.
+        rectangulo.
         """
         xs = [p[0] for p in self.rastro] or [0.0]
         ys = [p[1] for p in self.rastro] or [0.0]

@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # ============================================================
-#   Inteligencia Artificial - TP07
-#   Levanta el simulador oficial de Unitree listo para el TP.
+#   Levanta el simulador de Unitree (G1 / Go2).
+#   Argumentos extra pasan a "python -m sim", ej: --vmax 1.0
 # ============================================================
 cd "$(dirname "$0")" || exit 1
 
 echo "============================================================"
-echo "   Inteligencia Artificial"
 echo "   Simulador de robots Unitree"
 echo "============================================================"
 echo
@@ -63,7 +62,7 @@ if [ -z "$PYTHON" ]; then
 fi
 
 cd entorno || exit 1
-"$PYTHON" -m sim --robot "$ROBOT" --materia tp07
+"$PYTHON" -m sim --robot "$ROBOT" "$@"
 
 echo
 read -r -p "El simulador se cerro. Enter para salir..."

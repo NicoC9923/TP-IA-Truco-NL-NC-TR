@@ -1,9 +1,9 @@
-"""Transporte LOCAL: el paquete del profesor habla por socket, no por DDS.
+"""Transporte LOCAL: el simulador habla por socket, no por DDS.
 
 Por que existe este archivo
 ---------------------------
-El paquete se reparte a profesores y alumnos con macOS y Windows. El camino DDS
-(CycloneDDS + unitree_sdk2py) no se puede instalar ahi sin dolor:
+El camino DDS (CycloneDDS + unitree_sdk2py) no se puede instalar en Windows ni
+en macOS sin dolor:
 
   - `cyclonedds==0.10.2` solo publica wheels hasta cp310. Con Python 3.11+ pip
     intenta compilar desde el fuente y falla con "Could not locate cyclonedds".
@@ -15,12 +15,10 @@ El paquete se reparte a profesores y alumnos con macOS y Windows. El camino DDS
   - `unitree_sdk2py.utils.thread` resuelve `timerfd_create` por ctypes EN EL
     IMPORT. Es una syscall de Linux: en macOS y Windows el import explota.
 
-Nada de eso es culpa del alumno ni tiene que ver con lo que el TP evalua.
-
 Que se conserva
 ---------------
-El CONTRATO de la API del alumno, que es lo unico que tiene que coincidir entre
-el simulador y el robot real:
+El CONTRATO de la API, que es lo unico que tiene que coincidir entre el
+simulador y el robot real:
 
     robot.avanzar(velocidad, tiempo)
     robot.girar(velocidad, tiempo)
@@ -30,8 +28,8 @@ el simulador y el robot real:
 que `robot.py` no tenga que saber por donde esta hablando. El robot que se ve
 en pantalla sigue siendo el modelo OFICIAL de Unitree.
 
-El camino DDS no se tira: sigue vivo en `arrancar.py` para la notebook de Teo,
-para los laboratorios fisicos y como banco de pruebas de alta fidelidad.
+El camino DDS no se tira: sigue vivo en `arrancar.py` (`--dds`, solo Linux)
+como banco de pruebas contra el SDK de verdad y para el robot fisico.
 """
 
 from __future__ import annotations
@@ -46,9 +44,7 @@ import threading
 HOST = "127.0.0.1"
 PUERTO = 8765
 
-# El servidor manda sobre los limites y el cliente los adopta al conectar.
-# Si el cliente decidiera, un alumno declararia otra materia y se aflojaria el
-# tope de velocidad.
+# El cliente adopta al conectar los limites con que se abrio el simulador.
 _FIN = b"\n"
 
 
@@ -85,20 +81,20 @@ class _Manejador(socketserver.StreamRequestHandler):
             self.wfile.write(json.dumps(datos).encode("utf-8") + _FIN)
             self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError):
-            pass   # el alumno cerro su programa: no es un error del simulador
+            pass   # el cliente cerro su programa: no es un error del simulador
 
 
 class ServidorLocal(socketserver.ThreadingTCPServer):
-    """Atiende las ordenes del programa del alumno y las aplica al mundo."""
+    """Atiende las ordenes del programa cliente y las aplica al mundo."""
 
     daemon_threads = True
     allow_reuse_address = True
 
-    def __init__(self, mundo, robot, perfil, telemetria=None, verboso=True,
+    def __init__(self, mundo, robot, limites, telemetria=None, verboso=True,
                  puerto: int = PUERTO):
         self.mundo = mundo
         self.robot = robot
-        self.perfil = perfil
+        self.limites = limites
         self.telemetria = telemetria
         self.verboso = verboso
         try:
@@ -125,19 +121,14 @@ class ServidorLocal(socketserver.ThreadingTCPServer):
 
     def _orden_hola(self, _pedido: dict) -> dict:
         """Saludo inicial. El cliente adopta de aca el robot y los limites."""
-        p = self.perfil
         return {"ok": True,
                 "robot": self.robot.clave,
                 "nombre": self.robot.nombre,
-                "materia": p.nombre,
-                "limites": {"velocidad_max": p.velocidad_max,
-                            "velocidad_angular_max": p.velocidad_angular_max,
-                            "duracion_max": p.duracion_max,
-                            "bateria_min": p.bateria_min}}
+                "limites": self.limites.como_dict()}
 
     def _orden_mover(self, pedido: dict) -> dict:
         # set_velocidad RECORTA en vez de rechazar, igual que por DDS: la
-        # validacion que el alumno ve vive en robot.py, antes de mandar.
+        # validacion visible vive en robot.py, antes de mandar.
         self.mundo.set_velocidad(float(pedido.get("vx", 0.0)),
                                  float(pedido.get("vy", 0.0)),
                                  float(pedido.get("vyaw", 0.0)),
@@ -150,30 +141,22 @@ class ServidorLocal(socketserver.ThreadingTCPServer):
         return {"ok": True}
 
     def _orden_gesto(self, pedido: dict) -> dict:
-        nombre = pedido.get("nombre", "")
-        from .acciones import exigir_permitida
-
-        try:
-            exigir_permitida(nombre, self.robot.clave)
-        except Exception as exc:                              # noqa: BLE001
-            # La lista blanca vive en acciones.py y es la MISMA que usa el
-            # laboratorio fisico. Nada que cambie la postura pasa por aca.
-            return {"ok": False, "error": str(exc)}
-        self.mundo.gesto(nombre, float(pedido.get("duracion", 2.0)))
+        self.mundo.gesto(pedido.get("nombre", ""),
+                         float(pedido.get("duracion", 2.0)))
         return {"ok": True}
 
     def _orden_estado(self, _pedido: dict) -> dict:
         return {"ok": True, "estado": self.mundo.leer()}
 
     def _orden_telemetria(self, _pedido: dict) -> dict:
-        """Lo usa el dashboard del TP05. Por DDS esto venia del LowState."""
+        """Estado articular leido de MuJoCo (q, dq, base). Nada inventado."""
         if self.telemetria is None:
             return {"ok": False, "error": "este simulador no publica telemetria"}
         return {"ok": True, "telemetria": self.telemetria()}
 
 
 # ---------------------------------------------------------------------------
-#  Cliente: vive en el proceso del alumno
+#  Cliente: vive en el proceso de tu programa
 # ---------------------------------------------------------------------------
 
 class ClienteLocal:
@@ -181,7 +164,7 @@ class ClienteLocal:
 
     Los nombres de los metodos son los del SDK a proposito. `robot.py` llama a
     `self._cliente.Move(...)` sin saber si abajo hay DDS o un socket, asi que
-    el codigo del alumno y el del laboratorio fisico son el mismo.
+    el mismo programa corre contra el simulador y contra el robot real.
     """
 
     def __init__(self, host: str = HOST, puerto: int = PUERTO,

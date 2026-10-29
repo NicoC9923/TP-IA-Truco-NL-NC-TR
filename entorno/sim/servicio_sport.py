@@ -1,7 +1,7 @@
 """Servicio 'sport' simulado: el LocoClient real del SDK le habla sin saberlo.
 
-El alumno escribe LocoClient().Move(vx, vy, vyaw) y funciona igual contra el
-simulador que contra el G1. La unica diferencia son domain_id/interface.
+LocoClient().Move(vx, vy, vyaw) funciona igual contra el simulador que contra
+el G1. La unica diferencia son domain_id/interface.
 
 En el simulador esto desliza la base en MuJoCo. En el robot real, el mismo
 llamado pega contra el servicio propietario de Unitree y camina de verdad.
@@ -80,7 +80,7 @@ class ServicioSportSimulado(Server):
 
     def _envolver(self, api_id, fn):
         """Parsea el JSON, cuenta la llamada y evita que una excepcion del
-        handler se convierta en un 3202 opaco para el alumno."""
+        handler se convierta en un 3202 opaco del lado cliente."""
         def handler(parameter: str):
             self.llamadas += 1
             try:
@@ -113,7 +113,7 @@ class ServicioSportSimulado(Server):
 
         self.mundo.set_velocidad(vx, vy, vyaw, dur)
 
-        # Los labs refrescan Move() cada 100 ms mientras dura el movimiento, asi
+        # robot.py refresca Move() cada 100 ms mientras dura el movimiento, asi
         # que loguear cada llamada tapa la consola. Solo avisamos los cambios.
         firma = (round(vx, 3), round(vy, 3), round(vyaw, 3))
         if firma != self._ultima_firma:

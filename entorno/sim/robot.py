@@ -1,12 +1,12 @@
-"""La API que usan los alumnos. Contrato v1.0 (ver ~/Escritorio/CONTRATO_API.md).
+"""API de alto nivel del robot.
 
-Tiene DOS transportes, y el codigo del alumno es el mismo en los dos:
+Tiene DOS transportes, y tu codigo es el mismo en los dos:
 
-  - **simulador** (lo que se reparte): un socket local en 127.0.0.1. No necesita
-    CycloneDDS ni `unitree_sdk2py`, que no se pueden instalar en macOS ni en
-    Windows -- ver la cabecera de `local.py`. Solo hace falta MuJoCo.
-  - **robot real** (solo la notebook de Teo): el SDK de Unitree de verdad,
-    LocoClient para el G1 y SportClient para el Go2, por DDS.
+  - **simulador**: un socket local en 127.0.0.1. No necesita CycloneDDS ni
+    `unitree_sdk2py`, que no se pueden instalar en macOS ni en Windows -- ver
+    la cabecera de `local.py`. Solo hace falta MuJoCo.
+  - **robot real** (Linux): el SDK de Unitree de verdad, LocoClient para el G1
+    y SportClient para el Go2, por DDS.
 
 El cliente de los dos expone los MISMOS nombres de metodo (`Move`, `StopMove`,
 `WaveHand`...), asi que de `conectar()` para abajo no hay una sola rama por
@@ -17,7 +17,7 @@ cable.
 
     robot = Robot()
     robot.conectar()
-    robot.avanzar(velocidad=0.2, tiempo=2.0)
+    robot.avanzar(velocidad=0.5, tiempo=2.0)
     robot.girar(velocidad=0.5, tiempo=3.14)
     robot.saludar()
     robot.detenerse()
@@ -33,20 +33,20 @@ import time
 from dataclasses import dataclass
 
 from .safety import (
+    SIN_LIMITES,
     ErrorDeSeguridad,
-    PerfilSeguridad,
-    perfil as obtener_perfil,
+    Limites,
     validar_duracion,
     validar_velocidad,
     validar_velocidad_angular,
 )
 
-# El simulador deja aca que robot y que materia levanto.
+# El simulador deja aca que robot levanto y por donde escucha.
 ARCHIVO_ACTIVO = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                               ".simulador_activo.json")
 
 # Refresco de Move(): es una velocidad con vencimiento, no un paso. Si el
-# programa muere, el robot frena solo en ~1 s. Ver frenado en el CONTRATO.
+# programa muere, el robot frena solo en ~1 s.
 PASO_REFRESCO = 0.1
 
 _DDS_INICIADO = {"hecho": False}
@@ -59,7 +59,7 @@ class EstadoRobot:
     z: float
     yaw: float
     accion: str
-    bateria: int = 87
+    bateria: int | None = None   # el simulador no la modela
 
     def __str__(self) -> str:
         return (f"x={self.x:+.2f} m  y={self.y:+.2f} m  "
@@ -81,10 +81,17 @@ def _leer_activo() -> dict:
 class Robot:
     """El robot. Por defecto se conecta al simulador que tenes abierto."""
 
-    def __init__(self, materia: str | None = None, destino: str = "simulador",
-                 modelo: str | None = None, interfaz: str | None = None,
-                 domain: int | None = None):
+    def __init__(self, destino: str = "simulador", modelo: str | None = None,
+                 interfaz: str | None = None, domain: int | None = None,
+                 limites: Limites | None = None):
+        """`limites` es opcional y solo puede AGREGAR topes del lado cliente.
+
+        Contra el simulador, los topes con que se abrio (`--vmax` etc.) se
+        adoptan al conectar si no pasaste los tuyos.
+        """
         activo = _leer_activo()
+        self.limites = limites or SIN_LIMITES
+        self._limites_propios = limites is not None
 
         if destino == "simulador":
             if not activo:
@@ -96,14 +103,12 @@ class Robot:
             self.modelo = modelo or activo.get("robot", "g1")
             self.interfaz = interfaz or activo.get("interfaz", "lo")
             self.domain = domain if domain is not None else activo.get("domain", 0)
-            self.perfil = obtener_perfil(materia or activo.get("materia", "tp01"))
             self.transporte = activo.get("transporte", "local")
         else:
-            # Robot fisico: lo usa el laboratorio, no el alumno.
+            # Robot fisico: destino="g1" o "go2".
             self.modelo = modelo or destino
             self.interfaz = interfaz or ""
             self.domain = domain if domain is not None else 0
-            self.perfil = obtener_perfil(materia or "tp01")
             self.transporte = "dds"      # el robot fisico habla por DDS
 
         self.destino = destino
@@ -111,15 +116,14 @@ class Robot:
 
     # ---------- conexion ----------
     def conectar(self) -> EstadoRobot:
-        # El SIMULADOR decide el transporte, no el cliente: el mismo paquete se
-        # puede abrir en modo local (lo normal) o con --dds (el banco de pruebas
-        # de la notebook de Teo), y el programa del alumno no cambia.
+        # El SIMULADOR decide el transporte, no el cliente: se puede abrir en
+        # modo local (lo normal) o con --dds, y tu programa no cambia.
         if self.destino == "simulador" and self.transporte == "local":
             return self._conectar_local()
         return self._conectar_sdk()
 
     def _conectar_local(self) -> EstadoRobot:
-        """Simulador: socket local. Es el camino que usan profesores y alumnos."""
+        """Simulador: socket local."""
         from .local import ClienteLocal, ErrorTransporte, PUERTO
 
         activo = _leer_activo()
@@ -140,28 +144,16 @@ class Robot:
         nombre = ("Unitree G1 (humanoide)" if self.modelo == "g1"
                   else "Unitree Go2 (perro)")
 
-        # EL SERVIDOR MANDA SOBRE LOS LIMITES.
-        #
-        # Si el cliente decidiera, alcanzaria con que el alumno declarara otra
-        # materia para aflojar el tope de velocidad. El simulador sabe con que
-        # perfil lo abrio el profesor, y ese es el que vale.
-        limites = info.get("limites") or {}
-        if limites:
-            self.perfil = self.perfil.__class__(
-                nombre=info.get("materia", self.perfil.nombre),
-                velocidad_max=limites.get("velocidad_max",
-                                          self.perfil.velocidad_max),
-                velocidad_angular_max=limites.get(
-                    "velocidad_angular_max", self.perfil.velocidad_angular_max),
-                duracion_max=limites.get("duracion_max",
-                                         self.perfil.duracion_max),
-                bateria_min=limites.get("bateria_min", self.perfil.bateria_min))
+        # Se validan aca los mismos topes que el simulador, para que un rechazo
+        # sea una excepcion en tu programa y no un recorte silencioso alla.
+        if not self._limites_propios:
+            self.limites = Limites.desde_dict(info.get("limites"))
 
         self._anunciar(nombre)
         return self.verificar_estado()
 
     def _conectar_sdk(self) -> EstadoRobot:
-        """Robot real por DDS. Solo corre en Linux, solo en la notebook de Teo."""
+        """Robot real (o simulador --dds) por DDS. Solo corre en Linux."""
         from unitree_sdk2py.core.channel import ChannelFactoryInitialize
 
         if not _DDS_INICIADO["hecho"]:
@@ -192,8 +184,8 @@ class Robot:
         # Move() del SDK descarta el codigo de retorno. Si el servicio de
         # locomocion todavia no esta arriba -- por ejemplo si el programa
         # arranca un segundo antes que el simulador -- las ordenes se pierden
-        # en silencio: el alumno ve "11 ordenes ejecutadas" y un robot que no
-        # se movio ni un centimetro.
+        # en silencio: ves "11 ordenes ejecutadas" y un robot que no se movio
+        # ni un centimetro.
         #
         # Por eso hacemos un ida y vuelta con una llamada que SI devuelve
         # codigo, y reintentamos unos segundos por si el simulador esta
@@ -204,9 +196,7 @@ class Robot:
 
     def _anunciar(self, nombre: str) -> None:
         print(f"[OK] Conectado a {nombre}.")
-        print(f"     Limites: {self.perfil.velocidad_max} m/s, "
-              f"{self.perfil.velocidad_angular_max} rad/s, "
-              f"{self.perfil.duracion_max} s por orden.")
+        print(f"     Limites: {self.limites}")
 
     def _verificar_servicio(self, intentos: int = 12, espera: float = 0.5) -> None:
         ultimo = None
@@ -259,7 +249,7 @@ class Robot:
                 return EstadoRobot(
                     x=d.get("x", 0.0), y=d.get("y", 0.0), z=d.get("z", 0.0),
                     yaw=d.get("yaw", 0.0), accion=d.get("accion", "quieto"),
-                    bateria=d.get("bateria", 87))
+                    bateria=d.get("bateria"))
             except Exception:                                 # noqa: BLE001
                 pass   # si el socket fallo, probamos con el archivo
 
@@ -276,7 +266,19 @@ class Robot:
             x=datos.get("x", 0.0), y=datos.get("y", 0.0),
             z=datos.get("z", 0.0), yaw=datos.get("yaw", 0.0),
             accion=datos.get("accion", "quieto"),
-            bateria=datos.get("bateria", 87))
+            bateria=datos.get("bateria"))
+
+    def telemetria(self) -> dict:
+        """Estado articular crudo (q, dq por motor y pose de la base).
+
+        Solo contra el simulador local. Por DDS, suscribite a rt/lowstate.
+        """
+        self._exigir_conexion()
+        leer = getattr(self._cliente, "Telemetria", None)
+        if leer is None:
+            raise NotImplementedError(
+                "Por DDS la telemetria se lee de rt/lowstate con el SDK.")
+        return leer()
 
     # ---------- movimiento ----------
     def _sostener(self, vx: float, vy: float, vyaw: float, tiempo: float) -> None:
@@ -288,8 +290,8 @@ class Robot:
         """
         self._exigir_conexion()
         fin = time.monotonic() + tiempo
-        # Se refresca igual en los dos transportes: la orden VENCE. Si el
-        # programa del alumno muere a mitad de un avance, el robot frena solo.
+        # Se refresca igual en los dos transportes: la orden VENCE. Si tu
+        # programa muere a mitad de un avance, el robot frena solo.
         while time.monotonic() < fin:
             self._cliente.Move(vx, vy, vyaw)
             time.sleep(min(PASO_REFRESCO, max(0.0, fin - time.monotonic())))
@@ -301,18 +303,18 @@ class Robot:
 
         Validamos ACA, antes de tocar DDS. Es a proposito: el Move() del SDK
         descarta el codigo de retorno, asi que si dejaramos que el rechazo
-        viniera del simulador el alumno no se enteraria nunca -- veria el robot
-        quieto y ningun mensaje.
+        viniera del simulador no te enterarias nunca -- verias el robot quieto
+        y ningun mensaje.
         """
-        velocidad = validar_velocidad(velocidad, self.perfil)
-        tiempo = validar_duracion(tiempo, self.perfil)
+        velocidad = validar_velocidad(velocidad, self.limites)
+        tiempo = validar_duracion(tiempo, self.limites)
         self._sostener(velocidad, 0.0, 0.0, tiempo)
         return self.verificar_estado()
 
     def girar(self, velocidad: float = 0.5, tiempo: float = 1.0) -> EstadoRobot:
         """Gira a 'velocidad' rad/s durante 'tiempo' s. Positivo = izquierda."""
-        velocidad = validar_velocidad_angular(velocidad, self.perfil)
-        tiempo = validar_duracion(tiempo, self.perfil)
+        velocidad = validar_velocidad_angular(velocidad, self.limites)
+        tiempo = validar_duracion(tiempo, self.limites)
         self._sostener(0.0, 0.0, velocidad, tiempo)
         return self.verificar_estado()
 
@@ -320,19 +322,16 @@ class Robot:
               tiempo: float = 1.0) -> EstadoRobot:
         """Las tres velocidades A LA VEZ, como el Move() del SDK.
 
-        Es lo que permite una curva: avanzar y girar al mismo tiempo. Si se
-        resolviera eligiendo entre avanzar() o girar(), el simulador haria una
-        cosa y el robot real otra, y la app del alumno se comportaria distinto
-        el dia de la visita.
+        Es lo que permite una curva: avanzar y girar al mismo tiempo.
 
             vx    adelante (+) / atras (-)      m/s
             vy    izquierda (+) / derecha (-)   m/s
             vyaw  girar izq (+) / der (-)       rad/s
         """
-        vx = validar_velocidad(vx, self.perfil)
-        vy = validar_velocidad(vy, self.perfil)
-        vyaw = validar_velocidad_angular(vyaw, self.perfil)
-        tiempo = validar_duracion(tiempo, self.perfil)
+        vx = validar_velocidad(vx, self.limites)
+        vy = validar_velocidad(vy, self.limites)
+        vyaw = validar_velocidad_angular(vyaw, self.limites)
+        tiempo = validar_duracion(tiempo, self.limites)
         self._sostener(vx, vy, vyaw, tiempo)
         return self.verificar_estado()
 
@@ -362,16 +361,6 @@ class Robot:
         metodo()
         time.sleep(2.0)
         return self.verificar_estado()
-
-    # ---------- alias tolerantes a errores de tipeo ----------
-    def movmineto(self, *a, **k):
-        return self.avanzar(*a, **k)
-
-    def detener(self):
-        return self.detenerse()
-
-    def parar(self):
-        return self.detenerse()
 
     def _exigir_conexion(self) -> None:
         if self._cliente is None:

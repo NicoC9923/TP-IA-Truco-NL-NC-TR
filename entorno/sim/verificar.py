@@ -1,7 +1,6 @@
 """Verifica que todo este instalado ANTES de abrir el simulador.
 
-Filosofia: el alumno y el docente no tienen que configurar nada. Si falta algo,
-lo instalamos; si no podemos, decimos exactamente que hacer en una linea.
+Si falta algo, lo instalamos; si no podemos, decimos exactamente que hacer.
 
 Nunca dejamos que el simulador arranque a medias: es peor un simulador que abre
 y falla raro a los dos minutos que uno que no abre y explica por que.
@@ -19,27 +18,11 @@ import sys
 REPO_OFICIAL = "https://github.com/unitreerobotics/unitree_mujoco"
 
 def _ubicaciones_repo() -> list[str]:
-    """Donde buscamos el simulador oficial, en orden de preferencia.
-
-    Incluye rutas relativas al arbol de UadeRobotLab, porque la carpeta del
-    laboratorio vive en 05LaboratoriosTPs/ y el simulador en 04Simuladores/.
-    Asi el paquete se puede mover sin romper nada.
-    """
+    """Donde buscamos el simulador oficial, en orden de preferencia."""
     aqui = os.path.dirname(os.path.abspath(__file__))
-    # PRIMERO el que viene DENTRO del paquete. Es el caso normal para un
-    # profesor o un alumno: baja la carpeta de su TP y adentro esta todo lo que
-    # necesita, sin git, sin internet y sin depender de donde quedo instalado
-    # nada. Va primero para que el resultado no dependa de la maquina.
+    # PRIMERO el que viene en el repo, para que el resultado no dependa de la
+    # maquina.
     rutas = [os.path.join(aqui, "unitree_mujoco")]
-    # Subimos buscando el arbol de UadeRobotLab.
-    d = aqui
-    for _ in range(6):
-        d = os.path.dirname(d)
-        if not d or d == os.path.sep:
-            break
-        rutas.append(os.path.join(d, "04Simuladores", "UnitreeMujocoOficial",
-                                  "unitree_mujoco"))
-        rutas.append(os.path.join(d, "04Simuladores", "unitree_mujoco"))
     rutas += [
         os.path.expanduser("~/unitree_libs/unitree_mujoco"),
         os.path.expanduser("~/unitree_mujoco"),
@@ -89,8 +72,8 @@ def buscar_repo_oficial() -> str | None:
 
 
 def _pip_install(paquete: str) -> bool:
-    """Instala con pip. --trusted-host porque las redes de la facultad
-    interceptan certificados SSL y rompen pip."""
+    """Instala con pip. --trusted-host porque algunas redes interceptan
+    certificados SSL y rompen pip."""
     cmd = [sys.executable, "-m", "pip", "install", "--user", paquete,
            "--trusted-host", "pypi.org", "--trusted-host", "files.pythonhosted.org"]
     try:
@@ -136,8 +119,7 @@ def diagnosticar_mujoco() -> tuple[bool, str]:
     directamente falso: en Windows sin el Visual C++ Redistributable, `pip
     install mujoco` termina **bien** pero `import mujoco` falla al cargar la
     DLL. El chequeo decia "falta MuJoCo", intentaba instalarlo de nuevo -- pip
-    contestaba que ya estaba --, y volvia a decir que faltaba. Un profesor
-    perdio una tarde con eso.
+    contestaba que ya estaba --, y volvia a decir que faltaba.
     """
     try:
         importlib.import_module("mujoco")
@@ -159,18 +141,12 @@ def diagnosticar_mujoco() -> tuple[bool, str]:
         return False, f"No se pudo importar MuJoCo: {exc}"
 
 
-def verificar(instalar: bool = True, extras: tuple[str, ...] = (),
-              dds: bool = False) -> Resultado:
-    """Revisa el entorno. `extras` son librerias que pide una materia puntual.
-
-    El TP04 necesita FastAPI y uvicorn para levantar su backend; los demas TPs
-    no. Se piden solo donde hacen falta, para no engordar la instalacion de
-    todos por una materia.
+def verificar(instalar: bool = True, dds: bool = False) -> Resultado:
+    """Revisa el entorno.
 
     `dds=True` pide ademas CycloneDDS y el SDK de Unitree. Va apagado por
-    defecto y a proposito: son las dos piezas que NO se pueden instalar en
-    macOS ni en Windows, y el paquete que se reparte no las usa. Ver la
-    cabecera de `local.py`.
+    defecto: son las dos piezas que NO se pueden instalar en macOS ni en
+    Windows. Ver la cabecera de `local.py`.
     """
     r = Resultado()
     print()
@@ -214,11 +190,9 @@ def verificar(instalar: bool = True, extras: tuple[str, ...] = (),
 
     # 3 y 4. CycloneDDS y el SDK de Unitree: SOLO en modo --dds.
     #
-    # El paquete normal no los usa, y es deliberado: CycloneDDS 0.10.2 solo
-    # publica wheels hasta cp310 (con 3.11+ pip intenta compilar y falla), y
-    # `unitree_sdk2py` resuelve `timerfd_create` por ctypes al importar, que es
-    # una syscall de Linux. En macOS y Windows no hay forma. Pedirlos a todo el
-    # mundo era regalarle a cada profesor una tarde de pelea con pip.
+    # CycloneDDS 0.10.2 solo publica wheels hasta cp310 (con 3.11+ pip intenta
+    # compilar y falla), y `unitree_sdk2py` resuelve `timerfd_create` por
+    # ctypes al importar, que es una syscall de Linux.
     if dds:
         if _tiene("cyclonedds"):
             _ok("CycloneDDS")
@@ -269,27 +243,8 @@ def verificar(instalar: bool = True, extras: tuple[str, ...] = (),
             _falta("pygame", "lo pide el bridge oficial de Unitree")
             r.problemas.append("Falta pygame.")
 
-    # 4b. Librerias que pide la materia (TP04: el backend)
-    for paquete, para_que in extras:
-        modulo = paquete.split("==")[0].replace("-", "_")
-        if _tiene(modulo):
-            _ok(f"{paquete.split('==')[0]}", para_que)
-        elif instalar:
-            _arreglando(f"Instalando {paquete.split('==')[0]} ({para_que})...")
-            if _pip_install(paquete) and _tiene(modulo):
-                _ok(f"{paquete.split('==')[0]} instalado")
-            else:
-                _falta(paquete.split("==")[0])
-                r.problemas.append(
-                    f"No pude instalar {paquete}. Proba a mano:\n"
-                    f"      {sys.executable} -m pip install --user {paquete}")
-        else:
-            _falta(paquete.split("==")[0], para_que)
-            r.problemas.append(f"Falta {paquete} ({para_que}).")
-
-    # 5. Los modelos oficiales. Vienen DENTRO del paquete: normalmente esto no
-    # hace nada. El git clone queda como red de seguridad por si alguien corre
-    # el nucleo fuera de un paquete armado.
+    # 5. Los modelos oficiales. Vienen en el repo: normalmente esto no hace
+    # nada. El git clone queda como red de seguridad.
     repo = buscar_repo_oficial()
     if repo:
         _ok("Modelos oficiales de Unitree", repo)
@@ -339,7 +294,6 @@ def informar(r: Resultado) -> bool:
     for i, p in enumerate(r.problemas, 1):
         print(f"  {i}. {p}")
         print()
-    print("  Si no podes resolverlo, avisale al profesor.")
     print("  " + "=" * 58)
     print()
     return False

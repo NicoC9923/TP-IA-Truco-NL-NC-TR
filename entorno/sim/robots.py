@@ -1,20 +1,13 @@
 """Los dos robots reales: donde esta su modelo oficial y como se anima cada uno.
 
-Usamos los modelos OFICIALES de Unitree (repo unitreerobotics/unitree_mujoco),
-no una figura inventada: el alumno tiene que ver el robot que despues va a usar.
+Usamos los modelos OFICIALES de Unitree (repo unitreerobotics/unitree_mujoco).
 
-El movimiento es CINEMATICO: escribimos la pose y llamamos mj_forward, sin
-correr fisica. Es a proposito:
+En la capa de alto nivel el movimiento es CINEMATICO: escribimos la pose y
+llamamos mj_forward, sin correr fisica. El G1 es un humanoide y SE CAE SOLO sin
+un controlador de locomocion, que el simulador oficial no trae (vive en la PC
+interna del robot y Unitree no lo publica).
 
-  - El G1 es un humanoide y SE CAE SOLO sin un controlador de locomocion. El
-    simulador oficial no trae ese controlador (vive en la PC interna del robot
-    y Unitree no lo publica). Con fisica real, el robot se desploma antes de
-    que el alumno pueda probar nada.
-  - Un TP de programacion evalua el algoritmo, no la marcha. Si el robot se
-    tropieza, el alumno recibe roja por algo que no es suyo.
-
-La animacion de las patas es COSMETICA: el robot se desliza. Sirve para que se
-vea que camina, no para simular como camina.
+La animacion de las patas es COSMETICA: el robot se desliza.
 """
 
 from __future__ import annotations
@@ -25,9 +18,8 @@ from dataclasses import dataclass, field
 
 # Donde buscar los modelos oficiales, en orden.
 UBICACIONES = [
-    # Primero los que vienen DENTRO del paquete: es lo que tiene un profesor
-    # que bajo su carpeta y nada mas. Antes iba primero ~/unitree_libs, asi que
-    # en la maquina de Teo se usaban esos y los del paquete no se probaban nunca.
+    # Primero los que vienen en el repo, para que el resultado no dependa de
+    # que mas haya instalado en la maquina.
     os.path.join(os.path.dirname(os.path.abspath(__file__)),
                  "unitree_mujoco", "unitree_robots"),
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "unitree_robots"),
@@ -37,12 +29,11 @@ UBICACIONES = [
 ]
 
 
-ESCENA_LIMPIA = """<mujoco model="{modelo} - escena limpia UADE">
-  <!-- Generado por el laboratorio UADE. NO es un archivo oficial de Unitree.
+ESCENA_LIMPIA = """<mujoco model="{modelo} - escena limpia">
+  <!-- Generado por sim/robots.py. NO es un archivo oficial de Unitree.
        La escena oficial del Go2 trae 8 cajas de obstaculo, incluida una
-       escalera, y dos vigas que cruzan justo por donde se dibuja la grilla del
-       TP03: el robot parecia atravesar paredes. Esta escena tiene el mismo
-       robot y el mismo piso, sin esos obstaculos.
+       escalera, y dos vigas. Esta escena tiene el mismo robot y el mismo
+       piso, sin esos obstaculos.
        Se regenera solo si se borra. No modifica ningun archivo oficial. -->
   <include file="{incluye}"/>
 
@@ -57,16 +48,16 @@ ESCENA_LIMPIA = """<mujoco model="{modelo} - escena limpia UADE">
   <asset>
     <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0"
              width="512" height="3072"/>
-    <texture type="2d" name="groundplane_uade" builtin="checker" mark="edge"
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge"
              rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8"
              width="300" height="300"/>
-    <material name="groundplane_uade" texture="groundplane_uade" texuniform="true"
+    <material name="groundplane" texture="groundplane" texuniform="true"
               texrepeat="5 5" reflectance="0.2"/>
   </asset>
 
   <worldbody>
     <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
-    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane_uade"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
   </worldbody>
 </mujoco>
 """
@@ -154,9 +145,9 @@ GO2 = Robot(
     clave="go2",
     nombre="Unitree Go2",
     tipo="cuadrupedo",
-    # La escena oficial del Go2 trae una escalera y vigas que cruzan la grilla.
-    # Usamos una escena limpia que se genera sola. La del G1 ya viene limpia.
-    escena="go2/scene_uade.xml",
+    # La escena oficial del Go2 trae una escalera y vigas. Usamos una escena
+    # limpia que se genera sola. La del G1 ya viene limpia.
+    escena="go2/scene_limpia.xml",
     incluye="go2.xml",
     altura=0.33,
     pose_de_pie={
@@ -178,18 +169,7 @@ GO2 = Robot(
                   GO2_FL_C: -2.4, GO2_FR_C: -2.4, GO2_RL_C: -2.4, GO2_RR_C: -2.4},
 )
 
-# Largo x ancho aproximados de pie, en metros. Medidos sobre el modelo oficial.
-# Sirven para avisar cuando el robot no entra en la celda de la grilla del TP03.
-HUELLA = {"g1": (0.32, 0.32), "go2": (0.62, 0.28)}
-
 ROBOTS = {"g1": G1, "go2": GO2}
-
-
-def entra_en_celda(clave: str, tamano_celda: float) -> tuple[bool, float]:
-    """Devuelve si el robot entra en una celda y cuanto mide su lado mayor."""
-    largo, ancho = HUELLA.get(clave, (0.4, 0.4))
-    mayor = max(largo, ancho)
-    return mayor <= tamano_celda, mayor
 
 
 def obtener(clave: str) -> Robot:
@@ -197,14 +177,3 @@ def obtener(clave: str) -> Robot:
     if c not in ROBOTS:
         raise ValueError(f"Robot desconocido: '{clave}'. Validos: g1, go2.")
     return ROBOTS[c]
-
-
-def faltan_modelos() -> str:
-    """Mensaje de ayuda si no encuentra los modelos oficiales."""
-    return (
-        "No encuentro los modelos oficiales de Unitree.\n\n"
-        "Se descargan una sola vez con:\n"
-        "    git clone https://github.com/unitreerobotics/unitree_mujoco\n\n"
-        "Dejalos en alguna de estas carpetas:\n"
-        + "\n".join(f"    {u}" for u in UBICACIONES)
-    )

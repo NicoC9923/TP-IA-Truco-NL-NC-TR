@@ -1,8 +1,8 @@
 """Servicio 'sport' del Go2: el SportClient real del SDK le habla sin saberlo.
 
-Mismo nombre de servicio que el G1 ("sport"), pero otros api ids. El alumno
-escribe SportClient().Move(vx, vy, vyaw) y funciona igual contra el simulador
-que contra el Go2 fisico.
+Mismo nombre de servicio que el G1 ("sport"), pero otros api ids.
+SportClient().Move(vx, vy, vyaw) funciona igual contra el simulador que contra
+el Go2 fisico.
 """
 
 from __future__ import annotations

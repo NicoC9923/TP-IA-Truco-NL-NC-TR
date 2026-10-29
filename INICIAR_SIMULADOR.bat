@@ -1,12 +1,11 @@
 @echo off
 REM ============================================================
-REM   Inteligencia Artificial - TP07
-REM   Levanta el simulador oficial de Unitree listo para el TP.
+REM   Levanta el simulador de Unitree (G1 / Go2).
+REM   Argumentos extra pasan a "python -m sim", ej: --vmax 1.0
 REM ============================================================
 cd /d "%~dp0"
 
 echo ============================================================
-echo    Inteligencia Artificial
 echo    Simulador de robots Unitree
 echo ============================================================
 echo.
@@ -101,7 +100,7 @@ goto :eof
 
 
 cd entorno
-"%PYTHON%" %PYARGS% -m sim --robot %ROBOT% --materia tp07
+"%PYTHON%" %PYARGS% -m sim --robot %ROBOT% %*
 
 echo.
 pause
