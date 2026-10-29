@@ -238,7 +238,7 @@ class ClienteLocal:
         return self._codigo(self._pedir({"orden": "detener"}))
 
     def WaveHand(self) -> int:
-        return self._codigo(self._pedir({"orden": "gesto", "nombre": "saludo"}))
+        return self._codigo(self._pedir({"orden": "gesto", "nombre": "saludando"}))
 
     def ShakeHand(self) -> int:
         return self._codigo(self._pedir({"orden": "gesto",

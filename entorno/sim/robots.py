@@ -16,16 +16,11 @@ import math
 import os
 from dataclasses import dataclass, field
 
-# Donde buscar los modelos oficiales, en orden.
+# Los modelos oficiales vienen en el repo. Solo se buscan aca, para que nunca
+# se cargue otra copia que haya quedado en la maquina.
 UBICACIONES = [
-    # Primero los que vienen en el repo, para que el resultado no dependa de
-    # que mas haya instalado en la maquina.
     os.path.join(os.path.dirname(os.path.abspath(__file__)),
                  "unitree_mujoco", "unitree_robots"),
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "unitree_robots"),
-    os.path.expanduser("~/unitree_libs/unitree_mujoco/unitree_robots"),
-    os.path.expanduser("~/unitree_mujoco/unitree_robots"),
-    os.path.join(os.getcwd(), "unitree_mujoco", "unitree_robots"),
 ]
 
 

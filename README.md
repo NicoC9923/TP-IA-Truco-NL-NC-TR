@@ -22,11 +22,12 @@ py -3 -m pip install --user mujoco
 Cada vez, en dos terminales:
 
 ```bash
-cd entorno && py -3 -m sim --robot go2    # o --robot g1; deja la ventana abierta
-cd proyecto && py -3 ejemplo.py           # tu programa
+sim --robot go2                  # o doble click en sim.bat (abre el G1); deja la ventana abierta
+cd proyecto && py -3 ejemplo.py  # tu programa
 ```
 
-En Linux/macOS, `python3` en vez de `py -3`. `py -3 -m sim --solo-revisar`
+`sim.bat` (Windows) y `./sim.sh` (Linux/macOS) pasan cualquier flag al
+simulador. En Linux/macOS, `python3` en vez de `py -3`. `sim --solo-revisar`
 chequea el entorno sin abrir nada.
 
 En Windows, si `import mujoco` falla con *DLL load failed*, falta el

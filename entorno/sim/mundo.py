@@ -35,11 +35,9 @@ class Mundo:
 
     def reiniciar(self) -> None:
         with self._lock:
-            # Si se fijo un inicio con situar(), volvemos ahi y no al origen.
-            x0, y0, yaw0 = getattr(self, "_inicio", (0.0, 0.0, 0.0))
-            self.x = x0
-            self.y = y0
-            self.yaw = yaw0
+            self.x = 0.0
+            self.y = 0.0
+            self.yaw = 0.0
             self.vx = 0.0
             self.vy = 0.0
             self.vyaw = 0.0
@@ -109,15 +107,6 @@ class Mundo:
             else:
                 self.accion = "quieto"
 
-    def situar(self, x: float, y: float, yaw: float) -> None:
-        """Coloca el robot en una pose concreta y la toma como inicio."""
-        with self._lock:
-            self.x, self.y, self.yaw = float(x), float(y), float(yaw)
-            self.vx = self.vy = self.vyaw = 0.0
-            self._vence_en = 0.0
-            self.accion = "quieto"
-            self._inicio = (float(x), float(y), float(yaw))
-
     def set_de_pie(self, de_pie: bool) -> None:
         with self._lock:
             self.de_pie = de_pie
@@ -153,11 +142,10 @@ class Mundo:
         """Integra el tiempo transcurrido. NUNCA descarta tiempo.
 
         Usa el reloj real medido, no un dt nominal: con dt nominal fijo el mundo
-        avanza ~8% mas lento que el reloj y TODA ruta queda corta. Ese bug ya se
-        corrigio una vez; no reintroducirlo.
+        avanza ~8% mas lento que el reloj y toda distancia (v x t) queda corta.
 
         Si la ventana se congela y llegan 300 ms de golpe, se integran los 300 ms
-        en sub-pasos. Recortarlos acortaria la ruta, en silencio y de forma
+        en sub-pasos. Recortarlos acortaria el recorrido, en silencio y de forma
         distinta en cada maquina.
         """
         ahora = time.monotonic()

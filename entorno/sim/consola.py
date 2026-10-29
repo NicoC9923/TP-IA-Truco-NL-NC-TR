@@ -67,7 +67,7 @@ class VistaConsola:
             self.rastro.append((x, y))
             if len(self.rastro) > _MAX_RASTRO:
                 # Se descarta uno de cada dos: el recorrido se sigue viendo
-                # igual y la memoria no crece sin limite en una clase larga.
+                # igual y la memoria no crece sin limite en una sesion larga.
                 self.rastro = self.rastro[::2]
 
         ahora = time.monotonic()
@@ -93,8 +93,7 @@ class VistaConsola:
     def _limites(self) -> tuple[float, float, float, float]:
         """La ventana del mundo que se muestra, siempre cuadrada.
 
-        Si no fuera cuadrada, un cuadrado de 0.40 m de lado se veria como un
-        rectangulo.
+        Si no fuera cuadrada, el recorrido se veria estirado en un eje.
         """
         xs = [p[0] for p in self.rastro] or [0.0]
         ys = [p[1] for p in self.rastro] or [0.0]
@@ -140,16 +139,13 @@ class VistaConsola:
         lineas.append(borde)
 
         grados = math.degrees(float(estado.get("yaw", 0.0)))
-        bateria = estado.get("bateria")
 
         # El pie se arma por partes y se acomoda al ancho del marco. Si se
         # imprimiera de una, en una consola angosta lo parte la terminal por
         # donde quiere y el dibujo queda desalineado.
         datos = [f"x={x:+.2f} m", f"y={y:+.2f} m", f"rumbo={grados:+.0f} deg",
-                 f"[{estado.get('accion', 'quieto')}]"]
-        if bateria is not None:
-            datos.append(f"bateria {bateria}%")
-        datos.append(f"recorrido {self._distancia():.2f} m")
+                 f"[{estado.get('accion', 'quieto')}]",
+                 f"recorrido {self._distancia():.2f} m"]
         lineas += _acomodar(datos, len(borde))
         lineas.append("  (sin ventana 3D: el recorrido se dibuja en texto)"
                       [:len(borde)])

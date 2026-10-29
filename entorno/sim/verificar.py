@@ -17,21 +17,10 @@ import sys
 # El repo oficial de Unitree. De aca salen los modelos y el bridge DDS.
 REPO_OFICIAL = "https://github.com/unitreerobotics/unitree_mujoco"
 
-def _ubicaciones_repo() -> list[str]:
-    """Donde buscamos el simulador oficial, en orden de preferencia."""
-    aqui = os.path.dirname(os.path.abspath(__file__))
-    # PRIMERO el que viene en el repo, para que el resultado no dependa de la
-    # maquina.
-    rutas = [os.path.join(aqui, "unitree_mujoco")]
-    rutas += [
-        os.path.expanduser("~/unitree_libs/unitree_mujoco"),
-        os.path.expanduser("~/unitree_mujoco"),
-        os.path.join(os.getcwd(), "unitree_mujoco"),
-    ]
-    return rutas
-
-
-UBICACIONES_REPO = _ubicaciones_repo()
+# Solo la copia que viene en el repo, para que nunca se use otra que haya
+# quedado en la maquina.
+UBICACIONES_REPO = [os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "unitree_mujoco")]
 
 VERDE, ROJO, AMARILLO, GRIS, FIN = "\033[92m", "\033[91m", "\033[93m", "\033[90m", "\033[0m"
 
@@ -72,10 +61,8 @@ def buscar_repo_oficial() -> str | None:
 
 
 def _pip_install(paquete: str) -> bool:
-    """Instala con pip. --trusted-host porque algunas redes interceptan
-    certificados SSL y rompen pip."""
-    cmd = [sys.executable, "-m", "pip", "install", "--user", paquete,
-           "--trusted-host", "pypi.org", "--trusted-host", "files.pythonhosted.org"]
+    """Instala con pip, en el usuario."""
+    cmd = [sys.executable, "-m", "pip", "install", "--user", paquete]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
         return r.returncode == 0

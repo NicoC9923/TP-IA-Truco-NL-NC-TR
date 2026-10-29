@@ -59,7 +59,6 @@ class EstadoRobot:
     z: float
     yaw: float
     accion: str
-    bateria: int | None = None   # el simulador no la modela
 
     def __str__(self) -> str:
         return (f"x={self.x:+.2f} m  y={self.y:+.2f} m  "
@@ -71,7 +70,7 @@ class NoHaySimulador(RuntimeError):
 
 
 _COMO_ABRIR = (
-    "  1. En otra terminal: cd entorno && py -3 -m sim --robot go2\n"
+    "  1. Abri el simulador: sim.bat (o ./sim.sh) en la raiz del repo\n"
     "  2. Espera a que aparezca la ventana\n"
     "  3. Volve a ejecutar este programa")
 
@@ -217,7 +216,7 @@ class Robot:
             "  Casi siempre es una de estas dos:\n"
             "    1. El simulador todavia estaba abriendo. Espera a que la\n"
             "       ventana aparezca del todo y volve a ejecutar.\n"
-            "    2. El simulador no esta abierto: py -3 -m sim --dds ...\n\n"
+            "    2. El simulador no esta abierto: ./sim.sh --dds ...\n\n"
             "  (Se corta aca a proposito: si siguieramos, las ordenes se\n"
             "   perderian en silencio y pareceria que tu programa anda.)")
 
@@ -246,8 +245,7 @@ class Robot:
                 d = preguntar()
                 return EstadoRobot(
                     x=d.get("x", 0.0), y=d.get("y", 0.0), z=d.get("z", 0.0),
-                    yaw=d.get("yaw", 0.0), accion=d.get("accion", "quieto"),
-                    bateria=d.get("bateria"))
+                    yaw=d.get("yaw", 0.0), accion=d.get("accion", "quieto"))
             except Exception:                                 # noqa: BLE001
                 pass   # si el socket fallo, probamos con el archivo
 
@@ -263,8 +261,7 @@ class Robot:
         return EstadoRobot(
             x=datos.get("x", 0.0), y=datos.get("y", 0.0),
             z=datos.get("z", 0.0), yaw=datos.get("yaw", 0.0),
-            accion=datos.get("accion", "quieto"),
-            bateria=datos.get("bateria"))
+            accion=datos.get("accion", "quieto"))
 
     def telemetria(self) -> dict:
         """Estado articular crudo (q, dq por motor y pose de la base).

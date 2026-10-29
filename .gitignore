@@ -7,14 +7,13 @@ __pycache__/
 # Entornos virtuales. Dependen de rutas absolutas de la maquina que los creo,
 # asi que no sirven al clonar el repo en otra computadora.
 #
-# Se dejan en disco (cada uno tiene el suyo funcionando) pero no se suben.
-# Para recrear uno: python3 -m venv env && pip install -r requirements.txt
+# Para recrear uno: python3 -m venv .venv && pip install mujoco
 .venv/
 venv/
 env/
 ENV/
 
-# Estado en ejecucion del simulador de los laboratorios
+# Estado en ejecucion del simulador
 .simulador_activo.json
 .pose_actual.json
 
