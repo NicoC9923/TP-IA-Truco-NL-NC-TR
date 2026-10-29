@@ -1,4 +1,5 @@
-"""Ejemplo minimo. Abri antes INICIAR_SIMULADOR y despues: python ejemplo.py"""
+"""Ejemplo minimo. Primero, en otra terminal: cd entorno && py -3 -m sim
+Despues: py -3 ejemplo.py"""
 
 from robot import Robot
 

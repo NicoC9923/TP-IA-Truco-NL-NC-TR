@@ -70,6 +70,12 @@ class NoHaySimulador(RuntimeError):
     pass
 
 
+_COMO_ABRIR = (
+    "  1. En otra terminal: cd entorno && py -3 -m sim --robot go2\n"
+    "  2. Espera a que aparezca la ventana\n"
+    "  3. Volve a ejecutar este programa")
+
+
 def _leer_activo() -> dict:
     try:
         with open(ARCHIVO_ACTIVO, encoding="utf-8") as f:
@@ -95,11 +101,7 @@ class Robot:
 
         if destino == "simulador":
             if not activo:
-                raise NoHaySimulador(
-                    "No encuentro el simulador.\n"
-                    "  1. Abri INICIAR_SIMULADOR y elegi el robot\n"
-                    "  2. Espera a que aparezca la ventana\n"
-                    "  3. Volve a ejecutar este programa")
+                raise NoHaySimulador("No encuentro el simulador.\n" + _COMO_ABRIR)
             self.modelo = modelo or activo.get("robot", "g1")
             self.interfaz = interfaz or activo.get("interfaz", "lo")
             self.domain = domain if domain is not None else activo.get("domain", 0)
@@ -133,11 +135,7 @@ class Robot:
             self._cliente.Init()
         except ErrorTransporte as exc:
             self._cliente = None
-            raise NoHaySimulador(
-                f"{exc}\n"
-                "  1. Abri INICIAR_SIMULADOR y elegi el robot\n"
-                "  2. Espera a que aparezca la ventana\n"
-                "  3. Volve a ejecutar este programa") from exc
+            raise NoHaySimulador(f"{exc}\n" + _COMO_ABRIR) from exc
 
         info = self._cliente.info or {}
         self.modelo = info.get("robot", self.modelo)
@@ -219,7 +217,7 @@ class Robot:
             "  Casi siempre es una de estas dos:\n"
             "    1. El simulador todavia estaba abriendo. Espera a que la\n"
             "       ventana aparezca del todo y volve a ejecutar.\n"
-            "    2. El simulador no esta abierto. Abri INICIAR_SIMULADOR.\n\n"
+            "    2. El simulador no esta abierto: py -3 -m sim --dds ...\n\n"
             "  (Se corta aca a proposito: si siguieramos, las ordenes se\n"
             "   perderian en silencio y pareceria que tu programa anda.)")
 

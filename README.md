@@ -13,13 +13,21 @@ Python. Proyecto personal.
 
 ## Arrancar
 
+Una vez:
+
 ```bash
-py -3 -m pip install --user mujoco        # Windows (python3 en Linux/macOS)
-INICIAR_SIMULADOR.bat                     # o ./INICIAR_SIMULADOR.sh
-cd proyecto && py -3 ejemplo.py           # en otra terminal
+py -3 -m pip install --user mujoco
 ```
 
-Directo, sin el menu: `cd entorno && py -3 -m sim --robot go2`.
+Cada vez, en dos terminales:
+
+```bash
+cd entorno && py -3 -m sim --robot go2    # o --robot g1; deja la ventana abierta
+cd proyecto && py -3 ejemplo.py           # tu programa
+```
+
+En Linux/macOS, `python3` en vez de `py -3`. `py -3 -m sim --solo-revisar`
+chequea el entorno sin abrir nada.
 
 En Windows, si `import mujoco` falla con *DLL load failed*, falta el
 [Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe).
