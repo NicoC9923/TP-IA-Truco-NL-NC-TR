@@ -3,15 +3,33 @@
 from __future__ import annotations
 
 import base64
+from pathlib import Path
+import sys
+import tempfile
 import unittest
+
+PROYECTO_DIR = Path(__file__).resolve().parent
+RAIZ_DIR = PROYECTO_DIR.parent
+if str(RAIZ_DIR) not in sys.path:
+    sys.path.insert(0, str(RAIZ_DIR))
+
 import truco_reglas as tr
 from truco_ia import AgenteTrucoIA
 from partida_truco import PartidaTruco
 from truco_vision import DetectorCartas
 from control_voz import AgenteRobot
+from entorno.sim.robots import G1
+from entorno.sim.mundo import Mundo
 
 
 class TestTrucoReglasYMotor(unittest.TestCase):
+    def setUp(self):
+        self._tmpdir = tempfile.TemporaryDirectory()
+        self.tmp_hist = str(Path(self._tmpdir.name) / "test_historial.json")
+
+    def tearDown(self):
+        self._tmpdir.cleanup()
+
     def test_jerarquia_cartas(self):
         self.assertGreater(tr.valor_carta_truco(1, "Espada"), tr.valor_carta_truco(1, "Basto"))
         self.assertGreater(tr.valor_carta_truco(1, "Basto"), tr.valor_carta_truco(7, "Espada"))
@@ -30,7 +48,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual(tr.calcular_envido(mano_distintos), 7)
 
     def test_ia_probabilidades_474k(self):
-        ia = AgenteTrucoIA(prob_farol=0.0)
+        ia = AgenteTrucoIA(prob_farol=0.0, historial_path=self.tmp_hist)
         self.assertEqual(ia.stats["total_manos"], 474000)
 
         mano_fuerte = [{"valor": 7, "palo": "Espada"}, {"valor": 6, "palo": "Espada"}, {"valor": 1, "palo": "Espada"}]
@@ -40,8 +58,10 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertGreater(ia.percentil_fuerza_truco(mano_fuerte), 0.98)
 
     def test_partida_flujo_completo_y_turnos(self):
-        partida = PartidaTruco(robot=None, meta_puntos=15)
+        partida = PartidaTruco(robot=None, meta_puntos=15, historial_path=self.tmp_hist)
         partida.ia.prob_farol = 0.0
+        partida.ia.prob_farol_envido = 0.0
+        partida.ia.prob_farol_truco = 0.0
 
         # Forzar una mano controlada donde Humano es mano
         partida.es_mano_humano = True
@@ -59,6 +79,10 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         ]
         partida.cartas_robot_disponibles = list(partida.cartas_robot)
 
+        # Antes de terminar la mano, las cartas de Ottoman están ocultas
+        self.assertIsNone(partida.estado_publico()["cartas_robot_reveladas"])
+        self.assertIsNone(partida.estado_publico()["tantos_robot"])
+
         # Jugar 1ra carta del humano; el robot debe responder automáticamente
         res1 = partida.jugar_carta_humano({"valor": 7, "palo": "Espada"})
         self.assertEqual(len(res1["estado"]["mesa"]), 2)
@@ -71,15 +95,140 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual(res2["estado"]["ganador_mano"], "humano")
         self.assertEqual(res2["estado"]["tanteador"]["humano"], 1)
 
+        # Al terminar la mano, se revelan las 3 cartas de Ottoman y sus tantos reales de Envido
+        reveladas = res2["estado"]["cartas_robot_reveladas"]
+        self.assertEqual(len(reveladas), 3)
+        self.assertEqual(res2["estado"]["tantos_robot"], 6)
+        jugadas_count = sum(1 for c in reveladas if c.get("jugada"))
+        self.assertEqual(jugadas_count, 2)
+
+    def test_deteccion_y_estadisticas_de_bluff(self):
+        partida = PartidaTruco(robot=None, meta_puntos=15, historial_path=self.tmp_hist)
+        partida.es_mano_humano = True
+        partida.nueva_mano(primera_vez=True)
+        # Forzar farol de Envido y Truco al 100% con cartas bajas para Ottoman
+        partida.ia.prob_farol_envido = 1.0
+        partida.ia.prob_farol_truco = 1.0
+        partida.cartas_robot = [
+            {"valor": 4, "palo": "Copa"},
+            {"valor": 5, "palo": "Oro"},
+            {"valor": 6, "palo": "Basto"},
+        ]
+        partida.cartas_robot_disponibles = list(partida.cartas_robot)
+
+        canto_env, frase_env = partida.ia.decidir_iniciar_envido(
+            partida.cartas_robot, es_mano=False, puntos_humano=0, puntos_robot=0, meta_puntos=15
+        )
+        self.assertEqual(canto_env, "ENVIDO")
+        self.assertTrue(partida.ia.ultimo_canto_fue_farol)
+        partida._robot_canta_envido(
+            canto_env,
+            frase_env,
+            es_farol=partida.ia.ultimo_canto_fue_farol,
+            detalle_farol=partida.ia.ultimo_detalle_farol,
+        )
+        # El humano dice NO QUIERO: el farol de Ottoman resulta exitoso
+        partida.responder_canto_humano("NO_QUIERO")
+
+        self.assertEqual(partida.estadisticas_partida["envido"]["bluffs_intentados"], 1)
+        self.assertEqual(partida.estadisticas_partida["envido"]["bluffs_exitosos"], 1)
+        self.assertEqual(len(partida.bluffs_mano_actual), 1)
+        self.assertEqual(partida.bluffs_mano_actual[0]["resultado"], "exitoso")
+
+    def test_aprendizaje_adaptativo_e_historial_persistente(self):
+        ia = AgenteTrucoIA(prob_farol=0.18, historial_path=self.tmp_hist)
+        p_truco_ini = ia.prob_farol_truco
+
+        # Si el humano siempre se retira ("NO QUIERO") ante cantos de Truco del robot,
+        # la IA incrementa su frecuencia de farol en Truco
+        for _ in range(5):
+            ia.registrar_respuesta_humano_a_canto("TRUCO", quiso=False, era_farol_robot=True)
+        self.assertGreater(ia.prob_farol_truco, p_truco_ini)
+
+        # Registrar fin de partida y verificar que quede persistido en disco
+        snap = ia.registrar_partida_finalizada(
+            ganador="robot",
+            puntos_humano=11,
+            puntos_robot=15,
+            meta_puntos=15,
+            estadisticas_partida={
+                "manos_jugadas": 8,
+                "envido": {
+                    "cantados_robot": 3,
+                    "bluffs_intentados": 2,
+                    "bluffs_exitosos": 1,
+                    "bluffs_descubiertos": 1,
+                },
+                "truco": {
+                    "cantados_robot": 4,
+                    "bluffs_intentados": 3,
+                    "bluffs_exitosos": 2,
+                    "bluffs_descubiertos": 1,
+                },
+            },
+        )
+        self.assertEqual(snap["ganador"], "robot")
+
+        # Recargar desde disco y comprobar que conserve la partida y los parámetros aprendidos
+        ia2 = AgenteTrucoIA(prob_farol=0.18, historial_path=self.tmp_hist)
+        resumen = ia2.resumen_aprendizaje()
+        self.assertEqual(resumen["partidas_jugadas"], 1)
+        self.assertEqual(resumen["victorias_robot"], 1)
+        self.assertEqual(len(resumen["partidas"]), 1)
+        self.assertEqual(resumen["partidas"][0]["bluffs_truco_intentados"], 3)
+        self.assertAlmostEqual(ia2.prob_farol_truco, ia.prob_farol_truco, places=3)
+
+    def test_escena_mesa_truco_y_animacion_repartiendo(self):
+        ruta = Path(G1.ruta_escena())
+        self.assertTrue(ruta.exists())
+        self.assertEqual(ruta.name, "scene_mesa_truco.xml")
+        contenido = ruta.read_text(encoding="utf-8")
+        self.assertIn("mesa_truco", contenido)
+        self.assertIn("silla_ottoman", contenido)
+        self.assertIn("repartiendo", G1.gestos)
+
+        mundo = Mundo()
+        self.assertFalse(mundo.leer()["de_pie"])
+        mundo.gesto("repartiendo", 2.0)
+        self.assertEqual(mundo.leer()["accion"], "repartiendo")
+        self.assertFalse(mundo.leer()["de_pie"])
+
+    def test_modos_arquitectura_agente_y_xai(self):
+        partida = PartidaTruco(robot=None, meta_puntos=15, historial_path=self.tmp_hist)
+        mano_media = [
+            {"valor": 4, "palo": "Copa"},
+            {"valor": 7, "palo": "Oro"},
+            {"valor": 1, "palo": "Espada"},
+        ]
+
+        # 1. En modo Reactivo Simple, tira siempre su carta más alta (1 de Espada)
+        partida.cambiar_modo_ia("reactivo")
+        self.assertEqual(partida.ia.modo_agente, "reactivo")
+        c_reac = partida.ia.elegir_carta_a_jugar(mano_media, ronda=1)
+        self.assertEqual((c_reac["valor"], c_reac["palo"]), (1, "Espada"))
+        self.assertEqual(partida.ia.ultimo_razonamiento["modo_codigo"], "reactivo")
+
+        # 2. En modo Basado en Utilidad (474k), abre con su intermedia fuerte (7 de Oro) y reserva el Ancho
+        partida.cambiar_modo_ia("utilidad")
+        self.assertEqual(partida.ia.modo_agente, "utilidad")
+        c_util = partida.ia.elegir_carta_a_jugar(mano_media, ronda=1)
+        self.assertEqual((c_util["valor"], c_util["palo"]), (7, "Oro"))
+        self.assertGreaterEqual(len(partida.ia.traza_razonamiento), 2)
+
+        # 3. Volver a modo Aprendizaje Adaptativo
+        est = partida.cambiar_modo_ia("aprendizaje")
+        self.assertEqual(est["aprendizaje_ia"]["modo_agente"], "aprendizaje")
+        self.assertTrue(len(est["aprendizaje_ia"]["traza_razonamiento"]) >= 2)
+
     def test_turno_automatico_cuando_robot_es_mano(self):
-        partida = PartidaTruco(robot=None, meta_puntos=15)
+        partida = PartidaTruco(robot=None, meta_puntos=15, historial_path=self.tmp_hist)
         partida.es_mano_humano = False
         est = partida.nueva_mano(primera_vez=True)
         # El robot al ser mano o bien cantó (canto_pendiente) o bien ya tiró su 1ra carta a la mesa
         self.assertTrue(len(est["mesa"]) == 1 or est["canto_pendiente"] is not None)
 
     def test_voz_truco(self):
-        partida = PartidaTruco(robot=None, meta_puntos=15)
+        partida = PartidaTruco(robot=None, meta_puntos=15, historial_path=self.tmp_hist)
         partida.es_mano_humano = True
         partida.nueva_mano(primera_vez=True)
         partida.cartas_humano = [
@@ -123,6 +272,14 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         r2 = agente.procesar("festejá")
         self.assertEqual(r2["tipo"], "FESTEJO")
         self.assertTrue(r2["ejecutar"])
+
+        r3 = agente.procesar("repartí las cartas")
+        self.assertEqual(r3["tipo"], "REPARTIR")
+        self.assertTrue(r3["ejecutar"])
+
+        r4 = agente.procesar("sentate en la mesa")
+        self.assertEqual(r4["tipo"], "SENTARSE")
+        self.assertTrue(r4["ejecutar"])
 
         r_peligro = agente.procesar("salta desde la mesa")
         self.assertTrue(r_peligro["bloqueado"])

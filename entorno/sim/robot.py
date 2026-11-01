@@ -383,6 +383,18 @@ class Robot:
         """Cruza brazos y gira el torso al irse al mazo o rechazar."""
         return self.hacer_gesto("mazo", duracion=1.8, esperar=esperar)
 
+    def repartir(self, esperar: bool = True) -> EstadoRobot:
+        """Se sienta en la mesa (si no lo estaba) y ejecuta la animacion de repartir cartas."""
+        return self.hacer_gesto("repartiendo", duracion=2.0, esperar=esperar)
+
+    def sentarse(self) -> EstadoRobot:
+        """Sienta al robot frente a la mesa de Truco."""
+        return self.hacer_gesto("sentarse", duracion=0.2, esperar=False)
+
+    def pararse(self) -> EstadoRobot:
+        """Pone al robot de pie para poder caminar."""
+        return self.hacer_gesto("pararse", duracion=0.2, esperar=False)
+
     def _exigir_conexion(self) -> None:
         if self._cliente is None:
             raise NoHaySimulador(

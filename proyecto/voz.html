@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<title>Ottoman (Unitree G1) — Truco Argentino & Voz</title>
+<title>Ottoman (Unitree G1) — Truco Argentino, Visión, Voz & Evolución IA</title>
 <style>
   :root {
     --bg: #f4f6f9;
@@ -17,7 +17,7 @@
   * { box-sizing: border-box; }
   body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    max-width: 1160px;
+    max-width: 1180px;
     margin: 1rem auto;
     padding: 0 1rem 2rem;
     background: var(--bg);
@@ -62,13 +62,14 @@
     gap: 0.5rem;
     margin-bottom: 1.2rem;
     border-bottom: 2px solid #cbd5e1;
+    flex-wrap: wrap;
   }
   .tab-btn {
     padding: 0.65rem 1.25rem;
     cursor: pointer;
     border: none;
     background: none;
-    font-size: 1rem;
+    font-size: 0.98rem;
     font-weight: 700;
     color: #64748b;
     border-bottom: 3px solid transparent;
@@ -83,10 +84,10 @@
 
   .truco-grid {
     display: grid;
-    grid-template-columns: 360px 1fr;
+    grid-template-columns: 350px 1fr;
     gap: 1.2rem;
   }
-  @media (max-width: 880px) {
+  @media (max-width: 900px) {
     .truco-grid { grid-template-columns: 1fr; }
   }
   .panel {
@@ -195,6 +196,7 @@
     gap: 0.5rem;
     align-items: center;
     font-size: 0.84rem;
+    flex-wrap: wrap;
   }
   .chip {
     padding: 0.2rem 0.55rem;
@@ -216,6 +218,17 @@
     align-items: center;
     justify-content: space-between;
     gap: 0.6rem;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .burbuja-robot.pensando {
+    background: #eff6ff;
+    border-color: #60a5fa;
+    border-left: 5px solid #2563eb;
+    animation: pulsoPensando 1.1s infinite ease-in-out;
+  }
+  @keyframes pulsoPensando {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.82; transform: scale(0.995); }
   }
 
   /* Banner de canto pendiente */
@@ -233,6 +246,30 @@
     color: #9a3412;
     margin-bottom: 0.5rem;
     font-size: 1rem;
+  }
+
+  /* Banner de Fin de Partido con Estadísticas de Bluffs */
+  .fin-partido-box {
+    display: none;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    border: 2px solid #2563eb;
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 0.9rem;
+  }
+  .fin-partido-box.visible { display: block; }
+  .fin-partido-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.7rem;
+    margin-top: 0.65rem;
+  }
+  .stat-mini-card {
+    background: #ffffff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
   }
 
   /* Paño verde de la mesa */
@@ -302,6 +339,88 @@
     display: block;
   }
 
+  /* Panel de Revelación de Cartas de Ottoman al terminar la mano */
+  .revelacion-box {
+    display: none;
+    margin-top: 0.85rem;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    background: #f8fafc;
+    border: 2px dashed #64748b;
+  }
+  .revelacion-box.visible { display: block; }
+  .revelacion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.65rem;
+  }
+  .revelacion-cartas {
+    display: flex;
+    gap: 0.9rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .carta-revelada-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .carta-revelada-marco {
+    width: 92px;
+    height: 140px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.22);
+    border: 2px solid #475569;
+    background: #fff;
+  }
+  .carta-revelada-marco.no-jugada {
+    border-color: #d97706;
+    outline: 2px solid #fef08a;
+  }
+  .carta-revelada-marco img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .tag-estado-carta {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+  }
+  .tag-estado-carta.oculta {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+  }
+  .badge-farol {
+    display: inline-block;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-top: 0.35rem;
+    margin-right: 0.4rem;
+  }
+  .badge-farol.mentira {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #f87171;
+  }
+  .badge-farol.honesto {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #4ade80;
+  }
+
   /* Cartas en tu mano (Baraja Española Original) */
   .mano-header {
     display: flex;
@@ -341,7 +460,7 @@
   .btn-naipe-mano .carta-marco img {
     width: 100%;
     height: 100%;
-    object-fit: fill;
+    object-fit: cover;
     display: block;
   }
   .btn-naipe-mano:hover:not(:disabled) {
@@ -355,6 +474,105 @@
     opacity: 0.55;
     cursor: not-allowed;
     filter: grayscale(18%);
+  }
+
+  /* Barra de estadísticas de mentiras en vivo */
+  .barra-bluffs-vivo {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.55rem 0.8rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    color: #334155;
+  }
+
+  /* Selector de Arquitectura del Agente y Panel XAI */
+  .arquitectura-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.7rem;
+    padding: 0.55rem 0.85rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    font-size: 0.83rem;
+  }
+  .arquitectura-bar select {
+    padding: 0.3rem 0.55rem;
+    border-radius: 7px;
+    border: 1px solid #3b82f6;
+    background: #fff;
+    color: #1e3a8a;
+    font-weight: 700;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+  .xai-box {
+    margin-top: 0.8rem;
+    padding: 0.75rem 0.95rem;
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 10px;
+    border-left: 4px solid #38bdf8;
+    font-size: 0.82rem;
+  }
+  .xai-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+    color: #38bdf8;
+    font-weight: 700;
+  }
+  .xai-step {
+    background: rgba(30, 41, 59, 0.85);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+    margin-bottom: 0.45rem;
+  }
+  .xai-step:last-child { margin-bottom: 0; }
+  .xai-step-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.25rem;
+  }
+  .xai-badge-dec {
+    background: #0284c7;
+    color: #fff;
+    padding: 0.12rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.75rem;
+  }
+  .xai-badge-dec.farol {
+    background: #dc2626;
+  }
+  .xai-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.3rem 0.7rem;
+    font-size: 0.76rem;
+    color: #94a3b8;
+    margin-bottom: 0.25rem;
+  }
+  .xai-meta-grid b { color: #cbd5e1; }
+  .xai-explicacion {
+    color: #f8fafc;
+    font-size: 0.8rem;
   }
 
   /* Botonera de cantos */
@@ -381,6 +599,42 @@
   .btn-canto.no-quiero { background: #fee2e2; border-color: #f87171; color: #991b1b; }
   .btn-canto.nueva { background: var(--primary); border-color: var(--primary); color: #fff; }
 
+  /* Sección Historial y Evolución de la IA */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 0.9rem;
+    margin-bottom: 1.1rem;
+  }
+  .kpi-card {
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+  }
+  .kpi-valor {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: var(--primary);
+    margin: 0.2rem 0;
+  }
+  .tabla-hist {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+    margin-top: 0.6rem;
+  }
+  .tabla-hist th, .tabla-hist td {
+    padding: 0.55rem 0.7rem;
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+  }
+  .tabla-hist th {
+    background: #f1f5f9;
+    font-weight: 700;
+    color: #334155;
+  }
+
   /* Sección control libre por voz */
   #hablar {
     width: 100%;
@@ -402,7 +656,7 @@
 </head>
 <body>
   <header>
-    <h1>🤖 Ottoman (Unitree G1) — Truco Argentino & Control por Voz</h1>
+    <h1>🤖 Ottoman (Unitree G1) — Truco Argentino, Visión & Aprendizaje IA</h1>
     <div class="header-controls">
       <label style="cursor:pointer; display:flex; align-items:center; gap:0.3rem;">
         <input type="checkbox" id="chk-tts" checked> 🔊 Voz de Ottoman (TTS)
@@ -412,7 +666,8 @@
   </header>
 
   <div class="tabs">
-    <button class="tab-btn activo" onclick="cambiarTab('truco')">🃏 Jugar al Truco (Webcam + 474k Manos)</button>
+    <button class="tab-btn activo" onclick="cambiarTab('truco')">🃏 Mesa de Truco (Webcam + Baraja Española)</button>
+    <button class="tab-btn" onclick="cambiarTab('historial')">📊 Historial de Partidas y Evolución de la IA</button>
     <button class="tab-btn" onclick="cambiarTab('voz')">🎤 Control Libre por Voz (Caminar / Gestos)</button>
   </div>
 
@@ -445,7 +700,7 @@
         </form>
       </div>
 
-      <!-- Columna Derecha: Mesa, Tanteador, Cartas y Cantos -->
+      <!-- Columna Derecha: Mesa, Tanteador, Revelación de Mano, Cartas y Cantos -->
       <div class="panel">
         <div class="tanteador-bar">
           <div class="marcador-numeros" id="tanteador">👤 Vos 0 — 0 Ottoman 🤖</div>
@@ -456,8 +711,23 @@
               <option value="15">A 15 pts</option>
               <option value="30">A 30 pts</option>
             </select>
-            <button class="btn-canto" onclick="reiniciarPartido()" style="padding:0.22rem 0.55rem; font-size:0.78rem;">🔄 Reiniciar</button>
+            <button class="btn-canto" onclick="reiniciarPartido()" style="padding:0.22rem 0.55rem; font-size:0.78rem;">🔄 Nuevo Partido</button>
           </div>
+        </div>
+
+        <!-- Selector de Nivel / Arquitectura Teórica del Agente IA -->
+        <div class="arquitectura-bar">
+          <div>
+            <b>🧠 Arquitectura del Agente:</b>
+            <select id="sel-modo-ia" onchange="cambiarModoIA()">
+              <option value="reactivo">1. Agente Reactivo Simple (Reglas Fijas)</option>
+              <option value="utilidad">2. Agente Basado en Utilidad (474k Manos - Estático)</option>
+              <option value="aprendizaje" selected>3. Agente Híbrido con Aprendizaje Adaptativo (Ottoman Completo)</option>
+            </select>
+          </div>
+          <span id="subtitulo-arquitectura" style="color:#1e40af; font-size:0.78rem; font-weight:600;">
+            Utilidad esperada (474k) + cuota dinámica de farol + modelado online del rival
+          </span>
         </div>
 
         <!-- Diálogo de Ottoman -->
@@ -465,6 +735,9 @@
           <div><b>🤖 Ottoman dice:</b> <span id="frase-robot">¡Listo para jugar!</span></div>
           <button class="btn-canto" onclick="repetirVozRobot()" title="Escuchar de nuevo" style="padding:0.25rem 0.5rem; font-size:0.78rem;">🔊</button>
         </div>
+
+        <!-- Resumen de Fin de Partida (Estadísticas de Mentiras / Bluffs) -->
+        <div id="banner-fin-partido" class="fin-partido-box"></div>
 
         <!-- Banner cuando Ottoman canta algo y espera respuesta -->
         <div id="alerta-canto" class="alerta-canto">
@@ -478,6 +751,9 @@
           <div class="baza-col"><div class="baza-titulo">2da Baza</div><i>—</i></div>
           <div class="baza-col"><div class="baza-titulo">3ra Baza</div><i>—</i></div>
         </div>
+
+        <!-- Revelación de las 3 cartas de Ottoman al terminar cada mano -->
+        <div id="panel-revelacion-mano" class="revelacion-box"></div>
 
         <!-- Tus cartas disponibles -->
         <div class="mano-header">
@@ -493,19 +769,72 @@
           <button id="btn-falta-envido" class="btn-canto envido" onclick="cantarEnvido('FALTA_ENVIDO')">Falta Envido</button>
           <button id="btn-truco" class="btn-canto truco" onclick="cantarTruco()">¡Truco!</button>
           <button id="btn-mazo" class="btn-canto no-quiero" onclick="irseAlMazo()">🏳️ Irse al Mazo</button>
-          <button id="btn-nueva-mano" class="btn-canto nueva" onclick="nuevaMano()">🃏 Nueva Mano</button>
+          <button id="btn-nueva-mano" class="btn-canto nueva" onclick="nuevaMano()">🃏 Repartir Nueva Mano</button>
         </div>
 
+        <!-- Contador en vivo de Mentiras / Bluffs de Ottoman en esta partida -->
+        <div id="barra-bluffs-vivo" class="barra-bluffs-vivo"></div>
+
+        <!-- Panel de Explicabilidad de la IA (XAI - Pensamiento Interno en Vivo) -->
+        <div id="panel-xai-vivo" class="xai-box"></div>
+
         <!-- Historial de la partida -->
-        <div style="margin-top:0.9rem; border-top:1px solid #e2e8f0; padding-top:0.6rem;">
-          <b style="font-size:0.85rem; color:#475569;">📋 Historial de la partida:</b>
-          <div id="truco-log" style="max-height:115px; overflow-y:auto; font-size:0.83rem; margin-top:0.35rem; color:#334155;"></div>
+        <div style="margin-top:0.85rem; border-top:1px solid #e2e8f0; padding-top:0.6rem;">
+          <b style="font-size:0.85rem; color:#475569;">📋 Registro de la partida actual:</b>
+          <div id="truco-log" style="max-height:110px; overflow-y:auto; font-size:0.83rem; margin-top:0.35rem; color:#334155;"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ==================== SECCION 2: CONTROL LIBRE POR VOZ ==================== -->
+  <!-- ==================== SECCION 2: HISTORIAL Y EVOLUCION DE LA IA ==================== -->
+  <div id="seccion-historial" class="seccion">
+    <div class="panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.8rem; margin-bottom:0.9rem;">
+        <div>
+          <h2 style="margin:0; font-size:1.18rem;">🧠 Aprendizaje Adaptativo y Evolución de Ottoman</h2>
+          <div style="font-size:0.86rem; color:#64748b; margin-top:0.2rem;">
+            Además de la base estadística de 474.000 manos, Ottoman mide qué tanto mentís o achicás en cada mano y adapta sus probabilidades de farol y sus umbrales de aceptación.
+          </div>
+        </div>
+        <div id="badge-perfil-humano" class="chip" style="background:#dbeafe; color:#1e40af; font-size:0.88rem; padding:0.4rem 0.8rem;">
+          Perfil detectado: Equilibrado
+        </div>
+      </div>
+
+      <!-- KPIs de Aprendizaje -->
+      <div class="kpi-grid" id="kpis-evolucion"></div>
+
+      <!-- Gráfico SVG de evolución de parámetros a lo largo de las partidas -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem; margin-bottom:1.1rem;">
+        <b style="font-size:0.92rem; color:#1e293b;">📈 Curva de Evolución de la IA a lo largo de los Partidos (% Farol en Envido vs % Farol en Truco):</b>
+        <div id="grafico-evolucion" style="margin-top:0.6rem;"></div>
+      </div>
+
+      <!-- Tabla de Historial de Partidas -->
+      <h3 style="margin:0 0 0.4rem 0; font-size:1rem;">🏆 Historial de Partidas contra Humanos</h3>
+      <div style="overflow-x:auto;">
+        <table class="tabla-hist">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Fecha</th>
+              <th>Resultado</th>
+              <th>Manos</th>
+              <th>Mentiras Envido (Total / Éxito / Descub.)</th>
+              <th>Mentiras Truco (Total / Éxito / Descub.)</th>
+              <th>Ajuste IA Post-Partida</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-historial">
+            <tr><td colspan="7" style="color:#64748b;">Jugá y terminá una partida para ver su registro en el historial.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SECCION 3: CONTROL LIBRE POR VOZ ==================== -->
   <div id="seccion-voz" class="seccion">
     <div class="panel">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.8rem; margin-bottom:1rem;">
@@ -514,9 +843,12 @@
           <label style="cursor:pointer;"><input type="radio" name="idioma" value="en-US"> 🇺🇸 English</label>
         </div>
         <div class="botones-grupo" style="margin-top:0;">
+          <button class="btn-canto" onclick="enviarComandoLibre('repartí las cartas')">🃏 Repartir Cartas</button>
           <button class="btn-canto" onclick="enviarComandoLibre('saludá')">👋 Saludar</button>
           <button class="btn-canto" onclick="enviarComandoLibre('festejá')">🙌 Festejar</button>
           <button class="btn-canto" onclick="enviarComandoLibre('dame la mano')">🤝 Dar la mano</button>
+          <button class="btn-canto" onclick="enviarComandoLibre('sentate')">🪑 Sentarse en la mesa</button>
+          <button class="btn-canto" onclick="enviarComandoLibre('ponete de pie')">🧍 Ponerse de pie</button>
           <button class="btn-canto no-quiero" onclick="enviarComandoLibre('detente')">🛑 Detenerse</button>
         </div>
       </div>
@@ -525,7 +857,7 @@
       <div id="estado" style="margin-top:0.6rem; color:#475569; min-height:1.2em;"></div>
 
       <form id="form-texto" style="display:flex; gap:0.5rem; margin-top:0.8rem;">
-        <input id="texto-manual" type="text" placeholder='Ej: "avanzá 2 metros", "girá 90 grados a la derecha", "festejá"' style="flex:1; padding:0.55rem; border:1px solid #cbd5e1; border-radius:8px;">
+        <input id="texto-manual" type="text" placeholder='Ej: "repartí las cartas", "festejá", "dame la mano", "ponete de pie", "avanzá 1 metro"' style="flex:1; padding:0.55rem; border:1px solid #cbd5e1; border-radius:8px;">
         <button type="submit" class="btn-canto nueva">Enviar Orden</button>
       </form>
 
@@ -538,194 +870,19 @@
   let ultimaFraseHablada = '';
   let estadoActual = null;
 
-  // ==================== GENERADOR GRAFICO DE BARAJA ESPAÑOLA ====================
-  function dibujarSimboloPalo(palo, esAs = false) {
-    if (palo === 'Oro') {
-      return `
-        <g>
-          ${esAs ? `<circle cx="0" cy="0" r="24" fill="none" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3 2"/>` : ''}
-          <circle cx="0" cy="0" r="16" fill="#fbbf24" stroke="#b45309" stroke-width="2"/>
-          <circle cx="0" cy="0" r="12.5" fill="#f59e0b" stroke="#dc2626" stroke-width="1.2"/>
-          <!-- Rayos del sol -->
-          <path d="M0,-11 L2,-5 L8,-8 L4,-2 L11,0 L4,2 L8,8 L2,5 L0,11 L-2,5 L-8,8 L-4,2 L-11,0 L-4,-2 L-8,-8 L-2,-5 Z" fill="#fef08a" stroke="#b45309" stroke-width="0.6"/>
-          <circle cx="0" cy="0" r="5.2" fill="#fde047" stroke="#b45309" stroke-width="0.9"/>
-          <circle cx="-1.8" cy="-1.2" r="0.8" fill="#78350f"/>
-          <circle cx="1.8" cy="-1.2" r="0.8" fill="#78350f"/>
-          <path d="M-2,1.8 Q0,3.2 2,1.8" fill="none" stroke="#78350f" stroke-width="0.8"/>
-        </g>`;
-    }
-    if (palo === 'Copa') {
-      return `
-        <g>
-          <!-- Pie y base del cáliz -->
-          <path d="M-9,16 L9,16 L6,12 L-6,12 Z" fill="#f59e0b" stroke="#78350f" stroke-width="1.2"/>
-          <rect x="-2.5" y="4" width="5" height="8" rx="1.5" fill="#fbbf24" stroke="#78350f" stroke-width="1.2"/>
-          <ellipse cx="0" cy="8" rx="4.5" ry="2" fill="#dc2626" stroke="#78350f" stroke-width="1"/>
-          <!-- Asas laterales -->
-          <path d="M-11,-6 C-17,-6 -17,3 -9,3" fill="none" stroke="#f59e0b" stroke-width="2.2"/>
-          <path d="M11,-6 C17,-6 17,3 9,3" fill="none" stroke="#f59e0b" stroke-width="2.2"/>
-          <!-- Vaso principal -->
-          <path d="M-12,-9 C-12,3 -6,6 0,6 C6,6 12,3 12,-9 Z" fill="#ef4444" stroke="#7f1d1d" stroke-width="1.4"/>
-          <path d="M-13,-9 L13,-9" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
-          <!-- Tapa / corona de la copa -->
-          <path d="M-10,-10 Q0,-18 10,-10 Z" fill="#fbbf24" stroke="#78350f" stroke-width="1.1"/>
-          <circle cx="0" cy="-16" r="2.2" fill="#dc2626" stroke="#78350f" stroke-width="0.9"/>
-        </g>`;
-    }
-    if (palo === 'Espada') {
-      return `
-        <g>
-          ${esAs ? `
-            <!-- Corona y cinta real del Ancho de Espada -->
-            <ellipse cx="0" cy="2" rx="19" ry="12" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-dasharray="4 2"/>
-            <path d="M-16,8 Q0,15 16,8" fill="none" stroke="#dc2626" stroke-width="2.5"/>
-          ` : ''}
-          <!-- Hoja de acero -->
-          <polygon points="0,-21 -3.8,6 0,9 3.8,6" fill="#e2e8f0" stroke="#1e293b" stroke-width="1.3"/>
-          <polygon points="0,-21 0,8 3.6,6" fill="#94a3b8"/>
-          <line x1="0" y1="-16" x2="0" y2="5" stroke="#475569" stroke-width="0.9"/>
-          <!-- Guardamano dorado -->
-          <path d="M-11,6 Q0,9 11,6 Q13,4 10,3 Q0,6 -10,3 Q-13,4 -11,6 Z" fill="#fbbf24" stroke="#78350f" stroke-width="1.1"/>
-          <!-- Empuñadura y pomo -->
-          <rect x="-2.2" y="7" width="4.4" height="8" rx="1.2" fill="#dc2626" stroke="#78350f" stroke-width="1"/>
-          <circle cx="0" cy="17" r="3.2" fill="#fbbf24" stroke="#78350f" stroke-width="1.1"/>
-        </g>`;
-    }
-    // Basto
-    return `
-      <g>
-        <!-- Tronco de madera nudosa (ensancha arriba) -->
-        <path d="M-3.5,17 L-6.5,-11 C-7,-17 7,-17 6.5,-11 L3.5,17 C2,19 -2,19 -3.5,17 Z" fill="#854d0e" stroke="#422006" stroke-width="1.4"/>
-        <path d="M-2,-13 C-1,-4 -1,6 -1.5,15" stroke="#a16207" stroke-width="1.6" fill="none"/>
-        <!-- Franjas decorativas en el mango -->
-        <path d="M-4,11 L4,11 M-4.4,7 L4.4,7" stroke="#fbbf24" stroke-width="1.8"/>
-        <!-- Hojas verdes brotando -->
-        <path d="M-5.5,-3 C-13,-7 -14,-1 -6,1 Z" fill="#16a34a" stroke="#14532d" stroke-width="1"/>
-        <path d="M5.5,-6 C13,-10 14,-4 6,-2 Z" fill="#22c55e" stroke="#14532d" stroke-width="1"/>
-        <path d="M-4,3 C-11,1 -11,6 -4.5,6 Z" fill="#22c55e" stroke="#14532d" stroke-width="1"/>
-      </g>`;
-  }
-
-  function dibujarFiguraCorte(valor, palo) {
-    const titulo = valor === 12 ? 'REY' : (valor === 11 ? 'CABALLO' : 'SOTA');
-    const colorTunica = palo === 'Espada' ? '#2563eb' : (palo === 'Basto' ? '#15803d' : (palo === 'Copa' ? '#dc2626' : '#d97706'));
-    const colorCapa = palo === 'Espada' ? '#dc2626' : (palo === 'Basto' ? '#b45309' : (palo === 'Copa' ? '#1d4ed8' : '#b91c1c'));
-
-    return `
-      <g transform="translate(70, 112)">
-        <!-- Fondo aureola suave -->
-        <ellipse cx="0" cy="-4" rx="42" ry="62" fill="#fef9c3" opacity="0.55"/>
-
-        ${valor === 11 ? `
-          <!-- Silueta de Caballo rampante para el 11 -->
-          <path d="M-30,45 L-18,15 L-26,0 L-14,-12 L-4,-5 L16,12 L28,45 Z" fill="#9a3412" stroke="#431407" stroke-width="1.6"/>
-          <path d="M-26,0 L-34,6 L-28,12 L-20,6" fill="#9a3412" stroke="#431407" stroke-width="1.4"/>
-        ` : ''}
-
-        <!-- Capa y túnica medieval -->
-        <path d="M-28,50 C-26,8 -18,-10 0,-10 C18,-10 26,8 28,50 Z" fill="${colorCapa}" stroke="#1e293b" stroke-width="1.6"/>
-        <path d="M-18,50 L-12,-8 L12,-8 L18,50 Z" fill="${colorTunica}" stroke="#1e293b" stroke-width="1.4"/>
-        <!-- Cinturón dorado -->
-        <rect x="-15" y="18" width="30" height="5" fill="#fbbf24" stroke="#78350f" stroke-width="1"/>
-
-        <!-- Rostro y cuello -->
-        <rect x="-5" y="-17" width="10" height="8" fill="#fed7aa"/>
-        <circle cx="0" cy="-26" r="12.5" fill="#ffedd5" stroke="#431407" stroke-width="1.4"/>
-        <circle cx="-4" cy="-27" r="1.4" fill="#1e293b"/>
-        <circle cx="4" cy="-27" r="1.4" fill="#1e293b"/>
-
-        ${valor === 12 ? `
-          <!-- Barba blanca/dorada de Rey y Corona Real -->
-          <path d="M-10,-21 Q0,-10 10,-21" fill="#fde68a" stroke="#78350f" stroke-width="1.2"/>
-          <path d="M-13,-35 L-9,-47 L-3,-39 L0,-48 L3,-39 L9,-47 L13,-35 Z" fill="#fbbf24" stroke="#78350f" stroke-width="1.3"/>
-        ` : `
-          <!-- Sombrero/birrete medieval para Sota y Caballo -->
-          <path d="M-14,-35 Q0,-46 14,-35 Z" fill="${colorCapa}" stroke="#1e293b" stroke-width="1.3"/>
-          <path d="M-16,-35 L16,-35" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round"/>
-        `}
-
-        <!-- Emblema del palo sostenido en mano derecha -->
-        <g transform="translate(27, -20) scale(1.15)">
-          ${dibujarSimboloPalo(palo, false)}
-        </g>
-
-        <!-- Cinta inferior con el rango -->
-        <rect x="-32" y="42" width="64" height="15" rx="4" fill="#fffbeb" stroke="#78350f" stroke-width="1.2"/>
-        <text x="0" y="52.5" text-anchor="middle" font-size="9.5" font-weight="800" fill="#1e293b" font-family="Georgia, serif">${titulo}</text>
-      </g>`;
-  }
-
-  function generarPintasMarco(palo) {
-    // Las pintas tradicionales españolas en el borde superior e inferior del recuadro:
-    // Oro: continuo (0 cortes), Copa: 1 corte, Espada: 2 cortes, Basto: 3 cortes
-    const cortes = palo === 'Oro' ? 0 : (palo === 'Copa' ? 1 : (palo === 'Espada' ? 2 : 3));
-    if (cortes === 0) return '';
-    let rects = '';
-    const posiciones = {
-      1: [66],
-      2: [52, 80],
-      3: [44, 66, 88]
-    }[cortes] || [];
-    posiciones.forEach(x => {
-      rects += `<rect x="${x}" y="9" width="8" height="6" fill="#fffdf6"/>`;
-      rects += `<rect x="${x}" y="195" width="8" height="6" fill="#fffdf6"/>`;
-    });
-    return rects;
-  }
-
-  function generarCartaEspanolaSVG(valor, palo) {
-    // Coordenadas (x, y, escala, rotacion) de los palos según el número (1 al 7)
-    const layouts = {
-      1: [[70, 105, 2.05, 0]],
-      2: [[70, 60, 1.25, 0], [70, 150, 1.25, 180]],
-      3: [[70, 50, 1.12, 0], [70, 105, 1.12, 0], [70, 160, 1.12, 180]],
-      4: [[44, 60, 1.08, 0], [96, 60, 1.08, 0], [44, 150, 1.08, 180], [96, 150, 1.08, 180]],
-      5: [[44, 54, 1.02, 0], [96, 54, 1.02, 0], [70, 105, 1.02, 0], [44, 156, 1.02, 180], [96, 156, 1.02, 180]],
-      6: [[44, 50, 0.98, 0], [96, 50, 0.98, 0], [44, 105, 0.98, 0], [96, 105, 0.98, 0], [44, 160, 0.98, 180], [96, 160, 0.98, 180]],
-      7: [[44, 48, 0.94, 0], [96, 48, 0.94, 0], [70, 78, 0.94, 0], [44, 110, 0.94, 0], [96, 110, 0.94, 0], [44, 162, 0.94, 180], [96, 162, 0.94, 180]]
-    };
-
-    let contenidoCentral = '';
-    if (valor >= 10) {
-      contenidoCentral = dibujarFiguraCorte(valor, palo);
-    } else {
-      const coords = layouts[valor] || layouts[1];
-      contenidoCentral = coords.map(([cx, cy, sc, rot]) =>
-        `<g transform="translate(${cx}, ${cy}) rotate(${rot}) scale(${sc})">
-          ${dibujarSimboloPalo(palo, valor === 1)}
-        </g>`
-      ).join('');
-    }
-
-    const colorIndice = palo === 'Copa' ? '#b91c1c' : (palo === 'Oro' ? '#b45309' : (palo === 'Espada' ? '#1e3a8a' : '#14532d'));
-
-    return `
-      <svg viewBox="0 0 140 210" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-        <!-- Naipe base marfil -->
-        <rect x="1.5" y="1.5" width="137" height="207" rx="10" fill="#fffdf6" stroke="#334155" stroke-width="2"/>
-        <!-- Recuadro interior tradicional con pintas -->
-        <rect x="11" y="11" width="118" height="188" rx="4" fill="none" stroke="#1e293b" stroke-width="1.8"/>
-        ${generarPintasMarco(palo)}
-
-        <!-- Números en las esquinas -->
-        <text x="17" y="29" font-size="16" font-weight="800" font-family="Georgia, serif" fill="${colorIndice}">${valor}</text>
-        <g transform="translate(123, 181) rotate(180)">
-          <text x="0" y="0" font-size="16" font-weight="800" font-family="Georgia, serif" fill="${colorIndice}">${valor}</text>
-        </g>
-
-        <!-- Arte central de la Baraja Española -->
-        ${contenidoCentral}
-      </svg>`;
-  }
-
   function cambiarTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activo'));
+    const btns = document.querySelectorAll('.tab-btn');
+    btns.forEach(b => b.classList.remove('activo'));
     document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
     if (tab === 'truco') {
-      document.querySelectorAll('.tab-btn')[0].classList.add('activo');
+      btns[0].classList.add('activo');
       document.getElementById('seccion-truco').classList.add('activa');
+    } else if (tab === 'historial') {
+      btns[1].classList.add('activo');
+      document.getElementById('seccion-historial').classList.add('activa');
+      if (estadoActual?.aprendizaje_ia) renderizarEvolucionIA(estadoActual.aprendizaje_ia);
     } else {
-      document.querySelectorAll('.tab-btn')[1].classList.add('activo');
+      btns[2].classList.add('activo');
       document.getElementById('seccion-voz').classList.add('activa');
     }
   }
@@ -819,7 +976,7 @@
     // Badge simulador
     const badge = document.getElementById('badge-robot');
     if (data.robot_conectado) {
-      badge.textContent = '🟢 Robot G1 Conectado';
+      badge.textContent = '🟢 Robot G1 Sentado en Mesa';
       badge.classList.add('conectado');
     } else {
       badge.textContent = '🟡 Sin Simulador (abrí sim.bat)';
@@ -841,6 +998,47 @@
     if (data.ultima_frase_robot) {
       document.getElementById('frase-robot').textContent = data.ultima_frase_robot;
       hablarRobot(data.ultima_frase_robot);
+    }
+
+    // Estadísticas de Mentiras / Bluffs de la partida
+    const st = data.estadisticas_partida || { envido: {}, truco: {}, manos_jugadas: 0 };
+    const envSt = st.envido || {};
+    const truSt = st.truco || {};
+    document.getElementById('barra-bluffs-vivo').innerHTML = `
+      <div>🎭 <b>Mentiras de Ottoman en Envido:</b> ${envSt.bluffs_intentados || 0} (✅ ${envSt.bluffs_exitosos || 0} exitosas / 🔍 ${envSt.bluffs_descubiertos || 0} descubiertas)</div>
+      <div>🎭 <b>Mentiras de Ottoman en Truco:</b> ${truSt.bluffs_intentados || 0} (✅ ${truSt.bluffs_exitosos || 0} exitosas / 🔍 ${truSt.bluffs_descubiertos || 0} descubiertas)</div>
+    `;
+
+    // Banner de Fin de Partida con resumen de mentiras
+    const divFin = document.getElementById('banner-fin-partido');
+    if (data.partido_terminado) {
+      divFin.classList.add('visible');
+      const ganoHumano = data.ganador_partido === 'humano';
+      const totalBluffs = (envSt.bluffs_intentados || 0) + (truSt.bluffs_intentados || 0);
+      divFin.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+          <div style="font-size:1.1rem; font-weight:800; color:#1e3a8a;">
+            ${ganoHumano ? '🏆 ¡GANASTE EL PARTIDO!' : '🤖 ¡OTTOMAN GANÓ EL PARTIDO!'} (${data.tanteador.humano} a ${data.tanteador.robot})
+          </div>
+          <button class="btn-canto nueva" onclick="reiniciarPartido()">🔄 Jugar Otra Partida</button>
+        </div>
+        <div class="fin-partido-grid">
+          <div class="stat-mini-card">
+            <b>🃏 Manos jugadas:</b> ${st.manos_jugadas || 0}<br>
+            <b>🎭 Total de veces que Ottoman mintió:</b> ${totalBluffs}
+          </div>
+          <div class="stat-mini-card">
+            <b>💙 Mentiras en Envido:</b> ${envSt.bluffs_intentados || 0} de ${envSt.cantados_robot || 0} cantos<br>
+            <span style="color:#166534;">Pasaron sin ver: ${envSt.bluffs_exitosos || 0}</span> · <span style="color:#991b1b;">Descubiertas: ${envSt.bluffs_descubiertos || 0}</span>
+          </div>
+          <div class="stat-mini-card">
+            <b>🔥 Mentiras en Truco:</b> ${truSt.bluffs_intentados || 0} de ${truSt.cantados_robot || 0} cantos<br>
+            <span style="color:#166534;">Exitosas: ${truSt.bluffs_exitosos || 0}</span> · <span style="color:#991b1b;">Descubiertas: ${truSt.bluffs_descubiertos || 0}</span>
+          </div>
+        </div>
+      `;
+    } else {
+      divFin.classList.remove('visible');
     }
 
     // Alerta de canto pendiente de respuesta del humano
@@ -873,7 +1071,7 @@
       divAlerta.classList.remove('visible');
     }
 
-    // Paño de las 3 bazas con cartas españolas ilustradas
+    // Paño de las 3 bazas con cartas españolas
     const divMesa = document.getElementById('mesa-cartas');
     divMesa.innerHTML = '';
     for (let r = 1; r <= 3; r++) {
@@ -917,6 +1115,44 @@
       divMesa.appendChild(col);
     }
 
+    // Panel de Revelación de las 3 cartas de Ottoman al terminar la mano
+    const divRev = document.getElementById('panel-revelacion-mano');
+    if (data.mano_terminada && Array.isArray(data.cartas_robot_reveladas)) {
+      divRev.classList.add('visible');
+      const bluffsMano = data.bluffs_mano_actual || [];
+      let badgesBluff = '';
+      if (bluffsMano.length === 0) {
+        badgesBluff = `<span class="badge-farol honesto">✅ Ottoman no mintió en esta mano</span>`;
+      } else {
+        badgesBluff = bluffsMano.map(b => {
+          const resTxt = b.resultado === 'exitoso' ? 'Le salió bien' : (b.resultado === 'descubierto' ? '¡Lo descubriste!' : 'En juego');
+          return `<span class="badge-farol mentira">🎭 ¡FAROL EN ${b.tipo}! ${b.detalle} (${resTxt})</span>`;
+        }).join('');
+      }
+
+      const htmlCartasRobot = data.cartas_robot_reveladas.map(c => `
+        <div class="carta-revelada-item" title="${c.nombre}">
+          <div class="carta-revelada-marco ${c.jugada ? '' : 'no-jugada'}">
+            <img src="/cartas/${c.valor}_${c.palo}.png?v=fournier" alt="${c.nombre}">
+          </div>
+          <span class="tag-estado-carta ${c.jugada ? '' : 'oculta'}">
+            ${c.jugada ? 'Jugada en mesa' : 'Oculta en su mano'}
+          </span>
+        </div>
+      `).join('');
+
+      divRev.innerHTML = `
+        <div class="revelacion-header">
+          <b>🕵️ Cartas que tenía Ottoman en esta mano:</b>
+          <span class="chip">Tantos reales de Envido de Ottoman: <b>${data.tantos_robot ?? '--'}</b></span>
+        </div>
+        <div class="revelacion-cartas">${htmlCartasRobot}</div>
+        <div>${badgesBluff}</div>
+      `;
+    } else {
+      divRev.classList.remove('visible');
+    }
+
     // Cartas disponibles del humano (imágenes originales de la Baraja Española)
     const divMisCartas = document.getElementById('mis-cartas');
     divMisCartas.innerHTML = '';
@@ -958,6 +1194,251 @@
     if (Array.isArray(data.log)) {
       trucoLog.innerHTML = data.log.map(l => `<div style="padding:2px 0;">${l}</div>`).join('');
     }
+
+    // Actualizar Selector de Arquitectura y Panel XAI en vivo
+    if (data.aprendizaje_ia) {
+      const ia = data.aprendizaje_ia;
+      const selModo = document.getElementById('sel-modo-ia');
+      if (selModo && ia.modo_agente && selModo.value !== ia.modo_agente) {
+        selModo.value = ia.modo_agente;
+      }
+      const subArq = document.getElementById('subtitulo-arquitectura');
+      if (subArq && ia.arquitectura_subtitulo) {
+        subArq.textContent = ia.arquitectura_subtitulo;
+      }
+
+      const divXai = document.getElementById('panel-xai-vivo');
+      if (divXai) {
+        const trazas = ia.traza_razonamiento || [];
+        if (trazas.length === 0) {
+          divXai.innerHTML = `
+            <div class="xai-header">
+              <span>🔍 Explicabilidad de la IA (XAI — Pensamiento Interno en Vivo)</span>
+              <span style="font-size:0.76rem; color:#94a3b8;">${ia.arquitectura_nombre || ''}</span>
+            </div>
+            <div style="color:#94a3b8; font-style:italic;">Esperando el próximo turno o decisión de Ottoman para mostrar su evaluación matemática...</div>
+          `;
+        } else {
+          const pasosHtml = trazas.slice(0, 4).map(t => {
+            const esFarol = (t.decision || '').includes('FAROL');
+            return `
+              <div class="xai-step">
+                <div class="xai-step-top">
+                  <b>⚙️ ${t.fase} <span style="color:#94a3b8; font-weight:400;">(${t.hora})</span></b>
+                  <span class="xai-badge-dec ${esFarol ? 'farol' : ''}">${t.decision}</span>
+                </div>
+                <div class="xai-meta-grid">
+                  <div><b>Métrica:</b> ${t.metrica}</div>
+                  <div><b>Criterio / Umbral:</b> ${t.umbral}</div>
+                  <div><b>Política de Engaño:</b> ${t.farol_info}</div>
+                </div>
+                <div class="xai-explicacion">💡 <i>${t.explicacion}</i></div>
+              </div>
+            `;
+          }).join('');
+          divXai.innerHTML = `
+            <div class="xai-header">
+              <span>🔍 Explicabilidad de la IA (XAI — Pensamiento Interno en Vivo)</span>
+              <span style="font-size:0.76rem; color:#94a3b8;">Modo activo: ${ia.arquitectura_nombre || ''}</span>
+            </div>
+            ${pasosHtml}
+          `;
+        }
+      }
+
+      renderizarEvolucionIA(ia);
+    }
+  }
+
+  async function cambiarModoIA() {
+    const modo = document.getElementById('sel-modo-ia').value;
+    const res = await fetch('/truco/modo_ia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ modo })
+    });
+    const d = await res.json();
+    if (d.estado) renderizarEstado(d.estado);
+  }
+
+  function renderizarEvolucionIA(ia) {
+    if (!ia) return;
+    document.getElementById('badge-perfil-humano').textContent =
+      `Perfil detectado tuyo: ${ia.perfil_humano_detectado}`;
+
+    const divKpis = document.getElementById('kpis-evolucion');
+    divKpis.innerHTML = `
+      <div class="kpi-card">
+        <div style="font-size:0.8rem; color:#64748b; font-weight:700;">🎭 CUOTA DE FAROL EN ENVIDO</div>
+        <div class="kpi-valor">${ia.prob_farol_envido_pct}%</div>
+        <div style="font-size:0.78rem; color:#475569;">Base inicial: 14.0% · Sube si decís "No quiero" seguido</div>
+      </div>
+      <div class="kpi-card">
+        <div style="font-size:0.8rem; color:#64748b; font-weight:700;">🔥 CUOTA DE FAROL EN TRUCO</div>
+        <div class="kpi-valor">${ia.prob_farol_truco_pct}%</div>
+        <div style="font-size:0.78rem; color:#475569;">Base inicial: 14.0% · Se adapta según tu respuesta al Truco</div>
+      </div>
+      <div class="kpi-card">
+        <div style="font-size:0.8rem; color:#64748b; font-weight:700;">🕵️ FAROLES DETECTADOS A VOS</div>
+        <div class="kpi-valor">${ia.bluffs_humano_detectados} (${ia.tasa_bluff_humano_pct}%)</div>
+        <div style="font-size:0.78rem; color:#475569;">Ajuste umbral de pago de Ottoman: ${ia.umbral_envido_offset >= 0 ? '+' : ''}${ia.umbral_envido_offset}</div>
+      </div>
+      <div class="kpi-card">
+        <div style="font-size:0.8rem; color:#64748b; font-weight:700;">🏆 HISTORIAL GENERAL</div>
+        <div class="kpi-valor">🤖 ${ia.victorias_robot} — ${ia.victorias_humano} 👤</div>
+        <div style="font-size:0.78rem; color:#475569;">${ia.partidas_jugadas} partidas finalizadas · ${ia.manos_totales} manos analizadas</div>
+      </div>
+    `;
+
+    // Tabla de partidas históricas
+    const partidas = ia.partidas || [];
+    const tbody = document.getElementById('tbody-historial');
+    if (partidas.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" style="color:#64748b;">Todavía no hay partidas finalizadas registradas. Cuando un jugador llegue a 15 o 30 puntos aparecerá acá.</td></tr>`;
+    } else {
+      tbody.innerHTML = partidas.map(p => {
+        const ganTxt = p.ganador === 'robot'
+          ? `<b style="color:#dc2626;">🤖 Ottoman (${p.puntos_robot} - ${p.puntos_humano})</b>`
+          : `<b style="color:#16a34a;">👤 Vos (${p.puntos_humano} - ${p.puntos_robot})</b>`;
+        return `
+          <tr>
+            <td><b>#${p.id}</b></td>
+            <td>${p.fecha}</td>
+            <td>${ganTxt}</td>
+            <td>${p.manos_jugadas}</td>
+            <td><b>${p.bluffs_envido_intentados}</b> (✅ ${p.bluffs_envido_exitosos} / 🔍 ${p.bluffs_envido_descubiertos})</td>
+            <td><b>${p.bluffs_truco_intentados}</b> (✅ ${p.bluffs_truco_exitosos} / 🔍 ${p.bluffs_truco_descubiertos})</td>
+            <td>Farol Env: <b>${p.prob_farol_envido_post}%</b> · Farol Truco: <b>${p.prob_farol_truco_post}%</b></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Gráfico SVG de la curva de evolución
+    const divGraf = document.getElementById('grafico-evolucion');
+    const cronologico = [...partidas].reverse();
+    const puntosSerie = [
+      { label: 'Inicio', env: 14.0, tru: 14.0 },
+      ...cronologico.map(p => ({
+        label: `#${p.id}`,
+        env: p.prob_farol_envido_post,
+        tru: p.prob_farol_truco_post
+      })),
+      { label: 'Actual', env: ia.prob_farol_envido_pct, tru: ia.prob_farol_truco_pct }
+    ];
+
+    const W = 720, H = 170, padX = 48, padY = 24;
+    const maxY = 40.0;
+    const stepX = (W - padX * 2) / Math.max(1, puntosSerie.length - 1);
+    const coordY = v => (H - padY) - (Math.min(maxY, Math.max(0, v)) / maxY) * (H - padY * 2);
+
+    const ptsEnv = puntosSerie.map((pt, i) => `${padX + i * stepX},${coordY(pt.env)}`).join(' ');
+    const ptsTru = puntosSerie.map((pt, i) => `${padX + i * stepX},${coordY(pt.tru)}`).join(' ');
+
+    const nodos = puntosSerie.map((pt, i) => {
+      const cx = padX + i * stepX;
+      return `
+        <circle cx="${cx}" cy="${coordY(pt.env)}" r="4" fill="#0284c7"/>
+        <circle cx="${cx}" cy="${coordY(pt.tru)}" r="4" fill="#d97706"/>
+        <text x="${cx}" y="${H - 6}" text-anchor="middle" font-size="10" fill="#475569">${pt.label}</text>
+      `;
+    }).join('');
+
+    divGraf.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" width="100%" height="175" xmlns="http://www.w3.org/2000/svg">
+        <line x1="${padX}" y1="${coordY(0)}" x2="${W - padX}" y2="${coordY(0)}" stroke="#cbd5e1" stroke-width="1"/>
+        <line x1="${padX}" y1="${coordY(14)}" x2="${W - padX}" y2="${coordY(14)}" stroke="#94a3b8" stroke-dasharray="4 3" stroke-width="1"/>
+        <line x1="${padX}" y1="${coordY(30)}" x2="${W - padX}" y2="${coordY(30)}" stroke="#e2e8f0" stroke-width="1"/>
+        <text x="${padX - 6}" y="${coordY(0) + 3}" text-anchor="end" font-size="10" fill="#64748b">0%</text>
+        <text x="${padX - 6}" y="${coordY(14) + 3}" text-anchor="end" font-size="10" fill="#64748b">14%</text>
+        <text x="${padX - 6}" y="${coordY(30) + 3}" text-anchor="end" font-size="10" fill="#64748b">30%</text>
+        <polyline fill="none" stroke="#0284c7" stroke-width="2.5" points="${ptsEnv}"/>
+        <polyline fill="none" stroke="#d97706" stroke-width="2.5" points="${ptsTru}"/>
+        ${nodos}
+        <rect x="${W - 250}" y="4" width="10" height="10" fill="#0284c7"/>
+        <text x="${W - 235}" y="13" font-size="11" fill="#1e293b">% Farol Envido</text>
+        <rect x="${W - 135}" y="4" width="10" height="10" fill="#d97706"/>
+        <text x="${W - 120}" y="13" font-size="11" fill="#1e293b">% Farol Truco</text>
+      </svg>
+    `;
+  }
+
+  let ottomanPensando = false;
+
+  function bloquearControlesMesa(bloquear) {
+    const ids = ['btn-envido', 'btn-real-envido', 'btn-falta-envido', 'btn-truco', 'btn-mazo', 'btn-nueva-mano', 'btn-capturar'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = bloquear;
+    });
+    document.querySelectorAll('#mis-cartas button, #alerta-botones button').forEach(b => {
+      b.disabled = bloquear;
+    });
+  }
+
+  async function simularPensamientoOttoman(cartaRecienJugadaHumano = null) {
+    ottomanPensando = true;
+    bloquearControlesMesa(true);
+
+    // Si el humano acaba de tirar una carta, mostrarla de inmediato en el paño antes del delay de Ottoman
+    if (cartaRecienJugadaHumano && estadoActual) {
+      const rondaAct = estadoActual.ronda || 1;
+      const cols = document.querySelectorAll('#mesa-cartas .baza-col');
+      const colBaza = cols[rondaAct - 1];
+      if (colBaza) {
+        let wrap = colBaza.querySelector('.baza-cartas-wrap');
+        if (!wrap) {
+          colBaza.innerHTML = `<div class="baza-titulo">${rondaAct}ra Baza</div>`;
+          wrap = document.createElement('div');
+          wrap.className = 'baza-cartas-wrap';
+          colBaza.appendChild(wrap);
+        }
+        const item = document.createElement('div');
+        item.className = 'naipe-mesa-item';
+        item.innerHTML = `
+          <span class="naipe-mesa-tag humano">👤 Vos</span>
+          <div class="naipe-mesa-svg">
+            <img src="/cartas/${cartaRecienJugadaHumano.valor}_${cartaRecienJugadaHumano.palo}.png?v=fournier" alt="${cartaRecienJugadaHumano.valor} de ${cartaRecienJugadaHumano.palo}">
+          </div>
+        `;
+        wrap.appendChild(item);
+      }
+      // Quitar visualmente la carta jugada de la mano del humano
+      document.querySelectorAll('#mis-cartas .btn-naipe-mano').forEach(btn => {
+        if (btn.title === `${cartaRecienJugadaHumano.valor} de ${cartaRecienJugadaHumano.palo}`) {
+          btn.remove();
+        }
+      });
+    }
+
+    const burbuja = document.querySelector('.burbuja-robot');
+    const fraseEl = document.getElementById('frase-robot');
+    if (burbuja) burbuja.classList.add('pensando');
+    if (fraseEl) fraseEl.innerHTML = '🤔 <b>Pensando...</b> <i>(analizando la próxima jugada)</i>';
+    hablarRobot('Pensando', true);
+
+    const divXai = document.getElementById('panel-xai-vivo');
+    if (divXai) {
+      divXai.innerHTML = `
+        <div class="xai-header">
+          <span>🧠 Ottoman está pensando su próxima jugada...</span>
+          <span style="font-size:0.76rem; color:#38bdf8;">Evaluando probabilidades (474k manos) y perfil del rival</span>
+        </div>
+        <div style="color:#cbd5e1; font-style:italic;">Calculando utilidad esperada de cantos y selección de carta (3 seg)...</div>
+      `;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    if (burbuja) burbuja.classList.remove('pensando');
+    ottomanPensando = false;
+  }
+
+  async function renderizarConPensamientoSiJuegaOttoman(estadoNuevo, forzarPensamiento = false) {
+    if (!estadoNuevo) return;
+    if (forzarPensamiento) {
+      await simularPensamientoOttoman();
+    }
+    renderizarEstado(estadoNuevo);
   }
 
   async function actualizarEstadoTruco() {
@@ -969,6 +1450,8 @@
   }
 
   async function tirarCartaDirecta(carta) {
+    if (ottomanPensando) return;
+    await simularPensamientoOttoman(carta);
     const res = await fetch('/truco/jugar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -980,6 +1463,8 @@
   }
 
   async function cantarEnvido(canto) {
+    if (ottomanPensando) return;
+    await simularPensamientoOttoman();
     const res = await fetch('/truco/envido', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -991,6 +1476,8 @@
   }
 
   async function cantarTruco() {
+    if (ottomanPensando) return;
+    await simularPensamientoOttoman();
     const res = await fetch('/truco/truco', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1002,6 +1489,8 @@
   }
 
   async function responderCanto(respuesta) {
+    if (ottomanPensando) return;
+    await simularPensamientoOttoman();
     const res = await fetch('/truco/responder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1013,6 +1502,7 @@
   }
 
   async function irseAlMazo() {
+    if (ottomanPensando) return;
     const res = await fetch('/truco/mazo', { method: 'POST' });
     const d = await res.json();
     if (d.estado) renderizarEstado(d.estado);
@@ -1020,13 +1510,29 @@
   }
 
   async function nuevaMano() {
+    if (ottomanPensando) return;
     const res = await fetch('/truco/nuevo', { method: 'POST' });
     const d = await res.json();
-    if (d.estado) renderizarEstado(d.estado);
-    else actualizarEstadoTruco();
+    if (d.estado) {
+      // Si en la nueva mano Ottoman es mano y juega primero, simular los 3 seg de "Pensando..." antes de mostrar su jugada
+      if (d.estado.es_mano === 'robot') {
+        const estadoPreJugada = {
+          ...d.estado,
+          mesa: [],
+          canto_pendiente: null,
+          ultima_frase_robot: 'Pensando...'
+        };
+        renderizarEstado(estadoPreJugada);
+        await simularPensamientoOttoman();
+      }
+      renderizarEstado(d.estado);
+    } else {
+      actualizarEstadoTruco();
+    }
   }
 
   async function reiniciarPartido() {
+    if (ottomanPensando) return;
     const meta = parseInt(document.getElementById('sel-meta').value, 10) || 15;
     const res = await fetch('/truco/reiniciar', {
       method: 'POST',
@@ -1043,8 +1549,9 @@
   }
 
   async function enviarVozMesa(texto) {
-    if (!texto) return;
+    if (!texto || ottomanPensando) return;
     detInfo.innerHTML = `🎤 Dijiste: <b>"${texto}"</b>`;
+    await simularPensamientoOttoman();
     const res = await fetch('/truco/voz', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

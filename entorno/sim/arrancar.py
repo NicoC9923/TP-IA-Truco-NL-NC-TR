@@ -6,17 +6,13 @@ Que hace, en orden:
      oficial la espera. El bridge oficial hace `import config` y ramifica segun
      config.ROBOT para elegir los mensajes unitree_hg (G1) o unitree_go (Go2),
      asi que hay que dejarsela puesta ANTES de importarlo.
-  2. Carga la escena oficial del robot elegido.
+  2. Carga la escena oficial del robot elegido (con silla y mesa de Truco para G1).
   3. Levanta el UnitreeSdk2Bridge OFICIAL: publica rt/lowstate y escucha
      rt/lowcmd, igual que contra el robot real.
   4. Levanta el servicio "sport", que el simulador oficial NO trae. Sin esto
      LocoClient.Move() da timeout: el controlador que hace caminar al G1 corre
      en la PC interna del robot y Unitree no lo publica.
   5. Corre el bucle y la ventana.
-
-Sobre la fisica: el bucle usa mj_forward, no mj_step. El G1 es un humanoide y
-SE CAE SOLO sin un controlador de locomocion. La marcha de las patas es
-cosmetica: esta es la capa de alto nivel (Move), no la de control articular.
 """
 
 from __future__ import annotations
@@ -32,9 +28,6 @@ def preparar_config(robot, repo: str, domain: int, interfaz: str):
     """Deja un modulo `config` en sys.modules para el codigo oficial."""
     cfg = types.ModuleType("config")
     cfg.ROBOT = robot.clave
-    # OJO: hay que pedirle la ruta al robot, NO armarla con un join.
-    # `ruta_escena()` GENERA la escena limpia del Go2 si todavia no existe
-    # (`scene_limpia.xml`, que no es un archivo del repo oficial).
     ruta = robot.ruta_escena()
     if not ruta:
         raise FileNotFoundError(
@@ -68,7 +61,6 @@ class SimuladorOficial:
             raise FileNotFoundError(
                 f"No encuentro la escena oficial:\n  {self.cfg.ROBOT_SCENE}")
 
-        # El bridge oficial vive en el repo de Unitree.
         ruta_oficial = os.path.join(repo, "simulate_python")
         if ruta_oficial not in sys.path:
             sys.path.insert(0, ruta_oficial)
@@ -88,12 +80,6 @@ class SimuladorOficial:
 
     # ---------- transporte ----------
     def iniciar_transporte(self):
-        """Punto de enganche: `SimuladorLocal` lo reemplaza por el socket.
-
-        Los bucles de `correr_*` llaman aca y no directo a `iniciar_dds`, asi
-        el modo local reusa TODO el resto -- MuJoCo, el visor, la pose -- sin
-        duplicar una linea.
-        """
         self.iniciar_dds()
 
     def iniciar_dds(self):
@@ -101,14 +87,12 @@ class SimuladorOficial:
 
         ChannelFactoryInitialize(self.cfg.DOMAIN_ID, self.cfg.INTERFACE)
 
-        # Bridge OFICIAL: rt/lowstate, rt/lowcmd, rt/sportmodestate
         from unitree_sdk2py_bridge import UnitreeSdk2Bridge
 
         self.bridge = UnitreeSdk2Bridge(self.model, self.data)
         if self.verboso:
             print("  [DDS] Bridge oficial activo: rt/lowstate, rt/lowcmd")
 
-        # Servicio de locomocion, que el oficial NO trae.
         if self.robot.clave == "g1":
             from .servicio_sport import ServicioSportSimulado
 
@@ -142,15 +126,26 @@ class SimuladorOficial:
         accion = e.get("accion", "quieto")
         t_osc = time.perf_counter() * 5.5
 
+        # 1. Si está sentado en la silla, fijar las piernas en pose_sentado (y brazos base sobre la mesa)
         if not e.get("de_pie", True):
             for idx, valor in self.robot.pose_sentado.items():
                 if idx < len(objetivo):
                     objetivo[idx] = valor
-        elif getattr(self.robot, "gestos", None) and accion in self.robot.gestos:
+
+        # 2. Aun estando sentado o de pie, el tren superior (torso + brazos) ejecuta los gestos activos
+        if getattr(self.robot, "gestos", None) and accion in self.robot.gestos:
             for idx, valor in self.robot.gestos[accion].items():
                 if idx < len(objetivo):
                     objetivo[idx] = valor
-            if accion in ("saludando", "saludo") and 25 < len(objetivo):
+            if accion == "repartiendo" and 25 < len(objetivo):
+                # Mano derecha toma carta del mazo (mano izq) y la reparte hacia adelante/costados
+                fase_rep = math.sin(t_osc * 1.35)
+                objetivo[12] = 0.14 * math.sin(t_osc * 0.67)
+                objetivo[22] += 0.18 * fase_rep
+                objetivo[23] += 0.16 * max(0.0, -fase_rep)
+                objetivo[24] += 0.32 * fase_rep
+                objetivo[25] += 0.25 * max(0.0, fase_rep)
+            elif accion in ("saludando", "saludo") and 25 < len(objetivo):
                 objetivo[23] += 0.14 * math.sin(t_osc)
                 objetivo[24] += 0.25 * math.sin(t_osc)
                 objetivo[25] += 0.12 * math.sin(t_osc)
@@ -172,7 +167,7 @@ class SimuladorOficial:
             for idx, valor in self.robot.saludo.items():
                 if idx < len(objetivo):
                     objetivo[idx] = valor
-        elif e["moviendose"]:
+        elif e.get("de_pie", True) and e["moviendose"]:
             f = e["fase"]
             for idx, amplitud, desfase in self.robot.marcha:
                 if idx < len(objetivo):
@@ -189,8 +184,6 @@ class SimuladorOficial:
 
         art[:] = self._art_suave
 
-        # Velocidad de las articulaciones por diferencia finita. De aca salen
-        # el gyro y la velocidad de motor que publica el bridge oficial.
         if self._qpos_previo is not None:
             dt = ahora - self._qpos_previo[0]
             if dt > 1e-6:
@@ -211,13 +204,6 @@ class SimuladorOficial:
 
     # ---------- bucles ----------
     def correr_con_ventana(self):
-        """Abre la ventana 3D. Si no se puede, sigue en consola.
-
-        Que el import de MuJoCo funcione NO garantiza que se pueda abrir una
-        ventana: hace falta un driver con OpenGL 3.3. En una maquina virtual sin
-        GPU, o por escritorio remoto, `launch_passive` muere con
-        `GLFWError: (65542) WGL: The driver does not appear to support OpenGL`.
-        """
         try:
             self._correr_con_ventana()
         except Exception as exc:                              # noqa: BLE001
@@ -225,8 +211,6 @@ class SimuladorOficial:
             print("*" * 62)
             print("  NO SE PUDO ABRIR LA VENTANA 3D")
             print(f"  Motivo: {type(exc).__name__}: {str(exc).splitlines()[0]}")
-            # conda trae su propio glfw y su propio libstdc++, que chocan con
-            # los del sistema. La pista es "EGL" en el mensaje.
             if "EGL" in str(exc) and os.environ.get("CONDA_PREFIX"):
                 print("  Probable causa: conda (glfw propio). Proba con el")
                 print("  Python del sistema: conda deactivate")
@@ -241,8 +225,14 @@ class SimuladorOficial:
         with mujoco.viewer.launch_passive(
             self.model, self.data, show_left_ui=False, show_right_ui=False
         ) as v:
-            v.cam.distance = 3.5 if self.robot.tipo == "humanoide" else 2.6
-            v.cam.elevation = -20
+            if self.robot.tipo == "humanoide":
+                v.cam.lookat[:] = [0.26, 0.0, 0.62]
+                v.cam.distance = 2.25
+                v.cam.elevation = -20
+                v.cam.azimuth = 135
+            else:
+                v.cam.distance = 2.6
+                v.cam.elevation = -20
             self.iniciar_transporte()
             periodo = self.cfg.VIEWER_DT
             while v.is_running():

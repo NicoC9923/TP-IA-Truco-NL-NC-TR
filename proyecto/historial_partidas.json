@@ -1,0 +1,19 @@
+{
+  "parametros_ia": {
+    "prob_farol_envido": 0.14,
+    "prob_farol_truco": 0.14,
+    "umbral_quiero_envido_offset": 0.01,
+    "umbral_quiero_truco_offset": 0.01,
+    "partidas_jugadas": 0,
+    "victorias_robot": 0,
+    "victorias_humano": 0,
+    "manos_totales": 3,
+    "bluffs_humano_detectados": 0,
+    "shows_humano_totales": 4,
+    "veces_humano_quiso_envido": 0,
+    "veces_humano_no_quiso_envido": 0,
+    "veces_humano_quiso_truco": 1,
+    "veces_humano_no_quiso_truco": 0
+  },
+  "partidas": []
+}

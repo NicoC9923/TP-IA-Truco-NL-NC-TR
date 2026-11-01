@@ -46,8 +46,9 @@ class Mundo:
             self._vence_en = 0.0
             self._gesto_hasta = 0.0
             self._ultimo_avance = time.monotonic()
-            self.de_pie = True
-            self.altura = 0.0        # offset sobre la altura normal, en metros
+            # Arranca sentado frente a la mesa de Truco
+            self.de_pie = False
+            self.altura = -0.23       # offset de pelvis para sentarse en la silla
             self.avisos = []
 
     # ---------- ordenes ----------
@@ -63,6 +64,9 @@ class Mundo:
         tiempo = validar_duracion(tiempo, self.limites)
 
         with self._lock:
+            if abs(vx) + abs(vy) + abs(vyaw) > 1e-6 and not self.de_pie:
+                self.de_pie = True
+                self.altura = 0.0
             self.vx, self.vy, self.vyaw = vx, vy, vyaw
             self._vence_en = tiempo
             if abs(vyaw) > abs(vx) + abs(vy):
@@ -75,16 +79,7 @@ class Mundo:
     # --- API que usa el servicio sport (el LocoClient real habla con el) ---
     def set_velocidad(self, vx: float, vy: float, vyaw: float,
                       duracion: float = 1.0) -> None:
-        """Como mover(), pero RECORTA en vez de rechazar.
-
-        Es la unica excepcion a la regla de rechazar, y tiene motivo: aca la
-        orden llega por DDS desde el LocoClient del SDK, que DESCARTA el codigo
-        de retorno de SetVelocity. Si rechazaramos, el que llama no se
-        enteraria nunca: veria el robot quieto y ningun mensaje.
-
-        Por eso la validacion visible vive en robot.py, antes de tocar DDS.
-        Esto de aca recorta y avisa por la consola del simulador.
-        """
+        """Como mover(), pero RECORTA en vez de rechazar."""
         lim = []
         for valor, tope, nombre in ((vx, self.limites.velocidad_max, "vx"),
                                     (vy, self.limites.velocidad_max, "vy"),
@@ -95,9 +90,9 @@ class Mundo:
             lim.append(float(valor))
 
         with self._lock:
-            if not self.de_pie:
-                self.avisos.append("el robot no esta de pie: ignoro el movimiento")
-                return
+            if abs(lim[0]) + abs(lim[1]) + abs(lim[2]) > 1e-6 and not self.de_pie:
+                self.de_pie = True
+                self.altura = 0.0
             self.vx, self.vy, self.vyaw = lim
             self._vence_en = max(0.0, float(duracion))
             if abs(self.vyaw) > abs(self.vx) + abs(self.vy):
@@ -113,14 +108,20 @@ class Mundo:
             if not de_pie:
                 self.vx = self.vy = self.vyaw = 0.0
                 self._vence_en = 0.0
+                self.x = 0.0
+                self.y = 0.0
+                self.yaw = 0.0
+                self.altura = -0.23
                 self.accion = "quieto"
+            else:
+                self.altura = 0.0
 
     def set_altura(self, altura: float) -> None:
         with self._lock:
             self.altura = max(-0.25, min(0.0, float(altura)))
 
     def detener(self) -> None:
-        """Velocidad a cero. No apaga nada: el robot queda parado."""
+        """Velocidad a cero. No apaga nada: el robot queda en su postura."""
         with self._lock:
             self.vx = self.vy = self.vyaw = 0.0
             self._vence_en = 0.0
@@ -130,24 +131,29 @@ class Mundo:
         with self._lock:
             self.vx = self.vy = self.vyaw = 0.0
             self._vence_en = 0.0
-            self.accion = nombre
-            self._gesto_hasta = time.monotonic() + duracion
+            if nombre in ("repartiendo", "sentarse"):
+                self.de_pie = False
+                self.altura = -0.23
+                self.x = 0.0
+                self.y = 0.0
+                self.yaw = 0.0
+            if nombre == "sentarse":
+                self.accion = "quieto"
+                self._gesto_hasta = 0.0
+            elif nombre == "pararse":
+                self.de_pie = True
+                self.altura = 0.0
+                self.accion = "quieto"
+                self._gesto_hasta = 0.0
+            else:
+                self.accion = nombre
+                self._gesto_hasta = time.monotonic() + duracion
 
     # ---------- lo llama el bucle del simulador ----------
-    # Paso maximo de integracion. A 1 m/s, 5 ms son 5 mm: de sobra para que el
-    # arco de un giro salga bien aunque no haya limites de velocidad.
     SUBPASO = 0.005
 
     def avanzar(self, dt: float | None = None) -> None:
-        """Integra el tiempo transcurrido. NUNCA descarta tiempo.
-
-        Usa el reloj real medido, no un dt nominal: con dt nominal fijo el mundo
-        avanza ~8% mas lento que el reloj y toda distancia (v x t) queda corta.
-
-        Si la ventana se congela y llegan 300 ms de golpe, se integran los 300 ms
-        en sub-pasos. Recortarlos acortaria el recorrido, en silencio y de forma
-        distinta en cada maquina.
-        """
+        """Integra el tiempo transcurrido. NUNCA descarta tiempo."""
         ahora = time.monotonic()
         with self._lock:
             if dt is None:
@@ -174,12 +180,9 @@ class Mundo:
                 self.accion = "quieto"
             return
 
-        # El comando puede vencer en la mitad de este sub-paso: se integra solo
-        # la fraccion que corresponde, para que el total sea exactamente v x t.
         efectivo = min(dt, self._vence_en)
         self._vence_en -= dt
 
-        # vx/vy vienen en el marco del ROBOT; el mundo esta rotado por yaw.
         c, s = math.cos(self.yaw), math.sin(self.yaw)
         self.x += (self.vx * c - self.vy * s) * efectivo
         self.y += (self.vx * s + self.vy * c) * efectivo

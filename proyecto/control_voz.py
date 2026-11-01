@@ -21,6 +21,9 @@ class ClasificadorIntencion:
         "SALUDO",
         "FESTEJO",
         "DAR_LA_MANO",
+        "REPARTIR",
+        "SENTARSE",
+        "PARARSE",
         "CONSULTAR_ESTADO",
         "DESCONOCIDO",
     )
@@ -61,6 +64,14 @@ class ClasificadorIntencion:
         # 4. DAR_LA_MANO
         if re.search(r"\b(?:dame\s+la\s+mano|dar\s+la\s+mano|estrech[aá]\s+la\s+mano|shake\s+hands?)\b", t):
             return "DAR_LA_MANO"
+
+        # 4b. REPARTIR CARTAS / SENTARSE / PARARSE
+        if re.search(r"\b(?:repart[ií](?:r)?(?:\s+las\s+cartas)?|mezcl[aá](?:r)?|deal(?:\s+cards)?)\b", t):
+            return "REPARTIR"
+        if re.search(r"\b(?:sentate|sientate|sentarse|a\s+la\s+mesa|sit(?:\s+down)?)\b", t):
+            return "SENTARSE"
+        if re.search(r"\b(?:ponete\s+de\s+pie|levantate|parate\s+de\s+la\s+silla|stand\s+up)\b", t):
+            return "PARARSE"
 
         # 5. SALUDO
         if re.search(
@@ -213,6 +224,20 @@ class EjecutorRobot:
             else:
                 self.robot.saludar()
             return "Gesto de dar la mano realizado."
+        if tipo == "REPARTIR":
+            if hasattr(self.robot, "repartir"):
+                self.robot.repartir()
+            elif hasattr(self.robot, "hacer_gesto"):
+                self.robot.hacer_gesto("repartiendo", duracion=2.0)
+            return "Gesto de repartir cartas realizado."
+        if tipo == "SENTARSE":
+            if hasattr(self.robot, "sentarse"):
+                self.robot.sentarse()
+            return "Ottoman se sentó frente a la mesa."
+        if tipo == "PARARSE":
+            if hasattr(self.robot, "pararse"):
+                self.robot.pararse()
+            return "Ottoman se puso de pie."
         if tipo == "CONSULTAR_ESTADO":
             e = self.robot.verificar_estado()
             return f"Estado actual: {e}"

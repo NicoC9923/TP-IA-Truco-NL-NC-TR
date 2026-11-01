@@ -88,6 +88,8 @@ class Handler(BaseHTTPRequestHandler):
             est = partida_truco.estado_publico()
             est["robot_conectado"] = robot_instancia is not None
             self._responder(200, est)
+        elif ruta_limpia == "/truco/historial":
+            self._responder(200, partida_truco.ia.resumen_aprendizaje())
         else:
             self.send_response(404)
             self.end_headers()
@@ -163,6 +165,11 @@ class Handler(BaseHTTPRequestHandler):
             meta = int(datos.get("meta_puntos", 15))
             est = partida_truco.reiniciar_partido(meta_puntos=meta)
             self._responder(200, {"mensaje": f"Partido reiniciado a {meta} puntos", "estado": est})
+
+        elif self.path == "/truco/modo_ia":
+            modo = str(datos.get("modo", "aprendizaje"))
+            est = partida_truco.cambiar_modo_ia(modo)
+            self._responder(200, {"mensaje": f"Modo de IA actualizado a {modo}", "estado": est})
 
         else:
             self.send_response(404)
