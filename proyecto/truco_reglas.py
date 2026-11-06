@@ -167,10 +167,15 @@ def buscar_carta_en_texto(texto: str, cartas_disponibles: List[Dict]) -> Optiona
     elif "hembra" in t and valor_buscado is None:
         valor_buscado, palo_buscado = 1, "Basto"
 
+    if valor_buscado is None or palo_buscado is None:
+        return None
+
     for c in cartas_disponibles:
         v_ok = valor_buscado is None or int(c["valor"]) == valor_buscado
         p_ok = palo_buscado is None or str(c["palo"]).capitalize() == palo_buscado
         if v_ok and p_ok and (valor_buscado is not None or palo_buscado is not None):
             return c
 
+    if valor_buscado is not None and palo_buscado is not None:
+        return {"valor": valor_buscado, "palo": palo_buscado}
     return None
