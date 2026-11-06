@@ -63,3 +63,18 @@ class AcceptanceReviewTests(unittest.TestCase):
             train(d, population_size=2, generations=2, workers=1, target=1, seed=3, validation_pairs=2)
         self.assertEqual({partition for _, partition in calls}, {0, 1})
         self.assertTrue(all(seed % 2 == partition for seed, partition in calls))
+    def test_hall_of_fame_is_sampled_in_half_of_unbiased_league_slots(self):
+        jobs = []
+        def evaluate(job):
+            jobs.append(job)
+            decision = {'player': 0, 'hand_index': 0, 'bluff': None, 'action': 'fold', 'observation': {'pending': None}}
+            result = SimpleNamespace(winner=0, points=(2, 0), decisions=[decision])
+            return [(result, 0), (result, 1)]
+        with tempfile.TemporaryDirectory() as d, patch('phase1_trainer._evaluate', side_effect=evaluate), redirect_stdout(io.StringIO()):
+            train(d, population_size=64, generations=4, pairs=4, workers=1, target=1, seed=9, validation_pairs=1, promotion_threshold=0)
+        training = [job for job in jobs if job[2] % 2]
+        third, fourth = training[512:768], training[768:1024]
+        unbiased_third = [job for job in third if job[5] is None]
+        shared = {id(job[1]) for job in unbiased_third} & {id(job[1]) for job in fourth if job[5] is None}
+        fraction = sum(id(job[1]) in shared for job in unbiased_third) / len(unbiased_third)
+        self.assertTrue(.35 < fraction < .65, fraction)
