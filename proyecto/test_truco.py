@@ -241,6 +241,65 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertTrue(estado["apuesta_truco"] == "TRUCO" or estado["mano_terminada"] or
                         (estado["canto_pendiente"] and estado["canto_pendiente"]["tipo"] == "TRUCO"))
 
+    def test_truco_robot_se_reanuda_tras_cada_resolucion_del_envido(self):
+        casos = [(11, None, "QUIERO", 2), (1, None, "NO_QUIERO", 1),
+                 (54, "QUIERO", "QUIERO", 5), (54, "NO_QUIERO", "NO_QUIERO", 2)]
+        for i, (semilla, respuesta_humana, respuesta_envido, puntos) in enumerate(casos):
+            with self.subTest(semilla=semilla, respuesta=respuesta_envido):
+                partida = PartidaTruco(robot=None, historial_path=str(Path(self._tmpdir.name) / f"robot{i}.json"),
+                                       rng=random.Random(semilla))
+                partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+                original = copy.deepcopy(partida.estado_publico()["canto_pendiente"])
+                self.assertEqual(original["tipo"], "TRUCO")
+                self.assertEqual(original["quien_canto"], "robot")
+                resultado = partida.responder_canto_humano("ENVIDO")
+                if respuesta_humana:
+                    pendiente = resultado["estado"]["canto_pendiente"]
+                    self.assertEqual((pendiente["tipo"], pendiente["canto"]), ("ENVIDO", "REAL_ENVIDO"))
+                    self.assertEqual((pendiente["puntos_quiero"], pendiente["puntos_no_quiero"]), (5, 2))
+                    self.assertEqual(resultado["estado"]["apuesta_truco"], "TRUCO")
+                    self.assertEqual(resultado["estado"]["puntos_truco_actuales"], 2)
+                    resultado = partida.responder_canto_humano(respuesta_humana)
+                self.assertEqual(resultado["respuesta"], respuesta_envido)
+                estado = resultado["estado"]
+                self.assertTrue(estado["envido_resuelto"])
+                self.assertEqual(estado["canto_pendiente"], original)
+                self.assertIn("QUIERO", original["opciones"])
+                self.assertIn("NO_QUIERO", original["opciones"])
+                self.assertEqual(sum(estado["tanteador"][j] for j in ("humano", "robot")), puntos)
+                aceptado = partida.responder_canto_humano("QUIERO")["estado"]
+                self.assertEqual(aceptado["apuesta_truco"], "TRUCO")
+                self.assertEqual(aceptado["puntos_truco_actuales"], 2)
+
+    def test_truco_humano_se_reanuda_tras_cada_resolucion_del_envido(self):
+        casos = [(2, "QUIERO", "QUIERO", 2), (2, "NO_QUIERO", "NO_QUIERO", 1),
+                 (6, "REAL_ENVIDO", "QUIERO", 5), (2, "REAL_ENVIDO", "NO_QUIERO", 2)]
+        for i, (semilla, respuesta_humana, respuesta_envido, puntos) in enumerate(casos):
+            with self.subTest(semilla=semilla, respuesta=respuesta_humana):
+                partida = PartidaTruco(robot=None, historial_path=str(Path(self._tmpdir.name) / f"humano{i}.json"),
+                                       rng=random.Random(semilla))
+                estado = partida.cantar_truco_humano("TRUCO")["estado"]
+                pendiente = estado["canto_pendiente"]
+                self.assertEqual((pendiente["tipo"], pendiente["canto"], pendiente["quien_canto"]),
+                                 ("ENVIDO", "ENVIDO", "robot"))
+                self.assertEqual(estado["apuesta_truco"], "TRUCO")
+                self.assertEqual(estado["puntos_truco_actuales"], 2)
+                resultado = partida.responder_canto_humano(respuesta_humana)
+                self.assertEqual(resultado["respuesta"], respuesta_envido)
+                estado = resultado["estado"]
+                self.assertTrue(estado["envido_resuelto"])
+                if respuesta_envido == "QUIERO":
+                    self.assertEqual(estado["resultado_envido"]["puntos_ganados"], puntos)
+                # Ottoman answers the restored truco immediately: it either accepts
+                # the two-point stake or refuses, awarding the human one more point.
+                if estado["mano_terminada"]:
+                    self.assertEqual(estado["ganador_mano"], "humano")
+                    self.assertEqual(sum(estado["tanteador"][j] for j in ("humano", "robot")), puntos + 1)
+                else:
+                    self.assertEqual(estado["apuesta_truco"], "TRUCO")
+                    self.assertEqual(estado["puntos_truco_actuales"], 2)
+                    self.assertEqual(sum(estado["tanteador"][j] for j in ("humano", "robot")), puntos)
+
     def test_envido_no_disponible_tras_truco_querido(self):
         partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(0))
         estado = partida.cantar_truco_humano("TRUCO")["estado"]
