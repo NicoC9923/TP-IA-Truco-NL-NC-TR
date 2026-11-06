@@ -110,7 +110,8 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             entry.update(promotion_check=check, promoted=promoted, reigning_champion=reigning_generation, phase_ended=ended, league=styles)
             log.write(json.dumps(entry) + '\n')
             log.flush()
-            print(f'gen {generation} Â· best {scores.max():.3f} Â· avg {scores.mean():.3f} Â· {perf_counter()-start:.2f} s', flush=True)
+            status = 'first champion' if check is None else f"{'promoted' if promoted else 'not promoted'} {check['win_rate']:.0%} +/-{check['margin_of_error']*100:.0f}"
+            print(f'gen {generation} | best {scores.max():.3f} | avg {scores.mean():.3f} | {status} | {perf_counter()-start:.2f} s', flush=True)
             next_population = [population[champion].copy()]
             while len(next_population) < population_size:
                 parents = []
