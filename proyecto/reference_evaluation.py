@@ -64,6 +64,7 @@ def evaluate(directory, *, pairs=1000, seed=None, target=None, only_new=False, w
         for name, factory in (('reactive', ReactivePolicy), ('adaptive_utility', AdaptiveUtilityPolicy)):
             if (generation, name) in done:
                 continue
+            started = time.perf_counter()
             jobs = [(genome, name, deal_seed, match_target) for deal_seed, match_target in validation_schedule(seed, target, pairs)]
             if workers == 1:
                 rates = list(map(_evaluate_pair, jobs))
@@ -74,6 +75,7 @@ def evaluate(directory, *, pairs=1000, seed=None, target=None, only_new=False, w
                        win_rate=float(np.mean(rates)), margin_of_error=1.96 * float(np.std(rates, ddof=1)) / math.sqrt(pairs) if pairs > 1 else 0.0)
             with log.open('a', encoding='utf-8') as output:
                 output.write(json.dumps(row) + '\n')
+            print(f'generation {generation} | {name} | {time.perf_counter() - started:.2f} s', flush=True)
 
 
 def main():
