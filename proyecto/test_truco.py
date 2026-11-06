@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import base64
 import random
+import copy
+import http.client
+import json
+import threading
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 import sys
 import tempfile
@@ -41,6 +46,81 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         resultados = [partida.cantar_envido_humano("ENVIDO") for partida in partidas]
         self.assertEqual(resultados[0], resultados[1])
         self.assertEqual(partidas[0].estado_publico(), partidas[1].estado_publico())
+    def test_carta_ajena_no_cambia_mano_mesa_ni_turno(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        antes = copy.deepcopy(partida.estado_publico())
+        carta = next({"valor": valor, "palo": palo} for palo in ("Espada", "Basto", "Oro", "Copa")
+                     for valor in (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
+                     if not any(c["valor"] == valor and c["palo"] == palo for c in antes["cartas_humano_disponibles"]))
+        resultado = partida.jugar_carta_humano(carta)
+        self.assertEqual(resultado.get("error"), "Esa carta no está en tu mano")
+        for campo in ("cartas_humano_disponibles", "mesa", "turno_carta"):
+            self.assertEqual(resultado["estado"][campo], antes[campo])
+
+    def test_carta_malformada_es_rechazada(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        for carta in ({"valor": "incorrecto", "palo": "Oro"}, {"valor": 1, "palo": "Inexistente"},
+                      {"valor": 1.5, "palo": "Oro"}, {"valor": True, "palo": "Oro"}, None):
+            with self.subTest(carta=carta):
+                resultado = partida.jugar_carta_humano(carta)
+                self.assertEqual(resultado.get("error"), "Esa carta no está en tu mano")
+
+    def test_voz_rechaza_carta_ajena(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        antes = copy.deepcopy(partida.estado_publico())
+        carta = next({"valor": valor, "palo": palo} for palo in ("Espada", "Basto", "Oro", "Copa")
+                     for valor in (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
+                     if not any(c["valor"] == valor and c["palo"] == palo for c in antes["cartas_humano_disponibles"]))
+        resultado = partida.procesar_voz_truco(f"juego {carta['valor']} de {carta['palo']}")
+        self.assertEqual(resultado.get("error"), "Esa carta no está en tu mano")
+        for campo in ("cartas_humano_disponibles", "mesa", "turno_carta"):
+            self.assertEqual(resultado["estado"][campo], antes[campo])
+
+    def test_voz_rechaza_carta_incompleta(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        resultado = partida.procesar_voz_truco("juego una carta")
+        self.assertEqual(resultado.get("error"), "Esa carta no está en tu mano")
+
+    def test_carta_repartida_se_juega(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        carta = copy.deepcopy(partida.estado_publico()["cartas_humano_disponibles"][0])
+        resultado = partida.jugar_carta_humano(carta)
+        self.assertNotIn("error", resultado)
+        self.assertEqual(resultado["carta_jugada"], carta)
+        self.assertTrue(any(j["quien"] == "humano" and j["carta"] == carta for j in resultado["estado"]["mesa"]))
+
+    def test_camara_envia_deteccion_sin_sustituir_carta(self):
+        import servidor_truco as servidor
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        antes = copy.deepcopy(partida.estado_publico())
+        carta = next({"valor": valor, "palo": palo} for palo in ("Espada", "Basto", "Oro", "Copa")
+                     for valor in (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
+                     if not any(c["valor"] == valor and c["palo"] == palo for c in antes["cartas_humano_disponibles"]))
+
+        class Camara:
+            def procesar_frame_base64(self, imagen, cartas_mano=None):
+                return cartas_mano[0] if cartas_mano else carta
+
+        anteriores = servidor.partida_truco, servidor.detector_vision, servidor.sin_robot_flag
+        servidor.partida_truco, servidor.detector_vision, servidor.sin_robot_flag = partida, Camara(), True
+        server = ThreadingHTTPServer(("127.0.0.1", 0), servidor.Handler)
+        hilo = threading.Thread(target=server.serve_forever, daemon=True)
+        hilo.start()
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
+            conn.request("POST", "/truco/detectar", json.dumps({"imagen": "frame", "usar_mano": True}))
+            detectada = json.loads(conn.getresponse().read())
+            conn.request("POST", "/truco/jugar", json.dumps({"carta": detectada}))
+            resultado = json.loads(conn.getresponse().read())
+            conn.close()
+            self.assertEqual(resultado.get("error"), "Esa carta no está en tu mano")
+            for campo in ("cartas_humano_disponibles", "mesa", "turno_carta"):
+                self.assertEqual(resultado["estado"][campo], antes[campo])
+        finally:
+            server.shutdown()
+            server.server_close()
+            hilo.join()
+            servidor.partida_truco, servidor.detector_vision, servidor.sin_robot_flag = anteriores
 
     def test_jerarquia_cartas(self):
         self.assertGreater(tr.valor_carta_truco(1, "Espada"), tr.valor_carta_truco(1, "Basto"))
