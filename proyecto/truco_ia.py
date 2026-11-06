@@ -154,10 +154,11 @@ class AgenteTrucoIA:
 
     def guardar_historial(self) -> None:
         p = self.datos_historial["parametros_ia"]
-        p["prob_farol_envido"] = round(self.prob_farol_envido, 3)
-        p["prob_farol_truco"] = round(self.prob_farol_truco, 3)
-        p["umbral_quiero_envido_offset"] = round(self.umbral_quiero_envido_offset, 3)
-        p["umbral_quiero_truco_offset"] = round(self.umbral_quiero_truco_offset, 3)
+        if self.modo_agente == "aprendizaje":
+            p["prob_farol_envido"] = round(self.prob_farol_envido, 3)
+            p["prob_farol_truco"] = round(self.prob_farol_truco, 3)
+            p["umbral_quiero_envido_offset"] = round(self.umbral_quiero_envido_offset, 3)
+            p["umbral_quiero_truco_offset"] = round(self.umbral_quiero_truco_offset, 3)
         self.historial.guardar(self.datos_historial)
 
     def resumen_aprendizaje(self) -> Dict:
