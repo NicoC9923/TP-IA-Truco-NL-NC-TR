@@ -230,8 +230,10 @@ class PartidaTruco:
         self.estadisticas_partida["manos_jugadas"] += 1
         self.ia.analizar_mano_humano(
             self.cartas_humano,
-            humano_canto_envido=self._humano_canto_envido_mano,
+            humano_canto_envido=(self._humano_canto_envido_mano and self.resultado_envido_detalle is not None
+                                 and "pts_humano" in self.resultado_envido_detalle),
             humano_canto_truco=self._humano_canto_truco_mano,
+            cartas_truco_reveladas=[m["carta"] for m in self.mesa if m["quien"] == "humano"],
         )
 
     def _verificar_fin_partido(self) -> None:

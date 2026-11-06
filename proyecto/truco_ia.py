@@ -214,6 +214,8 @@ class AgenteTrucoIA:
 
     def registrar_respuesta_humano_a_canto(self, tipo: str, quiso: bool, era_farol_robot: bool) -> None:
         """Ajusta en línea las probabilidades de farol de Ottoman según si el humano quiso o no."""
+        if self.modo_agente != "aprendizaje":
+            return
         p = self.datos_historial["parametros_ia"]
         if tipo == "ENVIDO":
             if quiso:
@@ -240,10 +242,14 @@ class AgenteTrucoIA:
         cartas_humano: List[Dict],
         humano_canto_envido: bool,
         humano_canto_truco: bool,
+        cartas_truco_reveladas: Optional[List[Dict]] = None,
     ) -> None:
         """Al terminar una mano, analiza si el humano mintió para adaptar los umbrales de aceptación."""
         p = self.datos_historial["parametros_ia"]
         p["manos_totales"] = int(p.get("manos_totales", 0)) + 1
+        if self.modo_agente != "aprendizaje":
+            self.guardar_historial()
+            return
 
         if humano_canto_envido:
             p["shows_humano_totales"] = int(p.get("shows_humano_totales", 0)) + 1
@@ -255,9 +261,9 @@ class AgenteTrucoIA:
             elif tantos_h >= 29:
                 self.umbral_quiero_envido_offset = min(0.10, self.umbral_quiero_envido_offset + 0.01)
 
-        if humano_canto_truco:
+        if humano_canto_truco and cartas_truco_reveladas and len(cartas_truco_reveladas) >= 2:
             p["shows_humano_totales"] = int(p.get("shows_humano_totales", 0)) + 1
-            fuerza_h = self.percentil_fuerza_truco(cartas_humano)
+            fuerza_h = self.percentil_fuerza_truco(cartas_truco_reveladas)
             if fuerza_h < 0.44:
                 p["bluffs_humano_detectados"] = int(p.get("bluffs_humano_detectados", 0)) + 1
                 # El humano miente en el truco: bajar umbral para quererle más seguido
@@ -290,6 +296,7 @@ class AgenteTrucoIA:
             "id": int(p["partidas_jugadas"]),
             "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
             "ganador": ganador,
+            "modo_agente": self.modo_agente,
             "puntos_humano": puntos_humano,
             "puntos_robot": puntos_robot,
             "meta_puntos": meta_puntos,

@@ -32,6 +32,84 @@ from entorno.sim.robots import G1
 from entorno.sim.mundo import Mundo
 
 
+class TestAprendizajePublico(unittest.TestCase):
+    def test_partidas_por_modo_conservan_o_actualizan_aprendizaje(self):
+        for modo in ("reactivo", "utilidad", "aprendizaje"):
+            with self.subTest(modo=modo), tempfile.TemporaryDirectory() as tmp:
+                ruta = str(Path(tmp) / "h.json")
+                partida = PartidaTruco(robot=None, historial_path=ruta, rng=random.Random(0))
+                partida.cambiar_modo_ia(modo)
+                campos = ("prob_farol_envido_pct", "prob_farol_truco_pct", "umbral_envido_offset", "umbral_truco_offset")
+                inicial = partida.estado_publico()["aprendizaje_ia"]
+                while not partida.estado_publico()["partido_terminado"]:
+                    estado = partida.estado_publico()
+                    if estado["mano_terminada"]:
+                        partida.nueva_mano()
+                    elif estado["canto_pendiente"]:
+                        partida.responder_canto_humano("NO_QUIERO")
+                    else:
+                        partida.irse_al_mazo_humano()
+                final = partida.estado_publico()["aprendizaje_ia"]
+                if modo != "aprendizaje":
+                    self.assertEqual([final[c] for c in campos], [inicial[c] for c in campos])
+                else:
+                    self.assertNotEqual([final[c] for c in campos], [inicial[c] for c in campos])
+                self.assertEqual(final["partidas_jugadas"], 1)
+                self.assertEqual(final["partidas"][0]["modo_agente"], modo)
+                recargada = PartidaTruco(robot=None, historial_path=ruta, rng=random.Random(0)).estado_publico()["aprendizaje_ia"]
+                self.assertEqual([recargada[c] for c in campos], [final[c] for c in campos])
+                self.assertEqual(recargada["partidas"][0]["modo_agente"], modo)
+
+    def test_envido_querido_revela_farol_y_actualiza_umbral(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"), rng=random.Random(7))
+            self.assertEqual(partida.estado_publico()["tantos_humano"], 6)
+            self.assertEqual(partida.cantar_envido_humano("ENVIDO")["respuesta"], "QUIERO")
+            estado = partida.irse_al_mazo_humano()["estado"]["aprendizaje_ia"]
+            self.assertEqual(estado["bluffs_humano_detectados"], 1)
+            self.assertEqual(estado["umbral_envido_offset"], -0.025)
+
+    def test_truco_se_juzga_por_dos_cartas_visibles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"), rng=random.Random(1))
+            partida.cantar_truco_humano()
+            while not partida.estado_publico()["mano_terminada"]:
+                estado = partida.estado_publico()
+                if estado["canto_pendiente"]:
+                    partida.responder_canto_humano("QUIERO")
+                else:
+                    carta = min(estado["cartas_humano_disponibles"], key=lambda c: tr.valor_carta_truco(c["valor"], c["palo"]))
+                    partida.jugar_carta_humano(carta)
+            estado = partida.estado_publico()
+            jugadas = [(m["carta"]["valor"], m["carta"]["palo"]) for m in estado["mesa"] if m["quien"] == "humano"]
+            self.assertEqual(jugadas, [(4, "Oro"), (2, "Basto")])
+            self.assertEqual(estado["aprendizaje_ia"]["bluffs_humano_detectados"], 1)
+            self.assertEqual(estado["aprendizaje_ia"]["umbral_truco_offset"], -0.025)
+
+    def test_truco_sin_cartas_jugadas_no_es_un_show(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"), rng=random.Random(0))
+            partida.cantar_truco_humano()
+            estado = partida.estado_publico()
+            if not estado["mano_terminada"]:
+                partida.irse_al_mazo_humano()
+            aprendizaje = partida.estado_publico()["aprendizaje_ia"]
+            self.assertEqual(aprendizaje["bluffs_humano_detectados"], 0)
+            self.assertEqual(aprendizaje["umbral_truco_offset"], 0)
+            self.assertEqual(aprendizaje["manos_totales"], 1)
+
+    def test_envido_no_querido_no_revela_farol(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"), rng=random.Random(0))
+            antes = partida.estado_publico()["aprendizaje_ia"]
+            self.assertEqual(partida.estado_publico()["tantos_humano"], 3)
+            self.assertEqual(partida.cantar_envido_humano("ENVIDO")["respuesta"], "NO_QUIERO")
+            despues = partida.irse_al_mazo_humano()["estado"]["aprendizaje_ia"]
+            self.assertEqual(despues["bluffs_humano_detectados"], antes["bluffs_humano_detectados"])
+            self.assertEqual(despues["umbral_envido_offset"], antes["umbral_envido_offset"])
+            self.assertEqual(despues["manos_totales"], antes["manos_totales"] + 1)
+
+
 class TestServidorHTTP(unittest.TestCase):
     def test_peticion_invalida_no_detiene_servidor(self):
         import http.client
