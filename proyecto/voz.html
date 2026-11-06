@@ -1370,7 +1370,7 @@
       const nuevo = key !== ultimoCantoKey;
       ultimoCantoKey = key;
       const pts = (cp.puntos_quiero !== undefined && cp.puntos_no_quiero !== undefined)
-        ? `<span class="canto-pts">Si querés se juegan ${esc(cp.puntos_quiero)} · si no, Ottoman suma ${esc(cp.puntos_no_quiero)}</span>` : '';
+        ? `<span class="canto-pts">Si querés se juega ${cp.por_el_partido ? 'por el partido' : esc(cp.puntos_quiero)} · si no, Ottoman suma ${esc(cp.puntos_no_quiero)}</span>` : '';
       zona.innerHTML = `
         <div class="canto ${nuevo ? 'entra' : ''}" role="alert">
           <span class="canto-quien">Ottoman te canta</span>

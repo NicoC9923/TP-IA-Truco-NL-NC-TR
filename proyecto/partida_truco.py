@@ -562,6 +562,7 @@ class PartidaTruco:
             "es_farol": es_farol,
             "puntos_quiero": pts_q,
             "puntos_no_quiero": pts_nq,
+            "por_el_partido": canto == "FALTA_ENVIDO" and self.meta_puntos == 30 and max(self.puntos_humano, self.puntos_robot) < 15,
             "opciones": ["QUIERO", "NO_QUIERO"] + self._opciones_subir_envido(canto),
         }
 
@@ -634,14 +635,20 @@ class PartidaTruco:
         self.canto_pendiente = None
         pts_robot = tr.calcular_envido(self.cartas_robot)
         pts_humano = tr.calcular_envido(self.cartas_humano)
+        por_el_partido = (self.ultimo_canto_envido == "FALTA_ENVIDO" and self.meta_puntos == 30
+                          and max(self.puntos_humano, self.puntos_robot) < 15)
 
         if pts_humano > pts_robot or (pts_humano == pts_robot and self.es_mano_humano):
             ganador_e = "humano"
+            if por_el_partido:
+                puntos_en_juego = self.meta_puntos - self.puntos_humano
             self.puntos_humano += puntos_en_juego
             msg = f"{frase_inicial} Tenés {pts_humano} contra mis {pts_robot}, ¡son buenas! (+{puntos_en_juego} pts)".strip()
             self.decir_robot(msg)
         else:
             ganador_e = "robot"
+            if por_el_partido:
+                puntos_en_juego = self.meta_puntos - self.puntos_robot
             self.puntos_robot += puntos_en_juego
             msg = f"{frase_inicial} ¡Canto {pts_robot} y matan tus {pts_humano}! (+{puntos_en_juego} pts para mí)".strip()
             self.decir_robot(msg)
@@ -915,7 +922,7 @@ class PartidaTruco:
         return {"error": f"Respuesta '{resp}' no válida en este momento.", "estado": self.estado_publico()}
 
     def irse_al_mazo_humano(self) -> Dict:
-        """El humano decide irse al mazo."""
+        """El humano se va; sin cantos ni cartas en primera baza rige el valor de casa de 2 puntos."""
         if self.mano_terminada:
             return {"error": "La mano ya terminó.", "estado": self.estado_publico()}
 
@@ -923,9 +930,15 @@ class PartidaTruco:
             return self.responder_canto_humano("NO_QUIERO")
 
         pts = self.puntos_truco_actuales
-        if self.ronda_actual == 1 and not self.envido_resuelto and self.apuesta_truco == "NADA" and len(self.mesa) == 0:
+        if self.canto_pendiente is not None and self.canto_pendiente["tipo"] == "ENVIDO":
+            pts += self.canto_pendiente["puntos_no_quiero"]
+        elif self.ronda_actual == 1 and not self.envido_resuelto and self.apuesta_truco == "NADA" and len(self.mesa) == 0:
             pts = 2
 
+        for bluff in self.bluffs_mano_actual:
+            if bluff["resultado"] == "pendiente":
+                bluff["resultado"] = "exitoso"
+                self.estadisticas_partida[bluff["tipo"].lower()]["bluffs_exitosos"] += 1
         self._adjudicar_mano("robot", pts, motivo="Humano se fue al mazo")
         return {"mensaje": "Te fuiste al mazo", "estado": self.estado_publico()}
 

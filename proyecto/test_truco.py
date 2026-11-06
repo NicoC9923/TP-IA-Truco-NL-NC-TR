@@ -32,6 +32,56 @@ from entorno.sim.robots import G1
 from entorno.sim.mundo import Mundo
 
 
+class TestMazoYFalta(unittest.TestCase):
+    def test_falta_en_malas_gana_partido_al_jugador_que_va_atras(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"), rng=random.Random(696))
+            partida.reiniciar_partido(30)
+            for _ in range(2):
+                partida.irse_al_mazo_humano()
+                partida.nueva_mano()
+            partida.jugar_carta_humano(partida.estado_publico()["cartas_humano"][0])
+            resultado = partida.responder_canto_humano("FALTA_ENVIDO")
+            self.assertEqual(resultado["ganador"], "humano")
+            self.assertEqual(resultado["puntos_ganados"], 30)
+            self.assertEqual(resultado["estado"]["ganador_partido"], "humano")
+
+    def test_falta_pendiente_indica_que_es_por_el_partido(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"), rng=random.Random(83), meta_puntos=30)
+            partida.jugar_carta_humano(partida.estado_publico()["cartas_humano"][0])
+            self.assertTrue(partida.estado_publico()["canto_pendiente"]["por_el_partido"])
+
+    def test_falta_en_buenas_y_en_partido_a_15(self):
+        for meta, manos, semilla, lider, valor in ((30, 8, 17, 16, 14), (15, 2, 12, 3, 12)):
+            with self.subTest(meta=meta), tempfile.TemporaryDirectory() as tmp:
+                partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"), rng=random.Random(semilla), meta_puntos=meta)
+                for _ in range(manos):
+                    partida.irse_al_mazo_humano()
+                    partida.nueva_mano()
+                self.assertEqual(partida.estado_publico()["tanteador"]["robot"], lider)
+                partida.jugar_carta_humano(partida.estado_publico()["cartas_humano"][0])
+                resultado = partida.responder_canto_humano("FALTA_ENVIDO")
+                self.assertEqual(resultado["respuesta"], "QUIERO")
+                self.assertEqual(resultado["puntos_ganados"], valor)
+
+    def test_mazo_sin_cantos_en_primera_baza_vale_dos(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"), rng=random.Random(0))
+            self.assertEqual(partida.irse_al_mazo_humano()["estado"]["tanteador"]["robot"], 2)
+
+    def test_mazo_con_envido_pendiente_suma_y_resuelve_farol(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"), rng=random.Random(2))
+            partida.jugar_carta_humano(partida.estado_publico()["cartas_humano"][0])
+            pendiente = partida.estado_publico()["canto_pendiente"]
+            self.assertEqual(pendiente["canto"], "ENVIDO")
+            estado = partida.irse_al_mazo_humano()["estado"]
+            self.assertEqual(estado["tanteador"]["robot"], 2)
+            self.assertEqual(estado["bluffs_mano_actual"][0]["resultado"], "exitoso")
+            self.assertEqual(estado["estadisticas_partida"]["envido"]["bluffs_exitosos"], 1)
+
+
 class TestAprendizajePublico(unittest.TestCase):
     def test_partidas_por_modo_conservan_o_actualizan_aprendizaje(self):
         for modo in ("reactivo", "utilidad", "aprendizaje"):
