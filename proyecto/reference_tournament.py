@@ -4,6 +4,7 @@ import importlib
 import itertools
 import json
 import math
+import statistics
 
 from engine_policies import AdaptiveUtilityPolicy, ReactivePolicy
 from symmetric_engine import play_mirror_pair
@@ -18,11 +19,13 @@ def tournament(policies, *, pairs=100, seed=0, target=15):
         wins = [0, 0]
         calls = [0, 0]
         bluffs = [0, 0]
+        pair_rates = []
         for index in range(pairs):
             deal_seed = seed + index
             a = factory_a(deal_seed * 2)
             b = factory_b(deal_seed * 2 + 1)
             matches = play_mirror_pair(a, b, seed=deal_seed, target=target)
+            pair_rates.append(sum(match.winner == seat_swap for seat_swap, match in enumerate(matches)) / 2)
             for seat_swap, match in enumerate(matches):
                 wins[match.winner ^ seat_swap] += 1
                 for decision in match.decisions:
@@ -32,14 +35,11 @@ def tournament(policies, *, pairs=100, seed=0, target=15):
                         bluffs[player] += int(decision['bluff'])
         n = sum(wins)
         rate = wins[0] / n
-        z = 1.959963984540054
-        denom = 1 + z*z/n
-        center = (rate + z*z/(2*n)) / denom
-        margin = z * math.sqrt(rate*(1-rate)/n + z*z/(4*n*n)) / denom
+        margin = 1.96 * statistics.stdev(pair_rates) / math.sqrt(pairs) if pairs > 1 else 0.0
         results.append({'opponents': [name_a, name_b], 'matches': n,
                         'win_rate': rate, 'win_rates': {name_a: rate, name_b: 1-rate},
                         'margin_of_error': margin,
-                        'confidence_interval': [center-margin, center+margin],
+                        'confidence_interval': [rate-margin, rate+margin],
                         'bluff_rates': {name: bluffs[i]/calls[i] if calls[i] else None
                                         for i, name in enumerate((name_a, name_b))}})
     return results
