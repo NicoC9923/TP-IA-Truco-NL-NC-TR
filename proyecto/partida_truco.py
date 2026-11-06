@@ -173,6 +173,9 @@ class PartidaTruco:
         if self.partido_terminado:
             return self.reiniciar_partido(self.meta_puntos)
 
+        if not primera_vez and not self.mano_terminada:
+            return {"error": "Terminá la mano antes de repartir de nuevo.", "estado": self.estado_publico()}
+
         if not primera_vez and self.mano_terminada:
             self.es_mano_humano = not self.es_mano_humano
 
@@ -743,7 +746,9 @@ class PartidaTruco:
         if not sig_nivel:
             return {"error": "Ya se está jugando el Vale Cuatro.", "estado": self.estado_publico()}
 
-        nivel = sig_nivel
+        if nivel_pedido is not None and nivel_pedido != sig_nivel:
+            return {"error": "Cantá el nivel de truco disponible.", "estado": self.estado_publico()}
+        nivel = nivel_pedido or sig_nivel
         self._humano_canto_truco_mano = True
         pts_q, pts_nq = self._puntos_nivel_truco(nivel)
         self.registrar(f"👤 Humano cantó: {nivel.replace('_', ' ')}")
@@ -831,6 +836,8 @@ class PartidaTruco:
 
         resp = respuesta.upper().strip()
         pendiente = self.canto_pendiente
+        if resp not in pendiente["opciones"]:
+            return {"error": "Elegí una de las opciones del canto pendiente.", "estado": self.estado_publico()}
         tipo = pendiente["tipo"]
         canto_robot = pendiente["canto"]
         era_farol = bool(pendiente.get("es_farol", False))
@@ -932,10 +939,13 @@ class PartidaTruco:
         if re.search(r"\benvido\b", t) and self.canto_pendiente is None and not self.puede_cantar_envido():
             return {"error": "No pod?s cantar envido ahora.", "estado": self.estado_publico()}
 
-        self.registrar(f"🎤 Voz recibida en mesa: \"{texto}\"")
-
         if re.search(r"\b(?:nueva\s+mano|repart[ií]|otra\s+mano)\b", t):
-            return {"accion_voz": "NUEVA_MANO", "estado": self.nueva_mano()}
+            estado = self.nueva_mano()
+            if "error" in estado:
+                return estado
+            return {"accion_voz": "NUEVA_MANO", "estado": estado}
+
+        self.registrar(f'🎤 Voz recibida en mesa: "{texto}"')
 
         if re.search(r"\b(?:no\s+quiero|son\s+buenas|paso)\b", t):
             if self.canto_pendiente is not None:

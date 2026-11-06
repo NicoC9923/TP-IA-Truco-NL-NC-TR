@@ -286,6 +286,51 @@ class TestTrucoReglasYMotor(unittest.TestCase):
     def tearDown(self):
         self._tmpdir.cleanup()
 
+    def test_salto_de_truco_rechazado_sin_cambios(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(1))
+        partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+        antes = copy.deepcopy(partida.estado_publico())
+        self.assertEqual(antes["canto_pendiente"]["canto"], "TRUCO")
+        self.assertIn("error", partida.responder_canto_humano("VALE_CUATRO"))
+        self.assertEqual(partida.estado_publico(), antes)
+
+    def test_retruco_ofrecido_y_vale_cuatro_no_admite_retruco(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(1))
+        partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+        estado = partida.responder_canto_humano("RETRUCO")["estado"]
+        self.assertEqual(estado["apuesta_truco"], "RETRUCO")
+        self.assertEqual(estado["canto_pendiente"]["canto"], "VALE_CUATRO")
+        antes = copy.deepcopy(estado)
+        self.assertIn("error", partida.responder_canto_humano("RETRUCO"))
+        self.assertEqual(partida.estado_publico(), antes)
+
+    def test_envido_no_ofrecido_no_modifica_estado(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(2))
+        antes = partida.cantar_truco_humano()["estado"]
+        self.assertEqual(antes["canto_pendiente"]["tipo"], "ENVIDO")
+        self.assertIn("error", partida.responder_canto_humano("ENVIDO"))
+        self.assertEqual(partida.estado_publico(), antes)
+
+    def test_no_se_reparte_durante_mano(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(0))
+        antes = copy.deepcopy(partida.estado_publico())
+        self.assertIn("error", partida.nueva_mano())
+        self.assertEqual(partida.estado_publico(), antes)
+        self.assertIn("error", partida.procesar_voz_truco("nueva mano"))
+        self.assertEqual(partida.estado_publico(), antes)
+
+    def test_nueva_mano_alterna_y_partido_nuevo_reparte(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(0))
+        self.assertEqual(partida.estado_publico()["es_mano"], "humano")
+        partida.irse_al_mazo_humano()
+        estado = partida.nueva_mano()
+        self.assertEqual(estado["es_mano"], "robot")
+        self.assertFalse(estado["mano_terminada"])
+        estado = partida.reiniciar_partido()
+        self.assertEqual(estado["es_mano"], "humano")
+        self.assertEqual(estado["tanteador"]["humano"], 0)
+        self.assertEqual(len(estado["cartas_humano"]), 3)
+
     def test_partidas_con_misma_semilla_reproducen_reparto_y_decision(self):
         partidas = [
             PartidaTruco(robot=None, historial_path=str(Path(self._tmpdir.name) / f"{i}.json"),

@@ -222,7 +222,7 @@ class Handler(BaseHTTPRequestHandler):
 
         elif self.path == "/truco/nuevo":
             est = partida_truco.nueva_mano()
-            self._responder(200, {"mensaje": "Nueva mano repartida", "estado": est})
+            self._responder(200, est if "error" in est else {"mensaje": "Nueva mano repartida", "estado": est})
 
         elif self.path == "/truco/reiniciar":
             meta = int(datos.get("meta_puntos", 15))
