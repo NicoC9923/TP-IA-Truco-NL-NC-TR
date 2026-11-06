@@ -20,13 +20,14 @@ The Truco UI (`proyecto/voz.html`) is styled as a live TV broadcast of a Truco m
 | Ottoman | `--ott`, `--ott-ink` | #ffcc29 on #1c1500 |
 | Vos | `--vos`, `--vos-ink` | #5cc6ff on #00192b |
 | Signals | `--live`, `--ok`, `--warn` | #f03c3c, #3fcf86, #ff9b3d |
+| Red under small white text | `--live-deep` | #c42b2b (5.6:1 with white; e.g. Detenerse on hover) |
 
 ## Type
 
 - **Display:** Sofia Sans Extra Condensed, 800–900, often italic and uppercase. Used for numerals, canto names, plate titles, buttons and tabs. The fonts are self-hosted in `proyecto/fuentes/` and served at `/fuentes/*.woff2`, so they work offline.
 - **UI:** Sofia Sans Semi Condensed, 400–700.
 - Tabular figures are used everywhere.
-- Scale contrast does the work. The score is 50px and the live canto is up to 64px. Data labels are 10.5–11px tracked uppercase.
+- Scale contrast does the work. The score is 50px and the live canto is up to 64px. Data labels are 11px tracked uppercase (11px is the floor for functional text).
 - Italic and weight 900 are reserved for the score numerals, the canto and the end-of-match title. Everything else uses 600–800 upright: tabs, buttons, player names, plate titles.
 
 ## Components

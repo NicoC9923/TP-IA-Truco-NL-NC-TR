@@ -146,6 +146,16 @@ def verificar(dds: bool = False) -> Resultado:
         _falta("MuJoCo", "instalado pero no carga" if "Visual C++" in porque else "")
         r.problemas.append(porque)
 
+    # 2b. OpenCV: el simulador no lo necesita, pero el Truco lo usa para leer
+    # la carta que mostras a la camara. Solo avisa; no bloquea el simulador.
+    if _tiene("cv2"):
+        import cv2
+        _ok("OpenCV", f"v{cv2.__version__} (camara del Truco)")
+    else:
+        print(f"  [AVISO] OpenCV no esta instalado: la camara del Truco queda "
+              f"desactivada.\n          Instalalo con instalar.bat (o instalar.sh), "
+              f"o con:\n          {_pip('opencv-python')}")
+
     # 3 y 4. CycloneDDS y el SDK de Unitree: SOLO en modo --dds.
     #
     # CycloneDDS 0.10.2 solo publica wheels hasta cp310 (con 3.11+ pip intenta

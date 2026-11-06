@@ -13,11 +13,16 @@ Python. Proyecto personal.
 
 ## Arrancar
 
-Una vez:
+Una vez por máquina, doble click en `instalar.bat` (o `./instalar.sh` en
+Linux/macOS). Instala lo que lista `requirements.txt` (MuJoCo, NumPy y OpenCV
+para la cámara) y después revisa el entorno. Es lo mismo que:
 
 ```bash
-py -3 -m pip install --user mujoco
+py -3 -m pip install --user -r requirements.txt
 ```
+
+Los lanzadores nunca instalan nada: si falta algo, avisan y dicen qué correr.
+Sin OpenCV el Truco funciona igual, pero la cámara queda desactivada.
 
 Cada vez, en dos terminales:
 

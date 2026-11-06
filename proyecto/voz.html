@@ -43,6 +43,7 @@
     /* Señales */
     --live: #f03c3c;
     --live-ink: #ffffff;
+    --live-deep: #c42b2b; /* rojo para texto blanco chico (5.6:1), p. ej. hover de Detenerse */
     --ok: #3fcf86;
     --ok-ink: #00230f;
     --warn: #ff9b3d;
@@ -104,7 +105,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 0 18px 0 16px;
+    padding: 8px 18px 8px 16px;
     height: 76px;
     clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%);
     margin-right: calc(var(--cut) * -0.4);
@@ -118,7 +119,7 @@
   }
   .mano-tag {
     font-family: var(--ui); font-style: normal; font-weight: 700;
-    font-size: 10.5px; letter-spacing: 0.12em;
+    font-size: 11px; letter-spacing: 0.12em;
     padding: 2px 6px; border-radius: 3px; width: max-content;
     background: currentColor;
   }
@@ -339,7 +340,7 @@
   .revelada { display: grid; justify-items: center; gap: 5px; perspective: 700px; }
   .revelada .naipe { height: var(--card-ott-h); }
   .revelada.guardada .naipe { outline: 3px solid var(--ott); outline-offset: 2px; }
-  .revelada .tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
+  .revelada .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
   .revelada.guardada .tag { color: var(--ott); }
   .revelada.gira .naipe { animation: gira 0.75s var(--ease-out) both; }
   @keyframes gira { 0% { transform: rotateY(90deg) scale(0.9); } 100% { transform: none; } }
@@ -366,7 +367,7 @@
   .baza-h { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-bottom: 6px; }
   .baza-n { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
   .baza.activa .baza-n { color: var(--ott); }
-  .gana { font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; }
+  .gana { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; }
   .gana.ott { background: var(--ott); color: var(--ott-ink); }
   .gana.vos { background: var(--vos); color: var(--vos-ink); }
   .gana.parda { background: var(--txt-2); color: var(--ink-0); }
@@ -392,7 +393,7 @@
     flex: none;
   }
   .zocalo-tab b { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 24px; letter-spacing: 0.02em; line-height: 1; text-transform: uppercase; }
-  .zocalo-tab small { font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  .zocalo-tab small { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
   .zocalo-body {
     flex: 1; min-width: 0; margin-left: calc(var(--cut) * -1);
     background: var(--txt); color: var(--ink-0);
@@ -529,7 +530,7 @@
   .barra .base { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--txt); }
   .medidor small { display: block; margin-top: 4px; font-size: 11.5px; color: var(--txt-3); }
   .faroles-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .faroles-tabla th { font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); text-align: right; padding: 0 0 4px; }
+  .faroles-tabla th { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); text-align: right; padding: 0 0 4px; }
   .faroles-tabla th:first-child, .faroles-tabla td:first-child { text-align: left; }
   .faroles-tabla td { padding: 5px 0; border-top: 1px solid var(--line-soft); text-align: right; font-weight: 700; }
   .faroles-tabla td:first-child { font-weight: 600; color: var(--txt-2); }
@@ -561,7 +562,7 @@
   .perfil-plate small { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
   .perfil-plate b { font-family: var(--display); font-weight: 900; font-size: 22px; font-style: italic; line-height: 1.05; }
   .h2h { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 18px; }
-  .ficha { padding: 6px 16px 12px; }
+  .ficha { padding: 12px 16px; }
   .ficha-fila { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 11px 0; border-bottom: 1px solid var(--line-soft); align-items: baseline; }
   .ficha-fila:last-child { border-bottom: 0; }
   .ficha-fila span { color: var(--txt-2); font-size: 14px; }
@@ -613,11 +614,11 @@
   .sw:active { transform: scale(0.97); }
   .sw.flash { background: var(--ott); color: var(--ott-ink); border-color: var(--ott); }
   .sw.stop { background: #3a0f17; border-color: #6b1a24; color: #ffc4c4; }
-  .sw.stop:hover { background: var(--live); color: #fff; border-color: var(--live); }
+  .sw.stop:hover { background: var(--live-deep); color: #fff; border-color: var(--live-deep); }
   .rundown { list-style: none; margin: 0; padding: 4px 12px 12px; max-height: 420px; overflow-y: auto; }
   .rundown li { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
   .rundown li:last-child { border-bottom: 0; }
-  .rundown .st { grid-row: span 2; font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; align-self: start; margin-top: 2px; }
+  .rundown .st { grid-row: span 2; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; align-self: start; margin-top: 2px; }
   .st.ok { background: var(--ok); color: var(--ok-ink); }
   .st.bloq { background: var(--live); color: #fff; }
   .st.desc { background: var(--warn); color: #2b1300; }
@@ -650,7 +651,7 @@
     body { font-size: 14px; }
     .top { padding: 8px 8px 0; gap: 8px; }
     .scorebug { width: 100%; flex-wrap: wrap; }
-    .sb-team { height: 60px; flex: 1; padding: 0 16px 0 12px; justify-content: space-between; }
+    .sb-team { height: 60px; flex: 1; padding: 8px 16px 8px 12px; justify-content: space-between; }
     .sb-team.ott { padding-left: 18px; }
     .sb-num { font-size: 48px; }
     .sb-name { font-size: 17px; }
@@ -689,7 +690,7 @@
 
   /* ===== Capa calma (común a las variantes) ===== */
   :root { --shadow-1: 0 4px 12px rgba(0,0,0,0.28); --shadow-2: 0 10px 26px rgba(0,0,0,0.4); }
-  .sb-team, .sb-info { height: 62px; }
+  .sb-team, .sb-info { height: 66px; }
   .sb-num { font-size: 50px; }
   .sb-name { font-size: 17px; font-weight: 700; }
   .stake-name { font-size: 21px; font-weight: 800; }
@@ -745,7 +746,7 @@
   .cab-vista h2 { font-size: 38px; }
   .ficha-fila b, .versus-nums b { font-weight: 800; }
   .ptt { background: transparent; }
-  @media (max-width: 720px) { .sb-team { height: 54px; } .sb-num { font-size: 42px; } }
+  @media (max-width: 720px) { .sb-team { height: 58px; } .sb-num { font-size: 42px; } }
 
 
   /* ===== a pedido ===== */
@@ -1206,7 +1207,9 @@
     detInfo.textContent = 'Mirando la carta…';
     try {
       const data = await postJSON('/truco/detectar', { imagen: b64, usar_mano: true });
-      if (data.valor > 0) {
+      if (data.disponible === false) {
+        detInfo.innerHTML = `<span class="err">${esc(data.error)}</span>`;
+      } else if (data.valor > 0) {
         detInfo.innerHTML = `Vi el <b>${esc(data.nombre || (data.valor + ' de ' + data.palo))}</b> · ${(data.confianza * 100).toFixed(0)} % de confianza`;
         await tirarCartaDirecta({ valor: data.valor, palo: data.palo });
       } else {
@@ -1223,7 +1226,9 @@
     try {
       const data = await postJSON('/truco/detectar', { imagen: b64, usar_mano: false });
       const libre = data.deteccion_libre || data;
-      if (libre.valor > 0) {
+      if (data.disponible === false) {
+        detInfo.innerHTML = `<span class="err">${esc(data.error)}</span>`;
+      } else if (libre.valor > 0) {
         detInfo.innerHTML = `Modo libre: <b>${esc(libre.valor)} de ${esc(libre.palo)}</b> · ${(libre.confianza * 100).toFixed(0)} % de confianza`;
       } else {
         detInfo.textContent = 'Modo libre: no reconocí ninguna carta.';
