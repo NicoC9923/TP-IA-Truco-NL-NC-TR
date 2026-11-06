@@ -23,13 +23,22 @@ def evaluate(directory, *, pairs=1000, seed=0, target=15, only_new=False):
             done.add((row['generation'], row['reference_opponent']))
     for champion in sorted(root.glob('champion_[0-9][0-9][0-9][0-9].npy')):
         generation = int(champion.stem.split('_')[1])
+        try:
+            genome = np.load(champion, allow_pickle=False)
+            # Validate the shape before starting any matches.
+            NetworkPolicy(genome)
+        except (OSError, ValueError, EOFError):
+            if only_new:
+                # The trainer may still be writing this champion; retry next scan.
+                continue
+            raise
         for name, factory in (('reactive', ReactivePolicy), ('adaptive_utility', AdaptiveUtilityPolicy)):
             if (generation, name) in done:
                 continue
             rates = []
             for index in range(pairs):
                 deal_seed = 2 * (seed * 1000000000 + index)
-                network = NetworkPolicy.load(champion, seed=deal_seed * 2)
+                network = NetworkPolicy(genome, seed=deal_seed * 2)
                 reference = factory(deal_seed * 2 + 1)
                 first = play_match(network, reference, seed=deal_seed, target=target, deal_partition=0)
                 second = play_match(reference, network, seed=deal_seed, target=target, deal_partition=0)
