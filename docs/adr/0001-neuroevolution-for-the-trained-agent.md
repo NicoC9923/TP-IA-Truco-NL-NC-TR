@@ -9,4 +9,4 @@ The trained agent is a small neural network (a multilayer perceptron) whose weig
 - **A genetic algorithm over the utility agent's thresholds:** simple, but it only tunes hand-written rules. Low ceiling.
 - **Supervised learning:** needs examples labelled with the correct move, and there are none. The T1K22 dataset has deals, not decisions. Labelling with the current agent's decisions would only teach the network to imitate it, never to beat it.
 - **MCCFR:** the most theoretically sound option for games with bluffing, but it advances by iterations rather than generations, needs an abstraction of the game state, and fits the syllabus less well.
-- **Reinforcement learning (PPO, DQN) with PyTorch:** powerful, but much harder to tune and adds a heavy dependency (see ADR 0003). Later adopted as phase 2 with Deep Monte-Carlo (ADR 0015).
+- **Reinforcement learning (PPO, DQN) with PyTorch:** powerful, but much harder to tune and adds a heavy dependency (see ADR 0003). Deep Monte-Carlo, a different reinforcement learning method, was later adopted as phase 2 (ADR 0015).

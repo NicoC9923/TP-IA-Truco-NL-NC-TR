@@ -1,6 +1,6 @@
 # The reference evaluation runs in a separate process
 
-The new agent's strength is measured against the existing agents, Reactive and Adaptive Utility, in a **process separate from the trainer**. That process takes each saved champion, plays 1,000 pairs of mirror matches against each reference opponent on the validation deals, and writes its own log with the win rate and its margin of error. The evolution page merges that log with the trainer's (ADR 0009).
+The trained agent's strength is measured against the existing agents, Reactive and Adaptive Utility, in a **process separate from the trainer**. That process takes each saved champion, plays 1,000 pairs of mirror matches against each reference opponent on the validation deals, and writes its own log with the win rate and its margin of error. The evolution page merges that log with the trainer's (ADR 0009).
 
 The separation is enforced by structure, not discipline: the trainer has no code path to the existing agents, and a test checks that the trainer module doesn't import them. For the presentation: "the exam is graded in another room."
 

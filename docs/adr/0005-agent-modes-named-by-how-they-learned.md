@@ -1,6 +1,6 @@
 # Four agent modes, named by how each one learned
 
-The static "utilidad" mode is removed, because it was the "aprendizaje" mode with its adjustments switched off, and the two are merged into a single **Adaptive Utility** mode. The UI keeps four architectures to compare live (UI labels in Spanish):
+The static "utilidad" (Utility) mode is removed, because it was the "aprendizaje" (Learning) mode with its adjustments switched off, and the two are merged into a single **Adaptive Utility** mode. The UI keeps four architectures to compare live (UI labels in Spanish):
 
 - **Reactive** (UI: "Reactivo"): simple-reflex agent, the comparison floor.
 - **Adaptive Utility** (UI: "Utilidad adaptativa"): thresholds over the 474,000-hand tables, with bluffing and opponent modelling.

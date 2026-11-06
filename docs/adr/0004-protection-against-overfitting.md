@@ -12,4 +12,4 @@ This is common practice: OpenAI Five played about 80% of its games against its c
 ## Considered Options
 
 - **Play only against the previous generation:** simplest, but produces exactly the cycles and specialization we want to avoid.
-- **Add Reactive, Adaptive Utility and four Utility variants to the league** (the original version of this ADR): external anchors help against cycles, but the new agent would learn to exploit the existing agents, and comparing them in the app would no longer be a comparison of independent architectures. Rejected by ADR 0021.
+- **Add Reactive, Adaptive Utility and four Utility variants to the league** (the original version of this ADR): external anchors help against cycles, but the trained agent would learn to exploit the existing agents, and comparing them in the app would no longer be a comparison of independent architectures. Rejected by ADR 0021.

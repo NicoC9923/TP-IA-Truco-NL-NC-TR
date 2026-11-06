@@ -2,7 +2,7 @@
 
 A 1-vs-1 Argentine truco match (no flor, to 15 or 30 points) between a human and Ottoman, an AI agent, plus the training of agents that learn to play it.
 
-Docs and code are in English; only the UI is in Spanish. Where a term appears in the UI, its Spanish label is given as **UI:**. Truco's own game vocabulary (truco, retruco, vale cuatro, envido, real envido, falta envido, "son buenas", brava, pardas, tantos) has no English equivalent and is used as-is.
+Docs and code are in English; only the UI is in Spanish. Where a term appears in the UI, its Spanish label is given as **UI:**. Truco's own game vocabulary (truco, retruco, vale cuatro, envido, real envido, falta envido, quiero / no quiero, "son buenas", brava, pardas, tantos, mano / pie) has no English equivalent and is used as-is.
 
 ## Language
 
@@ -22,7 +22,7 @@ _Avoid_: round, turn, truco (as a synonym for trick)
 
 **Mano / pie**:
 Each player's role in a hand: the mano plays first and wins ties in tantos.
-_Avoid_: using "mano" for the deal
+_Avoid_: "es mano" to mean the deal
 
 **Cards**:
 The three cards a player receives in a hand. UI: "cartas".
@@ -82,7 +82,7 @@ Statistics on how a specific opponent plays (bluffs seen, folds, truco accepted,
 _Avoid_: human model, style (for the observed profile)
 
 **Style**:
-A fixed way of playing imposed on a styled opponent: liar, cautious, aggressive or calculating.
+A fixed way of playing imposed on a styled opponent: bluffer, cautious, aggressive or calculating.
 _Avoid_: personality, profile (for the style)
 
 ### Training

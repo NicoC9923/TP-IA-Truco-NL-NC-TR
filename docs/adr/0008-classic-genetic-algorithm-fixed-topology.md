@@ -1,6 +1,6 @@
 # Classic genetic algorithm with a fixed network topology
 
-Each individual's genome is the vector of all weights of a fixed-shape network. Each generation applies tournament selection, elitism (the best pass through unchanged), weight crossover and gaussian mutation, over a population of about 64 individuals. Chosen because it is the genetic algorithm from the course syllabus and is easy to explain and visualize.
+Each individual's genome is the vector of all weights of a fixed-shape network. Each generation applies tournament selection, elitism (the best pass through unchanged), weight crossover and gaussian mutation, over a population of about 64 individuals. It was chosen because it is the genetic algorithm from the course syllabus and is easy to explain and visualize.
 
 ## Considered Options
 
