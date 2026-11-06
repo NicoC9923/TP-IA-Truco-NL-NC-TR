@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import random
 from pathlib import Path
 import sys
 import tempfile
@@ -29,6 +30,17 @@ class TestTrucoReglasYMotor(unittest.TestCase):
 
     def tearDown(self):
         self._tmpdir.cleanup()
+
+    def test_partidas_con_misma_semilla_reproducen_reparto_y_decision(self):
+        partidas = [
+            PartidaTruco(robot=None, historial_path=str(Path(self._tmpdir.name) / f"{i}.json"),
+                         rng=random.Random(42))
+            for i in range(2)
+        ]
+        self.assertEqual(partidas[0].estado_publico(), partidas[1].estado_publico())
+        resultados = [partida.cantar_envido_humano("ENVIDO") for partida in partidas]
+        self.assertEqual(resultados[0], resultados[1])
+        self.assertEqual(partidas[0].estado_publico(), partidas[1].estado_publico())
 
     def test_jerarquia_cartas(self):
         self.assertGreater(tr.valor_carta_truco(1, "Espada"), tr.valor_carta_truco(1, "Basto"))

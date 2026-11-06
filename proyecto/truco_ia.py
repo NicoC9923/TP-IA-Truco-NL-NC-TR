@@ -44,7 +44,9 @@ class AgenteTrucoIA:
         historial_path: Optional[str] = None,
         prob_farol: float = 0.14,
         modo_agente: str = "aprendizaje",
+        rng: random.Random | None = None,
     ):
+        self.rng = rng if rng is not None else random.Random()
         base_dir = Path(__file__).resolve().parent
         if stats_path is None:
             stats_path = str(base_dir / "truco_stats.json")
@@ -393,7 +395,7 @@ class AgenteTrucoIA:
             return "FALTA_ENVIDO", "¡A todo o nada, Falta Envido!"
 
         if prob >= 0.94:  # 31, 32 o 33
-            if falta_robot <= 4 or random.random() < 0.45:
+            if falta_robot <= 4 or self.rng.random() < 0.45:
                 self._registrar_razonamiento(
                     fase="Evaluación de Envido (1ra ronda)",
                     decision="FALTA_ENVIDO",
@@ -414,7 +416,7 @@ class AgenteTrucoIA:
             return "REAL_ENVIDO", "¡Real Envido!"
 
         if prob >= 0.85:  # 29 o 30
-            canto_sel = "REAL_ENVIDO" if random.random() < 0.35 else "ENVIDO"
+            canto_sel = "REAL_ENVIDO" if self.rng.random() < 0.35 else "ENVIDO"
             frase_sel = "¡Real Envido!" if canto_sel == "REAL_ENVIDO" else "¡Envido!"
             self._registrar_razonamiento(
                 fase="Evaluación de Envido (1ra ronda)",
@@ -440,7 +442,7 @@ class AgenteTrucoIA:
         # Cuota dinámica de picardía / farol ("mentir" con pocos tantos) solo en modo aprendizaje
         if usa_aprendizaje:
             prob_f = self.prob_farol_envido if not es_mano else (self.prob_farol_envido * 0.65)
-            if random.random() < prob_f:
+            if self.rng.random() < prob_f:
                 self.ultimo_canto_fue_farol = True
                 self.ultimo_detalle_farol = f"Cantó ENVIDO de farol con {tantos} tantos"
                 self._registrar_razonamiento(
@@ -545,7 +547,7 @@ class AgenteTrucoIA:
                     explicacion=f"Alta probabilidad de victoria ({prob_pct}%): sube la apuesta a Real Envido.",
                 )
                 return "REAL_ENVIDO", "¡Envido está primero... Real Envido!"
-            if prob >= 0.78 and random.random() < 0.5:
+            if prob >= 0.78 and self.rng.random() < 0.5:
                 self._registrar_razonamiento(
                     fase="Respuesta a ENVIDO",
                     decision="ENVIDO_ENVIDO",
@@ -565,7 +567,7 @@ class AgenteTrucoIA:
                     explicacion=f"P(ganar)={prob_pct}% supera el umbral ajustado ({round(umbral_q * 100, 1)}%); acepta el canto.",
                 )
                 return "QUIERO", f"¡Quiero! Tengo {tantos}."
-            if usa_aprendizaje and random.random() < (self.prob_farol_envido * 0.55):
+            if usa_aprendizaje and self.rng.random() < (self.prob_farol_envido * 0.55):
                 self.ultimo_canto_fue_farol = True
                 self.ultimo_detalle_farol = f"Subió a REAL ENVIDO de farol con {tantos} tantos"
                 self._registrar_razonamiento(
@@ -771,7 +773,7 @@ class AgenteTrucoIA:
                 return "TRUCO", "¡Truco!"
             if usa_aprendizaje:
                 prob_f = self.prob_farol_truco if len(ganadores_ronda) >= 1 else (self.prob_farol_truco * 0.45)
-                if random.random() < prob_f:
+                if self.rng.random() < prob_f:
                     self.ultimo_canto_fue_farol = True
                     self.ultimo_detalle_farol = f"Cantó TRUCO de farol (fuerza {int(fuerza * 100)}%)"
                     self._registrar_razonamiento(
@@ -794,7 +796,7 @@ class AgenteTrucoIA:
                     explicacion=f"Dominio de baza ({fuerza_pct}% ≥ 86%): sube la apuesta a Retruco.",
                 )
                 return "RETRUCO", "¡Quiero Retruco!"
-            if usa_aprendizaje and random.random() < (self.prob_farol_truco * 0.35):
+            if usa_aprendizaje and self.rng.random() < (self.prob_farol_truco * 0.35):
                 self.ultimo_canto_fue_farol = True
                 self.ultimo_detalle_farol = f"Cantó RETRUCO de farol (fuerza {int(fuerza * 100)}%)"
                 self._registrar_razonamiento(
@@ -900,7 +902,7 @@ class AgenteTrucoIA:
                     explicacion=f"Fuerza ({fuerza_pct}%) supera el umbral ({round(umbral_q * 100, 1)}%): acepta el Truco.",
                 )
                 return "QUIERO", "¡Quiero!"
-            if usa_aprendizaje and random.random() < (self.prob_farol_truco * 0.6):
+            if usa_aprendizaje and self.rng.random() < (self.prob_farol_truco * 0.6):
                 self.ultimo_canto_fue_farol = True
                 self.ultimo_detalle_farol = f"Retrucó de farol con fuerza baja ({int(fuerza * 100)}%)"
                 self._registrar_razonamiento(
