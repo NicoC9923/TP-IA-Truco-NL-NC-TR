@@ -11,7 +11,7 @@ class RandomPolicy:
 
 class ReactivePolicy:
     def __init__(self, seed=0):
-        self.agent = AgenteTrucoIA(modo_agente='reactivo', historial_path=str(Path(__file__).with_name('historial_partidas.seed.json')), rng=random.Random(seed))
+        self.agent = AgenteTrucoIA(modo_agente='reactivo', fixed_initial_state=True, rng=random.Random(seed))
     def __call__(self, obs, actions):
         hand = [{'valor': v, 'palo': p} for v, p in obs['hand']]
         cards = [hand[i] for i in obs['available']]
@@ -23,10 +23,12 @@ class ReactivePolicy:
         winners = ['parda' if w is None else 'robot' if w == obs['player'] else 'humano' for w in obs['tricks']]
         if pending:
             if pending['kind'] == 'envido':
-                choice = self.agent.responder_envido(hand, pending['call'].upper(), obs['mano'] == obs['player'])[0].lower()
+                choice = self.agent.responder_envido(hand, pending['call'].upper(), obs['mano'] == obs['player'], puntos_acumulados_no_quiero=pending['declined'], puntos_humano=obs['score'][1-obs['player']], puntos_robot=obs['score'][obs['player']], meta_puntos=obs['target'])[0].lower()
+                if choice == 'envido_envido' and pending['call'] == 'envido':
+                    choice = 'envido'
             else:
                 level = ('TRUCO', 'RETRUCO', 'VALE_CUATRO')[pending['level']-2]
-                choice = self.agent.responder_canto_truco(cards, level, winners, opponent)[0].lower()
+                choice = self.agent.responder_canto_truco(cards, level, winners, opponent, puntos_humano=obs['score'][1-obs['player']], meta_puntos=obs['target'])[0].lower()
             return choice if choice in actions else 'no_quiero'
         if 'envido' in actions:
             choice = self.agent.decidir_iniciar_envido(hand, obs['mano'] == obs['player'], obs['score'][1-obs['player']], obs['score'][obs['player']], obs['target'])[0]
