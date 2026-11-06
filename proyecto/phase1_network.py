@@ -23,7 +23,14 @@ def encode_observation(obs, profile):
     pending = obs['pending']
     values.extend((obs['truco'] / 4, float(obs['envido_done']), float(bool(pending and pending['kind'] == 'envido')), float(bool(pending and pending['kind'] == 'truco')), float(obs['mano'] == obs['player']), float(obs['raise_owner'] == obs['player'])))
     player = obs['player']
-    values.extend(((obs['target'] - obs['score'][player]) / 30, (obs['target'] - obs['score'][1-player]) / 30, (obs['target'] - max(obs['score'])) / 30))
+    values.extend(((obs['target'] - obs['score'][player]) / 30, (obs['target'] - obs['score'][1-player]) / 30, rules.puntos_falta_envido(*obs['score'], obs['target'], ('humano', 'robot')[player])[0] / 30))
+    for action in ('envido', 'real_envido', 'falta_envido', 'truco', 'retruco', 'vale_cuatro'):
+        values.append(sum(1 if actor == player else -1 for actor, call in obs['history'] if call == action))
+    reveal = obs.get('envido_reveal')
+    declarations = dict(reveal['declarations']) if reveal else {}
+    for seat in (player, 1-player):
+        value = declarations.get(seat)
+        values.append(value / 33 if isinstance(value, int) else -1 if value == 'son buenas' else 0)
     rates = profile.rates()
     belief = inference_from_observation(obs, rates['bluff'])
     card = obs['hand'][obs['available'][0]] if obs['available'] else obs['hand'][0]
@@ -59,3 +66,4 @@ class NetworkPolicy:
     @classmethod
     def load(cls, path, **kwargs):
         return cls(np.load(path, allow_pickle=False), **kwargs)
+
