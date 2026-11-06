@@ -30,8 +30,8 @@ def _behavior(results):
     opportunities = [d for d in own if d['observation']['pending'] and d['observation']['pending']['kind'] == 'truco']
     return {'envido': sum(d['action'] in ('envido', 'real_envido', 'falta_envido') for d in own) / max(hands, 1), 'bluff': sum(d['bluff'] for d in calls) / max(len(calls), 1), 'truco_acceptance': sum(d['action'] in ('quiero', 'retruco', 'vale_cuatro') for d in opportunities) / max(len(opportunities), 1)}
 
-def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=20, resume=None):
-    if min(population_size - 1, generations, pairs, workers, validation_pairs, patience) < 1 or (target is not None and target < 1):
+def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=20, resume=None, check_batch=200):
+    if check_batch < 0 or min(population_size - 1, generations, pairs, workers, validation_pairs, patience) < 1 or (target is not None and target < 1):
         raise ValueError('Invalid training configuration')
     output = Path(directory)
     output.mkdir(parents=True, exist_ok=True)
@@ -43,7 +43,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
         with np.load(resume, allow_pickle=False) as data:
             population, reigning, hall = data['population'], data['reigning'], list(data['hall'])
             state = json.loads(str(data['state']))
-        if state['config'] != [population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience]:
+        if state['config'] != [population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch]:
             raise ValueError('Checkpoint configuration does not match')
         rng.bit_generator.state = state['rng']
         reigning_generation, stale, first_generation = state['reigning_generation'], state['stale'], state['generation'] + 1
@@ -89,16 +89,24 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             else:
                 check_start = perf_counter()
                 jobs = [(genome, reigning, deal_seed, match_target, (0, 0), None) for deal_seed, match_target in validation_schedule(seed, target, validation_pairs)]
-                if workers == 1:
-                    checks = list(map(_evaluate, jobs))
-                else:
-                    with ProcessPoolExecutor(max_workers=workers) as pool:
-                        checks = list(pool.map(_evaluate, jobs))
+                pair_rates = []
+                batch_size = check_batch or validation_pairs
+                pool = ProcessPoolExecutor(max_workers=workers) if workers != 1 else None
+                try:
+                    for offset in range(0, validation_pairs, batch_size):
+                        batch = jobs[offset:offset + batch_size]
+                        checks = list(pool.map(_evaluate, batch) if pool else map(_evaluate, batch))
+                        pair_rates.extend(sum(result.winner == seat for result, seat in pair) / 2 for pair in checks)
+                        n = len(pair_rates)
+                        rate = float(np.mean(pair_rates))
+                        error = 1.96 * float(np.std(pair_rates, ddof=1)) / math.sqrt(n) if n > 1 else 0.0
+                        if check_batch and (rate + error < promotion_threshold or rate - error >= promotion_threshold):
+                            break
+                finally:
+                    if pool:
+                        pool.shutdown()
                 check_seconds = perf_counter() - check_start
-                pair_rates = [sum(result.winner == seat for result, seat in pair) / 2 for pair in checks]
-                rate = float(np.mean(pair_rates))
-                error = 1.96 * float(np.std(pair_rates, ddof=1)) / math.sqrt(validation_pairs) if validation_pairs > 1 else 0.0
-                check = {'win_rate': rate, 'margin_of_error': error, 'pairs': validation_pairs}
+                check = {'win_rate': rate, 'margin_of_error': error, 'pairs': n, 'max_pairs': validation_pairs, 'stopped_early': n < validation_pairs}
                 promoted = rate >= promotion_threshold
                 if promoted:
                     reigning, reigning_generation, stale = genome.copy(), generation, 0
@@ -114,7 +122,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             entry.update(promotion_check=check, promoted=promoted, reigning_champion=reigning_generation, phase_ended=ended, league=styles)
             log.write(json.dumps(entry) + '\n')
             log.flush()
-            status = 'first champion' if check is None else f"{'promoted' if promoted else 'not promoted'} {check['win_rate']:.0%} +/-{check['margin_of_error']*100:.0f}"
+            status = 'first champion' if check is None else f"{'promoted' if promoted else 'not promoted'} {check['win_rate']:.0%} +/-{check['margin_of_error']*100:.0f} ({check['pairs']}/{check['max_pairs']} pairs)"
             print(f'gen {generation} | best {scores.max():.3f} | avg {scores.mean():.3f} | {status} | {perf_counter()-start:.2f} s | league {league_seconds:.2f} s | check {check_seconds:.2f} s', flush=True)
             next_population = [population[champion].copy()]
             while len(next_population) < population_size:
@@ -127,7 +135,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
                 next_population.append(child)
             population = np.array(next_population)
             if generation % 10 == 0:
-                state = dict(generation=generation, config=[population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience], rng=rng.bit_generator.state, reigning_generation=reigning_generation, stale=stale, ended=ended)
+                state = dict(generation=generation, config=[population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch], rng=rng.bit_generator.state, reigning_generation=reigning_generation, stale=stale, ended=ended)
                 np.savez_compressed(output / f'checkpoint_{generation:04d}.npz', population=population, reigning=reigning, hall=np.asarray(hall).reshape(-1, GENOME_SIZE), state=json.dumps(state))
             if ended:
                 break
@@ -142,6 +150,7 @@ def main():
     parser.add_argument('--target', type=int, default=None)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--validation-pairs', type=int, default=1000)
+    parser.add_argument('--check-batch', type=int, default=200)
     parser.add_argument('--promotion-threshold', type=float, default=.55)
     parser.add_argument('--patience', type=int, default=20)
     parser.add_argument('--resume')
@@ -155,7 +164,7 @@ def main():
             if name != 'reference_evaluation.jsonl' or source.exists():
                 shutil.copy2(source, destination / name)
     else:
-        train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed, args.validation_pairs, args.promotion_threshold, args.patience, args.resume)
+        train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed, args.validation_pairs, args.promotion_threshold, args.patience, args.resume, args.check_batch)
 
 if __name__ == '__main__':
     main()
