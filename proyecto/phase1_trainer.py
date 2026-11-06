@@ -75,6 +75,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             else:
                 with ProcessPoolExecutor(max_workers=workers) as pool:
                     evaluated = list(pool.map(_evaluate, jobs))
+            league_seconds = perf_counter() - start
             results = [sum(evaluated[i*pairs:(i+1)*pairs], []) for i in range(population_size)]
             scores = np.array([fitness(group) for group in results])
             champion = int(np.argmax(scores))
@@ -82,15 +83,18 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             NetworkPolicy(population[champion]).save(output / name)
             genome = population[champion].copy()
             check, promoted = None, False
+            check_seconds = 0.0
             if reigning is None:
                 reigning, reigning_generation = genome.copy(), generation
             else:
+                check_start = perf_counter()
                 jobs = [(genome, reigning, deal_seed, match_target, (0, 0), None) for deal_seed, match_target in validation_schedule(seed, target, validation_pairs)]
                 if workers == 1:
                     checks = list(map(_evaluate, jobs))
                 else:
                     with ProcessPoolExecutor(max_workers=workers) as pool:
                         checks = list(pool.map(_evaluate, jobs))
+                check_seconds = perf_counter() - check_start
                 pair_rates = [sum(result.winner == seat for result, seat in pair) / 2 for pair in checks]
                 rate = float(np.mean(pair_rates))
                 error = 1.96 * float(np.std(pair_rates, ddof=1)) / math.sqrt(validation_pairs) if validation_pairs > 1 else 0.0
@@ -111,7 +115,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             log.write(json.dumps(entry) + '\n')
             log.flush()
             status = 'first champion' if check is None else f"{'promoted' if promoted else 'not promoted'} {check['win_rate']:.0%} +/-{check['margin_of_error']*100:.0f}"
-            print(f'gen {generation} | best {scores.max():.3f} | avg {scores.mean():.3f} | {status} | {perf_counter()-start:.2f} s', flush=True)
+            print(f'gen {generation} | best {scores.max():.3f} | avg {scores.mean():.3f} | {status} | {perf_counter()-start:.2f} s | league {league_seconds:.2f} s | check {check_seconds:.2f} s', flush=True)
             next_population = [population[champion].copy()]
             while len(next_population) < population_size:
                 parents = []

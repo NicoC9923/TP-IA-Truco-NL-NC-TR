@@ -1,14 +1,14 @@
 """Fixed-topology phase 1 policy and observation encoder."""
 import numpy as np
 import truco_reglas as rules
-from opponent_inference import inference_from_observation
+from opponent_inference import inference_from_observation, IncrementalInference
 from opponent_profile import OpponentProfile
 
 ACTIONS = ('card_0', 'card_1', 'card_2', 'envido', 'real_envido', 'falta_envido', 'quiero', 'no_quiero', 'truco', 'retruco', 'vale_cuatro', 'fold')
 INPUTS, HIDDEN = 64, 24
 GENOME_SIZE = INPUTS * HIDDEN + HIDDEN + HIDDEN * len(ACTIONS) + len(ACTIONS)
 
-def encode_observation(obs, profile):
+def encode_observation(obs, profile, inference=None):
     values = []
     for i, (value, suit) in enumerate(obs['hand']):
         values.extend((value / 12, rules.PALOS.index(suit) / 3, float(i in obs['available']), min(value, 10) % 10 / 7))
@@ -32,7 +32,8 @@ def encode_observation(obs, profile):
         value = declarations.get(seat)
         values.append(value / 33 if isinstance(value, int) else -1 if value == 'son buenas' else 0)
     rates = profile.rates()
-    belief = inference_from_observation(obs, rates['bluff'])
+    belief = (inference.update(obs, rates['bluff']) if inference is not None
+              else inference_from_observation(obs, rates['bluff']))
     card = obs['hand'][obs['available'][0]] if obs['available'] else obs['hand'][0]
     summaries = belief.summaries(card, ties_win=obs['mano'] == player)
     values.extend((summaries['brava_probability'], summaries['expected_strength'] / 24.7, summaries['next_trick_win_probability']))
@@ -49,9 +50,10 @@ class NetworkPolicy:
         self.bias = dict(bias or {})
         self.profile = profile or OpponentProfile()
         self.style = style
+        self.inference = IncrementalInference()
 
     def __call__(self, observation, legal_actions):
-        x = encode_observation(observation, self.profile)
+        x = encode_observation(observation, self.profile, self.inference)
         a = INPUTS * HIDDEN
         b = a + HIDDEN
         c = b + HIDDEN * len(ACTIONS)
@@ -74,6 +76,7 @@ class NetworkPolicy:
 
     def observe_hand(self, decisions, opponent):
         self.profile.observe(decisions, opponent)
+        self.inference.reset()
 
     def save(self, path):
         np.save(path, self.genome)
