@@ -25,6 +25,7 @@ PUERTO_DEFAULT = 8080
 DIR_PROYECTO = Path(__file__).resolve().parent
 PAGINA = DIR_PROYECTO / "voz.html"
 DIR_CARTAS = DIR_PROYECTO / "cartas"
+DIR_FUENTES = DIR_PROYECTO / "fuentes"
 
 robot_instancia = None
 sin_robot_flag = False
@@ -77,6 +78,19 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", mime)
                 self.send_header("Cache-Control", "no-cache")
+                self.send_header("Content-Length", str(len(cuerpo)))
+                self.end_headers()
+                self.wfile.write(cuerpo)
+            else:
+                self.send_response(404)
+                self.end_headers()
+        elif ruta_limpia.startswith("/fuentes/"):
+            archivo = DIR_FUENTES / Path(ruta_limpia).name
+            if archivo.is_file() and archivo.suffix.lower() == ".woff2":
+                cuerpo = archivo.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "font/woff2")
+                self.send_header("Cache-Control", "max-age=86400")
                 self.send_header("Content-Length", str(len(cuerpo)))
                 self.end_headers()
                 self.wfile.write(cuerpo)
