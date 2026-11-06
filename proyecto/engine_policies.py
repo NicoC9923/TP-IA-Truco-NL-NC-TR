@@ -39,3 +39,12 @@ class ReactivePolicy:
         card = self.agent.elegir_carta_a_jugar(cards, len(obs['tricks'])+1, opponent, winners)
         return 'card_%d' % hand.index(card)
 
+
+
+class AdaptiveUtilityPolicy(ReactivePolicy):
+    """Adaptive Utility with a fresh, non-persistent initial state."""
+
+    def __init__(self, seed=0, history_path=None):
+        self.agent = AgenteTrucoIA(modo_agente="utilidad_adaptativa",
+                                   historial_path=history_path,
+                                   fixed_initial_state=True, rng=random.Random(seed))

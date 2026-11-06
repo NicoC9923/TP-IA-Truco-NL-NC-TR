@@ -20,6 +20,16 @@ import truco_reglas as tr
 from historial_truco import HistorialTruco
 
 
+class _MemoryHistory:
+    """Fresh, non-persistent history for reference matches."""
+
+    def cargar(self, defaults):
+        return defaults
+
+    def guardar(self, data):
+        pass
+
+
 class AgenteTrucoIA:
     MODOS_DISPONIBLES = {
         "reactivo": {
@@ -41,6 +51,7 @@ class AgenteTrucoIA:
         prob_farol: float = 0.14,
         modo_agente: str = "utilidad_adaptativa",
         rng: random.Random | None = None,
+        fixed_initial_state: bool = False,
     ):
         self.rng = rng if rng is not None else random.Random()
         base_dir = Path(__file__).resolve().parent
@@ -51,8 +62,8 @@ class AgenteTrucoIA:
             historial_path = str(base_dir / "historial_partidas.json")
 
         self.historial_path = Path(historial_path)
-        self.historial = HistorialTruco(self.historial_path)
-        if usar_semilla:
+        self.historial = _MemoryHistory() if fixed_initial_state else HistorialTruco(self.historial_path)
+        if usar_semilla and not fixed_initial_state:
             self.historial.inicializar(base_dir / "historial_partidas.seed.json")
 
         with open(stats_path, "r", encoding="utf-8") as f:

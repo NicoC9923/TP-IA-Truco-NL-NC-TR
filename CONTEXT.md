@@ -158,3 +158,6 @@ An opponent's original cards are all publicly known; the engine records this whe
 
 **Next-trick win probability**:
 The weighted probability that a specified card wins against a uniformly selected remaining opponent card, with the relevant tie rule supplied by the caller.
+
+**Reference tournament**:
+A standalone round-robin comparison of reference opponents and optional policies using mirror match pairs; its bluff rate is the share of calls or raises marked as bluffs by the engine.
