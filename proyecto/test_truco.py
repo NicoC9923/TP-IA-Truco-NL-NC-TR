@@ -8,7 +8,6 @@ import copy
 import http.client
 import json
 import threading
-from http.server import ThreadingHTTPServer
 import contextlib
 import io
 import shutil
@@ -275,9 +274,8 @@ class TestTrucoReglasYMotor(unittest.TestCase):
             def procesar_frame_base64(self, imagen, cartas_mano=None):
                 return cartas_mano[0] if cartas_mano else carta
 
-        anteriores = servidor.partida_truco, servidor.detector_vision, servidor.sin_robot_flag
-        servidor.partida_truco, servidor.detector_vision, servidor.sin_robot_flag = partida, Camara(), True
-        server = ThreadingHTTPServer(("127.0.0.1", 0), servidor.Handler)
+        server = servidor.crear_servidor(partida, puerto=0, sin_robot=True)
+        server.detector = Camara()
         hilo = threading.Thread(target=server.serve_forever, daemon=True)
         hilo.start()
         try:
@@ -294,7 +292,6 @@ class TestTrucoReglasYMotor(unittest.TestCase):
             server.shutdown()
             server.server_close()
             hilo.join()
-            servidor.partida_truco, servidor.detector_vision, servidor.sin_robot_flag = anteriores
 
     def test_historial_corrupto_se_respalda_y_usa_valores_iniciales(self):
         ruta = Path(self.tmp_hist)
