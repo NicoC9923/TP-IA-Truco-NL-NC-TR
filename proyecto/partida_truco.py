@@ -21,10 +21,12 @@ from truco_ia import AgenteTrucoIA
 
 
 class PartidaTruco:
-    def __init__(self, robot=None, meta_puntos: int = 15, historial_path: Optional[str] = None):
+    def __init__(self, robot=None, meta_puntos: int = 15, historial_path: Optional[str] = None,
+                 rng: random.Random | None = None):
         self.robot = robot
+        self.rng = rng if rng is not None else random.Random()
         self._robot_lock = threading.Lock()
-        self.ia = AgenteTrucoIA(historial_path=historial_path)
+        self.ia = AgenteTrucoIA(historial_path=historial_path, rng=self.rng)
 
         self.puntos_humano = 0
         self.puntos_robot = 0
@@ -56,6 +58,7 @@ class PartidaTruco:
 
         # Si el robot cantó algo y espera que el humano diga Quiero / No Quiero / Subir
         self.canto_pendiente: Optional[Dict] = None
+        self.truco_en_espera: Optional[Dict] = None
 
         # Seguimiento de mentiras (bluffs) en la mano y en la partida
         self.bluffs_mano_actual: List[Dict] = []
@@ -170,11 +173,14 @@ class PartidaTruco:
         if self.partido_terminado:
             return self.reiniciar_partido(self.meta_puntos)
 
+        if not primera_vez and not self.mano_terminada:
+            return {"error": "Terminá la mano antes de repartir de nuevo.", "estado": self.estado_publico()}
+
         if not primera_vez and self.mano_terminada:
             self.es_mano_humano = not self.es_mano_humano
 
         mazo = [{"valor": v, "palo": p, "nombre": tr.nombre_carta(v, p)} for p in tr.PALOS for v in tr.VALORES]
-        random.shuffle(mazo)
+        self.rng.shuffle(mazo)
 
         self.cartas_humano = mazo[0:3]
         self.cartas_humano_disponibles = list(self.cartas_humano)
@@ -189,12 +195,14 @@ class PartidaTruco:
         self.envido_resuelto = False
         self.puntos_envido_acumulados = 0
         self.ultimo_canto_envido = None
+        self.por_el_partido = False
         self.resultado_envido_detalle = None
 
         self.apuesta_truco = "NADA"
         self.puntos_truco_actuales = 1
         self.quien_tiene_quiero_truco = "ambos"
         self.canto_pendiente = None
+        self.truco_en_espera = None
 
         self.bluffs_mano_actual = []
         self._ultimo_bluff_envido_mano = None
@@ -228,8 +236,10 @@ class PartidaTruco:
         self.estadisticas_partida["manos_jugadas"] += 1
         self.ia.analizar_mano_humano(
             self.cartas_humano,
-            humano_canto_envido=self._humano_canto_envido_mano,
+            humano_canto_envido=(self._humano_canto_envido_mano and self.resultado_envido_detalle is not None
+                                 and "pts_humano" in self.resultado_envido_detalle),
             humano_canto_truco=self._humano_canto_truco_mano,
+            cartas_truco_reveladas=[m["carta"] for m in self.mesa if m["quien"] == "humano"],
         )
 
     def _verificar_fin_partido(self) -> None:
@@ -270,7 +280,7 @@ class PartidaTruco:
             not self.mano_terminada
             and self.ronda_actual == 1
             and not self.envido_resuelto
-            and self.canto_pendiente is None
+            and (self.canto_pendiente is None or self.canto_pendiente["tipo"] == "TRUCO")
             and self.apuesta_truco == "NADA"
         )
 
@@ -289,24 +299,21 @@ class PartidaTruco:
         if self.turno_carta != "humano":
             return {"error": "Todavía no es tu turno de tirar carta.", "estado": self.estado_publico()}
 
-        palo_in = str(carta.get("palo", "")).capitalize()
-        val_in = int(carta.get("valor", 0))
+        if not isinstance(carta, dict):
+            return {"error": "Esa carta no está en tu mano", "estado": self.estado_publico()}
+        val_in = carta.get("valor")
+        palo_in = carta.get("palo")
+        if (type(val_in) is not int or val_in not in (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
+                or palo_in not in ("Espada", "Basto", "Oro", "Copa")):
+            return {"error": "Esa carta no está en tu mano", "estado": self.estado_publico()}
         carta_jugada = None
         for c in self.cartas_humano_disponibles:
             if int(c["valor"]) == val_in and str(c["palo"]).capitalize() == palo_in:
                 carta_jugada = c
                 break
 
-        if carta_jugada is None and self.cartas_humano_disponibles:
-            for c in self.cartas_humano_disponibles:
-                if str(c["palo"]).capitalize() == palo_in or int(c["valor"]) == val_in:
-                    carta_jugada = c
-                    break
-            if carta_jugada is None:
-                carta_jugada = self.cartas_humano_disponibles[0]
-
         if carta_jugada is None:
-            return {"error": "No te quedan cartas para jugar.", "estado": self.estado_publico()}
+            return {"error": "Esa carta no está en tu mano", "estado": self.estado_publico()}
 
         self.cartas_humano_disponibles.remove(carta_jugada)
         nombre_c = tr.nombre_carta(carta_jugada["valor"], carta_jugada["palo"])
@@ -477,6 +484,7 @@ class PartidaTruco:
         self.mano_terminada = True
         self.ganador_mano = ganador
         self.canto_pendiente = None
+        self.truco_en_espera = None
         sufijo = f" ({motivo})" if motivo else ""
 
         # Si hubo un farol de Truco en esta mano que fue querido (se jugó en mesa), registrar su desenlace
@@ -510,7 +518,7 @@ class PartidaTruco:
         if canto == "REAL_ENVIDO":
             return self.puntos_envido_acumulados + 3, no_quiero
         if canto == "FALTA_ENVIDO":
-            pts_f = tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos)
+            pts_f, _ = tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos)
             return pts_f, no_quiero
         return 2, 1
 
@@ -532,6 +540,7 @@ class PartidaTruco:
     ) -> None:
         pts_q, pts_nq = self._valores_envido(canto)
         self.ultimo_canto_envido = canto
+        self.por_el_partido = canto == "FALTA_ENVIDO" and tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos)[1]
         self.estadisticas_partida["envido"]["cantados_robot"] += 1
 
         if es_farol:
@@ -556,32 +565,39 @@ class PartidaTruco:
             "es_farol": es_farol,
             "puntos_quiero": pts_q,
             "puntos_no_quiero": pts_nq,
+            "por_el_partido": self.por_el_partido,
             "opciones": ["QUIERO", "NO_QUIERO"] + self._opciones_subir_envido(canto),
         }
 
     def cantar_envido_humano(self, canto: str) -> Dict:
         """El humano inicia o sube el canto de Envido."""
         canto = canto.upper().strip()
+        permitidos = {"ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"}
+        if self.canto_pendiente and self.canto_pendiente["tipo"] == "ENVIDO":
+            permitidos = set(self.canto_pendiente["opciones"]) - {"QUIERO", "NO_QUIERO"}
+        elif self.puntos_envido_acumulados:
+            permitidos.add("ENVIDO_ENVIDO")
+        if canto not in permitidos:
+            return {"error": "Elegí un canto de envido válido.", "estado": self.estado_publico()}
         if self.mano_terminada:
             return {"error": "La mano ya terminó.", "estado": self.estado_publico()}
 
         if self.canto_pendiente is not None:
-            if self.canto_pendiente["tipo"] == "TRUCO" and self.ronda_actual == 1 and not self.envido_resuelto:
-                self.apuesta_truco = "NADA"
-                self.puntos_truco_actuales = 1
-                self.quien_tiene_quiero_truco = "ambos"
+            if self.canto_pendiente["tipo"] == "TRUCO" and self.puede_cantar_envido():
+                self.truco_en_espera = self.canto_pendiente
                 self.canto_pendiente = None
             elif self.canto_pendiente["tipo"] == "ENVIDO":
                 return self.responder_canto_humano(canto)
             else:
                 return {"error": "Primero respondé al canto pendiente.", "estado": self.estado_publico()}
 
-        if self.ronda_actual != 1 or self.envido_resuelto:
-            return {"error": "El Envido solo se puede cantar en primera ronda.", "estado": self.estado_publico()}
+        if not self.puede_cantar_envido():
+            return {"error": "No podés cantar envido ahora.", "estado": self.estado_publico()}
 
         self._humano_canto_envido_mano = True
         pts_q, pts_nq = self._valores_envido(canto)
         self.ultimo_canto_envido = canto
+        self.por_el_partido = canto == "FALTA_ENVIDO" and tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos)[1]
         self.registrar(f"👤 Humano cantó: {canto.replace('_', ' ')}")
 
         resp, frase = self.ia.responder_envido(
@@ -621,6 +637,7 @@ class PartidaTruco:
             "motivo": "No querido por Ottoman",
         }
         self._verificar_fin_partido()
+        self._reanudar_truco()
         self._avanzar_turno_robot_si_corresponde()
         return {"respuesta": "NO_QUIERO", "frase": frase, "ganador": "humano", "estado": self.estado_publico()}
 
@@ -629,14 +646,17 @@ class PartidaTruco:
         self.canto_pendiente = None
         pts_robot = tr.calcular_envido(self.cartas_robot)
         pts_humano = tr.calcular_envido(self.cartas_humano)
-
         if pts_humano > pts_robot or (pts_humano == pts_robot and self.es_mano_humano):
             ganador_e = "humano"
+            if self.ultimo_canto_envido == "FALTA_ENVIDO":
+                puntos_en_juego, _ = tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos, ganador_e)
             self.puntos_humano += puntos_en_juego
             msg = f"{frase_inicial} Tenés {pts_humano} contra mis {pts_robot}, ¡son buenas! (+{puntos_en_juego} pts)".strip()
             self.decir_robot(msg)
         else:
             ganador_e = "robot"
+            if self.ultimo_canto_envido == "FALTA_ENVIDO":
+                puntos_en_juego, _ = tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos, ganador_e)
             self.puntos_robot += puntos_en_juego
             msg = f"{frase_inicial} ¡Canto {pts_robot} y matan tus {pts_humano}! (+{puntos_en_juego} pts para mí)".strip()
             self.decir_robot(msg)
@@ -658,6 +678,7 @@ class PartidaTruco:
             "puntos_ganados": puntos_en_juego,
         }
         self._verificar_fin_partido()
+        self._reanudar_truco()
         return {
             "respuesta": "QUIERO",
             "ganador": ganador_e,
@@ -740,7 +761,9 @@ class PartidaTruco:
         if not sig_nivel:
             return {"error": "Ya se está jugando el Vale Cuatro.", "estado": self.estado_publico()}
 
-        nivel = sig_nivel
+        if nivel_pedido is not None and nivel_pedido != sig_nivel:
+            return {"error": "Cantá el nivel de truco disponible.", "estado": self.estado_publico()}
+        nivel = nivel_pedido or sig_nivel
         self._humano_canto_truco_mano = True
         pts_q, pts_nq = self._puntos_nivel_truco(nivel)
         self.registrar(f"👤 Humano cantó: {nivel.replace('_', ' ')}")
@@ -759,6 +782,9 @@ class PartidaTruco:
                 meta_puntos=self.meta_puntos,
             )
             if canto_e:
+                self.truco_en_espera = {"tipo": "TRUCO", "canto": nivel, "quien_canto": "humano",
+                                        "puntos_quiero": pts_q, "puntos_no_quiero": pts_nq,
+                                        "opciones": ["QUIERO", "NO_QUIERO", "RETRUCO"]}
                 self._robot_canta_envido(
                     canto_e,
                     f"¡El envido está primero! ¡{canto_e.replace('_', ' ')}!",
@@ -767,6 +793,9 @@ class PartidaTruco:
                 )
                 return {"respuesta": canto_e, "estado": self.estado_publico()}
 
+        return self._responder_truco_robot(nivel, pts_q, pts_nq, carta_humano_en_baza)
+
+    def _responder_truco_robot(self, nivel, pts_q, pts_nq, carta_humano_en_baza):
         resp, frase = self.ia.responder_canto_truco(
             self.cartas_robot_disponibles,
             nivel,
@@ -802,6 +831,19 @@ class PartidaTruco:
         self._adjudicar_mano("humano", pts_nq, motivo=f"{nivel} no querido")
         return {"respuesta": "NO_QUIERO", "frase": frase, "estado": self.estado_publico()}
 
+    def _reanudar_truco(self):
+        pendiente = self.truco_en_espera
+        self.truco_en_espera = None
+        if not pendiente or self.partido_terminado:
+            return
+        if pendiente["quien_canto"] == "robot":
+            self.canto_pendiente = pendiente
+        else:
+            carta = next((m["carta"] for m in self.mesa
+                          if m["ronda"] == self.ronda_actual and m["quien"] == "humano"), None)
+            self._responder_truco_robot(pendiente["canto"], pendiente["puntos_quiero"],
+                                       pendiente["puntos_no_quiero"], carta)
+
     def responder_canto_humano(self, respuesta: str) -> Dict:
         """El humano responde ('QUIERO', 'NO_QUIERO' o retruca/sube) al canto pendiente del robot."""
         if self.canto_pendiente is None:
@@ -809,6 +851,8 @@ class PartidaTruco:
 
         resp = respuesta.upper().strip()
         pendiente = self.canto_pendiente
+        if resp not in pendiente["opciones"]:
+            return {"error": "Elegí una de las opciones del canto pendiente.", "estado": self.estado_publico()}
         tipo = pendiente["tipo"]
         canto_robot = pendiente["canto"]
         era_farol = bool(pendiente.get("es_farol", False))
@@ -833,6 +877,7 @@ class PartidaTruco:
                 self.decir_robot(f"¡Achicaste! Sumo {pts_nq} {'punto' if pts_nq == 1 else 'puntos'} del envido.")
                 self._reaccion_robot("festejo")
                 self._verificar_fin_partido()
+                self._reanudar_truco()
                 self._avanzar_turno_robot_si_corresponde()
                 return {"respuesta": "NO_QUIERO", "ganador": "robot", "estado": self.estado_publico()}
             if resp in ("ENVIDO", "ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"):
@@ -847,7 +892,7 @@ class PartidaTruco:
                 return self.cantar_envido_humano(resp)
 
         elif tipo == "TRUCO":
-            if resp in ("ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO") and self.ronda_actual == 1 and not self.envido_resuelto:
+            if resp in ("ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO") and self.puede_cantar_envido():
                 return self.cantar_envido_humano(resp)
 
             if resp == "QUIERO":
@@ -885,7 +930,7 @@ class PartidaTruco:
         return {"error": f"Respuesta '{resp}' no válida en este momento.", "estado": self.estado_publico()}
 
     def irse_al_mazo_humano(self) -> Dict:
-        """El humano decide irse al mazo."""
+        """El humano se va; sin cantos ni cartas en primera baza rige el valor de casa de 2 puntos."""
         if self.mano_terminada:
             return {"error": "La mano ya terminó.", "estado": self.estado_publico()}
 
@@ -893,9 +938,15 @@ class PartidaTruco:
             return self.responder_canto_humano("NO_QUIERO")
 
         pts = self.puntos_truco_actuales
-        if self.ronda_actual == 1 and not self.envido_resuelto and self.apuesta_truco == "NADA" and len(self.mesa) == 0:
+        if self.canto_pendiente is not None and self.canto_pendiente["tipo"] == "ENVIDO":
+            pts += self.canto_pendiente["puntos_no_quiero"]
+        elif self.ronda_actual == 1 and not self.envido_resuelto and self.apuesta_truco == "NADA" and len(self.mesa) == 0:
             pts = 2
 
+        for bluff in self.bluffs_mano_actual:
+            if bluff["resultado"] == "pendiente":
+                bluff["resultado"] = "exitoso"
+                self.estadisticas_partida[bluff["tipo"].lower()]["bluffs_exitosos"] += 1
         self._adjudicar_mano("robot", pts, motivo="Humano se fue al mazo")
         return {"mensaje": "Te fuiste al mazo", "estado": self.estado_publico()}
 
@@ -906,10 +957,16 @@ class PartidaTruco:
         if not t:
             return {"error": "Texto vacío", "estado": self.estado_publico()}
 
-        self.registrar(f"🎤 Voz recibida en mesa: \"{texto}\"")
+        if re.search(r"\benvido\b", t) and self.canto_pendiente is None and not self.puede_cantar_envido():
+            return {"error": "No podés cantar envido ahora.", "estado": self.estado_publico()}
 
         if re.search(r"\b(?:nueva\s+mano|repart[ií]|otra\s+mano)\b", t):
-            return {"accion_voz": "NUEVA_MANO", "estado": self.nueva_mano()}
+            estado = self.nueva_mano()
+            if "error" in estado:
+                return estado
+            return {"accion_voz": "NUEVA_MANO", "estado": estado}
+
+        self.registrar(f'🎤 Voz recibida en mesa: "{texto}"')
 
         if re.search(r"\b(?:no\s+quiero|son\s+buenas|paso)\b", t):
             if self.canto_pendiente is not None:
@@ -941,7 +998,7 @@ class PartidaTruco:
 
         if re.search(r"\benvido\b", t):
             if self.canto_pendiente is not None:
-                return self.responder_canto_humano("ENVIDO_ENVIDO")
+                return self.responder_canto_humano("ENVIDO" if self.canto_pendiente["tipo"] == "TRUCO" else "ENVIDO_ENVIDO")
             return self.cantar_envido_humano("ENVIDO")
 
         if re.search(r"\btruco\b", t):
@@ -956,6 +1013,9 @@ class PartidaTruco:
         if carta_voz is not None:
             return self.jugar_carta_humano(carta_voz)
 
+        if re.search(r"\b(?:carta|juego|jugar|tiro|tirar)\b", t):
+            return self.jugar_carta_humano(None)
+
         return {
             "error": f"No reconocí una jugada de Truco en: \"{texto}\". Probá diciendo 'Envido', 'Truco', 'Quiero', 'Al mazo' o el nombre de tu carta.",
             "estado": self.estado_publico(),
@@ -964,6 +1024,15 @@ class PartidaTruco:
     # ---------- serialización de estado para la UI ----------
     def estado_publico(self) -> Dict:
         siguiente_truco = self._siguiente_nivel_truco() if self.quien_tiene_quiero_truco in ("ambos", "humano") else None
+        aprendizaje = self.ia.resumen_aprendizaje()
+        if not self.mano_terminada:
+            def vista_publica(paso):
+                if paso is None:
+                    return None
+                return {"fase": paso["fase"], "decision": paso["decision"].replace(" (FAROL)", "")}
+
+            aprendizaje["ultimo_razonamiento"] = vista_publica(aprendizaje["ultimo_razonamiento"])
+            aprendizaje["traza_razonamiento"] = [vista_publica(paso) for paso in aprendizaje["traza_razonamiento"]]
 
         # Al terminar la mano, revelar las 3 cartas de Ottoman y si hizo farol
         cartas_robot_reveladas = None
@@ -1001,15 +1070,16 @@ class PartidaTruco:
             "tantos_robot": tantos_robot_revelados,
             "bluffs_mano_actual": self.bluffs_mano_actual if self.mano_terminada else [],
             "estadisticas_partida": self.estadisticas_partida,
-            "aprendizaje_ia": self.ia.resumen_aprendizaje(),
+            "aprendizaje_ia": aprendizaje,
             "cartas_humano": self.cartas_humano,
             "cartas_humano_disponibles": self.cartas_humano_disponibles,
             "tantos_humano": tr.calcular_envido(self.cartas_humano),
             "envido_disponible": self.puede_cantar_envido(),
             "envido_resuelto": self.envido_resuelto,
+            "por_el_partido": self.por_el_partido,
             "resultado_envido": self.resultado_envido_detalle,
-            "apuesta_truco": self.apuesta_truco,
-            "puntos_truco_actuales": self.puntos_truco_actuales,
+            "apuesta_truco": (self.truco_en_espera["canto"] if self.truco_en_espera else self.apuesta_truco),
+            "puntos_truco_actuales": (self.truco_en_espera["puntos_quiero"] if self.truco_en_espera else self.puntos_truco_actuales),
             "siguiente_truco_humano": siguiente_truco,
             "canto_pendiente": self.canto_pendiente,
             "mesa": self.mesa,

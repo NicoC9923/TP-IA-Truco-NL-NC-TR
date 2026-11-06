@@ -17,6 +17,7 @@ import random
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import truco_reglas as tr
+from historial_truco import HistorialTruco
 
 
 class AgenteTrucoIA:
@@ -44,14 +45,20 @@ class AgenteTrucoIA:
         historial_path: Optional[str] = None,
         prob_farol: float = 0.14,
         modo_agente: str = "aprendizaje",
+        rng: random.Random | None = None,
     ):
+        self.rng = rng if rng is not None else random.Random()
         base_dir = Path(__file__).resolve().parent
         if stats_path is None:
             stats_path = str(base_dir / "truco_stats.json")
-        if historial_path is None:
+        usar_semilla = historial_path is None
+        if usar_semilla:
             historial_path = str(base_dir / "historial_partidas.json")
 
         self.historial_path = Path(historial_path)
+        self.historial = HistorialTruco(self.historial_path)
+        if usar_semilla:
+            self.historial.inicializar(base_dir / "historial_partidas.seed.json")
 
         with open(stats_path, "r", encoding="utf-8") as f:
             self.stats = json.load(f)
@@ -135,18 +142,7 @@ class AgenteTrucoIA:
             },
             "partidas": [],
         }
-        if self.historial_path.is_file():
-            try:
-                with open(self.historial_path, "r", encoding="utf-8") as f:
-                    cargado = json.load(f)
-                if isinstance(cargado, dict) and "parametros_ia" in cargado:
-                    for k, v in estructura_defecto["parametros_ia"].items():
-                        cargado["parametros_ia"].setdefault(k, v)
-                    cargado.setdefault("partidas", [])
-                    return cargado
-            except Exception:
-                pass
-        return estructura_defecto
+        return self.historial.cargar(estructura_defecto)
 
     def _sincronizar_atributos(self) -> None:
         p = self.datos_historial["parametros_ia"]
@@ -158,15 +154,12 @@ class AgenteTrucoIA:
 
     def guardar_historial(self) -> None:
         p = self.datos_historial["parametros_ia"]
-        p["prob_farol_envido"] = round(self.prob_farol_envido, 3)
-        p["prob_farol_truco"] = round(self.prob_farol_truco, 3)
-        p["umbral_quiero_envido_offset"] = round(self.umbral_quiero_envido_offset, 3)
-        p["umbral_quiero_truco_offset"] = round(self.umbral_quiero_truco_offset, 3)
-        try:
-            with open(self.historial_path, "w", encoding="utf-8") as f:
-                json.dump(self.datos_historial, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        if self.modo_agente == "aprendizaje":
+            p["prob_farol_envido"] = round(self.prob_farol_envido, 3)
+            p["prob_farol_truco"] = round(self.prob_farol_truco, 3)
+            p["umbral_quiero_envido_offset"] = round(self.umbral_quiero_envido_offset, 3)
+            p["umbral_quiero_truco_offset"] = round(self.umbral_quiero_truco_offset, 3)
+        self.historial.guardar(self.datos_historial)
 
     def resumen_aprendizaje(self) -> Dict:
         """Devuelve el estado evolutivo actual de la IA y su lectura del jugador humano."""
@@ -222,6 +215,8 @@ class AgenteTrucoIA:
 
     def registrar_respuesta_humano_a_canto(self, tipo: str, quiso: bool, era_farol_robot: bool) -> None:
         """Ajusta en línea las probabilidades de farol de Ottoman según si el humano quiso o no."""
+        if self.modo_agente != "aprendizaje":
+            return
         p = self.datos_historial["parametros_ia"]
         if tipo == "ENVIDO":
             if quiso:
@@ -248,10 +243,14 @@ class AgenteTrucoIA:
         cartas_humano: List[Dict],
         humano_canto_envido: bool,
         humano_canto_truco: bool,
+        cartas_truco_reveladas: Optional[List[Dict]] = None,
     ) -> None:
         """Al terminar una mano, analiza si el humano mintió para adaptar los umbrales de aceptación."""
         p = self.datos_historial["parametros_ia"]
         p["manos_totales"] = int(p.get("manos_totales", 0)) + 1
+        if self.modo_agente != "aprendizaje":
+            self.guardar_historial()
+            return
 
         if humano_canto_envido:
             p["shows_humano_totales"] = int(p.get("shows_humano_totales", 0)) + 1
@@ -263,9 +262,9 @@ class AgenteTrucoIA:
             elif tantos_h >= 29:
                 self.umbral_quiero_envido_offset = min(0.10, self.umbral_quiero_envido_offset + 0.01)
 
-        if humano_canto_truco:
+        if humano_canto_truco and cartas_truco_reveladas and len(cartas_truco_reveladas) >= 2:
             p["shows_humano_totales"] = int(p.get("shows_humano_totales", 0)) + 1
-            fuerza_h = self.percentil_fuerza_truco(cartas_humano)
+            fuerza_h = self.percentil_fuerza_truco(cartas_truco_reveladas)
             if fuerza_h < 0.44:
                 p["bluffs_humano_detectados"] = int(p.get("bluffs_humano_detectados", 0)) + 1
                 # El humano miente en el truco: bajar umbral para quererle más seguido
@@ -298,6 +297,7 @@ class AgenteTrucoIA:
             "id": int(p["partidas_jugadas"]),
             "fecha": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
             "ganador": ganador,
+            "modo_agente": self.modo_agente,
             "puntos_humano": puntos_humano,
             "puntos_robot": puntos_robot,
             "meta_puntos": meta_puntos,
@@ -393,7 +393,7 @@ class AgenteTrucoIA:
             return "FALTA_ENVIDO", "¡A todo o nada, Falta Envido!"
 
         if prob >= 0.94:  # 31, 32 o 33
-            if falta_robot <= 4 or random.random() < 0.45:
+            if falta_robot <= 4 or self.rng.random() < 0.45:
                 self._registrar_razonamiento(
                     fase="Evaluación de Envido (1ra ronda)",
                     decision="FALTA_ENVIDO",
@@ -414,7 +414,7 @@ class AgenteTrucoIA:
             return "REAL_ENVIDO", "¡Real Envido!"
 
         if prob >= 0.85:  # 29 o 30
-            canto_sel = "REAL_ENVIDO" if random.random() < 0.35 else "ENVIDO"
+            canto_sel = "REAL_ENVIDO" if self.rng.random() < 0.35 else "ENVIDO"
             frase_sel = "¡Real Envido!" if canto_sel == "REAL_ENVIDO" else "¡Envido!"
             self._registrar_razonamiento(
                 fase="Evaluación de Envido (1ra ronda)",
@@ -440,7 +440,7 @@ class AgenteTrucoIA:
         # Cuota dinámica de picardía / farol ("mentir" con pocos tantos) solo en modo aprendizaje
         if usa_aprendizaje:
             prob_f = self.prob_farol_envido if not es_mano else (self.prob_farol_envido * 0.65)
-            if random.random() < prob_f:
+            if self.rng.random() < prob_f:
                 self.ultimo_canto_fue_farol = True
                 self.ultimo_detalle_farol = f"Cantó ENVIDO de farol con {tantos} tantos"
                 self._registrar_razonamiento(
@@ -545,7 +545,7 @@ class AgenteTrucoIA:
                     explicacion=f"Alta probabilidad de victoria ({prob_pct}%): sube la apuesta a Real Envido.",
                 )
                 return "REAL_ENVIDO", "¡Envido está primero... Real Envido!"
-            if prob >= 0.78 and random.random() < 0.5:
+            if prob >= 0.78 and self.rng.random() < 0.5:
                 self._registrar_razonamiento(
                     fase="Respuesta a ENVIDO",
                     decision="ENVIDO_ENVIDO",
@@ -565,7 +565,7 @@ class AgenteTrucoIA:
                     explicacion=f"P(ganar)={prob_pct}% supera el umbral ajustado ({round(umbral_q * 100, 1)}%); acepta el canto.",
                 )
                 return "QUIERO", f"¡Quiero! Tengo {tantos}."
-            if usa_aprendizaje and random.random() < (self.prob_farol_envido * 0.55):
+            if usa_aprendizaje and self.rng.random() < (self.prob_farol_envido * 0.55):
                 self.ultimo_canto_fue_farol = True
                 self.ultimo_detalle_farol = f"Subió a REAL ENVIDO de farol con {tantos} tantos"
                 self._registrar_razonamiento(
@@ -654,7 +654,7 @@ class AgenteTrucoIA:
             return "NO_QUIERO", "Paso, no quiero."
 
         if canto_actual == "FALTA_ENVIDO":
-            pts_falta = tr.puntos_falta_envido(puntos_humano, puntos_robot, meta_puntos)
+            pts_falta, _ = tr.puntos_falta_envido(puntos_humano, puntos_robot, meta_puntos, "robot")
             umbral = max(0.55, (0.75 if (pts_falta <= 3 or falta_humano <= 2) else 0.87) + off)
             umbral_str = f"Umbral Falta = {round(umbral * 100, 1)}% ({pts_falta} pts en juego, ajuste {off_str})"
             if prob >= umbral:
@@ -771,7 +771,7 @@ class AgenteTrucoIA:
                 return "TRUCO", "¡Truco!"
             if usa_aprendizaje:
                 prob_f = self.prob_farol_truco if len(ganadores_ronda) >= 1 else (self.prob_farol_truco * 0.45)
-                if random.random() < prob_f:
+                if self.rng.random() < prob_f:
                     self.ultimo_canto_fue_farol = True
                     self.ultimo_detalle_farol = f"Cantó TRUCO de farol (fuerza {int(fuerza * 100)}%)"
                     self._registrar_razonamiento(
@@ -794,7 +794,7 @@ class AgenteTrucoIA:
                     explicacion=f"Dominio de baza ({fuerza_pct}% ≥ 86%): sube la apuesta a Retruco.",
                 )
                 return "RETRUCO", "¡Quiero Retruco!"
-            if usa_aprendizaje and random.random() < (self.prob_farol_truco * 0.35):
+            if usa_aprendizaje and self.rng.random() < (self.prob_farol_truco * 0.35):
                 self.ultimo_canto_fue_farol = True
                 self.ultimo_detalle_farol = f"Cantó RETRUCO de farol (fuerza {int(fuerza * 100)}%)"
                 self._registrar_razonamiento(
@@ -900,7 +900,7 @@ class AgenteTrucoIA:
                     explicacion=f"Fuerza ({fuerza_pct}%) supera el umbral ({round(umbral_q * 100, 1)}%): acepta el Truco.",
                 )
                 return "QUIERO", "¡Quiero!"
-            if usa_aprendizaje and random.random() < (self.prob_farol_truco * 0.6):
+            if usa_aprendizaje and self.rng.random() < (self.prob_farol_truco * 0.6):
                 self.ultimo_canto_fue_farol = True
                 self.ultimo_detalle_farol = f"Retrucó de farol con fuerza baja ({int(fuerza * 100)}%)"
                 self._registrar_razonamiento(

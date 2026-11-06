@@ -1,899 +1,1161 @@
 <!doctype html>
-<html lang="es">
+<html lang="es-AR">
 <head>
 <meta charset="utf-8">
-<title>Ottoman (Unitree G1) — Truco Argentino, Visión, Voz & Evolución IA</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Truco con Ottoman</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23040b1c'/%3E%3Cpath d='M16 5l9 11-9 11-9-11z' fill='%23ffcc29'/%3E%3C/svg%3E">
 <style>
+  @font-face {
+    font-family: "Sofia XC";
+    src: url("/fuentes/sofia-extra-condensed.woff2") format("woff2");
+    font-weight: 600 900; font-style: normal; font-display: swap;
+  }
+  @font-face {
+    font-family: "Sofia XC";
+    src: url("/fuentes/sofia-extra-condensed-italic.woff2") format("woff2");
+    font-weight: 600 900; font-style: italic; font-display: swap;
+  }
+  @font-face {
+    font-family: "Sofia SC";
+    src: url("/fuentes/sofia-semi-condensed.woff2") format("woff2");
+    font-weight: 400 700; font-style: normal; font-display: swap;
+  }
+
   :root {
-    --bg: #f4f6f9;
-    --card-bg: #ffffff;
-    --primary: #0b66c3;
-    --felt: #1e6b38;
-    --felt-border: #144926;
-    --accent: #d97706;
-    --danger: #dc2626;
-    --success: #16a34a;
+    /* Estudio: azul de transmisión */
+    --ink-0: #040b1c;
+    --ink-1: #08142e;
+    --ink-2: #0e1f47;
+    --ink-3: #163063;
+    --ink-4: #1f3f7e;
+    --line: #22407c;
+    --line-soft: #172f5e;
+    --txt: #f2f5fb;
+    --txt-2: #b3c1df;
+    --txt-3: #8598c2;
+    /* Equipos */
+    --ott: #ffcc29;
+    --ott-deep: #e0a800;
+    --ott-ink: #1c1500;
+    --vos: #5cc6ff;
+    --vos-ink: #00192b;
+    /* Señales */
+    --live: #f03c3c;
+    --live-ink: #ffffff;
+    --ok: #3fcf86;
+    --ok-ink: #00230f;
+    --warn: #ff9b3d;
+
+    --display: "Sofia XC", "Arial Narrow", sans-serif;
+    --ui: "Sofia SC", "Segoe UI", system-ui, sans-serif;
+
+    --cut: 14px;
+    --gap: 12px;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --shadow-1: 0 6px 18px rgba(0, 0, 0, 0.35);
+    --shadow-2: 0 14px 36px rgba(0, 0, 0, 0.5);
+
+    --card-hand-h: clamp(130px, 23vh, 250px);
+    --card-baza-h: clamp(70px, 12vh, 150px);
+    --card-ott-h: clamp(58px, 9vh, 112px);
+    color-scheme: dark;
   }
+
   * { box-sizing: border-box; }
+  html, body { margin: 0; }
   body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    max-width: 1180px;
-    margin: 1rem auto;
-    padding: 0 1rem 2rem;
-    background: var(--bg);
-    color: #1e293b;
+    background: var(--ink-0);
+    color: var(--txt);
+    font-family: var(--ui);
+    font-size: 15px;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+    min-height: 100dvh;
+    caret-color: var(--ott);
+    -webkit-font-smoothing: antialiased;
   }
-  header {
+  ::selection { background: var(--ott); color: var(--ott-ink); }
+  * { scrollbar-width: thin; scrollbar-color: var(--ink-4) transparent; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--ink-4); border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  :focus-visible { outline: 2px solid var(--ott); outline-offset: 2px; }
+  button { font: inherit; color: inherit; }
+  svg.i { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  [hidden] { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ============ BARRA SUPERIOR: SCOREBUG + CANALES ============ */
+  .top {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    align-items: stretch;
     justify-content: space-between;
-    gap: 0.8rem;
-    margin-bottom: 1rem;
+    gap: var(--gap);
+    padding: 12px 12px 0;
   }
-  header h1 {
-    font-size: 1.35rem;
-    margin: 0;
+  .scorebug {
+    display: flex;
+    align-items: stretch;
+    filter: drop-shadow(0 8px 18px rgba(0,0,0,0.45));
+    min-width: 0;
+  }
+  .sb-team {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 12px;
+    padding: 0 18px 0 16px;
+    height: 76px;
+    clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%);
+    margin-right: calc(var(--cut) * -0.4);
   }
-  .header-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    font-size: 0.88rem;
+  .sb-team.vos { background: var(--vos); color: var(--vos-ink); }
+  .sb-team.ott { background: var(--ott); color: var(--ott-ink); padding-left: 24px; }
+  .sb-name {
+    display: flex; flex-direction: column; gap: 2px;
+    font-family: var(--display); font-weight: 800; font-size: 20px;
+    letter-spacing: 0.04em; text-transform: uppercase; line-height: 1;
   }
-  .badge-sim {
-    padding: 0.35rem 0.75rem;
-    border-radius: 999px;
-    font-weight: 600;
-    background: #fef3c7;
-    color: #92400e;
-    border: 1px solid #f59e0b;
+  .mano-tag {
+    font-family: var(--ui); font-style: normal; font-weight: 700;
+    font-size: 10.5px; letter-spacing: 0.12em;
+    padding: 2px 6px; border-radius: 3px; width: max-content;
+    background: currentColor;
   }
-  .badge-sim.conectado {
-    background: #dcfce7;
-    color: #166534;
-    border-color: #22c55e;
-  }
-  .tabs {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.2rem;
-    border-bottom: 2px solid #cbd5e1;
-    flex-wrap: wrap;
-  }
-  .tab-btn {
-    padding: 0.65rem 1.25rem;
-    cursor: pointer;
-    border: none;
-    background: none;
-    font-size: 0.98rem;
-    font-weight: 700;
-    color: #64748b;
-    border-bottom: 3px solid transparent;
-    transition: all 0.15s;
-  }
-  .tab-btn.activo {
-    border-color: var(--primary);
-    color: var(--primary);
-  }
-  .seccion { display: none; }
-  .seccion.activa { display: block; }
-
-  .truco-grid {
-    display: grid;
-    grid-template-columns: 350px 1fr;
-    gap: 1.2rem;
-  }
-  @media (max-width: 900px) {
-    .truco-grid { grid-template-columns: 1fr; }
-  }
-  .panel {
-    background: var(--card-bg);
-    padding: 1rem 1.1rem;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-  }
-
-  /* Webcam con guía */
-  .video-wrapper {
-    position: relative;
-    width: 100%;
-    border-radius: 10px;
-    overflow: hidden;
-    background: #0f172a;
-    aspect-ratio: 4 / 3;
-  }
-  #video-stream {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-    display: block;
-  }
-  .guia-carta {
-    position: absolute;
-    inset: 14% 24%;
-    border: 2px dashed rgba(255, 255, 255, 0.7);
-    border-radius: 10px;
-    pointer-events: none;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding-bottom: 6px;
-    color: rgba(255,255,255,0.85);
-    font-size: 0.75rem;
-    text-shadow: 0 1px 2px #000;
-  }
-  .btn-cam {
-    width: 100%;
-    margin-top: 0.6rem;
-    padding: 0.75rem;
-    background: var(--primary);
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.95rem;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  .btn-cam:hover { background: #09529c; }
-  .btn-cam-sec {
-    width: 100%;
-    margin-top: 0.45rem;
-    padding: 0.5rem;
-    background: #f1f5f9;
-    color: #334155;
-    font-weight: 600;
-    font-size: 0.85rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    cursor: pointer;
-  }
-  .btn-cam-sec:hover { background: #e2e8f0; }
-
-  .btn-voz-truco {
-    width: 100%;
-    margin-top: 0.75rem;
-    padding: 0.75rem;
-    border-radius: 8px;
-    border: 2px solid #334155;
-    background: #f8fafc;
-    font-weight: 700;
-    font-size: 0.92rem;
-    cursor: pointer;
-    user-select: none;
-  }
-  .btn-voz-truco.escuchando {
-    background: #fee2e2;
-    border-color: var(--danger);
-    color: #991b1b;
-  }
-
-  /* Tanteador y cabecera de mesa */
-  .tanteador-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    padding: 0.65rem 0.9rem;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 10px;
-    margin-bottom: 0.8rem;
-  }
-  .marcador-numeros {
-    font-size: 1.25rem;
-    font-weight: 800;
-    color: #1e3a8a;
-  }
-  .info-turno {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    font-size: 0.84rem;
-    flex-wrap: wrap;
-  }
-  .chip {
-    padding: 0.2rem 0.55rem;
-    border-radius: 6px;
-    background: #e2e8f0;
-    font-weight: 600;
-  }
-
-  /* Burbuja de diálogo de Ottoman */
-  .burbuja-robot {
-    background: #fefce8;
-    border: 1px solid #fde047;
-    border-left: 5px solid #eab308;
-    padding: 0.65rem 0.9rem;
-    border-radius: 8px;
-    margin-bottom: 0.8rem;
-    font-size: 0.98rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem;
-    transition: background 0.2s, border-color 0.2s;
-  }
-  .burbuja-robot.pensando {
-    background: #eff6ff;
-    border-color: #60a5fa;
-    border-left: 5px solid #2563eb;
-    animation: pulsoPensando 1.1s infinite ease-in-out;
-  }
-  @keyframes pulsoPensando {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.82; transform: scale(0.995); }
-  }
-
-  /* Banner de canto pendiente */
-  .alerta-canto {
-    display: none;
-    background: #fff7ed;
-    border: 2px solid #f97316;
-    border-radius: 10px;
-    padding: 0.8rem;
-    margin-bottom: 0.8rem;
-  }
-  .alerta-canto.visible { display: block; }
-  .alerta-titulo {
-    font-weight: 800;
-    color: #9a3412;
-    margin-bottom: 0.5rem;
-    font-size: 1rem;
-  }
-
-  /* Banner de Fin de Partido con Estadísticas de Bluffs */
-  .fin-partido-box {
-    display: none;
-    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-    border: 2px solid #2563eb;
-    border-radius: 12px;
-    padding: 1rem;
-    margin-bottom: 0.9rem;
-  }
-  .fin-partido-box.visible { display: block; }
-  .fin-partido-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 0.7rem;
-    margin-top: 0.65rem;
-  }
-  .stat-mini-card {
-    background: #ffffff;
-    border: 1px solid #bfdbfe;
-    border-radius: 8px;
-    padding: 0.6rem 0.8rem;
-    font-size: 0.85rem;
-  }
-
-  /* Paño verde de la mesa */
-  .mesa-paño {
-    background: radial-gradient(circle, #257d43 0%, var(--felt) 100%);
-    border: 4px solid var(--felt-border);
-    border-radius: 12px;
-    padding: 0.85rem;
-    color: #fff;
-    min-height: 195px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.7rem;
-  }
-  .baza-col {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 8px;
-    padding: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.45rem;
-  }
-  .baza-titulo {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    opacity: 0.95;
-    font-weight: 700;
-  }
-  .baza-cartas-wrap {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
-    margin-top: 0.15rem;
-  }
-  .naipe-mesa-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.2rem;
-  }
-  .naipe-mesa-tag {
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 0.1rem 0.4rem;
-    border-radius: 999px;
-    background: rgba(0,0,0,0.45);
-    color: #fff;
-  }
-  .naipe-mesa-tag.humano { background: #1d4ed8; }
-  .naipe-mesa-tag.robot { background: #b91c1c; }
-  .naipe-mesa-svg {
-    width: 86px;
-    height: 131px;
-    border-radius: 7px;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.45);
-    overflow: hidden;
-    background: #fff;
-  }
-  .naipe-mesa-svg img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-
-  /* Panel de Revelación de Cartas de Ottoman al terminar la mano */
-  .revelacion-box {
-    display: none;
-    margin-top: 0.85rem;
-    padding: 0.85rem 1rem;
-    border-radius: 10px;
-    background: #f8fafc;
-    border: 2px dashed #64748b;
-  }
-  .revelacion-box.visible { display: block; }
-  .revelacion-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 0.65rem;
-  }
-  .revelacion-cartas {
-    display: flex;
-    gap: 0.9rem;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  .carta-revelada-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-  }
-  .carta-revelada-marco {
-    width: 92px;
-    height: 140px;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.22);
-    border: 2px solid #475569;
-    background: #fff;
-  }
-  .carta-revelada-marco.no-jugada {
-    border-color: #d97706;
-    outline: 2px solid #fef08a;
-  }
-  .carta-revelada-marco img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  .tag-estado-carta {
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 0.1rem 0.45rem;
-    border-radius: 999px;
-    background: #e2e8f0;
-    color: #334155;
-  }
-  .tag-estado-carta.oculta {
-    background: #fef3c7;
-    color: #92400e;
-    border: 1px solid #f59e0b;
-  }
-  .badge-farol {
+  .mano-tag span { color: var(--txt); }
+  .sb-team.vos .mano-tag span { color: var(--vos); }
+  .sb-team.ott .mano-tag span { color: var(--ott); }
+  .sb-num {
+    font-family: var(--display); font-style: italic; font-weight: 900;
+    font-size: 64px; line-height: 1; min-width: 1.15em; text-align: right;
+    letter-spacing: -0.02em;
     display: inline-block;
-    padding: 0.25rem 0.65rem;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    margin-top: 0.35rem;
-    margin-right: 0.4rem;
   }
-  .badge-farol.mentira {
-    background: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #f87171;
+  .sb-num.sube { animation: sube 0.7s var(--ease-out); }
+  @keyframes sube {
+    0% { transform: translateY(40%) scale(1.25); opacity: 0; }
+    100% { transform: none; opacity: 1; }
   }
-  .badge-farol.honesto {
-    background: #dcfce7;
-    color: #166534;
-    border: 1px solid #4ade80;
+  .sb-info {
+    display: flex; align-items: center; gap: 18px;
+    background: var(--ink-2);
+    padding: 0 22px 0 30px; height: 76px;
+    clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%);
   }
+  .sb-goal { display: flex; flex-direction: column; gap: 7px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .seg button {
+    background: transparent; border: 0; padding: 4px 10px; cursor: pointer;
+    font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.06em;
+    color: var(--txt-2);
+  }
+  .seg button[aria-pressed="true"] { background: var(--txt); color: var(--ink-0); }
+  .seg button:hover:not([aria-pressed="true"]) { background: var(--ink-3); color: var(--txt); }
+  .track { position: relative; width: 132px; display: grid; gap: 3px; }
+  .track span { display: block; height: 5px; background: var(--ink-4); border-radius: 3px; overflow: hidden; }
+  .track span i { display: block; height: 100%; width: 0; transition: width 0.8s var(--ease-out); }
+  .track .t-vos i { background: var(--vos); }
+  .track .t-ott i { background: var(--ott); }
+  .track .mitad { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 2px; background: var(--txt-2); }
+  .stake { display: flex; flex-direction: column; gap: 5px; min-width: 120px; }
+  .stake-lbl, .lbl {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--txt-3);
+  }
+  .stake-row { display: flex; align-items: flex-end; gap: 10px; }
+  .stake-name { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 26px; line-height: 0.9; text-transform: uppercase; }
+  .ramp { display: flex; align-items: flex-end; gap: 3px; height: 26px; }
+  .ramp i { width: 7px; background: var(--ink-4); border-radius: 1px; transition: background 0.3s; }
+  .ramp i:nth-child(1) { height: 28%; } .ramp i:nth-child(2) { height: 52%; }
+  .ramp i:nth-child(3) { height: 76%; } .ramp i:nth-child(4) { height: 100%; }
+  .ramp i.on { background: var(--ott); }
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: transparent; border: 1px solid var(--line); border-radius: 4px;
+    padding: 7px 11px; cursor: pointer; color: var(--txt-2);
+    font-size: 13px; font-weight: 600; white-space: nowrap;
+  }
+  .btn-ghost:hover:not(:disabled) { background: var(--ink-3); color: var(--txt); border-color: var(--ink-4); }
+  .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  /* Cartas en tu mano (Baraja Española Original) */
-  .mano-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin: 0.95rem 0 0.55rem;
-    font-size: 0.92rem;
+  .top-right { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 8px; min-width: 0; }
+  .status-row { display: flex; align-items: center; gap: 8px; }
+  .live {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 5px 10px; border-radius: 3px; background: var(--ink-2); color: var(--txt-2);
   }
-  .mis-cartas-row {
-    display: flex;
-    gap: 1.2rem;
-    justify-content: center;
-    flex-wrap: wrap;
-    padding: 0.4rem 0;
+  .live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--txt-3); }
+  .live.on { background: var(--live); color: var(--live-ink); }
+  .live.on .dot { background: #fff; animation: titila 1.6s infinite; }
+  @keyframes titila { 50% { opacity: 0.25; } }
+  .toggle-voz[aria-pressed="false"] { color: var(--txt-3); }
+  .tabs { display: flex; gap: 2px; }
+  .tab {
+    background: var(--ink-1); border: 0; cursor: pointer;
+    padding: 9px 16px 8px; color: var(--txt-3);
+    font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: 0.08em; text-transform: uppercase;
+    border-bottom: 3px solid transparent;
   }
-  .btn-naipe-mano {
-    position: relative;
-    width: 148px;
-    padding: 0;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.16s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  .tab:hover { color: var(--txt); background: var(--ink-2); }
+  .tab[aria-selected="true"] { color: var(--txt); background: var(--ink-2); border-bottom-color: var(--ott); }
+
+  /* ============ VISTAS ============ */
+  .vista { display: none; }
+  .vista.activa { display: grid; }
+
+  /* ============ MESA ============ */
+  #vista-mesa {
+    grid-template-columns: 268px minmax(0, 1fr) 340px;
+    grid-template-areas: "izq centro der";
+    gap: var(--gap);
+    padding: var(--gap);
+    height: calc(100dvh - 88px);
+    min-height: 620px;
   }
-  .btn-naipe-mano .carta-marco {
-    width: 148px;
-    height: 226px;
-    border-radius: 10px;
-    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.26);
+  .col { min-height: 0; display: flex; flex-direction: column; gap: var(--gap); overflow-y: auto; }
+  .col-izq { grid-area: izq; }
+  .col-der { grid-area: der; }
+  .plate { background: var(--ink-1); border: 1px solid var(--line-soft); border-radius: 6px; }
+  .plate-h {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 9px 12px 8px; border-bottom: 1px solid var(--line-soft);
+  }
+  .plate-t {
+    margin: 0; font-family: var(--display); font-weight: 800; font-size: 17px;
+    letter-spacing: 0.08em; text-transform: uppercase; display: flex; align-items: center; gap: 8px;
+  }
+  .plate-b { padding: 12px; }
+
+  /* Cámara PiP */
+  .pip { position: relative; aspect-ratio: 4 / 3; background: #000; border-radius: 4px; overflow: hidden; }
+  .pip video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); display: block; }
+  .pip .guia {
+    position: absolute; inset: 12% 27%; border: 2px solid rgba(255,255,255,0.8); border-radius: 8px;
+    pointer-events: none;
+  }
+  .pip .guia::after {
+    content: "Encuadrá tu carta"; position: absolute; left: 50%; bottom: -1px; transform: translate(-50%, 100%);
+    font-size: 11px; font-weight: 600; white-space: nowrap; color: #fff; text-shadow: 0 1px 3px #000; padding-top: 3px;
+  }
+  .pip .rec {
+    position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 5px;
+    font-family: var(--display); font-weight: 800; font-size: 13px; letter-spacing: 0.1em;
+    background: rgba(4, 11, 28, 0.75); padding: 2px 7px; border-radius: 3px;
+  }
+  .pip .rec i { width: 7px; height: 7px; border-radius: 50%; background: var(--live); }
+  .pip-sin { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; color: var(--txt-2); font-size: 13px; background: var(--ink-2); }
+  .det { margin: 9px 0 0; font-size: 13px; color: var(--txt-2); min-height: 2.6em; }
+  .det b { color: var(--txt); }
+  .det .err { color: #ff8a8a; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: 0; border-radius: 4px; cursor: pointer;
+    padding: 10px 14px; font-weight: 700; font-size: 14px;
+    transition: background 0.15s, transform 0.15s var(--ease-out), opacity 0.15s;
+  }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-vos { background: var(--vos); color: var(--vos-ink); }
+  .btn-vos:hover:not(:disabled) { background: #8ad6ff; }
+  .btn-sec { background: var(--ink-3); color: var(--txt); }
+  .btn-sec:hover:not(:disabled) { background: var(--ink-4); }
+  .btn-full { width: 100%; }
+  .stack { display: grid; gap: 6px; margin-top: 10px; }
+
+  .ptt {
+    width: 100%; display: flex; align-items: center; gap: 12px;
+    background: var(--ink-2); border: 1px solid var(--line); border-radius: 6px;
+    padding: 12px; cursor: pointer; text-align: left; user-select: none; -webkit-user-select: none;
+    touch-action: none; transition: background 0.15s, border-color 0.15s;
+  }
+  .ptt:hover { background: var(--ink-3); }
+  .ptt .mic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--ink-4); flex: none; transition: background 0.15s; }
+  .ptt .mic svg { width: 20px; height: 20px; }
+  .ptt b { display: block; font-size: 14px; }
+  .ptt small { display: block; font-size: 12px; color: var(--txt-3); }
+  .ptt.escuchando { background: #3a0f17; border-color: var(--live); }
+  .ptt.escuchando .mic { background: var(--live); animation: onda 1.2s infinite var(--ease-out); }
+  @keyframes onda { 0% { box-shadow: 0 0 0 0 rgba(240,60,60,0.6); } 100% { box-shadow: 0 0 0 14px rgba(240,60,60,0); } }
+  .hint { margin: 9px 0 0; font-size: 12.5px; color: var(--txt-3); }
+  .hint i { color: var(--txt-2); font-style: normal; }
+  .campo { display: flex; gap: 6px; margin-top: 9px; }
+  .campo input {
+    flex: 1; min-width: 0; background: var(--ink-0); color: var(--txt); border: 1px solid var(--line);
+    border-radius: 4px; padding: 9px 10px; font: inherit; font-size: 14px;
+  }
+  .campo input::placeholder { color: var(--txt-3); }
+  .campo input:focus { outline: none; border-color: var(--ott); }
+  .btn-icon { padding: 9px 11px; }
+
+  .relato { flex: 1; min-height: 120px; display: flex; flex-direction: column; }
+  .relato-lista { flex: 1; overflow-y: auto; padding: 4px 12px 10px; margin: 0; list-style: none; font-size: 12.5px; color: var(--txt-2); }
+  .relato-lista li { padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
+  .relato-lista li:first-child { color: var(--txt); }
+  .relato-lista li:last-child { border-bottom: 0; }
+
+  /* Toma central */
+  .centro {
+    grid-area: centro; min-height: 0; position: relative;
+    display: grid; grid-template-rows: auto 1fr auto auto auto; gap: 10px;
+    padding: 14px 16px 12px;
+    border-radius: 6px;
+    background:
+      radial-gradient(120% 70% at 50% 48%, #13306a 0%, #0b1a3d 55%, #07122b 100%);
+    border: 1px solid var(--line-soft);
     overflow: hidden;
-    background: #fff;
-    transition: box-shadow 0.16s, transform 0.16s;
   }
-  .btn-naipe-mano .carta-marco img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
+  .lado { display: flex; align-items: center; gap: 14px; min-height: calc(var(--card-ott-h) + 4px); }
+  .lado-quien { display: grid; gap: 4px; flex: none; width: 118px; }
+  .quien-nombre { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 24px; letter-spacing: 0.02em; text-transform: uppercase; line-height: 1; }
+  .quien-nombre.ott { color: var(--ott); }
+  .quien-nombre.vos { color: var(--vos); }
+  .turno {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 3px; width: max-content; background: var(--ink-3); color: var(--txt-2);
   }
-  .btn-naipe-mano:hover:not(:disabled) {
-    transform: translateY(-10px) scale(1.04);
+  .turno.ott { background: var(--ott); color: var(--ott-ink); }
+  .turno.vos { background: var(--vos); color: var(--vos-ink); }
+  .ott-cartas { display: flex; gap: 10px; align-items: flex-end; }
+  .dorso {
+    height: var(--card-ott-h); aspect-ratio: 262 / 400; border-radius: 6px;
+    background:
+      repeating-linear-gradient(45deg, rgba(255,204,41,0.16) 0 2px, transparent 2px 9px),
+      repeating-linear-gradient(-45deg, rgba(255,204,41,0.16) 0 2px, transparent 2px 9px),
+      var(--ink-3);
+    border: 3px solid var(--ink-0);
+    outline: 1.5px solid var(--ott-deep); outline-offset: -7px;
+    box-shadow: var(--shadow-1);
+    display: grid; place-items: center;
+    position: relative;
   }
-  .btn-naipe-mano:hover:not(:disabled) .carta-marco {
-    box-shadow: 0 14px 24px rgba(11, 102, 195, 0.38);
-    outline: 3px solid var(--primary);
+  .dorso::after {
+    content: ""; width: 34%; aspect-ratio: 1; transform: rotate(45deg);
+    border: 2px solid var(--ott); background: var(--ink-1);
+    box-shadow: inset 0 0 0 3px var(--ink-1), inset 0 0 0 5px var(--ott-deep);
   }
-  .btn-naipe-mano:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-    filter: grayscale(18%);
+  .naipe { display: block; aspect-ratio: 262 / 400; border-radius: 6px; overflow: hidden; background: #fff; box-shadow: var(--shadow-1); }
+  .naipe img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .revelada { display: grid; justify-items: center; gap: 5px; perspective: 700px; }
+  .revelada .naipe { height: var(--card-ott-h); }
+  .revelada.guardada .naipe { outline: 3px solid var(--ott); outline-offset: 2px; }
+  .revelada .tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
+  .revelada.guardada .tag { color: var(--ott); }
+  .revelada.gira .naipe { animation: gira 0.75s var(--ease-out) both; }
+  @keyframes gira { 0% { transform: rotateY(90deg) scale(0.9); } 100% { transform: none; } }
+  .veredicto { display: grid; gap: 6px; align-content: center; min-width: 0; flex: 1; }
+  .veredicto-t { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 22px; text-transform: uppercase; line-height: 1; }
+  .veredicto-t.ott { color: var(--ott); } .veredicto-t.vos { color: var(--vos); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 3px; background: var(--ink-3); color: var(--txt-2); }
+  .chip b { color: var(--txt); }
+  .farol {
+    display: inline-flex; align-items: baseline; gap: 6px; font-size: 12.5px; font-weight: 600;
+    padding: 4px 9px 4px 0; border-radius: 3px; background: #3a0f17; color: #ffd2d2; overflow: hidden;
   }
+  .farol b { background: var(--live); color: #fff; padding: 4px 8px; margin: -4px 0; font-family: var(--display); font-weight: 900; font-style: italic; letter-spacing: 0.06em; font-size: 14px; }
+  .derecho { background: #0b3322; color: #c9f5dd; padding: 4px 9px; border-radius: 3px; font-size: 12.5px; font-weight: 600; }
 
-  /* Barra de estadísticas de mentiras en vivo */
-  .barra-bluffs-vivo {
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-    padding: 0.55rem 0.8rem;
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.82rem;
-    color: #334155;
+  .bazas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-height: 0; align-items: stretch; }
+  .baza {
+    position: relative; display: flex; flex-direction: column; align-items: center;
+    border: 1.5px solid rgba(179, 193, 223, 0.18); border-radius: 8px; padding: 8px 6px 10px; min-height: 0;
+    transition: border-color 0.3s, background 0.3s;
   }
+  .baza.activa { border-color: rgba(255, 204, 41, 0.6); background: rgba(255, 204, 41, 0.04); }
+  .baza-h { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-bottom: 6px; }
+  .baza-n { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
+  .baza.activa .baza-n { color: var(--ott); }
+  .gana { font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; }
+  .gana.ott { background: var(--ott); color: var(--ott-ink); }
+  .gana.vos { background: var(--vos); color: var(--vos-ink); }
+  .gana.parda { background: var(--txt-2); color: var(--ink-0); }
+  .baza-cartas { position: relative; flex: 1; width: 100%; display: grid; place-items: center; min-height: calc(var(--card-baza-h) * 1.5); }
+  .baza-cartas .slot { position: absolute; left: 50%; height: var(--card-baza-h); aspect-ratio: 262 / 400; }
+  .baza-cartas .slot.ott { top: 0; transform: translateX(-62%) rotate(-4deg); }
+  .baza-cartas .slot.vos { bottom: 0; transform: translateX(-38%) rotate(3deg); }
+  .baza-cartas .slot .naipe { height: 100%; }
+  .slot.vacio { border: 1.5px dashed rgba(179, 193, 223, 0.16); border-radius: 6px; }
+  .slot .who { position: absolute; top: 50%; font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; transform: translateY(-50%); white-space: nowrap; }
+  .slot.ott .who { right: calc(100% + 6px); color: var(--ott); }
+  .slot.vos .who { left: calc(100% + 6px); color: var(--vos); }
+  .slot.pierde .naipe { filter: brightness(0.62) saturate(0.7); }
+  .llega .naipe { animation: llega 0.55s var(--ease-out) both; }
+  @keyframes llega { 0% { transform: translateY(26px) scale(1.08); opacity: 0; } 100% { transform: none; opacity: 1; } }
 
-  /* Selector de Arquitectura del Agente y Panel XAI */
-  .arquitectura-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 0.7rem;
-    padding: 0.55rem 0.85rem;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 10px;
-    font-size: 0.83rem;
+  /* Zócalo (lower-third) */
+  .zocalo { position: relative; display: flex; align-items: stretch; min-height: 74px; filter: drop-shadow(0 10px 22px rgba(0,0,0,0.45)); }
+  .zocalo-tab {
+    display: flex; flex-direction: column; justify-content: center; gap: 2px;
+    background: var(--ott); color: var(--ott-ink); padding: 0 22px 0 14px;
+    clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%);
+    flex: none;
   }
-  .arquitectura-bar select {
-    padding: 0.3rem 0.55rem;
-    border-radius: 7px;
-    border: 1px solid #3b82f6;
-    background: #fff;
-    color: #1e3a8a;
-    font-weight: 700;
-    font-size: 0.82rem;
-    cursor: pointer;
+  .zocalo-tab b { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 24px; letter-spacing: 0.02em; line-height: 1; text-transform: uppercase; }
+  .zocalo-tab small { font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  .zocalo-body {
+    flex: 1; min-width: 0; margin-left: calc(var(--cut) * -1);
+    background: var(--txt); color: var(--ink-0);
+    padding: 9px 12px 9px calc(var(--cut) + 16px);
+    display: flex; align-items: center; gap: 12px;
+    clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%);
   }
-  .xai-box {
-    margin-top: 0.8rem;
-    padding: 0.75rem 0.95rem;
-    background: #0f172a;
-    color: #e2e8f0;
-    border-radius: 10px;
-    border-left: 4px solid #38bdf8;
-    font-size: 0.82rem;
+  .frase { flex: 1; min-width: 0; }
+  .frase q { display: block; font-size: 19px; font-weight: 700; line-height: 1.2; quotes: "“" "”"; text-wrap: balance; }
+  .prueba { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 12px; color: #33466f; }
+  .prueba b { color: var(--ink-0); font-weight: 700; }
+  .prueba .dec { background: var(--ink-1); color: var(--txt); padding: 1px 6px; border-radius: 3px; font-weight: 700; font-size: 11px; letter-spacing: 0.06em; }
+  .prueba .dec.farol-dec { background: var(--live); }
+  .repetir { background: var(--ink-1); color: var(--txt); border: 0; border-radius: 4px; padding: 8px; cursor: pointer; display: grid; place-items: center; }
+  .repetir:hover { background: var(--ink-3); }
+  .zocalo.pensando .zocalo-body { background: var(--ink-2); color: var(--txt); }
+  .zocalo.pensando .prueba { color: var(--txt-2); }
+  .zocalo.pensando .prueba b { color: var(--txt); }
+  .escaneo { position: relative; height: 3px; margin-top: 7px; background: var(--ink-4); overflow: hidden; border-radius: 2px; }
+  .escaneo::after { content: ""; position: absolute; inset: 0; width: 30%; background: var(--ott); animation: escanea 1.1s infinite var(--ease-out); }
+  @keyframes escanea { 0% { transform: translateX(-100%); } 100% { transform: translateX(340%); } }
+
+  /* Canto de Ottoman: la cortina */
+  .canto {
+    position: relative; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px 18px;
+    background: var(--ott); color: var(--ott-ink); padding: 12px 16px 14px;
+    clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%);
+    filter: drop-shadow(0 12px 26px rgba(0,0,0,0.5));
   }
-  .xai-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    margin-bottom: 0.5rem;
-    color: #38bdf8;
-    font-weight: 700;
+  .canto.entra { animation: cortina 0.6s var(--ease-out) both; }
+  @keyframes cortina { 0% { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); } 100% { clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); } }
+  .canto-quien { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; grid-column: 1; }
+  .canto-que {
+    grid-column: 1; grid-row: 2; margin: 0;
+    font-family: var(--display); font-style: italic; font-weight: 900; font-size: clamp(40px, 6.4vh, 64px);
+    line-height: 0.86; text-transform: uppercase; letter-spacing: -0.01em;
   }
-  .xai-step {
-    background: rgba(30, 41, 59, 0.85);
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 0.5rem 0.7rem;
-    margin-bottom: 0.45rem;
+  .canto.entra .canto-que { animation: golpe 0.7s 0.15s var(--ease-out) both; }
+  @keyframes golpe { 0% { transform: translateX(-40px) skewX(-8deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+  .canto-resp { grid-column: 2; grid-row: 1 / span 2; display: grid; gap: 8px; justify-items: end; }
+  .canto-pts { font-size: 12.5px; font-weight: 700; }
+  .canto-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+  .btn-resp {
+    border: 0; border-radius: 4px; cursor: pointer; padding: 10px 14px;
+    font-family: var(--display); font-weight: 900; font-size: 20px; letter-spacing: 0.03em; text-transform: uppercase; line-height: 1;
+    background: var(--ott-ink); color: var(--txt);
+    transition: transform 0.15s var(--ease-out), background 0.15s;
   }
-  .xai-step:last-child { margin-bottom: 0; }
-  .xai-step-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    margin-bottom: 0.25rem;
+  .btn-resp:hover:not(:disabled) { transform: translateY(-2px); background: #000; }
+  .btn-resp.quiero { background: var(--ok-ink); color: #8ff0bd; }
+  .btn-resp.quiero:hover:not(:disabled) { background: #003a19; }
+  .btn-resp.noquiero { background: #4a0d12; color: #ffc4c4; }
+  .btn-resp.noquiero:hover:not(:disabled) { background: #63111a; }
+  .btn-resp:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Tu mano */
+  .mano { display: flex; align-items: flex-end; gap: 14px; }
+  .mano-cartas { display: flex; gap: 14px; flex: 1; justify-content: center; align-items: flex-end; min-height: var(--card-hand-h); }
+  .carta-btn {
+    position: relative; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: 8px;
+    transition: transform 0.22s var(--ease-out);
   }
-  .xai-badge-dec {
-    background: #0284c7;
-    color: #fff;
-    padding: 0.12rem 0.5rem;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 0.75rem;
-  }
-  .xai-badge-dec.farol {
-    background: #dc2626;
-  }
-  .xai-meta-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.3rem 0.7rem;
-    font-size: 0.76rem;
-    color: #94a3b8;
-    margin-bottom: 0.25rem;
-  }
-  .xai-meta-grid b { color: #cbd5e1; }
-  .xai-explicacion {
-    color: #f8fafc;
-    font-size: 0.8rem;
-  }
+  .carta-btn .naipe { height: var(--card-hand-h); border-radius: 8px; box-shadow: var(--shadow-2); transition: box-shadow 0.22s; }
+  .carta-btn:hover:not(:disabled), .carta-btn:focus-visible:not(:disabled) { transform: translateY(-14px) rotate(-1.5deg); }
+  .carta-btn:hover:not(:disabled) .naipe, .carta-btn:focus-visible:not(:disabled) .naipe { box-shadow: 0 20px 40px rgba(0,0,0,0.55), 0 0 0 3px var(--vos); }
+  .carta-btn:focus-visible { outline: none; }
+  .carta-btn:disabled { cursor: not-allowed; }
+  .carta-btn:disabled .naipe { filter: brightness(0.55) saturate(0.6); }
+  .mano-vacia { color: var(--txt-3); font-size: 14px; align-self: center; }
+  .tantos { display: grid; gap: 2px; text-align: right; flex: none; width: 118px; }
+  .tantos b { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 44px; line-height: 0.9; color: var(--vos); }
 
   /* Botonera de cantos */
-  .botones-grupo {
-    display: flex;
-    gap: 0.45rem;
-    margin-top: 0.75rem;
-    flex-wrap: wrap;
-  }
+  .cantos { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
   .btn-canto {
-    padding: 0.55rem 0.85rem;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    background: #f8fafc;
-    font-weight: 700;
-    font-size: 0.86rem;
-    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--line); border-radius: 4px; cursor: pointer; padding: 9px 14px;
+    background: var(--ink-2); color: var(--txt);
+    font-family: var(--display); font-weight: 800; font-size: 18px; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s var(--ease-out);
   }
-  .btn-canto:hover:not(:disabled) { background: #e2e8f0; }
-  .btn-canto:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-canto.truco { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
-  .btn-canto.envido { background: #e0f2fe; border-color: #38bdf8; color: #075985; }
-  .btn-canto.quiero { background: #dcfce7; border-color: #22c55e; color: #166534; }
-  .btn-canto.no-quiero { background: #fee2e2; border-color: #f87171; color: #991b1b; }
-  .btn-canto.nueva { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn-canto:hover:not(:disabled) { background: var(--ink-3); border-color: var(--txt-3); transform: translateY(-1px); }
+  .btn-canto:disabled { opacity: 0.32; cursor: not-allowed; }
+  .btn-canto.truco { background: var(--ott); color: var(--ott-ink); border-color: var(--ott); font-style: italic; font-weight: 900; }
+  .btn-canto.truco:hover:not(:disabled) { background: #ffd95c; }
+  .btn-canto.mazo { color: #ffb4b4; }
+  .btn-canto.repartir { background: var(--txt); color: var(--ink-0); border-color: var(--txt); }
+  .btn-canto.repartir:hover:not(:disabled) { background: #fff; }
+  .btn-canto.repartir.llama { animation: llama 1.6s infinite; }
+  @keyframes llama { 0%, 100% { box-shadow: 0 0 0 0 rgba(242,245,251,0.5); } 60% { box-shadow: 0 0 0 9px rgba(242,245,251,0); } }
+  .sep { width: 1px; background: var(--line); margin: 4px 4px; }
 
-  /* Sección Historial y Evolución de la IA */
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 0.9rem;
-    margin-bottom: 1.1rem;
+  /* Final del partido */
+  .final {
+    position: absolute; inset: 0; z-index: 5; display: grid; place-items: center;
+    background: rgba(4, 11, 28, 0.86); backdrop-filter: blur(3px);
+    animation: aparece 0.5s var(--ease-out) both;
   }
-  .kpi-card {
-    background: #f8fafc;
-    border: 1px solid #cbd5e1;
-    border-radius: 10px;
-    padding: 0.85rem 1rem;
+  @keyframes aparece { from { opacity: 0; } }
+  .final-box { width: min(560px, 92%); display: grid; gap: 14px; }
+  .final-cab {
+    padding: 16px 20px; clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%);
   }
-  .kpi-valor {
-    font-size: 1.45rem;
-    font-weight: 800;
-    color: var(--primary);
-    margin: 0.2rem 0;
+  .final-cab.ott { background: var(--ott); color: var(--ott-ink); }
+  .final-cab.vos { background: var(--vos); color: var(--vos-ink); }
+  .final-cab small { font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
+  .final-cab h2 { margin: 2px 0 0; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 54px; line-height: 0.9; text-transform: uppercase; }
+  .final-score { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 30px; }
+  .filas { display: grid; gap: 1px; background: var(--line-soft); border-radius: 4px; overflow: hidden; }
+  .fila { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 9px 12px; background: var(--ink-1); font-size: 14px; }
+  .fila span { color: var(--txt-2); }
+  .fila b { font-weight: 700; }
+
+  /* Riel de análisis */
+  .col-der .plate { display: flex; flex-direction: column; min-height: 0; }
+  .agentes { display: grid; gap: 6px; padding: 10px 12px 12px; }
+  .agente {
+    display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: start;
+    text-align: left; background: var(--ink-2); border: 1px solid var(--line-soft); border-radius: 4px;
+    padding: 8px 10px; cursor: pointer; transition: background 0.15s, border-color 0.15s;
   }
-  .tabla-hist {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.86rem;
-    margin-top: 0.6rem;
+  .agente:hover { background: var(--ink-3); }
+  .agente .n { grid-row: span 2; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 26px; line-height: 1; color: var(--txt-3); }
+  .agente b { font-size: 13.5px; }
+  .agente small { font-size: 11.5px; color: var(--txt-3); line-height: 1.3; }
+  @media (max-height: 860px) { .agente:not([aria-checked="true"]) small { display: none; } .agente:not([aria-checked="true"]) .n { grid-row: auto; font-size: 20px; } }
+  .agente[aria-checked="true"] { background: var(--ott); border-color: var(--ott); color: var(--ott-ink); }
+  .agente[aria-checked="true"] .n, .agente[aria-checked="true"] small { color: #4a3a00; }
+  .medidores { display: grid; gap: 12px; padding: 12px; }
+  .medidor-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 13px; color: var(--txt-2); }
+  .medidor-h b { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 24px; color: var(--ott); line-height: 1; }
+  .barra { position: relative; height: 8px; background: var(--ink-3); border-radius: 2px; }
+  .barra i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ott); border-radius: 2px; transition: width 0.8s var(--ease-out); }
+  .barra .base { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--txt); }
+  .medidor small { display: block; margin-top: 4px; font-size: 11.5px; color: var(--txt-3); }
+  .faroles-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .faroles-tabla th { font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); text-align: right; padding: 0 0 4px; }
+  .faroles-tabla th:first-child, .faroles-tabla td:first-child { text-align: left; }
+  .faroles-tabla td { padding: 5px 0; border-top: 1px solid var(--line-soft); text-align: right; font-weight: 700; }
+  .faroles-tabla td:first-child { font-weight: 600; color: var(--txt-2); }
+  .perfil { padding: 0 12px 12px; font-size: 13px; color: var(--txt-2); }
+  .perfil b { color: var(--txt); }
+  .traza { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .traza-lista { flex: 1; overflow-y: auto; padding: 8px 12px 12px; display: grid; gap: 8px; align-content: start; }
+  .paso { background: var(--ink-2); border-radius: 4px; padding: 9px 10px; display: grid; gap: 5px; }
+  .paso-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .paso-fase { font-size: 13px; font-weight: 700; }
+  .paso-fase small { color: var(--txt-3); font-weight: 500; margin-left: 4px; }
+  .paso-dec { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; background: var(--vos); color: var(--vos-ink); white-space: nowrap; }
+  .paso-dec.farol-dec { background: var(--live); color: #fff; }
+  .paso dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; font-size: 12px; }
+  .paso dt { color: var(--txt-3); }
+  .paso dd { margin: 0; color: var(--txt-2); }
+  .paso p { margin: 0; font-size: 12.5px; color: var(--txt); }
+  .vacio-txt { color: var(--txt-3); font-size: 13px; margin: 0; }
+  .modo-nombre { font-size: 11.5px; color: var(--txt-3); font-weight: 600; text-align: right; }
+  .calc { display: grid; gap: 8px; }
+  .calc .escaneo { margin: 0; }
+
+  /* ============ ESTADÍSTICAS ============ */
+  #vista-stats, #vista-control { padding: 20px var(--gap) 40px; max-width: 1240px; margin: 0 auto; gap: 18px; }
+  .cab-vista { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+  .cab-vista h2 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 46px; line-height: 0.95; text-transform: uppercase; }
+  .cab-vista p { margin: 8px 0 0; max-width: 68ch; color: var(--txt-2); }
+  .perfil-plate { background: var(--vos); color: var(--vos-ink); padding: 10px 26px 10px 14px; clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); max-width: 420px; }
+  .perfil-plate small { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+  .perfil-plate b { font-family: var(--display); font-weight: 900; font-size: 22px; font-style: italic; line-height: 1.05; }
+  .h2h { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 18px; }
+  .ficha { padding: 6px 16px 12px; }
+  .ficha-fila { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding: 11px 0; border-bottom: 1px solid var(--line-soft); align-items: baseline; }
+  .ficha-fila:last-child { border-bottom: 0; }
+  .ficha-fila span { color: var(--txt-2); font-size: 14px; }
+  .ficha-fila b { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 30px; line-height: 1; color: var(--ott); }
+  .ficha-fila small { grid-column: 1 / -1; color: var(--txt-3); font-size: 12px; }
+  .versus { padding: 16px; display: grid; gap: 14px; align-content: start; }
+  .versus-nums { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 12px; }
+  .versus-nums div { display: grid; gap: 2px; }
+  .versus-nums div:last-child { text-align: right; }
+  .versus-nums b { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 72px; line-height: 0.85; }
+  .versus-nums .ott b { color: var(--ott); } .versus-nums .vos b { color: var(--vos); }
+  .versus-nums em { font-style: normal; color: var(--txt-3); font-size: 13px; padding-bottom: 8px; }
+  .split { display: flex; height: 12px; border-radius: 2px; overflow: hidden; background: var(--ink-3); }
+  .split i { display: block; height: 100%; transition: width 0.8s var(--ease-out); }
+  .split .ott { background: var(--ott); } .split .vos { background: var(--vos); }
+  .versus-meta { font-size: 13px; color: var(--txt-2); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .grafico { padding: 12px 16px 16px; }
+  .grafico svg { display: block; width: 100%; height: auto; }
+  .leyenda { display: flex; gap: 18px; font-size: 13px; color: var(--txt-2); }
+  .leyenda span { display: inline-flex; align-items: center; gap: 7px; }
+  .leyenda i { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
+  .tabla-wrap { overflow-x: auto; }
+  .tabla { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 760px; }
+  .tabla th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .tabla td { padding: 11px 14px; border-bottom: 1px solid var(--line-soft); color: var(--txt-2); }
+  .tabla td b { color: var(--txt); }
+  .tabla tr:hover td { background: var(--ink-2); }
+  .res { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--txt); }
+  .res i { width: 4px; height: 18px; border-radius: 1px; }
+  .res.ott i { background: var(--ott); } .res.vos i { background: var(--vos); }
+  .num-id { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 20px; color: var(--txt); }
+
+  /* ============ CONTROL G1 ============ */
+  .control { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 18px; align-items: start; }
+  .ptt.grande { padding: 22px; }
+  .ptt.grande .mic { width: 60px; height: 60px; }
+  .ptt.grande .mic svg { width: 28px; height: 28px; }
+  .ptt.grande b { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 28px; text-transform: uppercase; line-height: 1; }
+  .estado-voz { min-height: 1.4em; margin: 10px 0 0; color: var(--txt-2); font-size: 14px; }
+  .switcher { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 12px; }
+  .sw {
+    display: grid; justify-items: center; align-content: center; gap: 8px; min-height: 104px; padding: 12px 6px;
+    background: var(--ink-2); border: 1px solid var(--line-soft); border-radius: 4px; cursor: pointer;
+    font-family: var(--display); font-weight: 800; font-size: 17px; letter-spacing: 0.05em; text-transform: uppercase; text-align: center; line-height: 1.05;
+    transition: background 0.15s, border-color 0.15s, transform 0.12s var(--ease-out);
   }
-  .tabla-hist th, .tabla-hist td {
-    padding: 0.55rem 0.7rem;
-    border-bottom: 1px solid #e2e8f0;
-    text-align: left;
+  .sw svg { width: 28px; height: 28px; stroke-width: 1.6; }
+  .sw:hover { background: var(--ink-3); border-color: var(--ott); color: var(--ott); }
+  .sw:active { transform: scale(0.97); }
+  .sw.flash { background: var(--ott); color: var(--ott-ink); border-color: var(--ott); }
+  .sw.stop { background: #3a0f17; border-color: #6b1a24; color: #ffc4c4; }
+  .sw.stop:hover { background: var(--live); color: #fff; border-color: var(--live); }
+  .rundown { list-style: none; margin: 0; padding: 4px 12px 12px; max-height: 420px; overflow-y: auto; }
+  .rundown li { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+  .rundown li:last-child { border-bottom: 0; }
+  .rundown .st { grid-row: span 2; font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; align-self: start; margin-top: 2px; }
+  .st.ok { background: var(--ok); color: var(--ok-ink); }
+  .st.bloq { background: var(--live); color: #fff; }
+  .st.desc { background: var(--warn); color: #2b1300; }
+  .rundown q { font-weight: 700; }
+  .rundown small { color: var(--txt-2); font-size: 13px; }
+  .idioma { margin-top: 12px; }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 1400px) {
+    .btn-canto { font-size: 16px; padding: 8px 11px; }
+    .sep { margin: 4px 1px; }
   }
-  .tabla-hist th {
-    background: #f1f5f9;
-    font-weight: 700;
-    color: #334155;
+  @media (max-width: 1240px) {
+    #vista-mesa { grid-template-columns: 240px minmax(0, 1fr) 300px; }
+  }
+  @media (max-width: 1100px) {
+    .top { flex-wrap: wrap; }
+    .top-right { flex-direction: row-reverse; width: 100%; align-items: center; }
+    #vista-mesa {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-areas: "centro centro" "izq der";
+      height: auto; min-height: 0;
+    }
+    .centro { min-height: 680px; }
+    .col-der .traza-lista { max-height: 380px; }
+    .h2h, .control { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    :root { --cut: 10px; --card-hand-h: 150px; --card-baza-h: 86px; --card-ott-h: 68px; }
+    body { font-size: 14px; }
+    .top { padding: 8px 8px 0; gap: 8px; }
+    .scorebug { width: 100%; flex-wrap: wrap; }
+    .sb-team { height: 60px; flex: 1; padding: 0 16px 0 12px; justify-content: space-between; }
+    .sb-team.ott { padding-left: 18px; }
+    .sb-num { font-size: 48px; }
+    .sb-name { font-size: 17px; }
+    .sb-info { width: 100%; height: auto; padding: 8px 12px; clip-path: none; margin-top: 4px; gap: 14px; flex-wrap: wrap; justify-content: space-between; border-radius: 4px; }
+    .top-right { flex-direction: column-reverse; align-items: stretch; }
+    .status-row { justify-content: space-between; }
+    .tabs { width: 100%; }
+    .tab { flex: 1; font-size: 15px; padding: 9px 6px 8px; }
+    #vista-mesa { grid-template-columns: 1fr; grid-template-areas: "centro" "izq" "der"; padding: 8px; gap: 8px; }
+    .centro { padding: 12px 8px 10px; min-height: 0; gap: 12px; }
+    .lado { flex-wrap: wrap; gap: 8px 12px; }
+    .lado-quien { width: auto; grid-auto-flow: column; align-items: center; gap: 10px; }
+    .veredicto { flex-basis: 100%; }
+    .bazas { gap: 6px; }
+    .baza { padding: 6px 2px 8px; }
+    .slot .who { display: none; }
+    .zocalo-tab { padding: 0 16px 0 10px; }
+    .zocalo-tab b { font-size: 19px; }
+    .frase q { font-size: 16px; }
+    .canto { grid-template-columns: 1fr; }
+    .canto-resp { grid-column: 1; grid-row: auto; justify-items: start; }
+    .canto-btns { justify-content: flex-start; }
+    .mano { flex-direction: column; align-items: stretch; gap: 8px; }
+    .mano-cartas { gap: 8px; }
+    .tantos { width: auto; text-align: left; display: flex; align-items: baseline; gap: 10px; }
+    .tantos b { font-size: 32px; }
+    .btn-canto { font-size: 16px; padding: 9px 11px; }
+    .sep { display: none; }
+    .cab-vista h2 { font-size: 34px; }
+    .versus-nums b { font-size: 56px; }
+    .switcher { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
   }
 
-  /* Sección control libre por voz */
-  #hablar {
-    width: 100%;
-    padding: 1.4rem;
-    font-size: 1.15rem;
-    font-weight: 700;
-    border-radius: 12px;
-    border: 2px solid #334155;
-    background: #f8fafc;
-    cursor: pointer;
-    user-select: none;
+  /* ===== Capa calma (común a las variantes) ===== */
+  :root { --shadow-1: 0 4px 12px rgba(0,0,0,0.28); --shadow-2: 0 10px 26px rgba(0,0,0,0.4); }
+  .sb-team, .sb-info { height: 62px; }
+  .sb-num { font-size: 50px; }
+  .sb-name { font-size: 17px; font-weight: 700; }
+  .stake-name { font-size: 21px; font-weight: 800; }
+  .scorebug, .zocalo { filter: drop-shadow(0 6px 14px rgba(0,0,0,0.3)); }
+  .canto { filter: drop-shadow(0 8px 18px rgba(0,0,0,0.35)); }
+  #vista-mesa { height: calc(100dvh - 74px); }
+  .tab { font-size: 16px; font-weight: 700; letter-spacing: 0.06em; background: transparent; padding: 8px 14px 7px; }
+  .tab:hover, .tab[aria-selected="true"] { background: transparent; }
+  .tab[aria-selected="true"] { border-bottom-width: 2px; }
+  .live { font-size: 13px; font-weight: 700; background: transparent; padding: 4px 6px; }
+  .live.on { background: transparent; color: #ff8f8f; }
+  .live.on .dot { background: var(--live); animation: none; }
+  .plate-t { font-size: 15px; font-weight: 700; letter-spacing: 0.08em; }
+  .centro { background: var(--ink-1); }
+  .quien-nombre { font-style: normal; font-weight: 800; font-size: 18px; letter-spacing: 0.06em; }
+  .turno { background: transparent; padding: 0; color: var(--txt-3); }
+  .turno.ott { background: transparent; color: var(--ott); }
+  .turno.vos { background: transparent; color: var(--vos); }
+  .dorso {
+    background:
+      repeating-linear-gradient(45deg, rgba(255,204,41,0.08) 0 2px, transparent 2px 9px),
+      repeating-linear-gradient(-45deg, rgba(255,204,41,0.08) 0 2px, transparent 2px 9px),
+      var(--ink-3);
+    outline-color: rgba(224,168,0,0.6);
   }
-  #hablar.escuchando { background: #fee2e2; border-color: var(--danger); color: #991b1b; }
-  .fila { padding: 0.4rem 0; border-bottom: 1px dashed #cbd5e1; font-size: 0.9rem; }
-  .bloqueado { color: var(--danger); font-weight: 700; }
-  .desconocido { color: var(--accent); }
-  .ejecutado { color: var(--success); font-weight: 600; }
+  .baza { border: 1px solid rgba(179,193,223,0.09); }
+  .baza.activa { background: transparent; border-color: rgba(255,204,41,0.38); }
+  .baza-n { font-size: 14px; font-weight: 700; }
+  .slot .who { display: none; }
+  .slot.vacio { border: 1px dashed rgba(179,193,223,0.1); }
+  .zocalo { min-height: 64px; }
+  .zocalo-tab b { font-size: 19px; }
+  .frase q { font-size: 17px; font-weight: 600; }
+  .tantos b { font-size: 34px; font-weight: 800; }
+  .btn-canto { font-size: 16px; font-weight: 700; letter-spacing: 0.03em; padding: 8px 12px; border-color: transparent; background: var(--ink-2); }
+  .btn-canto:hover:not(:disabled) { transform: none; border-color: transparent; }
+  .btn-canto.truco { font-style: normal; font-weight: 800; }
+  .btn-canto.mazo { color: var(--txt-2); }
+  .btn-canto.repartir.llama { animation: none; }
+  .sep { opacity: 0.5; }
+  .carta-btn:hover:not(:disabled), .carta-btn:focus-visible:not(:disabled) { transform: translateY(-8px); }
+  .medidor small { display: none; }
+  .medidor-h b { font-size: 20px; font-weight: 800; }
+  .agente .n { font-size: 20px; font-weight: 800; }
+  .agente[aria-checked="true"] { background: var(--ink-3); border-color: var(--ink-4); color: var(--txt); }
+  .agente[aria-checked="true"] .n { color: var(--ott); }
+  .agente[aria-checked="true"] small { color: var(--txt-2); }
+  .agente:not([aria-checked="true"]) small { display: none; }
+  .agente:not([aria-checked="true"]) { background: transparent; border-color: transparent; }
+  .agente:not([aria-checked="true"]) .n { grid-row: auto; }
+  .paso { background: transparent; border-top: 1px solid var(--line-soft); border-radius: 0; padding: 10px 0 2px; }
+  .traza-lista { gap: 4px; }
+  .cab-vista h2 { font-size: 38px; }
+  .ficha-fila b, .versus-nums b { font-weight: 800; }
+  .ptt { background: transparent; }
+  @media (max-width: 720px) { .sb-team { height: 54px; } .sb-num { font-size: 42px; } }
+
+
+  /* ===== a pedido ===== */
+  #vista-mesa { grid-template-columns: 220px minmax(0, 1fr); grid-template-areas: "izq centro"; }
+  .entradas { gap: 20px; padding-top: 4px; }
+  .entradas .plate { background: transparent; border: 0; }
+  .entradas .plate-h { border: 0; padding: 0 0 8px; }
+  .entradas .plate-b { padding: 0; }
+  .entradas .det { min-height: 0; }
+  .cajon {
+    position: fixed; top: 104px; right: 0; bottom: 0; width: min(380px, 92vw); z-index: 20;
+    background: var(--ink-1); border-left: 1px solid var(--line);
+    box-shadow: -14px 0 36px rgba(0,0,0,0.45);
+    display: flex; flex-direction: column; overflow-y: auto;
+    transform: translateX(104%); visibility: hidden;
+    transition: transform 0.35s var(--ease-out), visibility 0s 0.35s;
+  }
+  .cajon[data-abierto="true"] { transform: none; visibility: visible; transition: transform 0.35s var(--ease-out); }
+  .cajon { border-top: 1px solid var(--line); border-top-left-radius: 6px; }
+  @media (max-width: 1100px) { .cajon { top: 0; border-radius: 0; } }
+  .cajon-h { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--ink-1); z-index: 1; }
+  .cajon-h h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .cajon .plate { background: transparent; border: 0; border-radius: 0; border-bottom: 1px solid var(--line-soft); flex: none; }
+  .cajon .plate-h { border: 0; }
+  .cajon .traza-lista, .cajon .relato-lista { max-height: none; overflow: visible; }
+  @media (min-width: 1101px) {
+    #vista-mesa { transition: margin-right 0.35s var(--ease-out); }
+    body:has(.cajon[data-abierto="true"]) #vista-mesa { margin-right: min(380px, 92vw); }
+  }
+  #abrir-cajon[aria-expanded="true"] { color: var(--txt); border-color: var(--ink-4); background: var(--ink-3); }
+  @media (max-width: 1100px) { #vista-mesa { grid-template-columns: 1fr; grid-template-areas: "centro" "izq"; } .entradas { display: grid; grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 720px) { .entradas { grid-template-columns: 1fr; } }
+
+  /* ===== Sin sombras pesadas; tanteador sin cortes ===== */
+  :root { --shadow-1: 0 1px 2px rgba(0,0,0,0.25); --shadow-2: 0 2px 8px rgba(0,0,0,0.3); }
+  .scorebug, .zocalo, .canto { filter: none; }
+  .cajon { box-shadow: none; }
+  .carta-btn:hover:not(:disabled) .naipe, .carta-btn:focus-visible:not(:disabled) .naipe { box-shadow: var(--shadow-2), 0 0 0 3px var(--vos); }
+  .scorebug { gap: 2px; }
+  .sb-team, .sb-info { clip-path: none; }
+  .sb-team { margin-right: 0; }
+  .sb-team.ott { padding-left: 18px; }
+  .sb-team.vos { border-radius: 6px 0 0 6px; }
+  .sb-info { border-radius: 0 6px 6px 0; padding-left: 22px; }
+  @media (max-width: 720px) {
+    .scorebug { row-gap: 0; }
+    .sb-team.ott { border-radius: 0 6px 6px 0; }
+    .sb-info { border-radius: 6px; padding-left: 12px; height: auto; }
+  }
 </style>
 </head>
 <body>
-  <header>
-    <h1>🤖 Ottoman (Unitree G1) — Truco Argentino, Visión & Aprendizaje IA</h1>
-    <div class="header-controls">
-      <label style="cursor:pointer; display:flex; align-items:center; gap:0.3rem;">
-        <input type="checkbox" id="chk-tts" checked> 🔊 Voz de Ottoman (TTS)
-      </label>
-      <span id="badge-robot" class="badge-sim">⏳ Verificando simulador...</span>
-    </div>
-  </header>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></symbol>
+  <symbol id="i-cam" viewBox="0 0 24 24"><path d="M3 8h3.5L8.5 5h7l2 3H21v11H3z"/><circle cx="12" cy="13" r="3.8"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 9.5a3.5 3.5 0 0 1 0 5M19 7a7 7 0 0 1 0 10"/></symbol>
+  <symbol id="i-vol-off" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4v4h4"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></symbol>
+  <symbol id="i-deal" viewBox="0 0 24 24"><rect x="3.5" y="6.5" width="9" height="13" rx="1.5" transform="rotate(-9 8 13)"/><rect x="11" y="4.5" width="9" height="13" rx="1.5" transform="rotate(8 15.5 11)"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V11M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V6a1.5 1.5 0 0 1 3 0v8a7 7 0 0 1-7 7h-.5A6.5 6.5 0 0 1 4 16l-1-2.5a1.5 1.5 0 0 1 2.6-1.4L8 14"/></symbol>
+  <symbol id="i-party" viewBox="0 0 24 24"><path d="M12 3l2.4 5 5.6.8-4 3.9.9 5.5L12 15.6l-4.9 2.6.9-5.5-4-3.9L9.6 8z"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M2.5 11.5L6 8l4 1.5L13 8l8.5 5.5"/><path d="M6 8l-3.5 3.5L8 17l2-2M13 8l-3.5 3a1.6 1.6 0 0 0 2.2 2.3L14 11.5l4 3.5-5 4.5-2.5-2"/></symbol>
+  <symbol id="i-chair" viewBox="0 0 24 24"><path d="M7 3v18M7 12.5h10V21M7 8.5h5"/></symbol>
+  <symbol id="i-stand" viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2"/><path d="M12 7.5V15M7.5 10.5h9M12 15l-3 6M12 15l3 6"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><path d="M8 3h8l5 5v8l-5 5H8l-5-5V8z"/><path d="M8.5 12h7"/></symbol>
+  <symbol id="i-robot" viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="11" rx="2"/><path d="M12 3v4M9 11.5v1M15 11.5v1M9.5 15h5"/></symbol>
+</svg>
 
-  <div class="tabs">
-    <button class="tab-btn activo" onclick="cambiarTab('truco')">🃏 Mesa de Truco (Webcam + Baraja Española)</button>
-    <button class="tab-btn" onclick="cambiarTab('historial')">📊 Historial de Partidas y Evolución de la IA</button>
-    <button class="tab-btn" onclick="cambiarTab('voz')">🎤 Control Libre por Voz (Caminar / Gestos)</button>
+<header class="top">
+  <div class="scorebug" role="group" aria-label="Tanteador">
+    <div class="sb-team vos">
+      <span class="sb-name">Vos<span class="mano-tag" id="mano-vos" hidden><span>Mano</span></span></span>
+      <b class="sb-num" id="pts-vos" aria-label="Tus puntos">0</b>
+    </div>
+    <div class="sb-team ott">
+      <span class="sb-name">Ottoman<span class="mano-tag" id="mano-ott" hidden><span>Mano</span></span></span>
+      <b class="sb-num" id="pts-ott" aria-label="Puntos de Ottoman">0</b>
+    </div>
+    <div class="sb-info">
+      <div class="sb-goal">
+        <div class="seg" role="group" aria-label="Partido a">
+          <button type="button" data-meta="15" aria-pressed="true">A 15</button>
+          <button type="button" data-meta="30" aria-pressed="false">A 30</button>
+        </div>
+        <div class="track" title="Avance hacia la meta">
+          <span class="t-vos"><i id="track-vos"></i></span>
+          <span class="t-ott"><i id="track-ott"></i></span>
+          <b class="mitad" id="track-mitad" title="Malas | Buenas" hidden></b>
+        </div>
+      </div>
+      <div class="stake">
+        <span class="stake-lbl">En juego</span>
+        <div class="stake-row">
+          <span class="stake-name" id="stake-name">Sin truco</span>
+          <span class="ramp" id="ramp" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></span>
+        </div>
+      </div>
+      <button type="button" class="btn-ghost" id="btn-reiniciar"><svg class="i"><use href="#i-reset"/></svg>Nuevo partido</button>
+    </div>
   </div>
 
-  <!-- ==================== SECCION 1: TRUCO ==================== -->
-  <div id="seccion-truco" class="seccion activa">
-    <div class="truco-grid">
-      <!-- Columna Izquierda: Webcam + Micrófono de Mesa -->
-      <div class="panel">
-        <h3 style="margin:0 0 0.5rem 0; font-size:1rem;">📷 Webcam (Mostrá tu carta física)</h3>
-        <div class="video-wrapper">
+  <div class="top-right">
+    <div class="status-row">
+      <span class="live" id="badge-robot"><i class="dot"></i><span>Buscando G1…</span></span>
+      <button type="button" class="btn-ghost" id="abrir-cajon" aria-expanded="false" aria-controls="cajon"><svg class="i"><use href="#i-scan"/></svg><span>Ver análisis</span></button>
+      <button type="button" class="btn-ghost toggle-voz" id="btn-tts" aria-pressed="true"><svg class="i"><use href="#i-vol"/></svg>Voz de Ottoman</button>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Secciones">
+      <button class="tab" role="tab" id="tab-mesa" aria-selected="true" aria-controls="vista-mesa" data-tab="mesa">Mesa</button>
+      <button class="tab" role="tab" id="tab-stats" aria-selected="false" aria-controls="vista-stats" data-tab="stats" tabindex="-1">Estadísticas</button>
+      <button class="tab" role="tab" id="tab-control" aria-selected="false" aria-controls="vista-control" data-tab="control" tabindex="-1">Control G1</button>
+    </nav>
+  </div>
+</header>
+
+<!-- ==================== MESA ==================== -->
+<main id="vista-mesa" class="vista activa" role="tabpanel" aria-labelledby="tab-mesa">
+
+
+
+  <aside class="col col-izq entradas" aria-label="Cámara y micrófono">
+    <section class="plate">
+      <div class="plate-h"><h3 class="plate-t"><svg class="i"><use href="#i-cam"/></svg>Tu carta a cámara</h3></div>
+      <div class="plate-b">
+        <div class="pip">
           <video id="video-stream" autoplay playsinline muted></video>
-          <div class="guia-carta">Encuadrá tu carta acá</div>
+          <div class="guia" aria-hidden="true"></div>
+          <span class="rec"><i></i>Cam 2</span>
+          <div class="pip-sin" id="pip-sin" hidden></div>
         </div>
-        <button id="btn-capturar" class="btn-cam">📸 Mostrar a Cámara y Jugar Carta</button>
-        <button id="btn-escanear-libre" class="btn-cam-sec">🔍 Solo Detectar Carta (Modo Prueba)</button>
-        <div id="deteccion-info" style="margin-top:0.55rem; font-size:0.86rem; color:#334155;">
-          Estado cámara: <i>lista para escanear...</i>
+        <div class="stack">
+          <button type="button" class="btn btn-vos btn-full" id="btn-capturar"><svg class="i"><use href="#i-cam"/></svg>Jugar la carta que muestro</button>
+          <button type="button" class="btn btn-sec btn-full" id="btn-escanear-libre"><svg class="i"><use href="#i-scan"/></svg>Solo detectar (prueba)</button>
         </div>
+        <p class="det" id="deteccion-info" aria-live="polite">Mostrá una carta dentro del recuadro.</p>
+      </div>
+    </section>
 
-        <hr style="border:none; border-top:1px solid #e2e8f0; margin:0.85rem 0;">
-
-        <h3 style="margin:0 0 0.35rem 0; font-size:0.95rem;">🎙️ Cantar o Jugar por Micrófono</h3>
-        <div style="font-size:0.78rem; color:#64748b; margin-bottom:0.35rem;">
-          Decí: <i>"¡Envido!", "¡Real envido!", "¡Truco!", "¡Quiero!", "¡No quiero!", "¡Al mazo!"</i> o el nombre de tu carta.
-        </div>
-        <button id="btn-voz-mesa" class="btn-voz-truco">🎤 Mantené presionado para hablar en la mesa</button>
-        <form id="form-voz-mesa" style="display:flex; gap:0.4rem; margin-top:0.45rem;">
-          <input id="input-voz-mesa" type="text" placeholder="O escribí tu canto acá (ej: envido, quiero, truco)..." style="flex:1; padding:0.45rem; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;">
-          <button type="submit" class="btn-canto">Enviar</button>
+    <section class="plate">
+      <div class="plate-h"><h3 class="plate-t"><svg class="i"><use href="#i-mic"/></svg>Hablale a la mesa</h3></div>
+      <div class="plate-b">
+        <button type="button" class="ptt" id="btn-voz-mesa" aria-describedby="hint-mesa">
+          <span class="mic"><svg class="i"><use href="#i-mic"/></svg></span>
+          <span><b id="ptt-mesa-t">Mantené para hablar</b><small>Mouse, dedo o barra espaciadora</small></span>
+        </button>
+        <p class="hint" id="hint-mesa">Decí <i>“envido”</i>, <i>“truco”</i>, <i>“quiero”</i> o el nombre de tu carta.</p>
+        <form class="campo" id="form-voz-mesa">
+          <label class="sr-only" for="input-voz-mesa">Escribí tu canto o jugada</label>
+          <input id="input-voz-mesa" type="text" placeholder="O escribilo: envido, quiero…" autocomplete="off">
+          <button type="submit" class="btn btn-sec btn-icon" aria-label="Enviar"><svg class="i"><use href="#i-send"/></svg></button>
         </form>
       </div>
+    </section>
+  </aside>
 
-      <!-- Columna Derecha: Mesa, Tanteador, Revelación de Mano, Cartas y Cantos -->
-      <div class="panel">
-        <div class="tanteador-bar">
-          <div class="marcador-numeros" id="tanteador">👤 Vos 0 — 0 Ottoman 🤖</div>
-          <div class="info-turno">
-            <span class="chip" id="chip-mano">Mano: Vos</span>
-            <span class="chip" id="chip-apuesta">En juego: 1 pt</span>
-            <select id="sel-meta" onchange="cambiarMetaPuntos()" style="padding:0.2rem 0.4rem; border-radius:6px; border:1px solid #94a3b8; font-size:0.82rem;">
-              <option value="15">A 15 pts</option>
-              <option value="30">A 30 pts</option>
-            </select>
-            <button class="btn-canto" onclick="reiniciarPartido()" style="padding:0.22rem 0.55rem; font-size:0.78rem;">🔄 Nuevo Partido</button>
-          </div>
-        </div>
-
-        <!-- Selector de Nivel / Arquitectura Teórica del Agente IA -->
-        <div class="arquitectura-bar">
-          <div>
-            <b>🧠 Arquitectura del Agente:</b>
-            <select id="sel-modo-ia" onchange="cambiarModoIA()">
-              <option value="reactivo">1. Agente Reactivo Simple (Reglas Fijas)</option>
-              <option value="utilidad">2. Agente Basado en Utilidad (474k Manos - Estático)</option>
-              <option value="aprendizaje" selected>3. Agente Híbrido con Aprendizaje Adaptativo (Ottoman Completo)</option>
-            </select>
-          </div>
-          <span id="subtitulo-arquitectura" style="color:#1e40af; font-size:0.78rem; font-weight:600;">
-            Utilidad esperada (474k) + cuota dinámica de farol + modelado online del rival
-          </span>
-        </div>
-
-        <!-- Diálogo de Ottoman -->
-        <div class="burbuja-robot">
-          <div><b>🤖 Ottoman dice:</b> <span id="frase-robot">¡Listo para jugar!</span></div>
-          <button class="btn-canto" onclick="repetirVozRobot()" title="Escuchar de nuevo" style="padding:0.25rem 0.5rem; font-size:0.78rem;">🔊</button>
-        </div>
-
-        <!-- Resumen de Fin de Partida (Estadísticas de Mentiras / Bluffs) -->
-        <div id="banner-fin-partido" class="fin-partido-box"></div>
-
-        <!-- Banner cuando Ottoman canta algo y espera respuesta -->
-        <div id="alerta-canto" class="alerta-canto">
-          <div class="alerta-titulo" id="alerta-titulo">🔥 ¡Ottoman te cantó!</div>
-          <div id="alerta-botones" class="botones-grupo" style="margin-top:0.3rem;"></div>
-        </div>
-
-        <!-- Paño de la mesa dividida en las 3 bazas -->
-        <div class="mesa-paño" id="mesa-cartas">
-          <div class="baza-col"><div class="baza-titulo">1ra Baza</div><i>—</i></div>
-          <div class="baza-col"><div class="baza-titulo">2da Baza</div><i>—</i></div>
-          <div class="baza-col"><div class="baza-titulo">3ra Baza</div><i>—</i></div>
-        </div>
-
-        <!-- Revelación de las 3 cartas de Ottoman al terminar cada mano -->
-        <div id="panel-revelacion-mano" class="revelacion-box"></div>
-
-        <!-- Tus cartas disponibles -->
-        <div class="mano-header">
-          <b>🃏 Tus cartas (Baraja Española — tocá una carta o mostrala a cámara):</b>
-          <span class="chip" id="chip-envido-humano">Tus tantos de Envido: --</span>
-        </div>
-        <div id="mis-cartas" class="mis-cartas-row"></div>
-
-        <!-- Botones de acción en la partida -->
-        <div class="botones-grupo">
-          <button id="btn-envido" class="btn-canto envido" onclick="cantarEnvido('ENVIDO')">Envido</button>
-          <button id="btn-real-envido" class="btn-canto envido" onclick="cantarEnvido('REAL_ENVIDO')">Real Envido</button>
-          <button id="btn-falta-envido" class="btn-canto envido" onclick="cantarEnvido('FALTA_ENVIDO')">Falta Envido</button>
-          <button id="btn-truco" class="btn-canto truco" onclick="cantarTruco()">¡Truco!</button>
-          <button id="btn-mazo" class="btn-canto no-quiero" onclick="irseAlMazo()">🏳️ Irse al Mazo</button>
-          <button id="btn-nueva-mano" class="btn-canto nueva" onclick="nuevaMano()">🃏 Repartir Nueva Mano</button>
-        </div>
-
-        <!-- Contador en vivo de Mentiras / Bluffs de Ottoman en esta partida -->
-        <div id="barra-bluffs-vivo" class="barra-bluffs-vivo"></div>
-
-        <!-- Panel de Explicabilidad de la IA (XAI - Pensamiento Interno en Vivo) -->
-        <div id="panel-xai-vivo" class="xai-box"></div>
-
-        <!-- Historial de la partida -->
-        <div style="margin-top:0.85rem; border-top:1px solid #e2e8f0; padding-top:0.6rem;">
-          <b style="font-size:0.85rem; color:#475569;">📋 Registro de la partida actual:</b>
-          <div id="truco-log" style="max-height:110px; overflow-y:auto; font-size:0.83rem; margin-top:0.35rem; color:#334155;"></div>
-        </div>
+  <section class="centro" aria-label="Mesa de juego">
+    <!-- Ottoman -->
+    <div class="lado" id="lado-ott">
+      <div class="lado-quien">
+        <span class="quien-nombre ott">Ottoman</span>
+        <span class="turno" id="turno-ott">Espera</span>
       </div>
+      <div class="ott-cartas" id="ott-cartas"></div>
+      <div class="veredicto" id="veredicto" hidden></div>
     </div>
-  </div>
 
-  <!-- ==================== SECCION 2: HISTORIAL Y EVOLUCION DE LA IA ==================== -->
-  <div id="seccion-historial" class="seccion">
-    <div class="panel">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.8rem; margin-bottom:0.9rem;">
-        <div>
-          <h2 style="margin:0; font-size:1.18rem;">🧠 Aprendizaje Adaptativo y Evolución de Ottoman</h2>
-          <div style="font-size:0.86rem; color:#64748b; margin-top:0.2rem;">
-            Además de la base estadística de 474.000 manos, Ottoman mide qué tanto mentís o achicás en cada mano y adapta sus probabilidades de farol y sus umbrales de aceptación.
-          </div>
-        </div>
-        <div id="badge-perfil-humano" class="chip" style="background:#dbeafe; color:#1e40af; font-size:0.88rem; padding:0.4rem 0.8rem;">
-          Perfil detectado: Equilibrado
-        </div>
+    <!-- Bazas -->
+    <div class="bazas" id="mesa-cartas"></div>
+
+    <!-- Zócalo / canto -->
+    <div id="zona-zocalo" aria-live="polite"></div>
+
+    <!-- Tu mano -->
+    <div class="mano">
+      <div class="lado-quien">
+        <span class="quien-nombre vos">Vos</span>
+        <span class="turno" id="turno-vos">Espera</span>
       </div>
+      <div class="mano-cartas" id="mis-cartas"></div>
+      <div class="tantos"><span class="lbl">Tus tantos</span><b id="tantos-vos">–</b></div>
+    </div>
 
-      <!-- KPIs de Aprendizaje -->
-      <div class="kpi-grid" id="kpis-evolucion"></div>
+    <!-- Cantos -->
+    <div class="cantos" role="group" aria-label="Cantos y acciones">
+      <button type="button" class="btn-canto" id="btn-envido" data-envido="ENVIDO">Envido</button>
+      <button type="button" class="btn-canto" id="btn-real-envido" data-envido="REAL_ENVIDO">Real envido</button>
+      <button type="button" class="btn-canto" id="btn-falta-envido" data-envido="FALTA_ENVIDO">Falta envido</button>
+      <span class="sep" aria-hidden="true"></span>
+      <button type="button" class="btn-canto truco" id="btn-truco">¡Truco!</button>
+      <span class="sep" aria-hidden="true"></span>
+      <button type="button" class="btn-canto mazo" id="btn-mazo"><svg class="i"><use href="#i-flag"/></svg>Al mazo</button>
+      <button type="button" class="btn-canto repartir" id="btn-nueva-mano"><svg class="i"><use href="#i-deal"/></svg>Repartir</button>
+    </div>
 
-      <!-- Gráfico SVG de evolución de parámetros a lo largo de las partidas -->
-      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.9rem; margin-bottom:1.1rem;">
-        <b style="font-size:0.92rem; color:#1e293b;">📈 Curva de Evolución de la IA a lo largo de los Partidos (% Farol en Envido vs % Farol en Truco):</b>
-        <div id="grafico-evolucion" style="margin-top:0.6rem;"></div>
-      </div>
+    <div id="banner-fin-partido" hidden></div>
+  </section>
 
-      <!-- Tabla de Historial de Partidas -->
-      <h3 style="margin:0 0 0.4rem 0; font-size:1rem;">🏆 Historial de Partidas contra Humanos</h3>
-      <div style="overflow-x:auto;">
-        <table class="tabla-hist">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Fecha</th>
-              <th>Resultado</th>
-              <th>Manos</th>
-              <th>Mentiras Envido (Total / Éxito / Descub.)</th>
-              <th>Mentiras Truco (Total / Éxito / Descub.)</th>
-              <th>Ajuste IA Post-Partida</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-historial">
-            <tr><td colspan="7" style="color:#64748b;">Jugá y terminá una partida para ver su registro en el historial.</td></tr>
-          </tbody>
+</main>
+
+<aside class="cajon" id="cajon" data-abierto="false" aria-label="Análisis de Ottoman">
+  <div class="cajon-h"><h2>Análisis de Ottoman</h2><button type="button" class="btn-ghost" id="cerrar-cajon">Cerrar</button></div>
+  <section class="plate traza">
+      <div class="plate-h"><h3 class="plate-t">Por qué jugó así</h3><span class="modo-nombre" id="xai-modo"></span></div>
+      <div class="traza-lista" id="panel-xai-vivo"></div>
+    </section>
+  <section class="plate">
+      <div class="plate-h"><h3 class="plate-t">Faroles</h3><span class="modo-nombre">Este partido</span></div>
+      <div class="medidores">
+        <div class="medidor">
+          <div class="medidor-h"><span>Cuota de farol · envido</span><b id="cuota-env">–</b></div>
+          <div class="barra"><i id="barra-env" style="width:0"></i><span class="base" style="left:35%" title="Base 14%"></span></div>
+        </div>
+        <div class="medidor">
+          <div class="medidor-h"><span>Cuota de farol · truco</span><b id="cuota-tru">–</b></div>
+          <div class="barra"><i id="barra-tru" style="width:0"></i><span class="base" style="left:35%" title="Base 14%"></span></div>
+          <small>Escala 0–40 %. La raya marca la base inicial de 14 %.</small>
+        </div>
+        <table class="faroles-tabla" id="barra-bluffs-vivo">
+          <thead><tr><th scope="col">Mintió en</th><th scope="col">Veces</th><th scope="col">Pasaron</th><th scope="col">Descubiertas</th></tr></thead>
+          <tbody></tbody>
         </table>
       </div>
+      <p class="perfil" id="perfil-vivo">Lectura de tu juego: <b>–</b></p>
+    </section>
+  <section class="plate">
+      <div class="plate-h"><h3 class="plate-t">Cerebro de Ottoman</h3></div>
+      <div class="agentes" role="radiogroup" aria-label="Arquitectura del agente" id="agentes"></div>
+    </section>
+  <section class="plate relato">
+      <div class="plate-h"><h3 class="plate-t">Relato</h3></div>
+      <ol class="relato-lista" id="truco-log" reversed></ol>
+    </section>
+</aside>
+
+
+<!-- ==================== ESTADÍSTICAS ==================== -->
+<section id="vista-stats" class="vista" role="tabpanel" aria-labelledby="tab-stats">
+  <div class="cab-vista">
+    <div>
+      <h2>Cómo aprende Ottoman</h2>
+      <p>Además de la base estadística de 474.000 manos, Ottoman mide cuánto mentís o achicás en cada mano y ajusta sus probabilidades de farol y sus umbrales para querer.</p>
     </div>
+    <div class="perfil-plate"><small>Te tiene leído como</small><b id="badge-perfil-humano">Equilibrado</b></div>
   </div>
 
-  <!-- ==================== SECCION 3: CONTROL LIBRE POR VOZ ==================== -->
-  <div id="seccion-voz" class="seccion">
-    <div class="panel">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.8rem; margin-bottom:1rem;">
-        <div id="idioma">
-          <label style="margin-right:1rem; cursor:pointer;"><input type="radio" name="idioma" value="es-AR" checked> 🇦🇷 Español</label>
-          <label style="cursor:pointer;"><input type="radio" name="idioma" value="en-US"> 🇺🇸 English</label>
-        </div>
-        <div class="botones-grupo" style="margin-top:0;">
-          <button class="btn-canto" onclick="enviarComandoLibre('repartí las cartas')">🃏 Repartir Cartas</button>
-          <button class="btn-canto" onclick="enviarComandoLibre('saludá')">👋 Saludar</button>
-          <button class="btn-canto" onclick="enviarComandoLibre('festejá')">🙌 Festejar</button>
-          <button class="btn-canto" onclick="enviarComandoLibre('dame la mano')">🤝 Dar la mano</button>
-          <button class="btn-canto" onclick="enviarComandoLibre('sentate')">🪑 Sentarse en la mesa</button>
-          <button class="btn-canto" onclick="enviarComandoLibre('ponete de pie')">🧍 Ponerse de pie</button>
-          <button class="btn-canto no-quiero" onclick="enviarComandoLibre('detente')">🛑 Detenerse</button>
-        </div>
+  <div class="h2h">
+    <section class="plate versus">
+      <h3 class="plate-t">Historial general</h3>
+      <div class="versus-nums">
+        <div class="ott"><span class="lbl">Ottoman</span><b id="h2h-ott">0</b></div>
+        <em id="h2h-partidas">0 partidas</em>
+        <div class="vos"><span class="lbl">Vos</span><b id="h2h-vos">0</b></div>
       </div>
+      <div class="split" aria-hidden="true"><i class="ott" id="split-ott" style="width:50%"></i><i class="vos" id="split-vos" style="width:50%"></i></div>
+      <div class="versus-meta"><span id="h2h-manos">0 manos analizadas</span><span id="h2h-fold"></span></div>
+    </section>
+    <section class="plate">
+      <div class="ficha" id="kpis-evolucion"></div>
+    </section>
+  </div>
 
-      <button id="hablar">🎤 Mantené presionado para darle órdenes a Ottoman</button>
-      <div id="estado" style="margin-top:0.6rem; color:#475569; min-height:1.2em;"></div>
+  <section class="plate">
+    <div class="plate-h">
+      <h3 class="plate-t">Cuota de farol, partido a partido</h3>
+      <div class="leyenda"><span><i style="background:var(--txt)"></i>Envido</span><span><i style="background:var(--ott)"></i>Truco</span></div>
+    </div>
+    <div class="grafico" id="grafico-evolucion"></div>
+  </section>
 
-      <form id="form-texto" style="display:flex; gap:0.5rem; margin-top:0.8rem;">
-        <input id="texto-manual" type="text" placeholder='Ej: "repartí las cartas", "festejá", "dame la mano", "ponete de pie", "avanzá 1 metro"' style="flex:1; padding:0.55rem; border:1px solid #cbd5e1; border-radius:8px;">
-        <button type="submit" class="btn-canto nueva">Enviar Orden</button>
-      </form>
+  <section class="plate">
+    <div class="plate-h"><h3 class="plate-t">Partidos contra humanos</h3></div>
+    <div class="tabla-wrap">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th scope="col">#</th><th scope="col">Fecha</th><th scope="col">Resultado</th><th scope="col">Manos</th>
+            <th scope="col">Faroles envido<br>total · pasaron · descub.</th>
+            <th scope="col">Faroles truco<br>total · pasaron · descub.</th>
+            <th scope="col">Ajuste de la IA al terminar</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-historial">
+          <tr><td colspan="7">Jugá y terminá un partido para verlo acá.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</section>
 
-      <div id="log" style="margin-top:1rem;"></div>
+<!-- ==================== CONTROL G1 ==================== -->
+<section id="vista-control" class="vista" role="tabpanel" aria-labelledby="tab-control">
+  <div class="cab-vista">
+    <div>
+      <h2>Control del G1</h2>
+      <p>Fuera del partido, dale órdenes a Ottoman con la voz, por escrito o desde la consola: saludar, festejar, dar la mano, sentarse, caminar.</p>
     </div>
   </div>
+
+  <div class="control">
+    <section class="plate">
+      <div class="plate-b">
+        <button type="button" class="ptt grande" id="hablar">
+          <span class="mic"><svg class="i"><use href="#i-mic"/></svg></span>
+          <span><b id="ptt-libre-t">Mantené para ordenar</b><small>Mouse, dedo o barra espaciadora</small></span>
+        </button>
+        <p class="estado-voz" id="estado" aria-live="polite"></p>
+        <div class="idioma" id="idioma">
+          <span class="lbl">Idioma del micrófono</span>
+          <div class="seg" role="radiogroup" aria-label="Idioma" style="margin-top:6px">
+            <button type="button" role="radio" data-idioma="es-AR" aria-checked="true" aria-pressed="true">Español</button>
+            <button type="button" role="radio" data-idioma="en-US" aria-checked="false" aria-pressed="false">English</button>
+          </div>
+        </div>
+        <form class="campo" id="form-texto" style="margin-top:14px">
+          <label class="sr-only" for="texto-manual">Orden escrita</label>
+          <input id="texto-manual" type="text" placeholder="“avanzá 1 metro”, “festejá”, “ponete de pie”" autocomplete="off">
+          <button type="submit" class="btn btn-vos">Enviar orden</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="plate">
+      <div class="plate-h"><h3 class="plate-t"><svg class="i"><use href="#i-robot"/></svg>Consola</h3></div>
+      <div class="switcher">
+        <button type="button" class="sw" data-cmd="repartí las cartas"><svg class="i"><use href="#i-deal"/></svg>Repartir</button>
+        <button type="button" class="sw" data-cmd="saludá"><svg class="i"><use href="#i-wave"/></svg>Saludar</button>
+        <button type="button" class="sw" data-cmd="festejá"><svg class="i"><use href="#i-party"/></svg>Festejar</button>
+        <button type="button" class="sw" data-cmd="dame la mano"><svg class="i"><use href="#i-hand"/></svg>Dar la mano</button>
+        <button type="button" class="sw" data-cmd="sentate"><svg class="i"><use href="#i-chair"/></svg>Sentarse</button>
+        <button type="button" class="sw" data-cmd="ponete de pie"><svg class="i"><use href="#i-stand"/></svg>Ponerse de pie</button>
+        <button type="button" class="sw stop" data-cmd="detente"><svg class="i"><use href="#i-stop"/></svg>Detenerse</button>
+      </div>
+      <div class="plate-h" style="border-top:1px solid var(--line-soft)"><h3 class="plate-t">Órdenes</h3></div>
+      <ul class="rundown" id="log"><li id="log-vacio" style="display:block;color:var(--txt-3)">Todavía no le diste ninguna orden.</li></ul>
+    </section>
+  </div>
+</section>
 
 <script>
-  const ICONOS_PALO = { Espada: '⚔️', Basto: '🌿', Oro: '🪙', Copa: '🏆' };
+  const NOMBRE_CANTO = {
+    ENVIDO: 'Envido', ENVIDO_ENVIDO: 'Envido envido', REAL_ENVIDO: 'Real envido', FALTA_ENVIDO: 'Falta envido',
+    TRUCO: 'Truco', RETRUCO: 'Retruco', VALE_CUATRO: 'Vale cuatro', NADA: 'Sin truco'
+  };
+  const ETIQUETA_RESPUESTA = {
+    QUIERO: '¡Quiero!', NO_QUIERO: 'No quiero', ENVIDO_ENVIDO: 'Envido (4 pts)', ENVIDO: 'El envido está primero',
+    REAL_ENVIDO: 'Real envido', FALTA_ENVIDO: 'Falta envido', RETRUCO: 'Quiero retruco', VALE_CUATRO: 'Quiero vale cuatro'
+  };
+  const NOMBRE_TRUCO_BTN = { TRUCO: '¡Truco!', RETRUCO: '¡Quiero retruco!', VALE_CUATRO: '¡Quiero vale cuatro!' };
+  const MODOS_RESPALDO = [
+    { codigo: 'reactivo', nombre: 'Agente Reactivo Simple', subtitulo: 'Reglas fijas condición-acción' },
+    { codigo: 'utilidad', nombre: 'Agente Basado en Utilidad (474k manos)', subtitulo: 'Maximiza utilidad esperada (estático)' },
+    { codigo: 'aprendizaje', nombre: 'Agente Híbrido con Aprendizaje Adaptativo', subtitulo: 'Utilidad + farol dinámico + modelado del rival' }
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const nombreCanto = (c) => NOMBRE_CANTO[c] || String(c || '').replace(/_/g, ' ').toLowerCase();
+  const imgCarta = (c) => `/cartas/${encodeURIComponent(c.valor)}_${encodeURIComponent(c.palo)}.png?v=fournier`;
+  const nombreCarta = (c) => c.nombre || `${c.valor} de ${c.palo}`;
+  const naipeHTML = (c) => `<span class="naipe"><img src="${imgCarta(c)}" alt="${esc(nombreCarta(c))}" draggable="false"></span>`;
+  const espera = (ms) => new Promise(r => setTimeout(r, ms));
+
   let ultimaFraseHablada = '';
   let estadoActual = null;
+  let ocupado = false;          // Ottoman "pensando" o esperando respuesta del servidor
+  let metaElegida = 15;
+  let ttsActivo = true;
+  let cartasVistas = new Set(); // para animar sólo las cartas recién llegadas a la mesa
+  let ultimoCantoKey = null;
+  let ultimaRevelacion = null;
+  let puntosPrevios = { humano: null, robot: null };
 
-  function cambiarTab(tab) {
-    const btns = document.querySelectorAll('.tab-btn');
-    btns.forEach(b => b.classList.remove('activo'));
-    document.querySelectorAll('.seccion').forEach(s => s.classList.remove('activa'));
-    if (tab === 'truco') {
-      btns[0].classList.add('activo');
-      document.getElementById('seccion-truco').classList.add('activa');
-    } else if (tab === 'historial') {
-      btns[1].classList.add('activo');
-      document.getElementById('seccion-historial').classList.add('activa');
-      if (estadoActual?.aprendizaje_ia) renderizarEvolucionIA(estadoActual.aprendizaje_ia);
-    } else {
-      btns[2].classList.add('activo');
-      document.getElementById('seccion-voz').classList.add('activa');
-    }
+  async function postJSON(url, body) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body)
+    });
+    return res.json();
   }
 
-  // ==================== SINTESIS DE VOZ (TTS) ====================
+  // ==================== PESTAÑAS ====================
+  const tabs = [...document.querySelectorAll('.tab')];
+  function cambiarTab(tab) {
+    tabs.forEach(b => {
+      const on = b.dataset.tab === tab;
+      b.setAttribute('aria-selected', on);
+      b.tabIndex = on ? 0 : -1;
+      $('vista-' + b.dataset.tab).classList.toggle('activa', on);
+    });
+    if (tab === 'stats' && estadoActual?.aprendizaje_ia) renderizarEvolucionIA(estadoActual.aprendizaje_ia);
+  }
+  tabs.forEach((b, i) => {
+    b.addEventListener('click', () => cambiarTab(b.dataset.tab));
+    b.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      const sig = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      sig.focus(); cambiarTab(sig.dataset.tab);
+    });
+  });
+
+  // ==================== VOZ DE OTTOMAN (TTS) ====================
   function hablarRobot(texto, forzar = false) {
     if (!texto) return;
     if (!forzar && texto === ultimaFraseHablada) return;
     ultimaFraseHablada = texto;
-    if (!document.getElementById('chk-tts').checked) return;
-    if (!('speechSynthesis' in window)) return;
+    if (!ttsActivo || !('speechSynthesis' in window)) return;
     try {
       window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(texto);
@@ -902,781 +1164,729 @@
       window.speechSynthesis.speak(u);
     } catch (e) {}
   }
-
   function repetirVozRobot() {
-    if (estadoActual?.ultima_frase_robot) {
-      hablarRobot(estadoActual.ultima_frase_robot, true);
-    }
+    if (estadoActual?.ultima_frase_robot) hablarRobot(estadoActual.ultima_frase_robot, true);
   }
+  $('btn-tts').addEventListener('click', () => {
+    ttsActivo = !ttsActivo;
+    const b = $('btn-tts');
+    b.setAttribute('aria-pressed', ttsActivo);
+    b.querySelector('use').setAttribute('href', ttsActivo ? '#i-vol' : '#i-vol-off');
+    if (!ttsActivo && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+  });
 
   // ==================== WEBCAM ====================
-  const video = document.getElementById('video-stream');
-  const detInfo = document.getElementById('deteccion-info');
+  const video = $('video-stream');
+  const detInfo = $('deteccion-info');
 
-  navigator.mediaDevices?.getUserMedia({ video: { width: 640, height: 480 } })
-    .then(stream => { video.srcObject = stream; })
-    .catch(err => {
-      detInfo.innerHTML = `<span style="color:#dc2626;">Sin acceso a cámara (${err.message || err}). Podés jugar tocando tus cartas o por voz.</span>`;
-    });
+  if (navigator.mediaDevices?.getUserMedia) {
+    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+      .then(stream => { video.srcObject = stream; })
+      .catch(err => {
+        const s = $('pip-sin');
+        s.hidden = false;
+        s.textContent = `Sin acceso a la cámara (${err.message || err}). Podés jugar tocando tus cartas o por voz.`;
+      });
+  } else {
+    $('pip-sin').hidden = false;
+    $('pip-sin').textContent = 'Este navegador no da acceso a la cámara. Jugá tocando tus cartas o por voz.';
+  }
 
   function capturarFrameBase64() {
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0);
+    canvas.getContext('2d').drawImage(video, 0, 0);
     return canvas.toDataURL('image/jpeg', 0.85);
   }
 
-  document.getElementById('btn-capturar').addEventListener('click', async () => {
+  $('btn-capturar').addEventListener('click', async () => {
+    if (ocupado) return;
     const b64 = capturarFrameBase64();
-    detInfo.textContent = 'Analizando carta en cámara...';
+    detInfo.textContent = 'Mirando la carta…';
     try {
-      const resp = await fetch('/truco/detectar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imagen: b64, usar_mano: true })
-      });
-      const data = await resp.json();
+      const data = await postJSON('/truco/detectar', { imagen: b64, usar_mano: true });
       if (data.valor > 0) {
-        const icono = ICONOS_PALO[data.palo] || '🃏';
-        detInfo.innerHTML = `Detectada: <b>${icono} ${data.nombre || (data.valor + ' de ' + data.palo)}</b> (${(data.confianza * 100).toFixed(0)}% conf.)`;
+        detInfo.innerHTML = `Vi el <b>${esc(data.nombre || (data.valor + ' de ' + data.palo))}</b> · ${(data.confianza * 100).toFixed(0)} % de confianza`;
         await tirarCartaDirecta({ valor: data.valor, palo: data.palo });
       } else {
-        detInfo.textContent = 'No se pudo distinguir una carta en el cuadro.';
+        detInfo.textContent = 'No distingo ninguna carta de tu mano. Acercala al recuadro y probá de nuevo.';
       }
     } catch (e) {
-      detInfo.textContent = 'Error al procesar imagen: ' + e;
+      detInfo.innerHTML = `<span class="err">No pude procesar la imagen: ${esc(e)}</span>`;
     }
   });
 
-  document.getElementById('btn-escanear-libre').addEventListener('click', async () => {
+  $('btn-escanear-libre').addEventListener('click', async () => {
     const b64 = capturarFrameBase64();
-    detInfo.textContent = 'Escaneando carta libre...';
+    detInfo.textContent = 'Escaneando en modo libre…';
     try {
-      const resp = await fetch('/truco/detectar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imagen: b64, usar_mano: false })
-      });
-      const data = await resp.json();
+      const data = await postJSON('/truco/detectar', { imagen: b64, usar_mano: false });
       const libre = data.deteccion_libre || data;
-      const icono = ICONOS_PALO[libre.palo] || '🃏';
-      detInfo.innerHTML = `Modo libre: <b>${icono} ${libre.valor} de ${libre.palo}</b> (${(libre.confianza * 100).toFixed(0)}% conf.)`;
+      if (libre.valor > 0) {
+        detInfo.innerHTML = `Modo libre: <b>${esc(libre.valor)} de ${esc(libre.palo)}</b> · ${(libre.confianza * 100).toFixed(0)} % de confianza`;
+      } else {
+        detInfo.textContent = 'Modo libre: no reconocí ninguna carta.';
+      }
     } catch (e) {
-      detInfo.textContent = 'Error al escanear: ' + e;
+      detInfo.innerHTML = `<span class="err">No pude escanear: ${esc(e)}</span>`;
     }
   });
 
-  // ==================== RENDERIZADO DE ESTADO DE TRUCO ====================
-  function renderizarEstado(data) {
-    if (!data) return;
-    estadoActual = data;
+  // ==================== RENDER: TANTEADOR ====================
+  function renderTanteador(data) {
+    const t = data.tanteador || { humano: 0, robot: 0, meta: 15 };
+    const meta = t.meta || 15;
+    metaElegida = meta;
+    [['humano', 'pts-vos'], ['robot', 'pts-ott']].forEach(([k, id]) => {
+      const el = $(id);
+      if (puntosPrevios[k] !== null && puntosPrevios[k] !== t[k]) {
+        el.classList.remove('sube'); void el.offsetWidth; el.classList.add('sube');
+      }
+      el.textContent = t[k];
+      puntosPrevios[k] = t[k];
+    });
+    $('track-vos').style.width = Math.min(100, (t.humano / meta) * 100) + '%';
+    $('track-ott').style.width = Math.min(100, (t.robot / meta) * 100) + '%';
+    $('track-mitad').hidden = meta !== 30;
+    document.querySelectorAll('.sb-goal .seg button').forEach(b => b.setAttribute('aria-pressed', Number(b.dataset.meta) === meta));
+    $('mano-vos').hidden = data.es_mano !== 'humano';
+    $('mano-ott').hidden = data.es_mano !== 'robot';
 
-    // Badge simulador
-    const badge = document.getElementById('badge-robot');
-    if (data.robot_conectado) {
-      badge.textContent = '🟢 Robot G1 Sentado en Mesa';
-      badge.classList.add('conectado');
+    const ap = data.apuesta_truco || 'NADA';
+    $('stake-name').textContent = ap === 'NADA' ? 'Sin truco' : nombreCanto(ap);
+    const pts = ap === 'NADA' ? 1 : (data.puntos_truco_actuales || 1);
+    [...$('ramp').children].forEach((b, i) => b.classList.toggle('on', i < pts));
+    $('ramp').parentElement.title = `${pts} ${pts === 1 ? 'punto' : 'puntos'} en juego`;
+
+    const badge = $('badge-robot');
+    badge.classList.toggle('on', Boolean(data.robot_conectado));
+    badge.querySelector('span').textContent = data.robot_conectado ? 'En vivo · G1 en la mesa' : 'Sin simulador · abrí sim.bat';
+  }
+
+  // ==================== RENDER: LADO DE OTTOMAN ====================
+  function renderLadoOttoman(data) {
+    const cont = $('ott-cartas');
+    const ver = $('veredicto');
+    const turnoOtt = $('turno-ott');
+    const revela = data.mano_terminada && Array.isArray(data.cartas_robot_reveladas);
+
+    if (revela) {
+      const key = JSON.stringify(data.cartas_robot_reveladas);
+      const nueva = key !== ultimaRevelacion;
+      ultimaRevelacion = key;
+      cont.innerHTML = data.cartas_robot_reveladas.map((c, i) => `
+        <div class="revelada ${c.jugada ? '' : 'guardada'} ${nueva ? 'gira' : ''}" style="animation-delay:${i * 0.12}s">
+          ${naipeHTML(c).replace('class="naipe"', `class="naipe" style="animation-delay:${i * 0.14}s"`)}
+          <span class="tag">${c.jugada ? 'Jugada' : 'Se la guardó'}</span>
+        </div>`).join('');
+
+      const bluffs = data.bluffs_mano_actual || [];
+      const ganador = data.ganador_mano;
+      const titulo = ganador === 'robot' ? 'Mano para Ottoman' : ganador === 'humano' ? 'Mano para vos' : 'Mano terminada';
+      const re = data.resultado_envido;
+      let envTxt = '';
+      if (re && re.pts_robot !== undefined && re.pts_humano !== undefined) {
+        envTxt = `<span class="chip">Envido: Ottoman <b>${esc(re.pts_robot)}</b> · Vos <b>${esc(re.pts_humano)}</b></span>`;
+      }
+      const farolesHTML = bluffs.length === 0
+        ? `<span class="derecho">Jugó derecho: ningún farol esta mano</span>`
+        : bluffs.map(b => {
+            const r = b.resultado === 'exitoso' ? 'le salió bien' : (b.resultado === 'descubierto' ? '¡lo descubriste!' : 'en juego');
+            return `<span class="farol"><b>Farol</b>${esc(nombreCanto(b.tipo))}: ${esc(b.detalle)} · ${r}</span>`;
+          }).join('');
+      ver.hidden = false;
+      ver.innerHTML = `
+        <span class="veredicto-t ${ganador === 'robot' ? 'ott' : ganador === 'humano' ? 'vos' : ''}">${titulo}</span>
+        <div class="chips"><span class="chip">Sus tantos reales: <b>${esc(data.tantos_robot ?? '–')}</b></span>${envTxt}</div>
+        <div class="chips">${farolesHTML}</div>`;
+      turnoOtt.className = 'turno';
+      turnoOtt.textContent = 'Cartas a la vista';
     } else {
-      badge.textContent = '🟡 Sin Simulador (abrí sim.bat)';
-      badge.classList.remove('conectado');
+      ultimaRevelacion = null;
+      const n = Number.isInteger(data.cartas_robot_restantes) ? data.cartas_robot_restantes : 3;
+      cont.innerHTML = Array.from({ length: n }, () => `<span class="dorso" aria-hidden="true"></span>`).join('')
+        + `<span class="sr-only">A Ottoman le quedan ${n} cartas</span>`;
+      ver.hidden = true;
+      ver.innerHTML = '';
+      const juegaOtt = !data.canto_pendiente && data.turno_carta === 'robot';
+      turnoOtt.className = 'turno' + (juegaOtt ? ' ott' : '');
+      turnoOtt.textContent = juegaOtt ? 'Le toca' : 'Espera';
     }
+  }
 
-    // Tanteador y chips
-    document.getElementById('tanteador').textContent =
-      `👤 Vos ${data.tanteador.humano} — ${data.tanteador.robot} Ottoman 🤖`;
-    document.getElementById('sel-meta').value = String(data.tanteador.meta || 15);
-    document.getElementById('chip-mano').textContent =
-      `Mano: ${data.es_mano === 'humano' ? '👤 Vos' : '🤖 Ottoman'}`;
-    document.getElementById('chip-apuesta').textContent =
-      `Truco: ${data.apuesta_truco === 'NADA' ? '1 pt' : data.apuesta_truco + ' (' + data.puntos_truco_actuales + ' pts)'}`;
-    document.getElementById('chip-envido-humano').textContent =
-      `Tus tantos de Envido: ${data.tantos_humano}`;
+  // ==================== RENDER: BAZAS ====================
+  function slotHTML(m, quien, rotulo, pierde) {
+    if (!m) return `<div class="slot ${quien} vacio"><span class="who">${rotulo}</span></div>`;
+    const key = `${m.ronda}-${m.quien}-${m.carta.valor}_${m.carta.palo}`;
+    const nueva = !cartasVistas.has(key);
+    cartasVistas.add(key);
+    return `<div class="slot ${quien} ${nueva ? 'llega' : ''} ${pierde ? 'pierde' : ''}" title="${esc(m.carta.valor + ' de ' + m.carta.palo)}">
+      ${naipeHTML(m.carta)}<span class="who">${rotulo}</span></div>`;
+  }
 
-    // Frase y voz de Ottoman
-    if (data.ultima_frase_robot) {
-      document.getElementById('frase-robot').textContent = data.ultima_frase_robot;
-      hablarRobot(data.ultima_frase_robot);
-    }
-
-    // Estadísticas de Mentiras / Bluffs de la partida
-    const st = data.estadisticas_partida || { envido: {}, truco: {}, manos_jugadas: 0 };
-    const envSt = st.envido || {};
-    const truSt = st.truco || {};
-    document.getElementById('barra-bluffs-vivo').innerHTML = `
-      <div>🎭 <b>Mentiras de Ottoman en Envido:</b> ${envSt.bluffs_intentados || 0} (✅ ${envSt.bluffs_exitosos || 0} exitosas / 🔍 ${envSt.bluffs_descubiertos || 0} descubiertas)</div>
-      <div>🎭 <b>Mentiras de Ottoman en Truco:</b> ${truSt.bluffs_intentados || 0} (✅ ${truSt.bluffs_exitosos || 0} exitosas / 🔍 ${truSt.bluffs_descubiertos || 0} descubiertas)</div>
-    `;
-
-    // Banner de Fin de Partida con resumen de mentiras
-    const divFin = document.getElementById('banner-fin-partido');
-    if (data.partido_terminado) {
-      divFin.classList.add('visible');
-      const ganoHumano = data.ganador_partido === 'humano';
-      const totalBluffs = (envSt.bluffs_intentados || 0) + (truSt.bluffs_intentados || 0);
-      divFin.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-          <div style="font-size:1.1rem; font-weight:800; color:#1e3a8a;">
-            ${ganoHumano ? '🏆 ¡GANASTE EL PARTIDO!' : '🤖 ¡OTTOMAN GANÓ EL PARTIDO!'} (${data.tanteador.humano} a ${data.tanteador.robot})
-          </div>
-          <button class="btn-canto nueva" onclick="reiniciarPartido()">🔄 Jugar Otra Partida</button>
-        </div>
-        <div class="fin-partido-grid">
-          <div class="stat-mini-card">
-            <b>🃏 Manos jugadas:</b> ${st.manos_jugadas || 0}<br>
-            <b>🎭 Total de veces que Ottoman mintió:</b> ${totalBluffs}
-          </div>
-          <div class="stat-mini-card">
-            <b>💙 Mentiras en Envido:</b> ${envSt.bluffs_intentados || 0} de ${envSt.cantados_robot || 0} cantos<br>
-            <span style="color:#166534;">Pasaron sin ver: ${envSt.bluffs_exitosos || 0}</span> · <span style="color:#991b1b;">Descubiertas: ${envSt.bluffs_descubiertos || 0}</span>
-          </div>
-          <div class="stat-mini-card">
-            <b>🔥 Mentiras en Truco:</b> ${truSt.bluffs_intentados || 0} de ${truSt.cantados_robot || 0} cantos<br>
-            <span style="color:#166534;">Exitosas: ${truSt.bluffs_exitosos || 0}</span> · <span style="color:#991b1b;">Descubiertas: ${truSt.bluffs_descubiertos || 0}</span>
-          </div>
-        </div>
-      `;
-    } else {
-      divFin.classList.remove('visible');
-    }
-
-    // Alerta de canto pendiente de respuesta del humano
-    const divAlerta = document.getElementById('alerta-canto');
-    const divAlertaBtns = document.getElementById('alerta-botones');
-    if (data.canto_pendiente) {
-      divAlerta.classList.add('visible');
-      const cp = data.canto_pendiente;
-      document.getElementById('alerta-titulo').textContent =
-        `🔥 ¡Ottoman te cantó ${cp.canto.replace(/_/g, ' ')}! ¿Qué respondés?`;
-      divAlertaBtns.innerHTML = '';
-      const etiquetas = {
-        QUIERO: '✅ ¡Quiero!',
-        NO_QUIERO: '❌ No Quiero',
-        ENVIDO_ENVIDO: '💙 ¡Envido (4 pts)!',
-        ENVIDO: '💙 ¡El Envido está primero!',
-        REAL_ENVIDO: '💙 ¡Real Envido!',
-        FALTA_ENVIDO: '🔥 ¡Falta Envido!',
-        RETRUCO: '🔥 ¡Quiero Retruco!',
-        VALE_CUATRO: '🔥 ¡Quiero Vale Cuatro!'
-      };
-      cp.opciones.forEach(op => {
-        const b = document.createElement('button');
-        b.className = 'btn-canto ' + (op === 'QUIERO' ? 'quiero' : (op === 'NO_QUIERO' ? 'no-quiero' : 'truco'));
-        b.textContent = etiquetas[op] || op;
-        b.onclick = () => responderCanto(op);
-        divAlertaBtns.appendChild(b);
-      });
-    } else {
-      divAlerta.classList.remove('visible');
-    }
-
-    // Paño de las 3 bazas con cartas españolas
-    const divMesa = document.getElementById('mesa-cartas');
-    divMesa.innerHTML = '';
+  function renderBazas(data) {
+    const div = $('mesa-cartas');
+    if ((data.mesa || []).length === 0) cartasVistas = new Set();
+    let html = '';
     for (let r = 1; r <= 3; r++) {
-      const col = document.createElement('div');
-      col.className = 'baza-col';
-      const ganR = data.ganadores_ronda?.[r - 1];
+      const gan = data.ganadores_ronda?.[r - 1];
+      const jug = (data.mesa || []).filter(m => m.ronda === r);
+      const mOtt = jug.find(m => m.quien === 'robot');
+      const mVos = jug.find(m => m.quien === 'humano');
+      const activa = r === data.ronda && !data.mano_terminada;
       let ganTag = '';
-      if (ganR === 'humano') ganTag = ' (👤 Vos)';
-      else if (ganR === 'robot') ganTag = ' (🤖 Ottoman)';
-      else if (ganR === 'parda') ganTag = ' (🤝 Parda)';
-
-      const tit = document.createElement('div');
-      tit.className = 'baza-titulo';
-      tit.textContent = `${r}ra Baza${ganTag}`;
-      col.appendChild(tit);
-
-      const jugadasR = (data.mesa || []).filter(m => m.ronda === r);
-      if (jugadasR.length === 0) {
-        const vacio = document.createElement('div');
-        vacio.style.opacity = '0.55';
-        vacio.style.marginTop = '2.4rem';
-        vacio.textContent = r === data.ronda && !data.mano_terminada ? 'En juego...' : '—';
-        col.appendChild(vacio);
-      } else {
-        const wrap = document.createElement('div');
-        wrap.className = 'baza-cartas-wrap';
-        jugadasR.forEach(m => {
-          const item = document.createElement('div');
-          item.className = 'naipe-mesa-item';
-          item.title = `${m.carta.valor} de ${m.carta.palo}`;
-          item.innerHTML = `
-            <span class="naipe-mesa-tag ${m.quien}">${m.quien === 'robot' ? '🤖 Ottoman' : '👤 Vos'}</span>
-            <div class="naipe-mesa-svg">
-              <img src="/cartas/${m.carta.valor}_${m.carta.palo}.png?v=fournier" alt="${m.carta.valor} de ${m.carta.palo}">
-            </div>
-          `;
-          wrap.appendChild(item);
-        });
-        col.appendChild(wrap);
-      }
-      divMesa.appendChild(col);
-    }
-
-    // Panel de Revelación de las 3 cartas de Ottoman al terminar la mano
-    const divRev = document.getElementById('panel-revelacion-mano');
-    if (data.mano_terminada && Array.isArray(data.cartas_robot_reveladas)) {
-      divRev.classList.add('visible');
-      const bluffsMano = data.bluffs_mano_actual || [];
-      let badgesBluff = '';
-      if (bluffsMano.length === 0) {
-        badgesBluff = `<span class="badge-farol honesto">✅ Ottoman no mintió en esta mano</span>`;
-      } else {
-        badgesBluff = bluffsMano.map(b => {
-          const resTxt = b.resultado === 'exitoso' ? 'Le salió bien' : (b.resultado === 'descubierto' ? '¡Lo descubriste!' : 'En juego');
-          return `<span class="badge-farol mentira">🎭 ¡FAROL EN ${b.tipo}! ${b.detalle} (${resTxt})</span>`;
-        }).join('');
-      }
-
-      const htmlCartasRobot = data.cartas_robot_reveladas.map(c => `
-        <div class="carta-revelada-item" title="${c.nombre}">
-          <div class="carta-revelada-marco ${c.jugada ? '' : 'no-jugada'}">
-            <img src="/cartas/${c.valor}_${c.palo}.png?v=fournier" alt="${c.nombre}">
+      if (gan === 'humano') ganTag = '<span class="gana vos">Vos</span>';
+      else if (gan === 'robot') ganTag = '<span class="gana ott">Ottoman</span>';
+      else if (gan === 'parda') ganTag = '<span class="gana parda">Parda</span>';
+      html += `
+        <div class="baza ${activa ? 'activa' : ''}" aria-label="${r}ª baza">
+          <div class="baza-h"><span class="baza-n">${r}ª baza</span>${ganTag}</div>
+          <div class="baza-cartas">
+            ${slotHTML(mOtt, 'ott', 'Ottoman', gan === 'humano')}
+            ${slotHTML(mVos, 'vos', 'Vos', gan === 'robot')}
           </div>
-          <span class="tag-estado-carta ${c.jugada ? '' : 'oculta'}">
-            ${c.jugada ? 'Jugada en mesa' : 'Oculta en su mano'}
-          </span>
-        </div>
-      `).join('');
-
-      divRev.innerHTML = `
-        <div class="revelacion-header">
-          <b>🕵️ Cartas que tenía Ottoman en esta mano:</b>
-          <span class="chip">Tantos reales de Envido de Ottoman: <b>${data.tantos_robot ?? '--'}</b></span>
-        </div>
-        <div class="revelacion-cartas">${htmlCartasRobot}</div>
-        <div>${badgesBluff}</div>
-      `;
-    } else {
-      divRev.classList.remove('visible');
+        </div>`;
     }
+    div.innerHTML = html;
+  }
 
-    // Cartas disponibles del humano (imágenes originales de la Baraja Española)
-    const divMisCartas = document.getElementById('mis-cartas');
-    divMisCartas.innerHTML = '';
+  // ==================== RENDER: ZÓCALO / CANTO ====================
+  function pruebaHTML(raz) {
+    if (!raz) return '';
+    const esFarol = String(raz.decision || '').includes('FAROL');
+    return `<div class="prueba">
+      <span class="dec ${esFarol ? 'farol-dec' : ''}">${esc(raz.decision)}</span>
+      ${raz.metrica ? `<span><b>Métrica:</b> ${esc(raz.metrica)}</span>` : ''}
+      ${raz.umbral ? `<span><b>Umbral:</b> ${esc(raz.umbral)}</span>` : ''}
+    </div>`;
+  }
+
+  function renderZocalo(data) {
+    const zona = $('zona-zocalo');
+    const cp = data.canto_pendiente;
+    if (cp) {
+      const key = `${cp.tipo}-${cp.canto}-${(data.mesa || []).length}-${data.tanteador?.humano}-${data.tanteador?.robot}`;
+      const nuevo = key !== ultimoCantoKey;
+      ultimoCantoKey = key;
+      const pts = (cp.puntos_quiero !== undefined && cp.puntos_no_quiero !== undefined)
+        ? `<span class="canto-pts">Si querés se juega ${cp.por_el_partido ? 'por el partido' : esc(cp.puntos_quiero)} · si no, Ottoman suma ${esc(cp.puntos_no_quiero)}</span>` : '';
+      zona.innerHTML = `
+        <div class="canto ${nuevo ? 'entra' : ''}" role="alert">
+          <span class="canto-quien">Ottoman te canta</span>
+          <p class="canto-que">¡${esc(nombreCanto(cp.canto))}!</p>
+          <div class="canto-resp">
+            ${pts}
+            <div class="canto-btns" id="alerta-botones">
+              ${cp.opciones.map(op => `<button type="button" class="btn-resp ${op === 'QUIERO' ? 'quiero' : op === 'NO_QUIERO' ? 'noquiero' : ''}" data-resp="${esc(op)}">${esc(ETIQUETA_RESPUESTA[op] || op)}</button>`).join('')}
+            </div>
+          </div>
+        </div>`;
+      zona.querySelectorAll('[data-resp]').forEach(b => b.addEventListener('click', () => responderCanto(b.dataset.resp)));
+      return;
+    }
+    ultimoCantoKey = null;
+    const frase = data.ultima_frase_robot || '¡Listo para jugar!';
+    zona.innerHTML = `
+      <div class="zocalo">
+        <div class="zocalo-tab"><b>Ottoman</b><small>Unitree G1</small></div>
+        <div class="zocalo-body">
+          <div class="frase"><q id="frase-robot">${esc(frase)}</q>${pruebaHTML(data.aprendizaje_ia?.ultimo_razonamiento)}</div>
+          <button type="button" class="repetir" id="btn-repetir" aria-label="Escuchar de nuevo" title="Escuchar de nuevo"><svg class="i"><use href="#i-vol"/></svg></button>
+        </div>
+      </div>`;
+    $('btn-repetir').addEventListener('click', repetirVozRobot);
+  }
+
+  function zocaloPensando() {
+    $('zona-zocalo').innerHTML = `
+      <div class="zocalo pensando">
+        <div class="zocalo-tab"><b>Ottoman</b><small>Pensando</small></div>
+        <div class="zocalo-body">
+          <div class="frase"><q>Mmm… dejame pensar.</q>
+            <div class="prueba"><span>Evaluando probabilidades de <b>474k manos</b> y tu perfil de juego</span></div>
+            <div class="escaneo"></div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ==================== RENDER: TU MANO Y CANTOS ====================
+  function renderMano(data) {
+    const div = $('mis-cartas');
     const disp = data.cartas_humano_disponibles || [];
     const puedeTirar = !data.mano_terminada && !data.canto_pendiente && data.turno_carta === 'humano';
-    disp.forEach(c => {
-      const btn = document.createElement('button');
-      btn.className = 'btn-naipe-mano';
-      btn.disabled = !puedeTirar;
-      btn.title = `${c.valor} de ${c.palo}`;
-      btn.innerHTML = `
-        <div class="carta-marco">
-          <img src="/cartas/${c.valor}_${c.palo}.png?v=fournier" alt="${c.valor} de ${c.palo}">
-        </div>
-      `;
-      btn.onclick = () => tirarCartaDirecta(c);
-      divMisCartas.appendChild(btn);
-    });
+    div.innerHTML = disp.length
+      ? disp.map((c, i) => `<button type="button" class="carta-btn" data-i="${i}" ${puedeTirar ? '' : 'disabled'} title="${esc(c.valor + ' de ' + c.palo)}" aria-label="Jugar ${esc(c.valor + ' de ' + c.palo)}">${naipeHTML(c)}</button>`).join('')
+      : `<span class="mano-vacia">${data.mano_terminada ? 'Repartí para la próxima mano.' : 'Sin cartas en la mano.'}</span>`;
+    div.querySelectorAll('.carta-btn').forEach(b => b.addEventListener('click', () => tirarCartaDirecta(disp[Number(b.dataset.i)])));
 
-    // Habilitar / deshabilitar botones de canto
+    $('tantos-vos').textContent = data.tantos_humano ?? '–';
+    const tv = $('turno-vos');
+    tv.className = 'turno' + (puedeTirar ? ' vos' : '');
+    tv.textContent = data.canto_pendiente ? 'Respondé' : puedeTirar ? 'Te toca' : 'Espera';
+    if (data.canto_pendiente) tv.className = 'turno vos';
+
     const envDisp = Boolean(data.envido_disponible);
-    document.getElementById('btn-envido').disabled = !envDisp;
-    document.getElementById('btn-real-envido').disabled = !envDisp;
-    document.getElementById('btn-falta-envido').disabled = !envDisp;
+    ['btn-envido', 'btn-real-envido', 'btn-falta-envido'].forEach(id => { $(id).disabled = !envDisp; });
 
-    const btnTruco = document.getElementById('btn-truco');
+    const btnTruco = $('btn-truco');
     if (data.siguiente_truco_humano && !data.mano_terminada && !data.canto_pendiente) {
       btnTruco.disabled = false;
-      const nombresTruco = { TRUCO: '¡Truco!', RETRUCO: '¡Quiero Retruco!', VALE_CUATRO: '¡Quiero Vale Cuatro!' };
-      btnTruco.textContent = nombresTruco[data.siguiente_truco_humano] || '¡Truco!';
+      btnTruco.textContent = NOMBRE_TRUCO_BTN[data.siguiente_truco_humano] || '¡Truco!';
     } else {
       btnTruco.disabled = true;
     }
-
-    document.getElementById('btn-mazo').disabled = Boolean(data.mano_terminada);
-
-    // Log
-    const trucoLog = document.getElementById('truco-log');
-    if (Array.isArray(data.log)) {
-      trucoLog.innerHTML = data.log.map(l => `<div style="padding:2px 0;">${l}</div>`).join('');
-    }
-
-    // Actualizar Selector de Arquitectura y Panel XAI en vivo
-    if (data.aprendizaje_ia) {
-      const ia = data.aprendizaje_ia;
-      const selModo = document.getElementById('sel-modo-ia');
-      if (selModo && ia.modo_agente && selModo.value !== ia.modo_agente) {
-        selModo.value = ia.modo_agente;
-      }
-      const subArq = document.getElementById('subtitulo-arquitectura');
-      if (subArq && ia.arquitectura_subtitulo) {
-        subArq.textContent = ia.arquitectura_subtitulo;
-      }
-
-      const divXai = document.getElementById('panel-xai-vivo');
-      if (divXai) {
-        const trazas = ia.traza_razonamiento || [];
-        if (trazas.length === 0) {
-          divXai.innerHTML = `
-            <div class="xai-header">
-              <span>🔍 Explicabilidad de la IA (XAI — Pensamiento Interno en Vivo)</span>
-              <span style="font-size:0.76rem; color:#94a3b8;">${ia.arquitectura_nombre || ''}</span>
-            </div>
-            <div style="color:#94a3b8; font-style:italic;">Esperando el próximo turno o decisión de Ottoman para mostrar su evaluación matemática...</div>
-          `;
-        } else {
-          const pasosHtml = trazas.slice(0, 4).map(t => {
-            const esFarol = (t.decision || '').includes('FAROL');
-            return `
-              <div class="xai-step">
-                <div class="xai-step-top">
-                  <b>⚙️ ${t.fase} <span style="color:#94a3b8; font-weight:400;">(${t.hora})</span></b>
-                  <span class="xai-badge-dec ${esFarol ? 'farol' : ''}">${t.decision}</span>
-                </div>
-                <div class="xai-meta-grid">
-                  <div><b>Métrica:</b> ${t.metrica}</div>
-                  <div><b>Criterio / Umbral:</b> ${t.umbral}</div>
-                  <div><b>Política de Engaño:</b> ${t.farol_info}</div>
-                </div>
-                <div class="xai-explicacion">💡 <i>${t.explicacion}</i></div>
-              </div>
-            `;
-          }).join('');
-          divXai.innerHTML = `
-            <div class="xai-header">
-              <span>🔍 Explicabilidad de la IA (XAI — Pensamiento Interno en Vivo)</span>
-              <span style="font-size:0.76rem; color:#94a3b8;">Modo activo: ${ia.arquitectura_nombre || ''}</span>
-            </div>
-            ${pasosHtml}
-          `;
-        }
-      }
-
-      renderizarEvolucionIA(ia);
-    }
+    $('btn-mazo').disabled = Boolean(data.mano_terminada);
+    $('btn-nueva-mano').disabled = false;
+    $('btn-nueva-mano').classList.toggle('llama', Boolean(data.mano_terminada) && !data.partido_terminado);
+    $('btn-capturar').disabled = false;
   }
 
-  async function cambiarModoIA() {
-    const modo = document.getElementById('sel-modo-ia').value;
-    const res = await fetch('/truco/modo_ia', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ modo })
+  // ==================== RENDER: FIN DE PARTIDO ====================
+  function renderFinal(data) {
+    const div = $('banner-fin-partido');
+    if (!data.partido_terminado) { div.hidden = true; div.innerHTML = ''; return; }
+    const st = data.estadisticas_partida || {};
+    const env = st.envido || {}, tru = st.truco || {};
+    const ganoHumano = data.ganador_partido === 'humano';
+    const total = (env.bluffs_intentados || 0) + (tru.bluffs_intentados || 0);
+    div.hidden = false;
+    div.className = 'final';
+    div.innerHTML = `
+      <div class="final-box" role="dialog" aria-labelledby="final-t">
+        <div class="final-cab ${ganoHumano ? 'vos' : 'ott'}">
+          <small>Final del partido</small>
+          <h2 id="final-t">${ganoHumano ? '¡Ganaste!' : 'Ganó Ottoman'}</h2>
+          <span class="final-score">Vos ${esc(data.tanteador.humano)} · Ottoman ${esc(data.tanteador.robot)}</span>
+        </div>
+        <div class="filas">
+          <div class="fila"><span>Manos jugadas</span><b>${st.manos_jugadas || 0}</b></div>
+          <div class="fila"><span>Veces que Ottoman mintió</span><b>${total}</b></div>
+          <div class="fila"><span>Faroles en envido · de ${env.cantados_robot || 0} cantos</span><b>${env.bluffs_intentados || 0} · pasaron ${env.bluffs_exitosos || 0} · descubiertos ${env.bluffs_descubiertos || 0}</b></div>
+          <div class="fila"><span>Faroles en truco · de ${tru.cantados_robot || 0} cantos</span><b>${tru.bluffs_intentados || 0} · pasaron ${tru.bluffs_exitosos || 0} · descubiertos ${tru.bluffs_descubiertos || 0}</b></div>
+        </div>
+        <button type="button" class="btn-canto repartir" id="btn-otra" style="justify-self:start"><svg class="i"><use href="#i-reset"/></svg>Jugar otro partido</button>
+      </div>`;
+    $('btn-otra').addEventListener('click', () => reiniciarPartido());
+  }
+
+  // ==================== RENDER: RIEL DE ANÁLISIS ====================
+  function renderAgentes(ia) {
+    const modos = (ia?.modos_disponibles && ia.modos_disponibles.length) ? ia.modos_disponibles : MODOS_RESPALDO;
+    const activo = ia?.modo_agente || 'aprendizaje';
+    const cont = $('agentes');
+    const firma = modos.map(m => m.codigo).join() + '|' + activo;
+    if (cont.dataset.firma === firma) { cont.querySelectorAll('.agente').forEach(b => { b.disabled = false; }); return; }
+    cont.dataset.firma = firma;
+    cont.innerHTML = modos.map((m, i) => `
+      <button type="button" class="agente" role="radio" aria-checked="${m.codigo === activo}" data-modo="${esc(m.codigo)}" tabindex="${m.codigo === activo ? 0 : -1}">
+        <span class="n">${i + 1}</span><b>${esc(m.nombre)}</b><small>${esc(m.subtitulo)}</small>
+      </button>`).join('');
+    const botones = [...cont.querySelectorAll('.agente')];
+    botones.forEach((b, i) => {
+      b.addEventListener('click', () => cambiarModoIA(b.dataset.modo));
+      b.addEventListener('keydown', (e) => {
+        if (!['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft'].includes(e.key)) return;
+        e.preventDefault();
+        const d = (e.key === 'ArrowDown' || e.key === 'ArrowRight') ? 1 : -1;
+        const sig = botones[(i + d + botones.length) % botones.length];
+        sig.focus(); cambiarModoIA(sig.dataset.modo);
+      });
     });
-    const d = await res.json();
-    if (d.estado) renderizarEstado(d.estado);
   }
 
+  function renderRiel(data) {
+    const ia = data.aprendizaje_ia;
+    renderAgentes(ia);
+    const st = data.estadisticas_partida || {};
+    const env = st.envido || {}, tru = st.truco || {};
+    $('barra-bluffs-vivo').querySelector('tbody').innerHTML = `
+      <tr><td>Envido</td><td>${env.bluffs_intentados || 0}</td><td>${env.bluffs_exitosos || 0}</td><td>${env.bluffs_descubiertos || 0}</td></tr>
+      <tr><td>Truco</td><td>${tru.bluffs_intentados || 0}</td><td>${tru.bluffs_exitosos || 0}</td><td>${tru.bluffs_descubiertos || 0}</td></tr>`;
+    if (!ia) return;
+    $('cuota-env').textContent = ia.prob_farol_envido_pct + ' %';
+    $('cuota-tru').textContent = ia.prob_farol_truco_pct + ' %';
+    $('barra-env').style.width = Math.min(100, ia.prob_farol_envido_pct / 40 * 100) + '%';
+    $('barra-tru').style.width = Math.min(100, ia.prob_farol_truco_pct / 40 * 100) + '%';
+    $('perfil-vivo').innerHTML = `Lectura de tu juego: <b>${esc(ia.perfil_humano_detectado)}</b>`;
+    $('xai-modo').textContent = ia.arquitectura_nombre || '';
+
+    const trazas = ia.traza_razonamiento || [];
+    $('panel-xai-vivo').innerHTML = trazas.length === 0
+      ? `<p class="vacio-txt">Cuando Ottoman tome su próxima decisión vas a ver acá la cuenta que hizo: métrica, umbral y si eligió mentir.</p>`
+      : trazas.slice(-8).map(t => {
+          const esFarol = String(t.decision || '').includes('FAROL');
+          return `<article class="paso">
+            <div class="paso-top"><span class="paso-fase">${esc(t.fase)}${t.hora ? `<small>${esc(t.hora)}</small>` : ''}</span><span class="paso-dec ${esFarol ? 'farol-dec' : ''}">${esc(t.decision)}</span></div>
+            ${t.metrica ? `<dl><dt>Métrica</dt><dd>${esc(t.metrica)}</dd><dt>Umbral</dt><dd>${esc(t.umbral)}</dd><dt>Engaño</dt><dd>${esc(t.farol_info)}</dd></dl>` : ''}
+            ${t.explicacion ? `<p>${esc(t.explicacion)}</p>` : ''}
+          </article>`;
+        }).join('');
+  }
+
+  function rielPensando() {
+    $('panel-xai-vivo').innerHTML = `
+      <div class="paso calc">
+        <div class="paso-top"><span class="paso-fase">Calculando la jugada</span><span class="paso-dec">3 s</span></div>
+        <p>Utilidad esperada de cada canto y de cada carta, contra el corpus de 474k manos y el perfil del rival.</p>
+        <div class="escaneo"></div>
+      </div>`;
+  }
+
+  // ==================== RENDER: LOG ====================
+  function renderLog(data) {
+    if (!Array.isArray(data.log)) return;
+    const ol = $('truco-log');
+    ol.innerHTML = '';
+    data.log.forEach(l => { const li = document.createElement('li'); li.textContent = l; ol.appendChild(li); });
+  }
+
+  // ==================== RENDER PRINCIPAL ====================
+  function renderizarEstado(data) {
+    if (!data) return;
+    estadoActual = data;
+    renderTanteador(data);
+    renderLadoOttoman(data);
+    renderBazas(data);
+    renderZocalo(data);
+    renderMano(data);
+    renderFinal(data);
+    renderRiel(data);
+    renderLog(data);
+    if (data.ultima_frase_robot) hablarRobot(data.ultima_frase_robot);
+    if (data.aprendizaje_ia && $('vista-stats').classList.contains('activa')) renderizarEvolucionIA(data.aprendizaje_ia);
+  }
+
+  // ==================== ESTADÍSTICAS ====================
   function renderizarEvolucionIA(ia) {
     if (!ia) return;
-    document.getElementById('badge-perfil-humano').textContent =
-      `Perfil detectado tuyo: ${ia.perfil_humano_detectado}`;
+    $('badge-perfil-humano').textContent = ia.perfil_humano_detectado;
 
-    const divKpis = document.getElementById('kpis-evolucion');
-    divKpis.innerHTML = `
-      <div class="kpi-card">
-        <div style="font-size:0.8rem; color:#64748b; font-weight:700;">🎭 CUOTA DE FAROL EN ENVIDO</div>
-        <div class="kpi-valor">${ia.prob_farol_envido_pct}%</div>
-        <div style="font-size:0.78rem; color:#475569;">Base inicial: 14.0% · Sube si decís "No quiero" seguido</div>
-      </div>
-      <div class="kpi-card">
-        <div style="font-size:0.8rem; color:#64748b; font-weight:700;">🔥 CUOTA DE FAROL EN TRUCO</div>
-        <div class="kpi-valor">${ia.prob_farol_truco_pct}%</div>
-        <div style="font-size:0.78rem; color:#475569;">Base inicial: 14.0% · Se adapta según tu respuesta al Truco</div>
-      </div>
-      <div class="kpi-card">
-        <div style="font-size:0.8rem; color:#64748b; font-weight:700;">🕵️ FAROLES DETECTADOS A VOS</div>
-        <div class="kpi-valor">${ia.bluffs_humano_detectados} (${ia.tasa_bluff_humano_pct}%)</div>
-        <div style="font-size:0.78rem; color:#475569;">Ajuste umbral de pago de Ottoman: ${ia.umbral_envido_offset >= 0 ? '+' : ''}${ia.umbral_envido_offset}</div>
-      </div>
-      <div class="kpi-card">
-        <div style="font-size:0.8rem; color:#64748b; font-weight:700;">🏆 HISTORIAL GENERAL</div>
-        <div class="kpi-valor">🤖 ${ia.victorias_robot} — ${ia.victorias_humano} 👤</div>
-        <div style="font-size:0.78rem; color:#475569;">${ia.partidas_jugadas} partidas finalizadas · ${ia.manos_totales} manos analizadas</div>
-      </div>
-    `;
+    const vr = ia.victorias_robot || 0, vh = ia.victorias_humano || 0, tot = vr + vh;
+    $('h2h-ott').textContent = vr;
+    $('h2h-vos').textContent = vh;
+    $('h2h-partidas').textContent = `${ia.partidas_jugadas} ${ia.partidas_jugadas === 1 ? 'partido' : 'partidos'}`;
+    $('split-ott').style.width = (tot ? vr / tot * 100 : 50) + '%';
+    $('split-vos').style.width = (tot ? vh / tot * 100 : 50) + '%';
+    $('h2h-manos').textContent = `${ia.manos_totales} manos analizadas`;
+    $('h2h-fold').textContent = `No quisiste: envido ${ia.tasa_fold_envido_humano_pct} % · truco ${ia.tasa_fold_truco_humano_pct} %`;
 
-    // Tabla de partidas históricas
+    const off = (v) => (v >= 0 ? '+' : '') + v;
+    $('kpis-evolucion').innerHTML = `
+      <div class="ficha-fila"><span>Cuota de farol en envido</span><b>${ia.prob_farol_envido_pct} %</b><small>Base inicial 14 %. Sube si decís “no quiero” seguido.</small></div>
+      <div class="ficha-fila"><span>Cuota de farol en truco</span><b>${ia.prob_farol_truco_pct} %</b><small>Base inicial 14 %. Se adapta a cómo respondés al truco.</small></div>
+      <div class="ficha-fila"><span>Faroles tuyos detectados</span><b>${ia.bluffs_humano_detectados} (${ia.tasa_bluff_humano_pct} %)</b><small>Ajuste del umbral para querer: envido ${off(ia.umbral_envido_offset)} · truco ${off(ia.umbral_truco_offset ?? 0)}</small></div>`;
+
     const partidas = ia.partidas || [];
-    const tbody = document.getElementById('tbody-historial');
+    const tbody = $('tbody-historial');
     if (partidas.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="color:#64748b;">Todavía no hay partidas finalizadas registradas. Cuando un jugador llegue a 15 o 30 puntos aparecerá acá.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7">Todavía no hay partidos terminados. Cuando alguien llegue a 15 o 30 puntos va a aparecer acá.</td></tr>`;
     } else {
       tbody.innerHTML = partidas.map(p => {
-        const ganTxt = p.ganador === 'robot'
-          ? `<b style="color:#dc2626;">🤖 Ottoman (${p.puntos_robot} - ${p.puntos_humano})</b>`
-          : `<b style="color:#16a34a;">👤 Vos (${p.puntos_humano} - ${p.puntos_robot})</b>`;
-        return `
-          <tr>
-            <td><b>#${p.id}</b></td>
-            <td>${p.fecha}</td>
-            <td>${ganTxt}</td>
-            <td>${p.manos_jugadas}</td>
-            <td><b>${p.bluffs_envido_intentados}</b> (✅ ${p.bluffs_envido_exitosos} / 🔍 ${p.bluffs_envido_descubiertos})</td>
-            <td><b>${p.bluffs_truco_intentados}</b> (✅ ${p.bluffs_truco_exitosos} / 🔍 ${p.bluffs_truco_descubiertos})</td>
-            <td>Farol Env: <b>${p.prob_farol_envido_post}%</b> · Farol Truco: <b>${p.prob_farol_truco_post}%</b></td>
-          </tr>
-        `;
+        const gR = p.ganador === 'robot';
+        return `<tr>
+          <td><span class="num-id">${esc(p.id)}</span></td>
+          <td>${esc(p.fecha)}</td>
+          <td><span class="res ${gR ? 'ott' : 'vos'}"><i></i>${gR ? 'Ottoman' : 'Vos'} ${esc(gR ? p.puntos_robot : p.puntos_humano)}–${esc(gR ? p.puntos_humano : p.puntos_robot)}</span></td>
+          <td>${esc(p.manos_jugadas)}</td>
+          <td><b>${esc(p.bluffs_envido_intentados)}</b> · ${esc(p.bluffs_envido_exitosos)} · ${esc(p.bluffs_envido_descubiertos)}</td>
+          <td><b>${esc(p.bluffs_truco_intentados)}</b> · ${esc(p.bluffs_truco_exitosos)} · ${esc(p.bluffs_truco_descubiertos)}</td>
+          <td>Envido <b>${esc(p.prob_farol_envido_post)} %</b> · Truco <b>${esc(p.prob_farol_truco_post)} %</b></td>
+        </tr>`;
       }).join('');
     }
 
-    // Gráfico SVG de la curva de evolución
-    const divGraf = document.getElementById('grafico-evolucion');
-    const cronologico = [...partidas].reverse();
-    const puntosSerie = [
+    // Curva de evolución: cada partido a la misma escala, sobre una misma línea de base
+    const cron = [...partidas].reverse();
+    const serie = [
       { label: 'Inicio', env: 14.0, tru: 14.0 },
-      ...cronologico.map(p => ({
-        label: `#${p.id}`,
-        env: p.prob_farol_envido_post,
-        tru: p.prob_farol_truco_post
-      })),
-      { label: 'Actual', env: ia.prob_farol_envido_pct, tru: ia.prob_farol_truco_pct }
+      ...cron.map(p => ({ label: `#${p.id}`, env: p.prob_farol_envido_post, tru: p.prob_farol_truco_post })),
+      { label: 'Ahora', env: ia.prob_farol_envido_pct, tru: ia.prob_farol_truco_pct }
     ];
-
-    const W = 720, H = 170, padX = 48, padY = 24;
-    const maxY = 40.0;
-    const stepX = (W - padX * 2) / Math.max(1, puntosSerie.length - 1);
-    const coordY = v => (H - padY) - (Math.min(maxY, Math.max(0, v)) / maxY) * (H - padY * 2);
-
-    const ptsEnv = puntosSerie.map((pt, i) => `${padX + i * stepX},${coordY(pt.env)}`).join(' ');
-    const ptsTru = puntosSerie.map((pt, i) => `${padX + i * stepX},${coordY(pt.tru)}`).join(' ');
-
-    const nodos = puntosSerie.map((pt, i) => {
-      const cx = padX + i * stepX;
-      return `
-        <circle cx="${cx}" cy="${coordY(pt.env)}" r="4" fill="#0284c7"/>
-        <circle cx="${cx}" cy="${coordY(pt.tru)}" r="4" fill="#d97706"/>
-        <text x="${cx}" y="${H - 6}" text-anchor="middle" font-size="10" fill="#475569">${pt.label}</text>
-      `;
-    }).join('');
-
-    divGraf.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" width="100%" height="175" xmlns="http://www.w3.org/2000/svg">
-        <line x1="${padX}" y1="${coordY(0)}" x2="${W - padX}" y2="${coordY(0)}" stroke="#cbd5e1" stroke-width="1"/>
-        <line x1="${padX}" y1="${coordY(14)}" x2="${W - padX}" y2="${coordY(14)}" stroke="#94a3b8" stroke-dasharray="4 3" stroke-width="1"/>
-        <line x1="${padX}" y1="${coordY(30)}" x2="${W - padX}" y2="${coordY(30)}" stroke="#e2e8f0" stroke-width="1"/>
-        <text x="${padX - 6}" y="${coordY(0) + 3}" text-anchor="end" font-size="10" fill="#64748b">0%</text>
-        <text x="${padX - 6}" y="${coordY(14) + 3}" text-anchor="end" font-size="10" fill="#64748b">14%</text>
-        <text x="${padX - 6}" y="${coordY(30) + 3}" text-anchor="end" font-size="10" fill="#64748b">30%</text>
-        <polyline fill="none" stroke="#0284c7" stroke-width="2.5" points="${ptsEnv}"/>
-        <polyline fill="none" stroke="#d97706" stroke-width="2.5" points="${ptsTru}"/>
-        ${nodos}
-        <rect x="${W - 250}" y="4" width="10" height="10" fill="#0284c7"/>
-        <text x="${W - 235}" y="13" font-size="11" fill="#1e293b">% Farol Envido</text>
-        <rect x="${W - 135}" y="4" width="10" height="10" fill="#d97706"/>
-        <text x="${W - 120}" y="13" font-size="11" fill="#1e293b">% Farol Truco</text>
-      </svg>
-    `;
+    const W = 960, H = 260, pl = 46, pr = 64, pt = 16, pb = 34, maxY = 40;
+    const stepX = (W - pl - pr) / Math.max(1, serie.length - 1);
+    const x = i => pl + i * stepX;
+    const y = v => pt + (1 - Math.min(maxY, Math.max(0, v)) / maxY) * (H - pt - pb);
+    const linea = k => serie.map((p, i) => `${x(i).toFixed(1)},${y(p[k]).toFixed(1)}`).join(' ');
+    const cadaN = Math.max(1, Math.ceil(serie.length / 14));
+    const grid = [0, 10, 20, 30, 40].map(v => `
+      <line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line-soft)" stroke-width="1"/>
+      <text x="${pl - 10}" y="${y(v) + 4}" text-anchor="end" font-size="12" fill="var(--txt-3)">${v}%</text>`).join('');
+    const etiquetas = serie.map((p, i) => (i % cadaN === 0 || i === serie.length - 1)
+      ? `<text x="${x(i)}" y="${H - 10}" text-anchor="middle" font-size="12" fill="var(--txt-3)">${esc(p.label)}</text>` : '').join('');
+    const nodos = k => serie.map((p, i) => `<circle cx="${x(i)}" cy="${y(p[k])}" r="${i === serie.length - 1 ? 5 : 3}" fill="${k === 'env' ? 'var(--txt)' : 'var(--ott)'}"/>`).join('');
+    const ult = serie[serie.length - 1];
+    // Etiquetas finales separadas al menos 16px aunque los valores coincidan
+    let yEnv = y(ult.env), yTru = y(ult.tru);
+    if (Math.abs(yEnv - yTru) < 16) { const m = (yEnv + yTru) / 2; const envArriba = ult.env >= ult.tru; yEnv = m + (envArriba ? -8 : 8); yTru = m + (envArriba ? 8 : -8); }
+    $('grafico-evolucion').innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cuota de farol en envido y truco a lo largo de los partidos">
+        ${grid}
+        <line x1="${pl}" x2="${W - pr}" y1="${y(14)}" y2="${y(14)}" stroke="var(--txt-3)" stroke-dasharray="5 4" stroke-width="1"/>
+        <text x="${pl + 6}" y="${y(14) - 6}" font-size="12" fill="var(--txt-3)">base 14%</text>
+        <polyline fill="none" stroke="var(--txt)" stroke-width="2.5" stroke-linejoin="round" points="${linea('env')}"/>
+        <polyline fill="none" stroke="var(--ott)" stroke-width="2.5" stroke-linejoin="round" points="${linea('tru')}"/>
+        ${nodos('env')}${nodos('tru')}
+        <text x="${x(serie.length - 1) + 12}" y="${yEnv + 4}" font-size="13" font-weight="700" fill="var(--txt)">${esc(ult.env)}%</text>
+        <text x="${x(serie.length - 1) + 12}" y="${yTru + 4}" font-size="13" font-weight="700" fill="var(--ott)">${esc(ult.tru)}%</text>
+        ${etiquetas}
+      </svg>`;
   }
 
-  let ottomanPensando = false;
-
+  // ==================== PENSAMIENTO DE OTTOMAN ====================
   function bloquearControlesMesa(bloquear) {
-    const ids = ['btn-envido', 'btn-real-envido', 'btn-falta-envido', 'btn-truco', 'btn-mazo', 'btn-nueva-mano', 'btn-capturar'];
-    ids.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.disabled = bloquear;
-    });
-    document.querySelectorAll('#mis-cartas button, #alerta-botones button').forEach(b => {
-      b.disabled = bloquear;
-    });
+    ['btn-envido', 'btn-real-envido', 'btn-falta-envido', 'btn-truco', 'btn-mazo', 'btn-nueva-mano', 'btn-capturar']
+      .forEach(id => { const el = $(id); if (el) el.disabled = bloquear; });
+    document.querySelectorAll('#mis-cartas button, #alerta-botones button, .agente').forEach(b => { b.disabled = bloquear; });
   }
 
   async function simularPensamientoOttoman(cartaRecienJugadaHumano = null) {
-    ottomanPensando = true;
     bloquearControlesMesa(true);
 
-    // Si el humano acaba de tirar una carta, mostrarla de inmediato en el paño antes del delay de Ottoman
+    // Mostrar al instante la carta que acaba de tirar el humano, antes de la pausa de Ottoman
     if (cartaRecienJugadaHumano && estadoActual) {
-      const rondaAct = estadoActual.ronda || 1;
-      const cols = document.querySelectorAll('#mesa-cartas .baza-col');
-      const colBaza = cols[rondaAct - 1];
-      if (colBaza) {
-        let wrap = colBaza.querySelector('.baza-cartas-wrap');
-        if (!wrap) {
-          colBaza.innerHTML = `<div class="baza-titulo">${rondaAct}ra Baza</div>`;
-          wrap = document.createElement('div');
-          wrap.className = 'baza-cartas-wrap';
-          colBaza.appendChild(wrap);
-        }
-        const item = document.createElement('div');
-        item.className = 'naipe-mesa-item';
-        item.innerHTML = `
-          <span class="naipe-mesa-tag humano">👤 Vos</span>
-          <div class="naipe-mesa-svg">
-            <img src="/cartas/${cartaRecienJugadaHumano.valor}_${cartaRecienJugadaHumano.palo}.png?v=fournier" alt="${cartaRecienJugadaHumano.valor} de ${cartaRecienJugadaHumano.palo}">
-          </div>
-        `;
-        wrap.appendChild(item);
+      const ronda = estadoActual.ronda || 1;
+      const baza = document.querySelectorAll('#mesa-cartas .baza')[ronda - 1];
+      const slot = baza?.querySelector('.slot.vos');
+      if (slot) {
+        const c = cartaRecienJugadaHumano;
+        slot.className = 'slot vos llega';
+        slot.innerHTML = `${naipeHTML(c)}<span class="who">Vos</span>`;
+        cartasVistas.add(`${ronda}-humano-${c.valor}_${c.palo}`);
       }
-      // Quitar visualmente la carta jugada de la mano del humano
-      document.querySelectorAll('#mis-cartas .btn-naipe-mano').forEach(btn => {
-        if (btn.title === `${cartaRecienJugadaHumano.valor} de ${cartaRecienJugadaHumano.palo}`) {
-          btn.remove();
-        }
+      document.querySelectorAll('#mis-cartas .carta-btn').forEach(btn => {
+        if (btn.title === `${cartaRecienJugadaHumano.valor} de ${cartaRecienJugadaHumano.palo}`) btn.remove();
       });
     }
 
-    const burbuja = document.querySelector('.burbuja-robot');
-    const fraseEl = document.getElementById('frase-robot');
-    if (burbuja) burbuja.classList.add('pensando');
-    if (fraseEl) fraseEl.innerHTML = '🤔 <b>Pensando...</b> <i>(analizando la próxima jugada)</i>';
+    zocaloPensando();
+    rielPensando();
     hablarRobot('Pensando', true);
-
-    const divXai = document.getElementById('panel-xai-vivo');
-    if (divXai) {
-      divXai.innerHTML = `
-        <div class="xai-header">
-          <span>🧠 Ottoman está pensando su próxima jugada...</span>
-          <span style="font-size:0.76rem; color:#38bdf8;">Evaluando probabilidades (474k manos) y perfil del rival</span>
-        </div>
-        <div style="color:#cbd5e1; font-style:italic;">Calculando utilidad esperada de cantos y selección de carta (3 seg)...</div>
-      `;
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    if (burbuja) burbuja.classList.remove('pensando');
-    ottomanPensando = false;
+    await espera(3000);
   }
 
-  async function renderizarConPensamientoSiJuegaOttoman(estadoNuevo, forzarPensamiento = false) {
-    if (!estadoNuevo) return;
-    if (forzarPensamiento) {
-      await simularPensamientoOttoman();
+  async function accion(fn, { pensar = true, carta = null } = {}) {
+    if (ocupado) return;
+    ocupado = true;
+    try {
+      if (pensar) await simularPensamientoOttoman(carta);
+      const d = await fn();
+      if (d && d.estado) renderizarEstado(d.estado);
+      else await actualizarEstadoTruco(true);
+      return d;
+    } catch (e) {
+      detInfo.innerHTML = `<span class="err">Se cortó la comunicación con el servidor (${esc(e)}). Revisá que servidor_truco.py siga abierto.</span>`;
+      await actualizarEstadoTruco(true);
+    } finally {
+      ocupado = false;
     }
-    renderizarEstado(estadoNuevo);
   }
 
-  async function actualizarEstadoTruco() {
+  async function actualizarEstadoTruco(forzar = false) {
+    if (ocupado && !forzar) return;
     try {
       const res = await fetch('/truco/estado');
-      const data = await res.json();
-      renderizarEstado(data);
+      renderizarEstado(await res.json());
     } catch (e) {}
   }
 
-  async function tirarCartaDirecta(carta) {
-    if (ottomanPensando) return;
-    await simularPensamientoOttoman(carta);
-    const res = await fetch('/truco/jugar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ carta })
-    });
-    const d = await res.json();
-    if (d.estado) renderizarEstado(d.estado);
-    else actualizarEstadoTruco();
-  }
-
-  async function cantarEnvido(canto) {
-    if (ottomanPensando) return;
-    await simularPensamientoOttoman();
-    const res = await fetch('/truco/envido', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ canto })
-    });
-    const d = await res.json();
-    if (d.estado) renderizarEstado(d.estado);
-    else actualizarEstadoTruco();
-  }
-
-  async function cantarTruco() {
-    if (ottomanPensando) return;
-    await simularPensamientoOttoman();
-    const res = await fetch('/truco/truco', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
-    });
-    const d = await res.json();
-    if (d.estado) renderizarEstado(d.estado);
-    else actualizarEstadoTruco();
-  }
-
-  async function responderCanto(respuesta) {
-    if (ottomanPensando) return;
-    await simularPensamientoOttoman();
-    const res = await fetch('/truco/responder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ respuesta })
-    });
-    const d = await res.json();
-    if (d.estado) renderizarEstado(d.estado);
-    else actualizarEstadoTruco();
-  }
-
-  async function irseAlMazo() {
-    if (ottomanPensando) return;
-    const res = await fetch('/truco/mazo', { method: 'POST' });
-    const d = await res.json();
-    if (d.estado) renderizarEstado(d.estado);
-    else actualizarEstadoTruco();
-  }
+  const tirarCartaDirecta = (carta) => accion(() => postJSON('/truco/jugar', { carta }), { carta });
+  const cantarEnvido = (canto) => accion(() => postJSON('/truco/envido', { canto }));
+  const cantarTruco = () => accion(() => postJSON('/truco/truco', {}));
+  const responderCanto = (respuesta) => accion(() => postJSON('/truco/responder', { respuesta }));
+  const irseAlMazo = () => accion(() => postJSON('/truco/mazo'), { pensar: false });
 
   async function nuevaMano() {
-    if (ottomanPensando) return;
-    const res = await fetch('/truco/nuevo', { method: 'POST' });
-    const d = await res.json();
-    if (d.estado) {
-      // Si en la nueva mano Ottoman es mano y juega primero, simular los 3 seg de "Pensando..." antes de mostrar su jugada
-      if (d.estado.es_mano === 'robot') {
-        const estadoPreJugada = {
-          ...d.estado,
-          mesa: [],
-          canto_pendiente: null,
-          ultima_frase_robot: 'Pensando...'
-        };
-        renderizarEstado(estadoPreJugada);
-        await simularPensamientoOttoman();
+    if (ocupado) return;
+    ocupado = true;
+    try {
+      const d = await postJSON('/truco/nuevo');
+      if (d.estado) {
+        // Si Ottoman es mano y juega primero, mostrar su pausa de 3 s antes de su jugada
+        if (d.estado.es_mano === 'robot') {
+          renderizarEstado({ ...d.estado, mesa: [], canto_pendiente: null, ultima_frase_robot: 'Pensando...' });
+          await simularPensamientoOttoman();
+        }
+        renderizarEstado(d.estado);
+      } else {
+        await actualizarEstadoTruco(true);
       }
-      renderizarEstado(d.estado);
-    } else {
-      actualizarEstadoTruco();
+    } catch (e) {
+      await actualizarEstadoTruco(true);
+    } finally {
+      ocupado = false;
     }
   }
 
-  async function reiniciarPartido() {
-    if (ottomanPensando) return;
-    const meta = parseInt(document.getElementById('sel-meta').value, 10) || 15;
-    const res = await fetch('/truco/reiniciar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ meta_puntos: meta })
-    });
-    const d = await res.json();
-    if (d.estado) renderizarEstado(d.estado);
-    else actualizarEstadoTruco();
+  async function reiniciarPartido(meta = metaElegida) {
+    await accion(() => postJSON('/truco/reiniciar', { meta_puntos: meta }), { pensar: false });
   }
 
-  function cambiarMetaPuntos() {
-    reiniciarPartido();
+  async function cambiarModoIA(modo) {
+    if (ocupado || modo === estadoActual?.aprendizaje_ia?.modo_agente) return;
+    await accion(() => postJSON('/truco/modo_ia', { modo }), { pensar: false });
   }
 
+  document.querySelectorAll('[data-envido]').forEach(b => b.addEventListener('click', () => cantarEnvido(b.dataset.envido)));
+  $('btn-truco').addEventListener('click', cantarTruco);
+  $('btn-mazo').addEventListener('click', irseAlMazo);
+  $('btn-nueva-mano').addEventListener('click', nuevaMano);
+  $('btn-reiniciar').addEventListener('click', () => reiniciarPartido());
+  document.querySelectorAll('.sb-goal .seg button').forEach(b => b.addEventListener('click', () => {
+    const m = Number(b.dataset.meta);
+    reiniciarPartido(m);
+  }));
+
+  // ==================== VOZ EN LA MESA ====================
   async function enviarVozMesa(texto) {
-    if (!texto || ottomanPensando) return;
-    detInfo.innerHTML = `🎤 Dijiste: <b>"${texto}"</b>`;
-    await simularPensamientoOttoman();
-    const res = await fetch('/truco/voz', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ texto })
-    });
-    const d = await res.json();
-    if (d.error) {
-      detInfo.innerHTML = `<span style="color:#dc2626;">${d.error}</span>`;
-    }
-    if (d.estado) renderizarEstado(d.estado);
-    else actualizarEstadoTruco();
+    if (!texto || ocupado) return;
+    detInfo.innerHTML = `Dijiste: <b>“${esc(texto)}”</b>`;
+    const d = await accion(() => postJSON('/truco/voz', { texto }));
+    if (d && d.error) detInfo.innerHTML = `<span class="err">${esc(d.error)}</span>`;
   }
 
-  document.getElementById('form-voz-mesa').addEventListener('submit', (e) => {
+  $('form-voz-mesa').addEventListener('submit', (e) => {
     e.preventDefault();
-    const inp = document.getElementById('input-voz-mesa');
+    const inp = $('input-voz-mesa');
     const txt = inp.value.trim();
     if (!txt) return;
     enviarVozMesa(txt);
     inp.value = '';
   });
 
-  // Reconocimiento de voz para la Mesa de Truco y para Control Libre
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  // Botón "mantener para hablar": mouse, touch y teclado
+  function pulsador(boton, { empezar, parar }) {
+    let activo = false;
+    const on = (e) => { if (activo) return; activo = true; e?.preventDefault?.(); empezar(); };
+    const off = () => { if (!activo) return; activo = false; parar(); };
+    boton.addEventListener('pointerdown', (e) => { if (e.button > 0) return; boton.setPointerCapture?.(e.pointerId); on(e); });
+    boton.addEventListener('pointerup', off);
+    boton.addEventListener('pointercancel', off);
+    boton.addEventListener('lostpointercapture', off);
+    boton.addEventListener('contextmenu', (e) => e.preventDefault());
+    boton.addEventListener('keydown', (e) => { if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) { e.preventDefault(); on(); } });
+    boton.addEventListener('keyup', (e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); off(); } });
+    boton.addEventListener('blur', off);
+  }
+
   let recMesa = null;
   if (SpeechRec) {
     recMesa = new SpeechRec();
     recMesa.continuous = false;
     recMesa.interimResults = false;
     recMesa.lang = 'es-AR';
-    recMesa.onresult = (e) => {
-      const texto = e.results[0][0].transcript;
-      enviarVozMesa(texto);
-    };
+    recMesa.onresult = (e) => enviarVozMesa(e.results[0][0].transcript);
+    recMesa.onerror = (e) => { detInfo.innerHTML = `<span class="err">Micrófono: ${esc(e.error)}</span>`; };
   }
+  const btnVozMesa = $('btn-voz-mesa');
+  pulsador(btnVozMesa, {
+    empezar() {
+      if (!recMesa) { detInfo.textContent = 'Para hablar usá Chrome o Edge: este navegador no reconoce voz.'; return; }
+      btnVozMesa.classList.add('escuchando');
+      $('ptt-mesa-t').textContent = 'Te escucho…';
+      try { recMesa.start(); } catch {}
+    },
+    parar() {
+      if (!btnVozMesa.classList.contains('escuchando')) return;
+      btnVozMesa.classList.remove('escuchando');
+      $('ptt-mesa-t').textContent = 'Mantené para hablar';
+      try { recMesa.stop(); } catch {}
+    }
+  });
 
-  const btnVozMesa = document.getElementById('btn-voz-mesa');
-  function empezarVozMesa() {
-    if (!recMesa) { detInfo.textContent = 'Usá Chrome o Edge para reconocimiento de voz.'; return; }
-    btnVozMesa.classList.add('escuchando');
-    btnVozMesa.textContent = '🔴 Escuchando tu canto o jugada...';
-    try { recMesa.start(); } catch {}
-  }
-  function pararVozMesa() {
-    if (!btnVozMesa.classList.contains('escuchando')) return;
-    btnVozMesa.classList.remove('escuchando');
-    btnVozMesa.textContent = '🎤 Mantené presionado para hablar en la mesa';
-    try { recMesa.stop(); } catch {}
-  }
-  btnVozMesa.addEventListener('mousedown', empezarVozMesa);
-  btnVozMesa.addEventListener('mouseup', pararVozMesa);
-  btnVozMesa.addEventListener('mouseleave', pararVozMesa);
-
-  // ==================== CONTROL LIBRE POR VOZ ====================
-  const boton = document.getElementById('hablar');
-  const estado = document.getElementById('estado');
-  const log = document.getElementById('log');
-  function idiomaElegido() {
-    return document.querySelector('input[name="idioma"]:checked')?.value || 'es-AR';
-  }
+  // ==================== CONTROL LIBRE DEL G1 ====================
+  const boton = $('hablar');
+  const estado = $('estado');
+  const log = $('log');
+  let idioma = 'es-AR';
+  document.querySelectorAll('[data-idioma]').forEach(b => b.addEventListener('click', () => {
+    idioma = b.dataset.idioma;
+    document.querySelectorAll('[data-idioma]').forEach(x => {
+      const on = x.dataset.idioma === idioma;
+      x.setAttribute('aria-checked', on); x.setAttribute('aria-pressed', on);
+    });
+  }));
 
   let reconocimiento = null;
   if (SpeechRec) {
     reconocimiento = new SpeechRec();
     reconocimiento.continuous = false;
     reconocimiento.interimResults = false;
-    reconocimiento.onresult = (e) => {
-      const texto = e.results[0][0].transcript;
-      enviarComandoLibre(texto, idiomaElegido());
-    };
+    reconocimiento.onresult = (e) => enviarComandoLibre(e.results[0][0].transcript, idioma);
     reconocimiento.onerror = (e) => { estado.textContent = `Error del micrófono: ${e.error}`; };
   }
+  pulsador(boton, {
+    empezar() {
+      if (!reconocimiento) { estado.textContent = 'Tu navegador no reconoce voz. Usá Chrome o Edge, o escribí la orden.'; return; }
+      reconocimiento.lang = idioma;
+      boton.classList.add('escuchando');
+      $('ptt-libre-t').textContent = 'Escuchando…';
+      estado.textContent = 'Escuchando la orden para Ottoman…';
+      try { reconocimiento.start(); } catch {}
+    },
+    parar() {
+      if (!boton.classList.contains('escuchando')) return;
+      boton.classList.remove('escuchando');
+      $('ptt-libre-t').textContent = 'Mantené para ordenar';
+      try { reconocimiento.stop(); } catch {}
+    }
+  });
 
-  function empezar() {
-    if (!reconocimiento) { estado.textContent = 'Tu navegador no soporta reconocimiento de voz.'; return; }
-    reconocimiento.lang = idiomaElegido();
-    boton.classList.add('escuchando');
-    estado.textContent = 'Escuchando orden para Ottoman...';
-    try { reconocimiento.start(); } catch {}
-  }
-  function parar() {
-    if (!boton.classList.contains('escuchando')) return;
-    boton.classList.remove('escuchando');
-    try { reconocimiento.stop(); } catch {}
-  }
-  boton.addEventListener('mousedown', empezar);
-  boton.addEventListener('mouseup', parar);
-  boton.addEventListener('mouseleave', parar);
-
-  document.getElementById('form-texto').addEventListener('submit', (e) => {
+  $('form-texto').addEventListener('submit', (e) => {
     e.preventDefault();
-    const campo = document.getElementById('texto-manual');
+    const campo = $('texto-manual');
     const texto = campo.value.trim();
     if (!texto) return;
-    enviarComandoLibre(texto, idiomaElegido());
+    enviarComandoLibre(texto, idioma);
     campo.value = '';
   });
 
-  async function enviarComandoLibre(texto, idioma = 'es-AR') {
-    estado.textContent = `Orden enviada: "${texto}"`;
+  document.querySelectorAll('.sw').forEach(b => b.addEventListener('click', () => {
+    b.classList.add('flash');
+    setTimeout(() => b.classList.remove('flash'), 350);
+    enviarComandoLibre(b.dataset.cmd);
+  }));
+
+  async function enviarComandoLibre(texto, idiomaCmd = 'es-AR') {
+    estado.textContent = `Orden enviada: “${texto}”`;
     try {
-      const resp = await fetch('/comando', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texto, idioma }),
-      });
-      const r = await resp.json();
+      const r = await postJSON('/comando', { texto, idioma: idiomaCmd });
       agregarLog(texto, r);
     } catch (err) {
-      agregarLog(texto, { tipo: 'ERROR', mensaje: String(err) });
+      agregarLog(texto, { tipo: 'ERROR', mensaje: String(err), bloqueado: true });
     }
   }
 
   function agregarLog(texto, r) {
-    const fila = document.createElement('div');
-    fila.className = 'fila';
-    let clase = 'ejecutado';
-    if (r.bloqueado) clase = 'bloqueado';
-    else if (r.tipo === 'DESCONOCIDO') clase = 'desconocido';
-    fila.innerHTML = `<b>"${texto}"</b> → ${r.tipo || '?'} <span class="${clase}">${r.mensaje || ''}</span>`;
-    log.prepend(fila);
+    $('log-vacio')?.remove();
+    const li = document.createElement('li');
+    let clase = 'ok', rot = 'Hecho';
+    if (r.bloqueado) { clase = 'bloq'; rot = r.tipo === 'ERROR' ? 'Error' : 'Bloqueada'; }
+    else if (r.tipo === 'DESCONOCIDO') { clase = 'desc'; rot = 'No entendí'; }
+    li.innerHTML = `<span class="st ${clase}">${rot}</span><q>${esc(texto)}</q><small>${esc(r.tipo || '?')} · ${esc(r.mensaje || '')}</small>`;
+    log.prepend(li);
   }
 
-  setInterval(actualizarEstadoTruco, 2000);
+
+  // cajón de análisis
+  (() => {
+    const cajon = $('cajon'), abrir = $('abrir-cajon');
+    const set = (on) => {
+      cajon.dataset.abierto = on;
+      abrir.setAttribute('aria-expanded', on);
+      abrir.querySelector('span').textContent = on ? 'Ocultar análisis' : 'Ver análisis';
+    };
+    abrir.addEventListener('click', () => set(cajon.dataset.abierto !== 'true'));
+    $('cerrar-cajon').addEventListener('click', () => { set(false); abrir.focus(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && cajon.dataset.abierto === 'true') { set(false); abrir.focus(); } });
+  })();
+
+  setInterval(() => actualizarEstadoTruco(), 2000);
   actualizarEstadoTruco();
 </script>
+
 </body>
 </html>
