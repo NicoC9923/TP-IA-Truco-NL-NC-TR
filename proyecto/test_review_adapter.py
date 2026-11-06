@@ -24,3 +24,26 @@ class AdapterReviewTests(unittest.TestCase):
         cards = [{'valor': v, 'palo': p} for v,p in hand]
         expected = direct.agent.responder_envido(cards, 'FALTA_ENVIDO', False, puntos_acumulados_no_quiero=3, puntos_humano=23, puntos_robot=11, meta_puntos=30)[0].lower()
         self.assertEqual(adapter(obs, ('quiero', 'no_quiero')), expected)
+    def test_adapter_agrees_with_human_match_envido_response(self):
+        import contextlib, io, random, tempfile
+        from pathlib import Path
+        from partida_truco import PartidaTruco
+        with tempfile.TemporaryDirectory() as d, contextlib.redirect_stdout(io.StringIO()):
+            human = PartidaTruco(meta_puntos=30, historial_path=str(Path(d, 'history.json')), rng=random.Random(3))
+            human.puntos_humano, human.puntos_robot = 23, 11
+            cards = tuple((c['valor'], c['palo']) for c in human.cartas_robot)
+            policy = ReactivePolicy(3)
+            policy.agent = human.ia
+            state = human.ia.rng.getstate()
+            actual = []
+            original = human.ia.responder_envido
+            def record(*args, **kwargs):
+                result = original(*args, **kwargs)
+                actual.append(result[0].lower())
+                return result
+            with patch.object(human.ia, 'responder_envido', side_effect=record):
+                human.cantar_envido_humano('FALTA_ENVIDO')
+            expected = actual[0]
+            human.ia.rng.setstate(state)
+            obs = dict(hand=cards, available=(0,1,2), pending=dict(kind='envido', call='falta_envido', declined=1), table=(), tricks=(), player=1, mano=0, score=(23,11), target=30)
+            self.assertEqual(policy(obs, ('quiero', 'no_quiero')), expected)
