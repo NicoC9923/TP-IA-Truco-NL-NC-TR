@@ -26,3 +26,7 @@ Thumbs.db
 
 # Dataset crudo de 79.000 repartos (>100 MB); se versiona truco_stats.json
 T1K22.json
+
+# Historial local y respaldos de partidas
+proyecto/historial_partidas.json
+proyecto/historial_partidas.json.*.bak

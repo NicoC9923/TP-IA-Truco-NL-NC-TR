@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import base64
+import contextlib
+import io
+import json
+import shutil
+import subprocess
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 PROYECTO_DIR = Path(__file__).resolve().parent
 RAIZ_DIR = PROYECTO_DIR.parent
@@ -29,6 +35,39 @@ class TestTrucoReglasYMotor(unittest.TestCase):
 
     def tearDown(self):
         self._tmpdir.cleanup()
+
+    def test_historial_corrupto_se_respalda_y_usa_valores_iniciales(self):
+        ruta = Path(self.tmp_hist)
+        ruta.write_text('{incompleto', encoding='utf-8')
+        salida = io.StringIO()
+        with contextlib.redirect_stdout(salida):
+            partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        respaldos = list(ruta.parent.glob(ruta.name + '.*.bak'))
+        self.assertEqual(len(respaldos), 1)
+        self.assertEqual(respaldos[0].read_text(encoding='utf-8'), '{incompleto')
+        self.assertEqual(partida.ia.resumen_aprendizaje()['partidas_jugadas'], 0)
+        self.assertTrue(salida.getvalue())
+
+    def test_error_al_guardar_conserva_el_historial_y_avisa(self):
+        ruta = Path(self.tmp_hist)
+        original = '{"parametros_ia": {}, "partidas": []}'
+        ruta.write_text(original, encoding='utf-8')
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        salida = io.StringIO()
+        with patch('os.replace', side_effect=OSError('falló el reemplazo')):
+            with contextlib.redirect_stdout(salida):
+                partida.ia.guardar_historial()
+        self.assertEqual(ruta.read_text(encoding='utf-8'), original)
+        self.assertIn('falló el reemplazo', salida.getvalue())
+        self.assertEqual(list(ruta.parent.iterdir()), [ruta])
+
+    def test_primera_ejecucion_crea_historial_desde_semilla(self):
+        carpeta = Path(self._tmpdir.name)
+        for nombre in ('partida_truco.py', 'truco_ia.py', 'truco_reglas.py', 'historial_truco.py', 'truco_stats.json', 'historial_partidas.seed.json'):
+            shutil.copy(PROYECTO_DIR / nombre, carpeta / nombre)
+        subprocess.run([sys.executable, '-c', 'from partida_truco import PartidaTruco; PartidaTruco(robot=None)'], cwd=carpeta, check=True, capture_output=True)
+        historial = carpeta / 'historial_partidas.json'
+        self.assertEqual(json.loads(historial.read_text(encoding='utf-8')), json.loads((carpeta / 'historial_partidas.seed.json').read_text(encoding='utf-8')))
 
     def test_jerarquia_cartas(self):
         self.assertGreater(tr.valor_carta_truco(1, "Espada"), tr.valor_carta_truco(1, "Basto"))
@@ -177,6 +216,8 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual(len(resumen["partidas"]), 1)
         self.assertEqual(resumen["partidas"][0]["bluffs_truco_intentados"], 3)
         self.assertAlmostEqual(ia2.prob_farol_truco, ia.prob_farol_truco, places=3)
+        self.assertEqual(len(json.loads(Path(self.tmp_hist).read_text(encoding='utf-8'))['partidas']), 1)
+        self.assertEqual(list(Path(self._tmpdir.name).iterdir()), [Path(self.tmp_hist)])
 
     def test_escena_mesa_truco_y_animacion_repartiendo(self):
         ruta = Path(G1.ruta_escena())
