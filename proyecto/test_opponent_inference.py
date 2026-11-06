@@ -51,3 +51,34 @@ def tantos(hand):
     from truco_reglas import calcular_envido
     return calcular_envido([{'valor': v, 'palo': p} for v, p in hand])
 
+
+class EvidenceTests(unittest.TestCase):
+    def test_accepted_envido_becomes_public_without_hidden_cards(self):
+        from symmetric_engine import play_match
+        seen = []
+        def caller(obs, actions):
+            seen.append(obs)
+            return 'envido' if 'envido' in actions else 'fold'
+        play_match(caller, lambda o, a: 'quiero' if 'quiero' in a else 'fold', seed=3, target=15)
+        self.assertTrue(any(o['envido_reveal'] for o in seen))
+        reveal = next(o['envido_reveal'] for o in seen if o['envido_reveal'])
+        self.assertIn('declarations', reveal)
+        self.assertNotIn('opponent_hand', seen[-1])
+
+    def test_objective_bluff_uses_same_rule_for_both_players(self):
+        from symmetric_engine import play_match
+        from truco_reglas import calcular_envido
+        def call(obs, legal):
+            return 'envido' if 'envido' in legal else 'no_quiero' if 'no_quiero' in legal else 'fold'
+        result = play_match(call, call, seed=21, target=10)
+        calls = [d for d in result.decisions if d['action'] == 'envido']
+        self.assertEqual({d['player'] for d in calls}, {0, 1})
+        for d in calls:
+            cards = [{'valor': v, 'palo': p} for v, p in d['observation']['hand']]
+            self.assertEqual(d['bluff'], calcular_envido(cards) < 24)
+    def test_truco_bluff_known_deals(self):
+        from symmetric_engine import play_match
+        def caller(obs, legal):
+            return 'truco' if 'truco' in legal else 'no_quiero' if 'no_quiero' in legal else 'fold'
+        self.assertFalse(play_match(caller, caller, seed=0, target=1).decisions[0]['bluff'])
+        self.assertTrue(play_match(caller, caller, seed=3, target=1).decisions[0]['bluff'])

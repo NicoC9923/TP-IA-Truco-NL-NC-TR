@@ -51,6 +51,8 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
         pending = None
         suspended = None
         envido_done = False
+        envido_reveal = None
+        hand_start = len(decisions)
         hand_done = False
         while not hand_done and max(score) < target:
             can_envido = not envido_done and len(tricks) == 0 and truco == 1
@@ -71,7 +73,7 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
                     actions += ['envido', 'real_envido', 'falta_envido']
                 if truco < 4 and (raise_owner is None or raise_owner == actor):
                     actions.append(('truco', 'retruco', 'vale_cuatro')[truco-1])
-            obs = {'player': actor, 'hand': tuple(hands[actor]), 'available': tuple(available[actor]), 'score': tuple(score), 'target': target, 'mano': mano, 'table': tuple(table), 'tricks': tuple(tricks), 'truco': truco, 'pending': None if pending is None else dict(pending), 'history': tuple(history), 'envido_done': envido_done, 'raise_owner': raise_owner}
+            obs = {'player': actor, 'hand': tuple(hands[actor]), 'available': tuple(available[actor]), 'score': tuple(score), 'target': target, 'mano': mano, 'table': tuple(table), 'tricks': tuple(tricks), 'truco': truco, 'pending': None if pending is None else dict(pending), 'history': tuple(history), 'envido_done': envido_done, 'envido_reveal': envido_reveal, 'raise_owner': raise_owner}
             legal = tuple(actions)
             action = policies[actor](obs, legal)
             if action not in legal:
@@ -103,6 +105,10 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
                     else:
                         values = [rules.calcular_envido([{'valor': v, 'palo': p} for v, p in hand]) for hand in hands]
                         winner = mano if values[0] == values[1] else values.index(max(values))
+                        pie = 1 - mano
+                        declarations = [(mano, values[mano])]
+                        declarations.append((pie, values[pie] if values[pie] > values[mano] else 'son buenas'))
+                        envido_reveal = {'declarations': tuple(declarations)}
                         if pending['call'] == 'falta_envido':
                             points = rules.puntos_falta_envido(score[0], score[1], target, ('humano', 'robot')[winner])[0]
                         else:
@@ -140,6 +146,9 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
                         hand_done = True
                     else:
                         turn = winner if winner is not None else (tricks[0] if tricks[0] is not None else mano)
+        for decision in decisions[hand_start:]:
+            decision['hand_index'] = len(deals) - 1
+            decision['revealed'] = len(available[decision['player']]) == 0
         mano = 1-mano
     return MatchResult(score.index(max(score)), tuple(score), decisions, deals)
 
