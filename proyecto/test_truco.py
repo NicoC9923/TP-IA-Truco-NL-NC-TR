@@ -42,6 +42,47 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual(resultados[0], resultados[1])
         self.assertEqual(partidas[0].estado_publico(), partidas[1].estado_publico())
 
+    def test_envido_suspende_truco_robot_y_lo_restituye(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(1))
+        partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+        original = partida.estado_publico()["canto_pendiente"].copy()
+        self.assertEqual(original["tipo"], "TRUCO")
+        self.assertTrue(partida.estado_publico()["envido_disponible"])
+        estado = partida.responder_canto_humano("ENVIDO")["estado"]
+        while estado["canto_pendiente"] and estado["canto_pendiente"]["tipo"] == "ENVIDO":
+            estado = partida.responder_canto_humano("NO_QUIERO")["estado"]
+        self.assertEqual(estado["canto_pendiente"], original)
+        self.assertEqual(estado["canto_pendiente"]["puntos_quiero"], 2)
+
+    def test_truco_humano_vuelve_despues_del_envido_robot(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(2))
+        estado = partida.cantar_truco_humano("TRUCO")["estado"]
+        self.assertEqual(estado["canto_pendiente"]["tipo"], "ENVIDO")
+        self.assertEqual(estado["apuesta_truco"], "TRUCO")
+        self.assertEqual(estado["puntos_truco_actuales"], 2)
+        estado = partida.responder_canto_humano("NO_QUIERO")["estado"]
+        self.assertTrue(estado["apuesta_truco"] == "TRUCO" or estado["mano_terminada"] or
+                        (estado["canto_pendiente"] and estado["canto_pendiente"]["tipo"] == "TRUCO"))
+
+    def test_envido_no_disponible_tras_truco_querido(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(0))
+        estado = partida.cantar_truco_humano("TRUCO")["estado"]
+        self.assertEqual(estado["apuesta_truco"], "TRUCO")
+        self.assertFalse(estado["envido_disponible"])
+        antes = partida.estado_publico()
+        self.assertIn("error", partida.cantar_envido_humano("ENVIDO"))
+        self.assertEqual(partida.estado_publico(), antes)
+        self.assertIn("error", partida.procesar_voz_truco("envido"))
+        self.assertEqual(partida.estado_publico(), antes)
+
+    def test_envido_no_disponible_despues_primera_baza(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(0))
+        partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+        estado = partida.estado_publico()
+        self.assertEqual(estado["ronda"], 2)
+        self.assertFalse(estado["envido_disponible"])
+        self.assertIn("error", partida.cantar_envido_humano("ENVIDO"))
+
     def test_jerarquia_cartas(self):
         self.assertGreater(tr.valor_carta_truco(1, "Espada"), tr.valor_carta_truco(1, "Basto"))
         self.assertGreater(tr.valor_carta_truco(1, "Basto"), tr.valor_carta_truco(7, "Espada"))
