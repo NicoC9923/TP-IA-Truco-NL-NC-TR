@@ -42,6 +42,25 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual(resultados[0], resultados[1])
         self.assertEqual(partidas[0].estado_publico(), partidas[1].estado_publico())
 
+    def test_traza_de_farol_se_oculta_hasta_terminar_la_mano(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(2))
+        carta = partida.estado_publico()["cartas_humano_disponibles"][0]
+        partida.jugar_carta_humano(carta)
+        aprendizaje = partida.estado_publico()["aprendizaje_ia"]
+        paso = aprendizaje["traza_razonamiento"][0]
+        self.assertEqual(paso["decision"], "ENVIDO")
+        self.assertEqual(set(paso), {"fase", "decision"})
+        self.assertEqual(aprendizaje["ultimo_razonamiento"], paso)
+
+        partida.irse_al_mazo_humano()
+        aprendizaje = partida.estado_publico()["aprendizaje_ia"]
+        paso = aprendizaje["traza_razonamiento"][0]
+        self.assertEqual(paso["decision"], "ENVIDO (FAROL)")
+        self.assertIn("tantos", paso["metrica"])
+        self.assertTrue(paso["umbral"])
+        self.assertIn("Farol", paso["farol_info"])
+        self.assertEqual(aprendizaje["ultimo_razonamiento"], paso)
+
     def test_jerarquia_cartas(self):
         self.assertGreater(tr.valor_carta_truco(1, "Espada"), tr.valor_carta_truco(1, "Basto"))
         self.assertGreater(tr.valor_carta_truco(1, "Basto"), tr.valor_carta_truco(7, "Espada"))
