@@ -1,0 +1,5 @@
+# Policies receive observations and legal action identifiers
+
+The symmetric engine calls a policy with an observation and a tuple of legal action identifiers and rejects any other return value. Card actions identify one of the player's original three card slots (`card_0` to `card_2`), while calls use their game names; keeping slots stable lets future network outputs map to the same cards throughout a hand. The observation carries only the acting player's cards and public history, while the match result retains the deals and decision log for later analysis.
+
+This follows the common imperfect-information game pattern of exposing a player-specific information state and legal-action mask. Passing the full engine state was rejected because it exposes hidden cards; renumbering remaining cards after every play was rejected because output meanings would move during a hand. Mirror pairs keep the same seat-specific deal sequence and swap the policies and their starting scores, so each policy plays each seat of the same deal.

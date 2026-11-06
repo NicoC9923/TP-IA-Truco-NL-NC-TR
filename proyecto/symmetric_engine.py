@@ -1,7 +1,26 @@
 """Seeded symmetric Truco engine; policies receive only their own cards."""
 from dataclasses import dataclass
 import random
+import json
+from functools import lru_cache
+from pathlib import Path
 import truco_reglas as rules
+
+@lru_cache(maxsize=1)
+def _percentiles():
+    with Path(__file__).with_name('truco_stats.json').open(encoding='utf-8') as file:
+        return {float(k): float(v) for k, v in json.load(file)['truco_poder_percentil'].items()}
+
+
+def _bluff(action, hand):
+    cards = [{'valor': v, 'palo': p} for v, p in hand]
+    if action in ('envido', 'real_envido', 'falta_envido'):
+        return rules.calcular_envido(cards) < 24
+    if action in ('truco', 'retruco', 'vale_cuatro'):
+        power = round(min(23.5, max(0.0, rules.poder_mano_truco(cards))), 1)
+        percentiles = _percentiles()
+        return percentiles[min(percentiles, key=lambda k: abs(k - power))] < 0.44
+    return None
 
 @dataclass
 class MatchResult:
@@ -11,23 +30,21 @@ class MatchResult:
     deals: list
 
 
-def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), swap_deals=False):
+def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
     if target <= 0 or len(starting_score) != 2 or min(starting_score) < 0 or max(starting_score) >= target:
         raise ValueError('Invalid target or starting score')
     rng = random.Random(seed)
     score = list(starting_score)
     policies = (policy_a, policy_b)
     decisions, deals = [], []
-    mano = 1 if swap_deals else 0
+    mano = 0
     while max(score) < target:
         deck = [(v, p) for p in rules.PALOS for v in rules.VALORES]
         rng.shuffle(deck)
         hands = [deck[:3], deck[3:6]]
-        if swap_deals:
-            hands.reverse()
         deals.append(tuple(tuple(h) for h in hands))
         available = [list(range(3)), list(range(3))]
-        table, tricks = [], []
+        table, tricks, history = [], [], []
         turn = mano
         truco = 1
         raise_owner = None
@@ -39,7 +56,7 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
             can_envido = not envido_done and len(tricks) == 0 and truco == 1
             if pending:
                 actor = 1 - pending['caller']
-                actions = ['quiero', 'no_quiero']
+                actions = ['quiero', 'no_quiero', 'fold']
                 if pending['kind'] == 'truco':
                     if pending['level'] < 4:
                         actions.append(('retruco', 'vale_cuatro')[pending['level']-2])
@@ -54,12 +71,13 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
                     actions += ['envido', 'real_envido', 'falta_envido']
                 if truco < 4 and (raise_owner is None or raise_owner == actor):
                     actions.append(('truco', 'retruco', 'vale_cuatro')[truco-1])
-            obs = {'player': actor, 'hand': tuple(hands[actor]), 'available': tuple(available[actor]), 'score': tuple(score), 'target': target, 'mano': mano, 'table': tuple(table), 'tricks': tuple(tricks), 'truco': truco, 'pending': None if pending is None else dict(pending)}
+            obs = {'player': actor, 'hand': tuple(hands[actor]), 'available': tuple(available[actor]), 'score': tuple(score), 'target': target, 'mano': mano, 'table': tuple(table), 'tricks': tuple(tricks), 'truco': truco, 'pending': None if pending is None else dict(pending), 'history': tuple(history), 'envido_done': envido_done, 'raise_owner': raise_owner}
             legal = tuple(actions)
             action = policies[actor](obs, legal)
             if action not in legal:
                 raise ValueError('Illegal action: %r' % (action,))
-            decisions.append({'player': actor, 'observation': obs, 'legal_actions': legal, 'action': action})
+            history.append((actor, action))
+            decisions.append({'player': actor, 'observation': obs, 'legal_actions': legal, 'action': action, 'bluff': _bluff(action, hands[actor])})
             if action in ('envido', 'real_envido', 'falta_envido'):
                 if pending and pending['kind'] == 'truco':
                     suspended, pending = pending, None
@@ -93,7 +111,7 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
                     envido_done = True
                     pending, suspended = suspended, None
             elif action == 'fold':
-                score[1-actor] += 2 if not table and not envido_done and truco == 1 else truco
+                score[1-actor] += (pending['level'] - 1 if pending and pending['kind'] == 'truco' else truco + pending['declined'] if pending and pending['kind'] == 'envido' else 2 if not table and not envido_done and truco == 1 else truco)
                 hand_done = True
             else:
                 index = int(action[-1])
@@ -128,5 +146,10 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
 
 def play_mirror_pair(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
     return (play_match(policy_a, policy_b, seed=seed, target=target, starting_score=starting_score),
-            play_match(policy_b, policy_a, seed=seed, target=target, starting_score=starting_score[::-1], swap_deals=True))
+            play_match(policy_b, policy_a, seed=seed, target=target, starting_score=starting_score[::-1]))
+
+
+
+
+
 

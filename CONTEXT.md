@@ -146,3 +146,9 @@ _Avoid_: test set, evaluation seeds
 **Mirror matches**:
 A pair of matches on the same deals in which the players swap seats, to cancel out the luck of the cards.
 _Avoid_: duplicate, reversed match
+
+**Observation**:
+The information available to a player at one decision, including that player's cards and the public match history, but not the opponent's hidden cards.
+
+**Legal action**:
+An action permitted by the game state at a decision; a policy chooses from these actions.
