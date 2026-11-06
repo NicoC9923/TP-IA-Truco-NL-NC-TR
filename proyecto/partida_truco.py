@@ -21,10 +21,12 @@ from truco_ia import AgenteTrucoIA
 
 
 class PartidaTruco:
-    def __init__(self, robot=None, meta_puntos: int = 15, historial_path: Optional[str] = None):
+    def __init__(self, robot=None, meta_puntos: int = 15, historial_path: Optional[str] = None,
+                 rng: random.Random | None = None):
         self.robot = robot
+        self.rng = rng if rng is not None else random.Random()
         self._robot_lock = threading.Lock()
-        self.ia = AgenteTrucoIA(historial_path=historial_path)
+        self.ia = AgenteTrucoIA(historial_path=historial_path, rng=self.rng)
 
         self.puntos_humano = 0
         self.puntos_robot = 0
@@ -174,7 +176,7 @@ class PartidaTruco:
             self.es_mano_humano = not self.es_mano_humano
 
         mazo = [{"valor": v, "palo": p, "nombre": tr.nombre_carta(v, p)} for p in tr.PALOS for v in tr.VALORES]
-        random.shuffle(mazo)
+        self.rng.shuffle(mazo)
 
         self.cartas_humano = mazo[0:3]
         self.cartas_humano_disponibles = list(self.cartas_humano)
