@@ -1515,12 +1515,12 @@
     const trazas = ia.traza_razonamiento || [];
     $('panel-xai-vivo').innerHTML = trazas.length === 0
       ? `<p class="vacio-txt">Cuando Ottoman tome su próxima decisión vas a ver acá la cuenta que hizo: métrica, umbral y si eligió mentir.</p>`
-      : trazas.slice(0, 4).map(t => {
+      : trazas.slice(0, 8).map(t => {
           const esFarol = String(t.decision || '').includes('FAROL');
           return `<article class="paso">
-            <div class="paso-top"><span class="paso-fase">${esc(t.fase)}<small>${esc(t.hora)}</small></span><span class="paso-dec ${esFarol ? 'farol-dec' : ''}">${esc(t.decision)}</span></div>
-            <dl><dt>Métrica</dt><dd>${esc(t.metrica)}</dd><dt>Umbral</dt><dd>${esc(t.umbral)}</dd><dt>Engaño</dt><dd>${esc(t.farol_info)}</dd></dl>
-            <p>${esc(t.explicacion)}</p>
+            <div class="paso-top"><span class="paso-fase">${esc(t.fase)}${t.hora ? `<small>${esc(t.hora)}</small>` : ''}</span><span class="paso-dec ${esFarol ? 'farol-dec' : ''}">${esc(t.decision)}</span></div>
+            ${t.metrica ? `<dl><dt>Métrica</dt><dd>${esc(t.metrica)}</dd><dt>Umbral</dt><dd>${esc(t.umbral)}</dd><dt>Engaño</dt><dd>${esc(t.farol_info)}</dd></dl>` : ''}
+            ${t.explicacion ? `<p>${esc(t.explicacion)}</p>` : ''}
           </article>`;
         }).join('');
   }
