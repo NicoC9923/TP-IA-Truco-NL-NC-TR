@@ -68,3 +68,26 @@ with tempfile.TemporaryDirectory() as directory:
             self.assertEqual(len((root / 'reference_evaluation.jsonl').read_text().splitlines()), 2)
             evaluate(root, pairs=1, target=1, only_new=True)
             self.assertEqual(len((root / 'reference_evaluation.jsonl').read_text().splitlines()), 2)
+    def test_parallel_matches_serial(self):
+        from reference_evaluation import evaluate
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            NetworkPolicy(np.zeros(GENOME_SIZE)).save(root / 'champion_0001.npy')
+            evaluate(root, pairs=2, target=1, workers=1)
+            first = (root / 'reference_evaluation.jsonl').read_text()
+            (root / 'reference_evaluation.jsonl').unlink()
+            evaluate(root, pairs=2, target=1, workers=2)
+            self.assertEqual(first, (root / 'reference_evaluation.jsonl').read_text())
+    def test_selection_and_phase_end(self):
+        from reference_evaluation import evaluate
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for generation in range(1, 6):
+                NetworkPolicy(np.zeros(GENOME_SIZE)).save(root / f'champion_{generation:04d}.npy')
+            rows = [dict(generation=i, promoted=i == 3, phase_ended=i == 5) for i in range(1, 6)]
+            (root / 'generations.jsonl').write_text(''.join(json.dumps(row) + '\n' for row in rows))
+            for options, expected in [({'every': 2}, {1, 2, 4, 5}), ({'promoted_only': True}, {1, 3, 5})]:
+                evaluate(root, pairs=1, target=1, **options)
+                log = root / 'reference_evaluation.jsonl'
+                self.assertEqual({json.loads(line)['generation'] for line in log.read_text().splitlines()}, expected)
+                log.unlink()

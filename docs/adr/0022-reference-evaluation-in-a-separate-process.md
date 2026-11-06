@@ -11,3 +11,5 @@ So the yardstick doesn't move, Adaptive Utility starts every run from the same f
 - **Evaluate inside the trainer with a "don't read the result" rule:** works, but depends on nobody breaking it; with a separate process it can't be broken without the test catching it.
 - **Measure strength only against its own versions:** good enough for deciding promotions (ADR 0017), but results among one's own versions can go in circles and don't prove the agent is strong.
 - **Measure against humans:** would need about 2,000 matches for a ±2-point margin.
+
+Reference evaluation can distribute validation pairs across processes with `--workers` (default 1), preserving the serial results. `--every N` selects generation 1 and multiples of N; `--promoted-only` selects generation 1 and promoted generations, and the filters combine. Once the phase ends, its last generation is always evaluated. Watch mode continues to evaluate only missing rows.
