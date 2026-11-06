@@ -232,8 +232,10 @@ class PartidaTruco:
         self.estadisticas_partida["manos_jugadas"] += 1
         self.ia.analizar_mano_humano(
             self.cartas_humano,
-            humano_canto_envido=self._humano_canto_envido_mano,
+            humano_canto_envido=(self._humano_canto_envido_mano and self.resultado_envido_detalle is not None
+                                 and "pts_humano" in self.resultado_envido_detalle),
             humano_canto_truco=self._humano_canto_truco_mano,
+            cartas_truco_reveladas=[m["carta"] for m in self.mesa if m["quien"] == "humano"],
         )
 
     def _verificar_fin_partido(self) -> None:
@@ -991,6 +993,15 @@ class PartidaTruco:
     # ---------- serialización de estado para la UI ----------
     def estado_publico(self) -> Dict:
         siguiente_truco = self._siguiente_nivel_truco() if self.quien_tiene_quiero_truco in ("ambos", "humano") else None
+        aprendizaje = self.ia.resumen_aprendizaje()
+        if not self.mano_terminada:
+            def vista_publica(paso):
+                if paso is None:
+                    return None
+                return {"fase": paso["fase"], "decision": paso["decision"].replace(" (FAROL)", "")}
+
+            aprendizaje["ultimo_razonamiento"] = vista_publica(aprendizaje["ultimo_razonamiento"])
+            aprendizaje["traza_razonamiento"] = [vista_publica(paso) for paso in aprendizaje["traza_razonamiento"]]
 
         # Al terminar la mano, revelar las 3 cartas de Ottoman y si hizo farol
         cartas_robot_reveladas = None
@@ -1028,7 +1039,7 @@ class PartidaTruco:
             "tantos_robot": tantos_robot_revelados,
             "bluffs_mano_actual": self.bluffs_mano_actual if self.mano_terminada else [],
             "estadisticas_partida": self.estadisticas_partida,
-            "aprendizaje_ia": self.ia.resumen_aprendizaje(),
+            "aprendizaje_ia": aprendizaje,
             "cartas_humano": self.cartas_humano,
             "cartas_humano_disponibles": self.cartas_humano_disponibles,
             "tantos_humano": tr.calcular_envido(self.cartas_humano),
