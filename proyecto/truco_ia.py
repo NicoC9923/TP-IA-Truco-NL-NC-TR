@@ -24,17 +24,12 @@ class AgenteTrucoIA:
     MODOS_DISPONIBLES = {
         "reactivo": {
             "codigo": "reactivo",
-            "nombre": "Agente Reactivo Simple",
+            "nombre": "Reactivo",
             "subtitulo": "Reglas fijas condición-acción (sin probabilidades 474k, sin farol ni aprendizaje)",
         },
-        "utilidad": {
-            "codigo": "utilidad",
-            "nombre": "Agente Basado en Utilidad (474k manos)",
-            "subtitulo": "Maximiza utilidad esperada con el corpus de 474.000 manos y tanteador (estático)",
-        },
-        "aprendizaje": {
-            "codigo": "aprendizaje",
-            "nombre": "Agente Híbrido con Aprendizaje Adaptativo",
+        "utilidad_adaptativa": {
+            "codigo": "utilidad_adaptativa",
+            "nombre": "Utilidad adaptativa",
             "subtitulo": "Utilidad esperada (474k) + cuota dinámica de farol + modelado online del rival humano",
         },
     }
@@ -44,7 +39,7 @@ class AgenteTrucoIA:
         stats_path: Optional[str] = None,
         historial_path: Optional[str] = None,
         prob_farol: float = 0.14,
-        modo_agente: str = "aprendizaje",
+        modo_agente: str = "utilidad_adaptativa",
         rng: random.Random | None = None,
     ):
         self.rng = rng if rng is not None else random.Random()
@@ -63,7 +58,7 @@ class AgenteTrucoIA:
         with open(stats_path, "r", encoding="utf-8") as f:
             self.stats = json.load(f)
 
-        self.modo_agente = modo_agente if modo_agente in self.MODOS_DISPONIBLES else "aprendizaje"
+        self.modo_agente = modo_agente if modo_agente in self.MODOS_DISPONIBLES else "utilidad_adaptativa"
         self.prob_farol = prob_farol
         self.prob_farol_envido = prob_farol
         self.prob_farol_truco = prob_farol
@@ -83,7 +78,7 @@ class AgenteTrucoIA:
         self._sincronizar_atributos()
 
     def set_modo_agente(self, modo: str) -> Dict:
-        """Cambia la arquitectura activa del agente ('reactivo', 'utilidad', 'aprendizaje')."""
+        """Change the active agent mode."""
         modo_limpio = str(modo).strip().lower()
         if modo_limpio in self.MODOS_DISPONIBLES:
             self.modo_agente = modo_limpio
@@ -104,7 +99,7 @@ class AgenteTrucoIA:
         explicacion: str,
         es_accion_principal: bool = True,
     ) -> None:
-        info_modo = self.MODOS_DISPONIBLES.get(self.modo_agente, self.MODOS_DISPONIBLES["aprendizaje"])
+        info_modo = self.MODOS_DISPONIBLES.get(self.modo_agente, self.MODOS_DISPONIBLES["utilidad_adaptativa"])
         item = {
             "hora": datetime.datetime.now().strftime("%H:%M:%S"),
             "modo_codigo": self.modo_agente,
@@ -154,7 +149,7 @@ class AgenteTrucoIA:
 
     def guardar_historial(self) -> None:
         p = self.datos_historial["parametros_ia"]
-        if self.modo_agente == "aprendizaje":
+        if self.modo_agente == "utilidad_adaptativa":
             p["prob_farol_envido"] = round(self.prob_farol_envido, 3)
             p["prob_farol_truco"] = round(self.prob_farol_truco, 3)
             p["umbral_quiero_envido_offset"] = round(self.umbral_quiero_envido_offset, 3)
@@ -189,7 +184,7 @@ class AgenteTrucoIA:
         else:
             perfil_humano = "Equilibrado (Ottoman balancea estadística y engaño)"
 
-        info_modo = self.MODOS_DISPONIBLES.get(self.modo_agente, self.MODOS_DISPONIBLES["aprendizaje"])
+        info_modo = self.MODOS_DISPONIBLES.get(self.modo_agente, self.MODOS_DISPONIBLES["utilidad_adaptativa"])
         return {
             "modo_agente": self.modo_agente,
             "arquitectura_nombre": info_modo["nombre"],
@@ -210,12 +205,16 @@ class AgenteTrucoIA:
             "perfil_humano_detectado": perfil_humano,
             "ultimo_razonamiento": self.ultimo_razonamiento,
             "traza_razonamiento": list(reversed(self.traza_razonamiento[-8:])),
-            "partidas": list(reversed(self.datos_historial.get("partidas", [])[-30:])),
+            "partidas": [
+                {**match, "modo_agente": "utilidad_adaptativa"}
+                if match.get("modo_agente") in ("utilidad", "aprendizaje") else match
+                for match in reversed(self.datos_historial.get("partidas", [])[-30:])
+            ],
         }
 
     def registrar_respuesta_humano_a_canto(self, tipo: str, quiso: bool, era_farol_robot: bool) -> None:
         """Ajusta en línea las probabilidades de farol de Ottoman según si el humano quiso o no."""
-        if self.modo_agente != "aprendizaje":
+        if self.modo_agente != "utilidad_adaptativa":
             return
         p = self.datos_historial["parametros_ia"]
         if tipo == "ENVIDO":
@@ -248,7 +247,7 @@ class AgenteTrucoIA:
         """Al terminar una mano, analiza si el humano mintió para adaptar los umbrales de aceptación."""
         p = self.datos_historial["parametros_ia"]
         p["manos_totales"] = int(p.get("manos_totales", 0)) + 1
-        if self.modo_agente != "aprendizaje":
+        if self.modo_agente != "utilidad_adaptativa":
             self.guardar_historial()
             return
 
@@ -374,7 +373,7 @@ class AgenteTrucoIA:
         falta_robot = meta_puntos - puntos_robot
         prob_pct = round(prob * 100.0, 1)
         metrica_str = f"{tantos} tantos → P(ganar | {pos_str}) = {prob_pct}% (corpus 474k)"
-        usa_aprendizaje = self.modo_agente == "aprendizaje"
+        usa_aprendizaje = self.modo_agente == "utilidad_adaptativa"
         farol_cfg_str = (
             f"Cuota farol activa: {round(self.prob_farol_envido * 100, 1)}%"
             if usa_aprendizaje
@@ -506,7 +505,7 @@ class AgenteTrucoIA:
 
         # --- MODOS 2 Y 3: UTILIDAD (474k) Y APRENDIZAJE ADAPTATIVO ---
         falta_humano = meta_puntos - puntos_humano
-        usa_aprendizaje = self.modo_agente == "aprendizaje"
+        usa_aprendizaje = self.modo_agente == "utilidad_adaptativa"
         off = self.umbral_quiero_envido_offset if usa_aprendizaje else 0.0
         off_str = f"{off:+.1%}" if usa_aprendizaje else "0.0% (estático)"
         metrica_str = f"{tantos} tantos → P(ganar | {pos_str}) = {prob_pct}% (474k)"
@@ -750,7 +749,7 @@ class AgenteTrucoIA:
             return None, ""
 
         # --- MODOS 2 Y 3: UTILIDAD (474k) Y APRENDIZAJE ADAPTATIVO ---
-        usa_aprendizaje = self.modo_agente == "aprendizaje"
+        usa_aprendizaje = self.modo_agente == "utilidad_adaptativa"
         metrica_str = f"Fuerza efectiva = {fuerza_pct}% (percentil 474k + contexto baza)"
         farol_cfg_str = (
             f"Cuota farol Truco: {round(self.prob_farol_truco * 100, 1)}%"
@@ -861,7 +860,7 @@ class AgenteTrucoIA:
 
         # --- MODOS 2 Y 3: UTILIDAD (474k) Y APRENDIZAJE ADAPTATIVO ---
         puntos_no_quiero = {"TRUCO": 1, "RETRUCO": 2, "VALE_CUATRO": 3}.get(canto_rival, 1)
-        usa_aprendizaje = self.modo_agente == "aprendizaje"
+        usa_aprendizaje = self.modo_agente == "utilidad_adaptativa"
         off = self.umbral_quiero_truco_offset if usa_aprendizaje else 0.0
         off_str = f"{off:+.1%}" if usa_aprendizaje else "0.0% (estático)"
         metrica_str = f"Fuerza efectiva = {fuerza_pct}% (percentil 474k + contexto baza)"

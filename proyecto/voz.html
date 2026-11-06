@@ -1025,14 +1025,14 @@
       <table class="tabla">
         <thead>
           <tr>
-            <th scope="col">#</th><th scope="col">Fecha</th><th scope="col">Resultado</th><th scope="col">Manos</th>
+            <th scope="col">#</th><th scope="col">Fecha</th><th scope="col">Resultado</th><th scope="col">Modo</th><th scope="col">Manos</th>
             <th scope="col">Faroles envido<br>total · pasaron · descub.</th>
             <th scope="col">Faroles truco<br>total · pasaron · descub.</th>
             <th scope="col">Ajuste de la IA al terminar</th>
           </tr>
         </thead>
         <tbody id="tbody-historial">
-          <tr><td colspan="7">Jugá y terminá un partido para verlo acá.</td></tr>
+          <tr><td colspan="8">Jugá y terminá un partido para verlo acá.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1099,9 +1099,8 @@
   };
   const NOMBRE_TRUCO_BTN = { TRUCO: '¡Truco!', RETRUCO: '¡Quiero retruco!', VALE_CUATRO: '¡Quiero vale cuatro!' };
   const MODOS_RESPALDO = [
-    { codigo: 'reactivo', nombre: 'Agente Reactivo Simple', subtitulo: 'Reglas fijas condición-acción' },
-    { codigo: 'utilidad', nombre: 'Agente Basado en Utilidad (474k manos)', subtitulo: 'Maximiza utilidad esperada (estático)' },
-    { codigo: 'aprendizaje', nombre: 'Agente Híbrido con Aprendizaje Adaptativo', subtitulo: 'Utilidad + farol dinámico + modelado del rival' }
+    { codigo: 'reactivo', nombre: 'Reactivo', subtitulo: 'Reglas fijas condición-acción' },
+    { codigo: 'utilidad_adaptativa', nombre: 'Utilidad adaptativa', subtitulo: 'Utilidad + farol dinámico + modelado del rival' }
   ];
 
   const $ = (id) => document.getElementById(id);
@@ -1479,7 +1478,7 @@
   // ==================== RENDER: RIEL DE ANÁLISIS ====================
   function renderAgentes(ia) {
     const modos = (ia?.modos_disponibles && ia.modos_disponibles.length) ? ia.modos_disponibles : MODOS_RESPALDO;
-    const activo = ia?.modo_agente || 'aprendizaje';
+    const activo = ia?.modo_agente || 'utilidad_adaptativa';
     const cont = $('agentes');
     const firma = modos.map(m => m.codigo).join() + '|' + activo;
     if (cont.dataset.firma === firma) { cont.querySelectorAll('.agente').forEach(b => { b.disabled = false; }); return; }
@@ -1586,7 +1585,7 @@
     const partidas = ia.partidas || [];
     const tbody = $('tbody-historial');
     if (partidas.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7">Todavía no hay partidos terminados. Cuando alguien llegue a 15 o 30 puntos va a aparecer acá.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8">Todavía no hay partidos terminados. Cuando alguien llegue a 15 o 30 puntos va a aparecer acá.</td></tr>`;
     } else {
       tbody.innerHTML = partidas.map(p => {
         const gR = p.ganador === 'robot';
@@ -1594,6 +1593,7 @@
           <td><span class="num-id">${esc(p.id)}</span></td>
           <td>${esc(p.fecha)}</td>
           <td><span class="res ${gR ? 'ott' : 'vos'}"><i></i>${gR ? 'Ottoman' : 'Vos'} ${esc(gR ? p.puntos_robot : p.puntos_humano)}–${esc(gR ? p.puntos_humano : p.puntos_robot)}</span></td>
+          <td>${esc(({ reactivo: "Reactivo", utilidad_adaptativa: "Utilidad adaptativa" })[p.modo_agente] || "—")}</td>
           <td>${esc(p.manos_jugadas)}</td>
           <td><b>${esc(p.bluffs_envido_intentados)}</b> · ${esc(p.bluffs_envido_exitosos)} · ${esc(p.bluffs_envido_descubiertos)}</td>
           <td><b>${esc(p.bluffs_truco_intentados)}</b> · ${esc(p.bluffs_truco_exitosos)} · ${esc(p.bluffs_truco_descubiertos)}</td>

@@ -145,7 +145,7 @@ class Handler(BaseHTTPRequestHandler):
             "/truco/envido": ("canto", "ENVIDO", {"ENVIDO", "ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"}),
             "/truco/truco": ("nivel", None, {None, "TRUCO", "RETRUCO", "VALE_CUATRO"}),
             "/truco/responder": ("respuesta", "QUIERO", {"QUIERO", "NO_QUIERO", "ENVIDO", "ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO", "TRUCO", "RETRUCO", "VALE_CUATRO"}),
-            "/truco/modo_ia": ("modo", "aprendizaje", {"reactivo", "utilidad", "aprendizaje"}),
+            "/truco/modo_ia": ("modo", "utilidad_adaptativa", {"reactivo", "utilidad_adaptativa"}),
         }
         if self.path in listas:
             campo, defecto, permitidos = listas[self.path]
@@ -245,7 +245,7 @@ class Handler(BaseHTTPRequestHandler):
             return 200, {"mensaje": f"Partido reiniciado a {meta} puntos", "estado": est}
 
         elif self.path == "/truco/modo_ia":
-            modo = str(datos.get("modo", "aprendizaje"))
+            modo = str(datos.get("modo", "utilidad_adaptativa"))
             est = partida_truco.cambiar_modo_ia(modo)
             return 200, {"mensaje": f"Modo de IA actualizado a {modo}", "estado": est}
 
