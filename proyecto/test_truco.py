@@ -33,6 +33,50 @@ from entorno.sim.mundo import Mundo
 
 
 class TestMazoYFalta(unittest.TestCase):
+    def test_falta_humana_publica_es_por_el_partido(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(historial_path=str(Path(tmp) / "h.json"), rng=random.Random(1), meta_puntos=30)
+            resultado = partida.cantar_envido_humano("FALTA_ENVIDO")
+            self.assertTrue(resultado["estado"]["por_el_partido"])
+
+    def test_mazo_limpia_truco_suspendido(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(historial_path=str(Path(tmp) / "h.json"), rng=random.Random(25))
+            partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+            self.assertEqual(partida.estado_publico()["canto_pendiente"]["tipo"], "TRUCO")
+            partida.cantar_envido_humano("ENVIDO")
+            estado = partida.irse_al_mazo_humano()["estado"]
+            self.assertTrue(estado["mano_terminada"])
+            self.assertEqual(estado["apuesta_truco"], "NADA")
+            self.assertEqual(estado["puntos_truco_actuales"], 1)
+
+    def test_voz_valor_o_palo_unico_en_la_mano(self):
+        mano = [{"valor": 7, "palo": "Oro"}, {"valor": 1, "palo": "Espada"}]
+        self.assertEqual(tr.buscar_carta_en_texto("juego el siete", mano), mano[0])
+        self.assertEqual(tr.buscar_carta_en_texto("juego espada", mano), mano[1])
+        self.assertIsNone(tr.buscar_carta_en_texto("juego siete", mano + [{"valor": 7, "palo": "Copa"}]))
+
+    def test_envido_invalido_no_altera_estado(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(historial_path=str(Path(tmp) / "h.json"), rng=random.Random(1))
+            antes = copy.deepcopy(partida.estado_publico())
+            resultado = partida.cantar_envido_humano("FOO")
+            self.assertIn("error", resultado)
+            self.assertEqual(resultado["estado"], antes)
+            partida = PartidaTruco(historial_path=str(Path(tmp) / "otro.json"), rng=random.Random(25))
+            partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+            antes = copy.deepcopy(partida.estado_publico())
+            self.assertEqual(antes["canto_pendiente"]["tipo"], "TRUCO")
+            resultado = partida.cantar_envido_humano("FOO")
+            self.assertIn("error", resultado)
+            self.assertEqual(resultado["estado"], antes)
+
+    def test_error_envido_acentuado(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(historial_path=str(Path(tmp) / "h.json"))
+            partida.irse_al_mazo_humano()
+            self.assertEqual(partida.procesar_voz_truco("envido")["error"], "No podés cantar envido ahora.")
+
     def test_falta_en_malas_gana_partido_al_jugador_que_va_atras(self):
         with tempfile.TemporaryDirectory() as tmp:
             partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"), rng=random.Random(696))
@@ -161,6 +205,81 @@ class TestAprendizajePublico(unittest.TestCase):
 
 
 class TestServidorHTTP(unittest.TestCase):
+    def test_fallo_robot_avisa_una_vez_por_cambio(self):
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            servidor = crear_servidor(PartidaTruco(historial_path=str(Path(tmp) / "h.json")), puerto=0)
+            hilo = threading.Thread(target=servidor.serve_forever, daemon=True)
+            salida = io.StringIO()
+            class RobotFalla:
+                def conectar(self): raise ConnectionError("sin simulador")
+            try:
+                with patch("servidor_truco.Robot", RobotFalla), contextlib.redirect_stdout(salida):
+                    hilo.start()
+                    for _ in range(3):
+                        c = http.client.HTTPConnection("127.0.0.1", servidor.server_port)
+                        c.request("GET", "/truco/estado"); c.getresponse().read(); c.close()
+                self.assertEqual(salida.getvalue().count("ConnectionError"), 1)
+            finally:
+                servidor.shutdown(); hilo.join(); servidor.server_close()
+
+    def test_cliente_lento_no_bloquea_consulta(self):
+        import socket, time
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            servidor = crear_servidor(PartidaTruco(historial_path=str(Path(tmp) / "h.json")), puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever, daemon=True); hilo.start()
+            cliente = socket.create_connection(("127.0.0.1", servidor.server_port))
+            try:
+                cliente.sendall(b"POST /truco/mazo HTTP/1.1\r\nHost: localhost\r\nContent-Length: 50\r\n\r\n{")
+                time.sleep(0.1)
+                c = http.client.HTTPConnection("127.0.0.1", servidor.server_port, timeout=1)
+                c.request("GET", "/truco/estado")
+                self.assertEqual(c.getresponse().status, 200)
+                c.close()
+                cliente.sendall(b" " * 48 + b"}")
+                cliente.recv(4096)
+            finally:
+                cliente.close(); servidor.shutdown(); hilo.join(); servidor.server_close()
+
+    def test_historial_oculta_razonamiento_hasta_fin_de_mano(self):
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(historial_path=str(Path(tmp) / "h.json"), rng=random.Random(25))
+            partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+            servidor = crear_servidor(partida, puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever, daemon=True); hilo.start()
+            try:
+                def consultar():
+                    c = http.client.HTTPConnection("127.0.0.1", servidor.server_port)
+                    c.request("GET", "/truco/historial")
+                    respuesta = json.loads(c.getresponse().read()); c.close(); return respuesta
+                self.assertTrue(consultar()["traza_razonamiento"])
+                self.assertEqual(consultar(), partida.estado_publico()["aprendizaje_ia"])
+                partida.irse_al_mazo_humano()
+                self.assertEqual(consultar(), partida.estado_publico()["aprendizaje_ia"])
+            finally:
+                servidor.shutdown(); hilo.join(); servidor.server_close()
+
+    def test_deteccion_usa_mano_por_defecto_y_libre_opcional(self):
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(historial_path=str(Path(tmp) / "h.json"))
+            servidor = crear_servidor(partida, puerto=0, sin_robot=True)
+            class Camara:
+                def procesar_frame_base64(self, imagen, cartas_mano=None):
+                    return {"filtrada": cartas_mano is not None}
+            servidor.detector = Camara()
+            hilo = threading.Thread(target=servidor.serve_forever, daemon=True); hilo.start()
+            try:
+                for datos, esperado in [({}, True), ({"usar_mano": True}, True), ({"usar_mano": False}, False)]:
+                    c = http.client.HTTPConnection("127.0.0.1", servidor.server_port)
+                    c.request("POST", "/truco/detectar", json.dumps(datos))
+                    self.assertEqual(json.loads(c.getresponse().read())["filtrada"], esperado)
+                    c.close()
+            finally:
+                servidor.shutdown(); hilo.join(); servidor.server_close()
+
     def test_peticion_invalida_no_detiene_servidor(self):
         import http.client
         import threading
@@ -571,7 +690,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         hilo.start()
         try:
             conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
-            conn.request("POST", "/truco/detectar", json.dumps({"imagen": "frame", "usar_mano": True}))
+            conn.request("POST", "/truco/detectar", json.dumps({"imagen": "frame", "usar_mano": False}))
             detectada = json.loads(conn.getresponse().read())
             conn.request("POST", "/truco/jugar", json.dumps({"carta": detectada}))
             resultado = json.loads(conn.getresponse().read())

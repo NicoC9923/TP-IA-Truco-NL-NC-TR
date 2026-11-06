@@ -654,7 +654,7 @@ class AgenteTrucoIA:
             return "NO_QUIERO", "Paso, no quiero."
 
         if canto_actual == "FALTA_ENVIDO":
-            pts_falta = tr.puntos_falta_envido(puntos_humano, puntos_robot, meta_puntos)
+            pts_falta, _ = tr.puntos_falta_envido(puntos_humano, puntos_robot, meta_puntos, "robot")
             umbral = max(0.55, (0.75 if (pts_falta <= 3 or falta_humano <= 2) else 0.87) + off)
             umbral_str = f"Umbral Falta = {round(umbral * 100, 1)}% ({pts_falta} pts en juego, ajuste {off_str})"
             if prob >= umbral:

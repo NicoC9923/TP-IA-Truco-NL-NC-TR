@@ -115,13 +115,12 @@ def poder_mano_truco(cartas: List[Dict]) -> float:
     return 0.0
 
 
-def puntos_falta_envido(puntos_humano: int, puntos_robot: int, meta_puntos: int = 15) -> int:
-    """Calcula cuántos puntos otorga ganar la Falta Envido según el estado del partido."""
+def puntos_falta_envido(puntos_humano: int, puntos_robot: int, meta_puntos: int = 15, ganador: str = None) -> tuple:
+    """Devuelve los puntos de la falta y si se juega por el partido."""
     lider = max(puntos_humano, puntos_robot)
-    if meta_puntos == 30 and lider < 15:
-        # En malas de partido a 30, la falta envido gana el partido (o lo que le falta al líder para 30)
-        return max(1, 30 - lider)
-    return max(1, meta_puntos - lider)
+    por_el_partido = meta_puntos == 30 and lider < 15
+    puntos_ganador = {"humano": puntos_humano, "robot": puntos_robot}.get(ganador, lider)
+    return max(1, meta_puntos - (puntos_ganador if por_el_partido else lider)), por_el_partido
 
 
 def buscar_carta_en_texto(texto: str, cartas_disponibles: List[Dict]) -> Optional[Dict]:
@@ -167,14 +166,15 @@ def buscar_carta_en_texto(texto: str, cartas_disponibles: List[Dict]) -> Optiona
     elif "hembra" in t and valor_buscado is None:
         valor_buscado, palo_buscado = 1, "Basto"
 
-    if valor_buscado is None or palo_buscado is None:
+    if valor_buscado is None and palo_buscado is None:
         return None
-
-    for c in cartas_disponibles:
-        v_ok = valor_buscado is None or int(c["valor"]) == valor_buscado
-        p_ok = palo_buscado is None or str(c["palo"]).capitalize() == palo_buscado
-        if v_ok and p_ok and (valor_buscado is not None or palo_buscado is not None):
-            return c
+    coincidencias = [c for c in cartas_disponibles
+                     if (valor_buscado is None or int(c["valor"]) == valor_buscado)
+                     and (palo_buscado is None or str(c["palo"]).capitalize() == palo_buscado)]
+    if len(coincidencias) == 1:
+        return coincidencias[0]
+    if coincidencias:
+        return None
 
     if valor_buscado is not None and palo_buscado is not None:
         return {"valor": valor_buscado, "palo": palo_buscado}

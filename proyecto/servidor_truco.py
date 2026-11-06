@@ -10,6 +10,7 @@ Integra:
 
 from __future__ import annotations
 
+import copy
 import json
 import sys
 import threading
@@ -37,6 +38,7 @@ class ServidorTruco(ThreadingHTTPServer):
         self.sin_robot = sin_robot
         self.agente = AgenteRobot(self.robot)
         self.detector = DetectorCartas()
+        self.error_conexion = None
 
     def asegurar_robot(self):
         with self.lock:
@@ -45,13 +47,18 @@ class ServidorTruco(ThreadingHTTPServer):
             try:
                 robot = Robot()
                 robot.conectar()
+                self.error_conexion = None
                 self.robot = robot
                 self.agente.robot = robot
                 self.agente.ejecutor.robot = robot
                 self.partida.robot = robot
-                print("  [OK] Conectado din?micamente al simulador del Robot.")
+                print("  [OK] Conectado dinámicamente al simulador del Robot.")
                 return robot
-            except Exception:
+            except Exception as error:
+                tipo = type(error).__name__
+                if tipo != self.error_conexion:
+                    print(f"  [AVISO] Error al conectar el simulador: {tipo}")
+                    self.error_conexion = tipo
                 return None
 
 
@@ -60,10 +67,6 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        with self.server.lock:
-            self._do_GET()
-
-    def _do_GET(self):
         partida_truco = self.server.partida
         ruta_limpia = self.path.split("?", 1)[0]
         if ruta_limpia in ("/", "/voz.html"):
@@ -102,28 +105,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         elif ruta_limpia == "/truco/estado":
-            self.server.asegurar_robot()
-            est = partida_truco.estado_publico()
-            est["robot_conectado"] = self.server.robot is not None
+            with self.server.lock:
+                self.server.asegurar_robot()
+                est = copy.deepcopy(partida_truco.estado_publico())
+                est["robot_conectado"] = self.server.robot is not None
             self._responder(200, est)
         elif ruta_limpia == "/truco/historial":
-            self._responder(200, partida_truco.ia.resumen_aprendizaje())
+            with self.server.lock:
+                resumen = copy.deepcopy(partida_truco.estado_publico()["aprendizaje_ia"])
+            self._responder(200, resumen)
         else:
             self.send_response(404)
             self.end_headers()
 
     def do_POST(self):
-        with self.server.lock:
-            self._do_POST()
-
-    def _do_POST(self):
-        partida_truco = self.server.partida
-        agente = self.server.agente
-        detector_vision = self.server.detector
-        self.server.asegurar_robot()
         longitud = self.headers.get("Content-Length")
         if longitud is None or not longitud.isascii() or not longitud.isdecimal():
-            self._responder(400, {"error": "Content-Length inv?lido"})
+            self._responder(400, {"error": "Content-Length inválido"})
             return
         if len(longitud.lstrip("0")) > 7:
             self._responder(413, {"error": "Cuerpo demasiado grande"})
@@ -157,86 +155,99 @@ class Handler(BaseHTTPRequestHandler):
             elif isinstance(valor, str) and self.path == "/truco/modo_ia":
                 valor = valor.strip().lower()
             if not (valor is None or isinstance(valor, str)) or valor not in permitidos:
-                self._responder(400, {"error": f"{campo} inv?lido"})
+                self._responder(400, {"error": f"{campo} inválido"})
                 return
         if self.path == "/truco/reiniciar":
             meta = datos.get("meta_puntos", 15)
             if type(meta) is not int or meta not in (15, 30):
-                self._responder(400, {"error": "Meta inv?lida"})
+                self._responder(400, {"error": "Meta inválida"})
                 return
         if self.path == "/truco/jugar":
             carta = datos.get("carta")
             if (not isinstance(carta, dict) or type(carta.get("valor")) is not int
                 or carta["valor"] not in (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
                 or carta.get("palo") not in ("Espada", "Basto", "Oro", "Copa")):
-                self._responder(400, {"error": "Carta inv?lida"})
+                self._responder(400, {"error": "Carta inválida"})
                 return
 
+        with self.server.lock:
+            codigo, respuesta = self._procesar_post(datos)
+            if respuesta is not None:
+                respuesta = copy.deepcopy(respuesta)
+        if respuesta is None:
+            self.send_response(codigo)
+            self.end_headers()
+        else:
+            self._responder(codigo, respuesta)
+
+    def _procesar_post(self, datos):
+        partida_truco = self.server.partida
+        agente = self.server.agente
+        detector_vision = self.server.detector
+        self.server.asegurar_robot()
         if self.path == "/comando":
             texto = str(datos.get("texto", "")).strip()
             idioma = str(datos.get("idioma", "es"))
             if not texto:
-                self._responder(400, {"error": "texto vacío"})
-                return
+                return 400, {"error": "texto vacío"}
             resultado = agente.procesar(texto)
             resultado["idioma"] = idioma
             print(f"  [VOZ-{idioma}] \"{texto}\" -> {resultado['tipo']} | {resultado.get('mensaje', '')}")
-            self._responder(200, resultado)
+            return 200, resultado
 
         elif self.path == "/truco/detectar":
             b64_img = datos.get("imagen", "")
-            res = detector_vision.procesar_frame_base64(b64_img)
+            res = detector_vision.procesar_frame_base64(b64_img, cartas_mano=partida_truco.cartas_humano_disponibles if datos.get("usar_mano", True) else None)
             if res:
-                self._responder(200, res)
+                return 200, res
             else:
-                self._responder(200, {"palo": "Desconocido", "valor": 0, "confianza": 0.0})
+                return 200, {"palo": "Desconocido", "valor": 0, "confianza": 0.0}
 
         elif self.path == "/truco/jugar":
             carta = datos.get("carta")
             resultado = partida_truco.jugar_carta_humano(carta)
-            self._responder(200, resultado)
+            return 200, resultado
 
         elif self.path == "/truco/envido":
             canto = str(datos.get("canto", "ENVIDO")).upper()
             resultado = partida_truco.cantar_envido_humano(canto)
-            self._responder(200, resultado)
+            return 200, resultado
 
         elif self.path == "/truco/truco":
             nivel = datos.get("nivel")
             resultado = partida_truco.cantar_truco_humano(nivel)
-            self._responder(200, resultado)
+            return 200, resultado
 
         elif self.path == "/truco/responder":
             respuesta = str(datos.get("respuesta", "QUIERO")).upper()
             resultado = partida_truco.responder_canto_humano(respuesta)
-            self._responder(200, resultado)
+            return 200, resultado
 
         elif self.path == "/truco/mazo":
             resultado = partida_truco.irse_al_mazo_humano()
-            self._responder(200, resultado)
+            return 200, resultado
 
         elif self.path == "/truco/voz":
             texto = str(datos.get("texto", "")).strip()
             resultado = partida_truco.procesar_voz_truco(texto)
-            self._responder(200, resultado)
+            return 200, resultado
 
         elif self.path == "/truco/nuevo":
             est = partida_truco.nueva_mano()
-            self._responder(200, est if "error" in est else {"mensaje": "Nueva mano repartida", "estado": est})
+            return 200, est if "error" in est else {"mensaje": "Nueva mano repartida", "estado": est}
 
         elif self.path == "/truco/reiniciar":
             meta = int(datos.get("meta_puntos", 15))
             est = partida_truco.reiniciar_partido(meta_puntos=meta)
-            self._responder(200, {"mensaje": f"Partido reiniciado a {meta} puntos", "estado": est})
+            return 200, {"mensaje": f"Partido reiniciado a {meta} puntos", "estado": est}
 
         elif self.path == "/truco/modo_ia":
             modo = str(datos.get("modo", "aprendizaje"))
             est = partida_truco.cambiar_modo_ia(modo)
-            self._responder(200, {"mensaje": f"Modo de IA actualizado a {modo}", "estado": est})
+            return 200, {"mensaje": f"Modo de IA actualizado a {modo}", "estado": est}
 
         else:
-            self.send_response(404)
-            self.end_headers()
+            return 404, None
 
     def _responder(self, codigo: int, data: dict) -> None:
         cuerpo = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -262,7 +273,7 @@ def main() -> None:
     partida_truco = PartidaTruco(None)
     server = crear_servidor(partida_truco, puerto, sin_robot_flag)
     if not sin_robot_flag and server.asegurar_robot() is None:
-        print("  [AVISO] Simulador a?n no detectado. Se conectar? autom?ticamente en cuanto abras sim.bat.")
+        print("  [AVISO] Simulador aún no detectado. Se conectará automáticamente en cuanto abras sim.bat.")
 
     # Asegurar que las 40 imágenes de la Baraja Española estén generadas
     if not (DIR_CARTAS / "1_Espada.png").is_file() and (DIR_CARTAS / "template_naipes.jpg").is_file():
