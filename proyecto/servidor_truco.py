@@ -131,9 +131,7 @@ class Handler(BaseHTTPRequestHandler):
 
         elif self.path == "/truco/detectar":
             b64_img = datos.get("imagen", "")
-            usar_mano = bool(datos.get("usar_mano", True))
-            cartas_disp = partida_truco.cartas_humano_disponibles if usar_mano else None
-            res = detector_vision.procesar_frame_base64(b64_img, cartas_mano=cartas_disp)
+            res = detector_vision.procesar_frame_base64(b64_img)
             if res:
                 self._responder(200, res)
             else:
@@ -141,9 +139,6 @@ class Handler(BaseHTTPRequestHandler):
 
         elif self.path == "/truco/jugar":
             carta = datos.get("carta")
-            if not carta:
-                self._responder(400, {"error": "Falta parámetro carta"})
-                return
             resultado = partida_truco.jugar_carta_humano(carta)
             self._responder(200, resultado)
 
