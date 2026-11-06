@@ -150,7 +150,7 @@ class PartidaTruco:
 
     # ---------- ciclo de partida y mano ----------
     def cambiar_modo_ia(self, modo: str) -> Dict:
-        """Cambia la arquitectura activa de la IA ('reactivo', 'utilidad', 'aprendizaje')."""
+        """Change the active agent mode."""
         info = self.ia.set_modo_agente(modo)
         self.registrar(f"🧠 Arquitectura IA cambiada a: {info['nombre']}")
         return self.estado_publico()

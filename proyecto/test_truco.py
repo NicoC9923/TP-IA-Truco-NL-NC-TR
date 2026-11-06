@@ -128,7 +128,7 @@ class TestMazoYFalta(unittest.TestCase):
 
 class TestAprendizajePublico(unittest.TestCase):
     def test_partidas_por_modo_conservan_o_actualizan_aprendizaje(self):
-        for modo in ("reactivo", "utilidad", "aprendizaje"):
+        for modo in ("reactivo", "utilidad_adaptativa"):
             with self.subTest(modo=modo), tempfile.TemporaryDirectory() as tmp:
                 ruta = str(Path(tmp) / "h.json")
                 partida = PartidaTruco(robot=None, historial_path=ruta, rng=random.Random(0))
@@ -144,7 +144,7 @@ class TestAprendizajePublico(unittest.TestCase):
                     else:
                         partida.irse_al_mazo_humano()
                 final = partida.estado_publico()["aprendizaje_ia"]
-                if modo != "aprendizaje":
+                if modo != "utilidad_adaptativa":
                     self.assertEqual([final[c] for c in campos], [inicial[c] for c in campos])
                 else:
                     self.assertNotEqual([final[c] for c in campos], [inicial[c] for c in campos])
@@ -153,6 +153,18 @@ class TestAprendizajePublico(unittest.TestCase):
                 recargada = PartidaTruco(robot=None, historial_path=ruta, rng=random.Random(0)).estado_publico()["aprendizaje_ia"]
                 self.assertEqual([recargada[c] for c in campos], [final[c] for c in campos])
                 self.assertEqual(recargada["partidas"][0]["modo_agente"], modo)
+
+    def test_old_mode_history_is_exposed_as_adaptive_utility(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "history.json"
+            path.write_text(json.dumps({"parametros_ia": {}, "partidas": [
+                {"id": 1, "modo_agente": "utilidad"},
+                {"id": 2, "modo_agente": "aprendizaje"},
+                {"id": 3, "modo_agente": "reactivo"},
+            ]}), encoding="utf-8")
+            summary = PartidaTruco(historial_path=str(path), rng=random.Random(0)).estado_publico()["aprendizaje_ia"]
+            self.assertEqual([p["modo_agente"] for p in summary["partidas"]],
+                             ["reactivo", "utilidad_adaptativa", "utilidad_adaptativa"])
 
     def test_envido_querido_revela_farol_y_actualiza_umbral(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -205,6 +217,32 @@ class TestAprendizajePublico(unittest.TestCase):
 
 
 class TestServidorHTTP(unittest.TestCase):
+    def test_adaptive_utility_mode_endpoint(self):
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(historial_path=str(Path(tmp) / "h.json"), rng=random.Random(0))
+            servidor = crear_servidor(partida, puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever, daemon=True)
+            hilo.start()
+            try:
+                def change(mode):
+                    conn = http.client.HTTPConnection("127.0.0.1", servidor.server_port)
+                    conn.request("POST", "/truco/modo_ia", json.dumps({"modo": mode}))
+                    response = conn.getresponse()
+                    status, data = response.status, json.loads(response.read())
+                    conn.close()
+                    return status, data
+                self.assertEqual(change("reactivo")[0], 200)
+                self.assertEqual(change("utilidad")[0], 400)
+                self.assertEqual(partida.estado_publico()["aprendizaje_ia"]["modo_agente"], "reactivo")
+                status, data = change("utilidad_adaptativa")
+                self.assertEqual(status, 200)
+                summary = data["estado"]["aprendizaje_ia"]
+                self.assertEqual(summary["modo_agente"], "utilidad_adaptativa")
+                self.assertEqual([m["nombre"] for m in summary["modos_disponibles"]], ["Reactivo", "Utilidad adaptativa"])
+            finally:
+                servidor.shutdown(); hilo.join(); servidor.server_close()
+
     def test_fallo_robot_avisa_una_vez_por_cambio(self):
         from servidor_truco import crear_servidor
         with tempfile.TemporaryDirectory() as tmp:
@@ -937,17 +975,12 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual((c_reac["valor"], c_reac["palo"]), (1, "Espada"))
         self.assertEqual(partida.ia.ultimo_razonamiento["modo_codigo"], "reactivo")
 
-        # 2. En modo Basado en Utilidad (474k), abre con su intermedia fuerte (7 de Oro) y reserva el Ancho
-        partida.cambiar_modo_ia("utilidad")
-        self.assertEqual(partida.ia.modo_agente, "utilidad")
+        # Adaptive Utility preserves the former learning-mode card choice and trace.
+        est = partida.cambiar_modo_ia("utilidad_adaptativa")
+        self.assertEqual(est["aprendizaje_ia"]["modo_agente"], "utilidad_adaptativa")
         c_util = partida.ia.elegir_carta_a_jugar(mano_media, ronda=1)
         self.assertEqual((c_util["valor"], c_util["palo"]), (7, "Oro"))
         self.assertGreaterEqual(len(partida.ia.traza_razonamiento), 2)
-
-        # 3. Volver a modo Aprendizaje Adaptativo
-        est = partida.cambiar_modo_ia("aprendizaje")
-        self.assertEqual(est["aprendizaje_ia"]["modo_agente"], "aprendizaje")
-        self.assertTrue(len(est["aprendizaje_ia"]["traza_razonamiento"]) >= 2)
 
     def test_turno_automatico_cuando_robot_es_mano(self):
         partida = PartidaTruco(robot=None, meta_puntos=15, historial_path=self.tmp_hist)
