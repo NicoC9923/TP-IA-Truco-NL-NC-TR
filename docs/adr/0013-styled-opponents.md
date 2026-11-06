@@ -14,3 +14,5 @@ Each bias's size is fixed and documented so runs are comparable. About half of t
 - **Four variants of the Utility agent with fixed parameters** (the original version): the trained agent would learn to exploit Utility's logic through the back door, and its evaluation against Adaptive Utility would be inflated.
 - **Four new bots written from scratch:** independent of the app, but it is hand-written strategy to maintain, and biases on the agent's own networks give enough variety.
 - **No styles (pure self-play):** standard when strength is the only goal, but clones play alike, the profile would carry no signal, and adapting to the opponent would learn almost nothing.
+
+The logit adjustment is +3 for objectively weak envido or truco calls by the bluffer and -3 for those calls by the calculating opponent. The cautious opponent receives -3 for quiero; the aggressive opponent receives +3 for raises (real envido, falta envido, retruco, vale cuatro). These are additive softmax logits and do not reveal style to the opposing network.

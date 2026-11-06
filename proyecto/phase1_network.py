@@ -41,13 +41,14 @@ def encode_observation(obs, profile):
     return np.asarray(values, dtype=np.float64)
 
 class NetworkPolicy:
-    def __init__(self, genome, seed=0, bias=None, profile=None):
+    def __init__(self, genome, seed=0, bias=None, profile=None, style=None):
         self.genome = np.asarray(genome, dtype=np.float64).copy()
         if self.genome.shape != (GENOME_SIZE,):
             raise ValueError('Invalid genome shape')
         self.rng = np.random.default_rng(seed)
         self.bias = dict(bias or {})
         self.profile = profile or OpponentProfile()
+        self.style = style
 
     def __call__(self, observation, legal_actions):
         x = encode_observation(observation, self.profile)
@@ -56,7 +57,18 @@ class NetworkPolicy:
         c = b + HIDDEN * len(ACTIONS)
         hidden = np.tanh(x @ self.genome[:a].reshape(INPUTS, HIDDEN) + self.genome[a:b])
         logits = hidden @ self.genome[b:c].reshape(HIDDEN, len(ACTIONS)) + self.genome[c:]
-        scores = np.array([logits[ACTIONS.index(action)] + self.bias.get(action, 0) for action in legal_actions])
+        from symmetric_engine import _bluff
+        scores = []
+        for action in legal_actions:
+            adjustment = self.bias.get(action, 0)
+            if self.style in ('bluffer', 'calculating') and _bluff(action, observation['hand']):
+                adjustment += 3 if self.style == 'bluffer' else -3
+            if self.style == 'cautious' and action == 'quiero':
+                adjustment -= 3
+            if self.style == 'aggressive' and action in ('retruco', 'vale_cuatro', 'real_envido', 'falta_envido'):
+                adjustment += 3
+            scores.append(logits[ACTIONS.index(action)] + adjustment)
+        scores = np.array(scores)
         weights = np.exp(scores - scores.max())
         return legal_actions[self.rng.choice(len(legal_actions), p=weights / weights.sum())]
 

@@ -1,6 +1,7 @@
 """Seeded symmetric Truco engine; policies receive only their own cards."""
 from dataclasses import dataclass
 import random
+import hashlib
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -30,7 +31,9 @@ class MatchResult:
     deals: list
 
 
-def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
+def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), deal_partition=None):
+    if deal_partition not in (None, 0, 1):
+        raise ValueError("Invalid deal partition")
     if target <= 0 or len(starting_score) != 2 or min(starting_score) < 0 or max(starting_score) >= target:
         raise ValueError('Invalid target or starting score')
     rng = random.Random(seed)
@@ -40,8 +43,12 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
     mano = 0
     while max(score) < target:
         deck = [(v, p) for p in rules.PALOS for v in rules.VALORES]
-        rng.shuffle(deck)
-        hands = [deck[:3], deck[3:6]]
+        while True:
+            rng.shuffle(deck)
+            hands = [deck[:3], deck[3:6]]
+            canonical = tuple(sorted(tuple(sorted(hand)) for hand in hands))
+            if deal_partition is None or hashlib.sha256(repr(canonical).encode('utf-8')).digest()[0] % 2 == deal_partition:
+                break
         deals.append(tuple(tuple(h) for h in hands))
         available = [list(range(3)), list(range(3))]
         table, tricks, history = [], [], []

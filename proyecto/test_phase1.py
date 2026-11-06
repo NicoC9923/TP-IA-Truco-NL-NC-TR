@@ -78,3 +78,79 @@ class ProfileMatchTests(unittest.TestCase):
                 train(directory, population_size=2, generations=1, pairs=1, workers=1, target=1, seed=9)
             self.assertEqual(Path(a, 'generations.jsonl').read_text(), Path(b, 'generations.jsonl').read_text())
             np.testing.assert_array_equal(np.load(Path(a, 'champion_0001.npy')), np.load(Path(b, 'champion_0001.npy')))
+
+class LeagueAcceptanceTests(unittest.TestCase):
+    def test_training_records_validation_and_promotion(self):
+        import tempfile, json
+        from pathlib import Path
+        from phase1_trainer import train
+        with tempfile.TemporaryDirectory() as directory:
+            train(directory, population_size=2, generations=2, pairs=1, workers=1, target=1, seed=5, validation_pairs=2)
+            entries = [json.loads(line) for line in Path(directory, 'generations.jsonl').read_text().splitlines()]
+            self.assertEqual(len(entries), 2)
+            self.assertIn('promotion_check', entries[1])
+            self.assertIn('margin_of_error', entries[1]['promotion_check'])
+            self.assertIn('reigning_champion', entries[1])
+
+    def test_resume_and_promotions(self):
+        import tempfile, json
+        from pathlib import Path
+        from phase1_trainer import train
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            options = dict(population_size=2, pairs=1, workers=1, target=1, seed=7, validation_pairs=1, patience=30, promotion_threshold=0)
+            train(a, generations=11, **options)
+            train(b, generations=10, **options)
+            train(b, generations=11, resume=Path(b, 'checkpoint_0010.npz'), **options)
+            self.assertEqual(Path(a, 'generations.jsonl').read_text(), Path(b, 'generations.jsonl').read_text())
+            lines = [json.loads(s) for s in Path(a, 'generations.jsonl').read_text().splitlines()]
+            self.assertTrue(lines[1]['promoted'])
+            self.assertEqual(lines[1]['reigning_champion'], 2)
+        with tempfile.TemporaryDirectory() as d:
+            options.update(promotion_threshold=1.1, patience=2)
+            train(d, generations=4, **options)
+            lines = [json.loads(s) for s in Path(d, 'generations.jsonl').read_text().splitlines()]
+            self.assertEqual(len(lines), 3)
+            self.assertFalse(lines[1]['promoted'])
+            self.assertTrue(lines[-1]['phase_ended'])
+
+    def test_league_mix_is_balanced(self):
+        import tempfile, json
+        from pathlib import Path
+        from collections import Counter
+        from phase1_trainer import train
+        with tempfile.TemporaryDirectory() as d:
+            train(d, population_size=8, generations=1, pairs=1, workers=1, target=1, seed=6, validation_pairs=1)
+            entry = json.loads(Path(d, 'generations.jsonl').read_text())
+            self.assertEqual(Counter(entry['league']), {'unbiased': 4, 'bluffer': 1, 'cautious': 1, 'aggressive': 1, 'calculating': 1})
+
+    def test_styled_opponents_change_observed_behavior(self):
+        def counts(style):
+            calls = bluffs = accepts = chances = 0
+            for seed in range(30):
+                a = NetworkPolicy(np.zeros(GENOME_SIZE), seed=seed, style=style)
+                b = NetworkPolicy(np.zeros(GENOME_SIZE), seed=seed + 100)
+                result = play_match(a, b, seed=seed, target=3)
+                for d in result.decisions:
+                    if d['player'] != 0:
+                        continue
+                    if d['bluff'] is not None:
+                        calls += 1
+                        bluffs += bool(d['bluff'])
+                    if 'quiero' in d['legal_actions']:
+                        chances += 1
+                        accepts += d['action'] != 'no_quiero'
+            return bluffs, accepts / max(chances, 1)
+        self.assertGreater(counts('bluffer')[0], counts('calculating')[0])
+        self.assertLess(counts('cautious')[1], counts('aggressive')[1])
+
+    def test_training_and_validation_deals_do_not_overlap(self):
+        class Fold:
+            def __call__(self, obs, actions):
+                return 'fold'
+        def canonical(deal):
+            return tuple(sorted(tuple(sorted(hand)) for hand in deal))
+        training, validation = set(), set()
+        for seed in range(40):
+            training.update(map(canonical, play_match(Fold(), Fold(), seed=seed, target=15, deal_partition=1).deals))
+            validation.update(map(canonical, play_match(Fold(), Fold(), seed=seed, target=15, deal_partition=0).deals))
+        self.assertFalse(training & validation)
