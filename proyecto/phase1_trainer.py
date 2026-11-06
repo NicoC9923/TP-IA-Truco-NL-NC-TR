@@ -9,6 +9,7 @@ from time import perf_counter
 import numpy as np
 from phase1_network import GENOME_SIZE, NetworkPolicy
 from symmetric_engine import play_match
+from validation_schedule import validation_schedule
 
 def fitness(results):
     """Score (result, seat) pairs using match wins and normalized point difference."""
@@ -34,6 +35,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
         raise ValueError('Invalid training configuration')
     output = Path(directory)
     output.mkdir(parents=True, exist_ok=True)
+    (output / 'run_config.json').write_text(json.dumps({'seed': seed, 'target': target}), encoding='utf-8')
     rng = np.random.default_rng(seed)
     population = rng.normal(0, .1, (population_size, GENOME_SIZE))
     hall, reigning, reigning_generation, stale, first_generation = [], None, None, 0, 1
@@ -78,7 +80,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             if reigning is None:
                 reigning, reigning_generation = genome.copy(), generation
             else:
-                jobs = [(genome, reigning, 2 * (seed * 1000000000 + p), target or (15 if p % 2 == 0 else 30), (0, 0), None) for p in range(validation_pairs)]
+                jobs = [(genome, reigning, deal_seed, match_target, (0, 0), None) for deal_seed, match_target in validation_schedule(seed, target, validation_pairs)]
                 if workers == 1:
                     checks = list(map(_evaluate, jobs))
                 else:
