@@ -90,3 +90,12 @@ class EvidenceTests(unittest.TestCase):
         self.assertIn('possible_hands', output)
         self.assertIn('next_trick_win_probability', output)
         self.assertIn('profile', output)
+    def test_observation_filters_played_cards_and_declarations(self):
+        from opponent_inference import inference_from_observation
+        obs = {'hand': ((1, 'Espada'), (2, 'Copa'), (3, 'Oro')), 'player': 0,
+               'mano': 0, 'table': ((1, (7, 'Oro')),), 'history': ((1, 'truco'),),
+               'envido_reveal': {'declarations': ((0, 27), (1, 33))}}
+        belief = inference_from_observation(obs, 0.2)
+        self.assertTrue(belief.distribution())
+        self.assertTrue(all((7, 'Oro') in hand and any((7, suit) in hand and (6, suit) in hand for suit in ('Espada', 'Basto', 'Oro', 'Copa')) for hand in belief.distribution()))
+
