@@ -9,4 +9,5 @@ class TournamentReviewTests(unittest.TestCase):
             row = tournament({'a': lambda s: None, 'b': lambda s: None}, pairs=2)[0]
         self.assertAlmostEqual(row['win_rate'], .5)
         self.assertAlmostEqual(row['margin_of_error'], .98)
-        self.assertEqual(row['confidence_interval'], [-.48, 1.48])
+        self.assertAlmostEqual(row['confidence_interval'][0], -.48)
+        self.assertAlmostEqual(row['confidence_interval'][1], 1.48)

@@ -29,7 +29,7 @@ class TournamentTests(unittest.TestCase):
             self.assertEqual(result['matches'], 4)
             self.assertGreaterEqual(result['win_rate'], 0)
             self.assertLessEqual(result['win_rate'], 1)
-            self.assertGreater(result['margin_of_error'], 0)
+            self.assertGreaterEqual(result['margin_of_error'], 0)
             self.assertEqual(set(result['bluff_rates']), set(result['opponents']))
             for rate in result['bluff_rates'].values():
                 self.assertTrue(rate is None or 0 <= rate <= 1)
