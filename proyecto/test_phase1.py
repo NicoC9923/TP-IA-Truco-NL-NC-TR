@@ -91,6 +91,7 @@ class LeagueAcceptanceTests(unittest.TestCase):
             self.assertIn('promotion_check', entries[1])
             self.assertIn('margin_of_error', entries[1]['promotion_check'])
             self.assertIn('reigning_champion', entries[1])
+            self.assertEqual(entries[1]['promoted'], entries[1]['promotion_check']['win_rate'] >= .55)
 
     def test_resume_and_promotions(self):
         import tempfile, json
@@ -105,6 +106,9 @@ class LeagueAcceptanceTests(unittest.TestCase):
             lines = [json.loads(s) for s in Path(a, 'generations.jsonl').read_text().splitlines()]
             self.assertTrue(lines[1]['promoted'])
             self.assertEqual(lines[1]['reigning_champion'], 2)
+            with np.load(Path(b, 'checkpoint_0010.npz')) as checkpoint:
+                self.assertEqual(len(checkpoint['hall']), 9)
+                self.assertEqual(len(checkpoint['population']), 2)
         with tempfile.TemporaryDirectory() as d:
             options.update(promotion_threshold=1.1, patience=2)
             train(d, generations=4, **options)
