@@ -149,6 +149,10 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
         for decision in decisions[hand_start:]:
             decision['hand_index'] = len(deals) - 1
             decision['revealed'] = len(available[decision['player']]) == 0
+        for seat, policy in enumerate(policies):
+            observer = getattr(policy, 'observe_hand', None)
+            if observer is not None:
+                observer(decisions[hand_start:], 1-seat)
         mano = 1-mano
     return MatchResult(score.index(max(score)), tuple(score), decisions, deals)
 
@@ -156,6 +160,7 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
 def play_mirror_pair(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
     return (play_match(policy_a, policy_b, seed=seed, target=target, starting_score=starting_score),
             play_match(policy_b, policy_a, seed=seed, target=target, starting_score=starting_score[::-1]))
+
 
 
 

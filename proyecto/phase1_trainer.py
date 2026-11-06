@@ -13,13 +13,11 @@ def fitness(results):
     return sum((result.winner == seat) + .1 * (result.points[seat] - result.points[1-seat]) / max(result.points) for result, seat in results) / len(results)
 
 def _evaluate(job):
-    genome, opponent, seed, target = job
+    genome, opponent, seed, target, starting_score = job
     a = NetworkPolicy(genome, seed=seed * 2)
     b = NetworkPolicy(opponent, seed=seed * 2 + 1)
-    first = play_match(a, b, seed=seed, target=target)
-    a.profile.observe(first.decisions, 1)
-    b.profile.observe(first.decisions, 0)
-    second = play_match(b, a, seed=seed, target=target)
+    first = play_match(a, b, seed=seed, target=target, starting_score=starting_score)
+    second = play_match(b, a, seed=seed, target=target, starting_score=starting_score)
     return [(first, 0), (second, 1)]
 
 def _behavior(results):
@@ -29,8 +27,8 @@ def _behavior(results):
     opportunities = [d for d in own if d['observation']['pending'] and d['observation']['pending']['kind'] == 'truco']
     return {'envido': sum(d['action'] in ('envido', 'real_envido', 'falta_envido') for d in own) / max(hands, 1), 'bluff': sum(d['bluff'] for d in calls) / max(len(calls), 1), 'truco_acceptance': sum(d['action'] in ('quiero', 'retruco', 'vale_cuatro') for d in opportunities) / max(len(opportunities), 1)}
 
-def train(directory, population_size=4, generations=1, pairs=1, workers=2, target=15, seed=0):
-    if min(population_size - 1, generations, pairs, workers, target) < 1:
+def train(directory, population_size=4, generations=1, pairs=1, workers=2, target=None, seed=0):
+    if min(population_size - 1, generations, pairs, workers) < 1 or (target is not None and target < 1):
         raise ValueError('Invalid training configuration')
     output = Path(directory)
     output.mkdir(parents=True, exist_ok=True)
@@ -43,7 +41,9 @@ def train(directory, population_size=4, generations=1, pairs=1, workers=2, targe
             for i in range(population_size):
                 for p in range(pairs):
                     opponent = (i + 1 + p % (population_size - 1)) % population_size
-                    jobs.append((population[i], population[opponent], seed + generation * 100000 + p, target))
+                    match_target = target if target is not None else int(rng.choice((15, 30)))
+                    starting_score = tuple(int(x) for x in rng.integers(match_target, size=2)) if rng.random() < .3 else (0, 0)
+                    jobs.append((population[i], population[opponent], seed + generation * 100000 + p, match_target, starting_score))
             if workers == 1:
                 evaluated = list(map(_evaluate, jobs))
             else:
@@ -79,10 +79,13 @@ def main():
     parser.add_argument('--generations', type=int, default=1)
     parser.add_argument('--pairs', type=int, default=1)
     parser.add_argument('--workers', type=int, default=2)
-    parser.add_argument('--target', type=int, default=15)
+    parser.add_argument('--target', type=int, default=None)
     parser.add_argument('--seed', type=int, default=0)
     args = parser.parse_args()
     train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed)
 
 if __name__ == '__main__':
     main()
+
+
+

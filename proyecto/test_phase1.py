@@ -59,3 +59,22 @@ class IndependenceTests(unittest.TestCase):
         code = "import sys; import phase1_trainer; assert 'truco_ia' not in sys.modules; assert 'engine_policies' not in sys.modules"
         subprocess.run([sys.executable, '-c', code], check=True, cwd=__import__('pathlib').Path(__file__).parent)
 
+
+class ProfileMatchTests(unittest.TestCase):
+    def test_network_learns_opponent_profile_during_match(self):
+        class Fold:
+            def __call__(self, obs, actions):
+                return 'fold'
+        policy = NetworkPolicy(np.zeros(GENOME_SIZE), seed=3)
+        play_match(policy, Fold(), seed=7, target=5)
+        self.assertGreater(policy.profile.rates()['fold'], .5)
+
+    def test_seed_reproduces_generation(self):
+        import tempfile
+        from pathlib import Path
+        from phase1_trainer import train
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            for directory in (a, b):
+                train(directory, population_size=2, generations=1, pairs=1, workers=1, target=1, seed=9)
+            self.assertEqual(Path(a, 'generations.jsonl').read_text(), Path(b, 'generations.jsonl').read_text())
+            np.testing.assert_array_equal(np.load(Path(a, 'champion_0001.npy')), np.load(Path(b, 'champion_0001.npy')))

@@ -60,10 +60,14 @@ class NetworkPolicy:
         weights = np.exp(scores - scores.max())
         return legal_actions[self.rng.choice(len(legal_actions), p=weights / weights.sum())]
 
+    def observe_hand(self, decisions, opponent):
+        self.profile.observe(decisions, opponent)
+
     def save(self, path):
         np.save(path, self.genome)
 
     @classmethod
     def load(cls, path, **kwargs):
         return cls(np.load(path, allow_pickle=False), **kwargs)
+
 
