@@ -159,7 +159,12 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
         for seat, policy in enumerate(policies):
             observer = getattr(policy, 'observe_hand', None)
             if observer is not None:
-                observer(decisions[hand_start:], 1-seat)
+                observer([{'player': d['player'], 'action': d['action'],
+                           'legal_actions': d['legal_actions'],
+                           'observation': {'pending': d['observation']['pending']},
+                           'hand_index': d['hand_index'], 'revealed': d['revealed'],
+                           'bluff': d['bluff'] if d['revealed'] else None}
+                          for d in decisions[hand_start:]], 1-seat)
         mano = 1-mano
     return MatchResult(score.index(max(score)), tuple(score), decisions, deals)
 
