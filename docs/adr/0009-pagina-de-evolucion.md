@@ -1,0 +1,3 @@
+# Página de evolución aparte, alimentada por un log por generación
+
+El entrenador escribe un registro por generación y una página HTML aparte de la interfaz de juego lo muestra. Por generación se ve: fitness máximo, promedio y mínimo; la curva de validación del campeón contra cada rival de referencia; el comportamiento que va surgiendo (frecuencia de envido, de farol y de aceptación del truco); la diversidad de la población; y un selector para ver una mano de ejemplo jugada por el campeón de cualquier generación, decisión por decisión. Se separó de la interfaz de juego para que entrenar no dependa de que la partida esté corriendo.
