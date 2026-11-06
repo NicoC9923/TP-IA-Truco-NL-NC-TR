@@ -1,6 +1,6 @@
 """Run reference matches and measure throughput."""
 import argparse
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from time import perf_counter
 from engine_policies import RandomPolicy, ReactivePolicy
 from symmetric_engine import play_match, play_mirror_pair
@@ -27,7 +27,7 @@ def main():
     jobs = [(args.seed+i, args.target, tuple(args.score), args.mirror, (args.policy_a, args.policy_b)) for i in range(args.matches)]
     for threads in (1, 16):
         start = perf_counter()
-        with ThreadPoolExecutor(max_workers=threads) as executor:
+        with ProcessPoolExecutor(max_workers=threads) as executor:
             results = list(executor.map(run_one, jobs))
         elapsed = perf_counter() - start
         wins = [0, 0]

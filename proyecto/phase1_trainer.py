@@ -133,7 +133,7 @@ def main():
     parser.add_argument('--output', default='training_output/phase1')
     parser.add_argument('--population', type=int, default=64)
     parser.add_argument('--generations', type=int, default=1)
-    parser.add_argument('--pairs', type=int, default=1)
+    parser.add_argument('--pairs', type=int, default=8)
     parser.add_argument('--workers', type=int, default=16)
     parser.add_argument('--target', type=int, default=None)
     parser.add_argument('--seed', type=int, default=0)
