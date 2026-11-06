@@ -3,7 +3,7 @@
 Progress and the end of a phase are decided only with networks from the phase itself, without the existing agents (ADR 0021):
 
 - There is a **reigning champion**, initially the first champion.
-- At the end of each generation, its champion plays 1,000 pairs of mirror matches against the reigning champion on the validation deals (2,000 matches). If it wins at least 55%, it is **promoted**: it becomes the reigning champion and enters the hall of fame.
+- At the end of each generation, its champion plays up to 1,000 pairs of mirror matches against the reigning champion on the validation deals. If the check establishes a result above or below the threshold it can stop early; otherwise it uses all pairs. If its observed win rate is at least 55%, it is **promoted**: it becomes the reigning champion and enters the hall of fame.
 - The phase **ends** after 20 consecutive generations without a promotion. The number is a starting point, to be tuned once the engine's speed is measured.
 - The app's network modes load their phase's reigning champion.
 
