@@ -17,6 +17,7 @@ import random
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import truco_reglas as tr
+from historial_truco import HistorialTruco
 
 
 class AgenteTrucoIA:
@@ -50,10 +51,14 @@ class AgenteTrucoIA:
         base_dir = Path(__file__).resolve().parent
         if stats_path is None:
             stats_path = str(base_dir / "truco_stats.json")
-        if historial_path is None:
+        usar_semilla = historial_path is None
+        if usar_semilla:
             historial_path = str(base_dir / "historial_partidas.json")
 
         self.historial_path = Path(historial_path)
+        self.historial = HistorialTruco(self.historial_path)
+        if usar_semilla:
+            self.historial.inicializar(base_dir / "historial_partidas.seed.json")
 
         with open(stats_path, "r", encoding="utf-8") as f:
             self.stats = json.load(f)
@@ -137,18 +142,7 @@ class AgenteTrucoIA:
             },
             "partidas": [],
         }
-        if self.historial_path.is_file():
-            try:
-                with open(self.historial_path, "r", encoding="utf-8") as f:
-                    cargado = json.load(f)
-                if isinstance(cargado, dict) and "parametros_ia" in cargado:
-                    for k, v in estructura_defecto["parametros_ia"].items():
-                        cargado["parametros_ia"].setdefault(k, v)
-                    cargado.setdefault("partidas", [])
-                    return cargado
-            except Exception:
-                pass
-        return estructura_defecto
+        return self.historial.cargar(estructura_defecto)
 
     def _sincronizar_atributos(self) -> None:
         p = self.datos_historial["parametros_ia"]
@@ -164,11 +158,7 @@ class AgenteTrucoIA:
         p["prob_farol_truco"] = round(self.prob_farol_truco, 3)
         p["umbral_quiero_envido_offset"] = round(self.umbral_quiero_envido_offset, 3)
         p["umbral_quiero_truco_offset"] = round(self.umbral_quiero_truco_offset, 3)
-        try:
-            with open(self.historial_path, "w", encoding="utf-8") as f:
-                json.dump(self.datos_historial, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+        self.historial.guardar(self.datos_historial)
 
     def resumen_aprendizaje(self) -> Dict:
         """Devuelve el estado evolutivo actual de la IA y su lectura del jugador humano."""

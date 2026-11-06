@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -27,33 +28,31 @@ PAGINA = DIR_PROYECTO / "voz.html"
 DIR_CARTAS = DIR_PROYECTO / "cartas"
 DIR_FUENTES = DIR_PROYECTO / "fuentes"
 
-robot_instancia = None
-sin_robot_flag = False
-agente = None
-partida_truco = None
-detector_vision = None
+class ServidorTruco(ThreadingHTTPServer):
+    def __init__(self, direccion, partida, sin_robot):
+        super().__init__(direccion, Handler)
+        self.lock = threading.RLock()
+        self.partida = partida
+        self.robot = partida.robot
+        self.sin_robot = sin_robot
+        self.agente = AgenteRobot(self.robot)
+        self.detector = DetectorCartas()
 
-
-def asegurar_robot():
-    """Intenta conectar al simulador si aún no estaba conectado y se abrió después."""
-    global robot_instancia
-    if sin_robot_flag:
-        return None
-    if robot_instancia is not None:
-        return robot_instancia
-    try:
-        r = Robot()
-        r.conectar()
-        robot_instancia = r
-        if agente is not None:
-            agente.robot = r
-            agente.ejecutor.robot = r
-        if partida_truco is not None:
-            partida_truco.robot = r
-        print("  [OK] Conectado dinámicamente al simulador del Robot.")
-        return r
-    except Exception:
-        return None
+    def asegurar_robot(self):
+        with self.lock:
+            if self.sin_robot or self.robot is not None:
+                return self.robot
+            try:
+                robot = Robot()
+                robot.conectar()
+                self.robot = robot
+                self.agente.robot = robot
+                self.agente.ejecutor.robot = robot
+                self.partida.robot = robot
+                print("  [OK] Conectado din?micamente al simulador del Robot.")
+                return robot
+            except Exception:
+                return None
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -61,6 +60,11 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        with self.server.lock:
+            self._do_GET()
+
+    def _do_GET(self):
+        partida_truco = self.server.partida
         ruta_limpia = self.path.split("?", 1)[0]
         if ruta_limpia in ("/", "/voz.html"):
             cuerpo = PAGINA.read_bytes()
@@ -98,9 +102,9 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         elif ruta_limpia == "/truco/estado":
-            asegurar_robot()
+            self.server.asegurar_robot()
             est = partida_truco.estado_publico()
-            est["robot_conectado"] = robot_instancia is not None
+            est["robot_conectado"] = self.server.robot is not None
             self._responder(200, est)
         elif ruta_limpia == "/truco/historial":
             self._responder(200, partida_truco.ia.resumen_aprendizaje())
@@ -109,14 +113,64 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
-        asegurar_robot()
-        largo = int(self.headers.get("Content-Length", 0))
+        with self.server.lock:
+            self._do_POST()
+
+    def _do_POST(self):
+        partida_truco = self.server.partida
+        agente = self.server.agente
+        detector_vision = self.server.detector
+        self.server.asegurar_robot()
+        longitud = self.headers.get("Content-Length")
+        if longitud is None or not longitud.isascii() or not longitud.isdecimal():
+            self._responder(400, {"error": "Content-Length inv?lido"})
+            return
+        if len(longitud.lstrip("0")) > 7:
+            self._responder(413, {"error": "Cuerpo demasiado grande"})
+            return
+        largo = int(longitud.lstrip("0") or "0")
+        if largo > 1024 * 1024:
+            self._responder(413, {"error": "Cuerpo demasiado grande"})
+            return
         crudo = self.rfile.read(largo) if largo else b"{}"
         try:
             datos = json.loads(crudo)
         except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
             self._responder(400, {"error": "JSON inválido"})
             return
+
+        if not isinstance(datos, dict):
+            self._responder(400, {"error": "El JSON debe ser un objeto"})
+            return
+
+        listas = {
+            "/truco/envido": ("canto", "ENVIDO", {"ENVIDO", "ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"}),
+            "/truco/truco": ("nivel", None, {None, "TRUCO", "RETRUCO", "VALE_CUATRO"}),
+            "/truco/responder": ("respuesta", "QUIERO", {"QUIERO", "NO_QUIERO", "ENVIDO", "ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO", "TRUCO", "RETRUCO", "VALE_CUATRO"}),
+            "/truco/modo_ia": ("modo", "aprendizaje", {"reactivo", "utilidad", "aprendizaje"}),
+        }
+        if self.path in listas:
+            campo, defecto, permitidos = listas[self.path]
+            valor = datos.get(campo, defecto)
+            if isinstance(valor, str) and self.path in ("/truco/envido", "/truco/responder"):
+                valor = valor.upper()
+            elif isinstance(valor, str) and self.path == "/truco/modo_ia":
+                valor = valor.strip().lower()
+            if not (valor is None or isinstance(valor, str)) or valor not in permitidos:
+                self._responder(400, {"error": f"{campo} inv?lido"})
+                return
+        if self.path == "/truco/reiniciar":
+            meta = datos.get("meta_puntos", 15)
+            if type(meta) is not int or meta not in (15, 30):
+                self._responder(400, {"error": "Meta inv?lida"})
+                return
+        if self.path == "/truco/jugar":
+            carta = datos.get("carta")
+            if (not isinstance(carta, dict) or type(carta.get("valor")) is not int
+                or carta["valor"] not in (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
+                or carta.get("palo") not in ("Espada", "Basto", "Oro", "Copa")):
+                self._responder(400, {"error": "Carta inv?lida"})
+                return
 
         if self.path == "/comando":
             texto = str(datos.get("texto", "")).strip()
@@ -131,9 +185,7 @@ class Handler(BaseHTTPRequestHandler):
 
         elif self.path == "/truco/detectar":
             b64_img = datos.get("imagen", "")
-            usar_mano = bool(datos.get("usar_mano", True))
-            cartas_disp = partida_truco.cartas_humano_disponibles if usar_mano else None
-            res = detector_vision.procesar_frame_base64(b64_img, cartas_mano=cartas_disp)
+            res = detector_vision.procesar_frame_base64(b64_img)
             if res:
                 self._responder(200, res)
             else:
@@ -141,9 +193,6 @@ class Handler(BaseHTTPRequestHandler):
 
         elif self.path == "/truco/jugar":
             carta = datos.get("carta")
-            if not carta:
-                self._responder(400, {"error": "Falta parámetro carta"})
-                return
             resultado = partida_truco.jugar_carta_humano(carta)
             self._responder(200, resultado)
 
@@ -198,9 +247,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(cuerpo)
 
 
-def main() -> None:
-    global sin_robot_flag, agente, partida_truco, detector_vision, robot_instancia
+def crear_servidor(partida, puerto=PUERTO_DEFAULT, sin_robot=False):
+    return ServidorTruco(("127.0.0.1", puerto), partida, sin_robot)
 
+
+def main() -> None:
     sin_robot_flag = "--sin-robot" in sys.argv
     abrir_nav = "--abrir" in sys.argv
     puerto = PUERTO_DEFAULT
@@ -208,21 +259,16 @@ def main() -> None:
         if arg.startswith("--puerto="):
             puerto = int(arg.split("=", 1)[1])
 
-    if not sin_robot_flag:
-        asegurar_robot()
-        if robot_instancia is None:
-            print("  [AVISO] Simulador aún no detectado. Se conectará automáticamente en cuanto abras sim.bat.")
-
-    agente = AgenteRobot(robot_instancia)
-    partida_truco = PartidaTruco(robot_instancia)
-    detector_vision = DetectorCartas()
+    partida_truco = PartidaTruco(None)
+    server = crear_servidor(partida_truco, puerto, sin_robot_flag)
+    if not sin_robot_flag and server.asegurar_robot() is None:
+        print("  [AVISO] Simulador a?n no detectado. Se conectar? autom?ticamente en cuanto abras sim.bat.")
 
     # Asegurar que las 40 imágenes de la Baraja Española estén generadas
     if not (DIR_CARTAS / "1_Espada.png").is_file() and (DIR_CARTAS / "template_naipes.jpg").is_file():
         from generar_baraja import generar_baraja_40
         generar_baraja_40(str(DIR_CARTAS / "template_naipes.jpg"), str(DIR_CARTAS))
 
-    server = ThreadingHTTPServer(("127.0.0.1", puerto), Handler)
     url = f"http://127.0.0.1:{puerto}"
     print("\n  =========================================================")
     print("  [OK] TRUCO & VOZ CON OTTOMAN (Unitree G1) LISTO")
@@ -240,10 +286,11 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
-        if robot_instancia is not None:
+        server.server_close()
+        if server.robot is not None:
             try:
-                robot_instancia.detenerse()
-                robot_instancia.desconectar()
+                server.robot.detenerse()
+                server.robot.desconectar()
             except Exception:
                 pass
 

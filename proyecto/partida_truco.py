@@ -293,24 +293,21 @@ class PartidaTruco:
         if self.turno_carta != "humano":
             return {"error": "Todavía no es tu turno de tirar carta.", "estado": self.estado_publico()}
 
-        palo_in = str(carta.get("palo", "")).capitalize()
-        val_in = int(carta.get("valor", 0))
+        if not isinstance(carta, dict):
+            return {"error": "Esa carta no está en tu mano", "estado": self.estado_publico()}
+        val_in = carta.get("valor")
+        palo_in = carta.get("palo")
+        if (type(val_in) is not int or val_in not in (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
+                or palo_in not in ("Espada", "Basto", "Oro", "Copa")):
+            return {"error": "Esa carta no está en tu mano", "estado": self.estado_publico()}
         carta_jugada = None
         for c in self.cartas_humano_disponibles:
             if int(c["valor"]) == val_in and str(c["palo"]).capitalize() == palo_in:
                 carta_jugada = c
                 break
 
-        if carta_jugada is None and self.cartas_humano_disponibles:
-            for c in self.cartas_humano_disponibles:
-                if str(c["palo"]).capitalize() == palo_in or int(c["valor"]) == val_in:
-                    carta_jugada = c
-                    break
-            if carta_jugada is None:
-                carta_jugada = self.cartas_humano_disponibles[0]
-
         if carta_jugada is None:
-            return {"error": "No te quedan cartas para jugar.", "estado": self.estado_publico()}
+            return {"error": "Esa carta no está en tu mano", "estado": self.estado_publico()}
 
         self.cartas_humano_disponibles.remove(carta_jugada)
         nombre_c = tr.nombre_carta(carta_jugada["valor"], carta_jugada["palo"])
@@ -982,6 +979,9 @@ class PartidaTruco:
         carta_voz = tr.buscar_carta_en_texto(t, self.cartas_humano_disponibles)
         if carta_voz is not None:
             return self.jugar_carta_humano(carta_voz)
+
+        if re.search(r"\b(?:carta|juego|jugar|tiro|tirar)\b", t):
+            return self.jugar_carta_humano(None)
 
         return {
             "error": f"No reconocí una jugada de Truco en: \"{texto}\". Probá diciendo 'Envido', 'Truco', 'Quiero', 'Al mazo' o el nombre de tu carta.",

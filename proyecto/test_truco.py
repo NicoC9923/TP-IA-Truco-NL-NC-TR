@@ -4,10 +4,19 @@ from __future__ import annotations
 
 import base64
 import random
+import copy
+import http.client
+import json
+import threading
+import contextlib
+import io
+import shutil
+import subprocess
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 PROYECTO_DIR = Path(__file__).resolve().parent
 RAIZ_DIR = PROYECTO_DIR.parent
@@ -21,6 +30,174 @@ from truco_vision import DetectorCartas
 from control_voz import AgenteRobot
 from entorno.sim.robots import G1
 from entorno.sim.mundo import Mundo
+
+
+class TestServidorHTTP(unittest.TestCase):
+    def test_peticion_invalida_no_detiene_servidor(self):
+        import http.client
+        import threading
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "historial.json"))
+            servidor = crear_servidor(partida, puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            hilo.start()
+            try:
+                for largo, cuerpo, codigo in [("abc", b"", 400), ("-1", b"", 400),
+                                             ("1048577", b"", 413), ("2", b"[]", 400),
+                                             ("3", b'"x"', 400)]:
+                    conexion = http.client.HTTPConnection("127.0.0.1", servidor.server_port, timeout=3)
+                    conexion.request("POST", "/truco/mazo", body=cuerpo, headers={"Content-Length": largo})
+                    respuesta = conexion.getresponse()
+                    self.assertEqual(respuesta.status, codigo)
+                    respuesta.read()
+                    conexion.close()
+                conexion = http.client.HTTPConnection("127.0.0.1", servidor.server_port, timeout=3)
+                conexion.request("GET", "/truco/estado")
+                self.assertEqual(conexion.getresponse().status, 200)
+                conexion.close()
+            finally:
+                servidor.shutdown()
+                hilo.join()
+                servidor.server_close()
+
+    def test_valores_desconocidos_se_rechazan(self):
+        import http.client
+        import json
+        import threading
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            servidor = crear_servidor(PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json")), puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            hilo.start()
+            try:
+                casos = [("envido", {"canto": "inventado"}), ("truco", {"nivel": "inventado"}),
+                         ("responder", {"respuesta": "inventado"}), ("modo_ia", {"modo": "inventado"}),
+                         ("reiniciar", {"meta_puntos": 99}), ("reiniciar", {"meta_puntos": "mala"}),
+                         ("jugar", {"carta": {"valor": "mala", "palo": "Oro"}}),
+                         ("jugar", {"carta": {"valor": 1, "palo": "malo"}})]
+                for ruta, datos in casos:
+                    with self.subTest(ruta=ruta, datos=datos):
+                        c = http.client.HTTPConnection("127.0.0.1", servidor.server_port, timeout=3)
+                        c.request("POST", "/truco/" + ruta, body=json.dumps(datos))
+                        r = c.getresponse()
+                        self.assertEqual(r.status, 400)
+                        r.read()
+                        c.close()
+            finally:
+                servidor.shutdown()
+                hilo.join()
+                servidor.server_close()
+
+    def test_conexion_concurrente_al_simulador_es_unica(self):
+        import concurrent.futures
+        import threading
+        import time
+        from unittest.mock import patch
+        from urllib.request import urlopen
+        from servidor_truco import crear_servidor
+        conexiones = []
+        class RobotPrueba:
+            def conectar(self):
+                time.sleep(0.05)
+                conexiones.append(1)
+        with tempfile.TemporaryDirectory() as tmp:
+            servidor = crear_servidor(PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json")), puerto=0)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            with patch("servidor_truco.Robot", RobotPrueba):
+                hilo.start()
+                try:
+                    def consultar(_):
+                        with urlopen(f"http://127.0.0.1:{servidor.server_port}/truco/estado") as r:
+                            return r.status
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+                        self.assertEqual(list(pool.map(consultar, range(8))), [200] * 8)
+                    self.assertEqual(len(conexiones), 1)
+                finally:
+                    servidor.shutdown()
+                    hilo.join()
+                    servidor.server_close()
+
+    def test_jugadas_y_consultas_concurrentes_mantienen_estado_valido(self):
+        import concurrent.futures
+        import json
+        import threading
+        from urllib.request import Request, urlopen
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"))
+            servidor = crear_servidor(partida, puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            hilo.start()
+            try:
+                url = f"http://127.0.0.1:{servidor.server_port}"
+                with urlopen(url + "/truco/estado") as r:
+                    estado = json.load(r)
+                carta = estado["cartas_humano"][0]
+                def solicitar(i):
+                    req = Request(url + ("/truco/jugar" if i % 2 else "/truco/estado"),
+                                  data=json.dumps({"carta": carta}).encode() if i % 2 else None)
+                    with urlopen(req, timeout=5) as r:
+                        return json.load(r)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
+                    resultados = list(pool.map(solicitar, range(30)))
+                for i, resultado in enumerate(resultados):
+                    estado = resultado.get("estado", resultado) if i % 2 else resultado
+                    self.assertIsInstance(estado, dict)
+                    self.assertIn("cartas_humano", estado)
+            finally:
+                servidor.shutdown()
+                hilo.join()
+                servidor.server_close()
+
+    def test_rutas_y_formas_de_respuesta_se_conservan(self):
+        import json
+        import threading
+        from urllib.request import Request, urlopen
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            servidor = crear_servidor(PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json")), puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            hilo.start()
+            try:
+                base = f"http://127.0.0.1:{servidor.server_port}"
+                for ruta in ("/truco/estado", "/truco/historial"):
+                    with urlopen(base + ruta) as r:
+                        self.assertIsInstance(json.load(r), dict)
+                with urlopen(base + "/cartas/1_Espada.png") as r:
+                    self.assertEqual(r.headers.get_content_type(), "image/png")
+                casos = [("/truco/jugar", {"carta": {"valor": 1, "palo": "Oro"}}),
+                         ("/truco/envido", {}), ("/truco/truco", {}),
+                         ("/truco/responder", {}), ("/truco/mazo", {}),
+                         ("/truco/voz", {"texto": "hola"}), ("/truco/nuevo", {}),
+                         ("/truco/reiniciar", {}), ("/truco/modo_ia", {}),
+                         ("/truco/detectar", {}), ("/comando", {"texto": "hola"})]
+                for ruta, datos in casos:
+                    with self.subTest(ruta=ruta):
+                        req = Request(base + ruta, data=json.dumps(datos).encode())
+                        with urlopen(req) as r:
+                            self.assertIsInstance(json.load(r), dict)
+            finally:
+                servidor.shutdown()
+                hilo.join()
+                servidor.server_close()
+
+    def test_servidor_inyectado_inicia_y_se_detiene(self):
+        import threading
+        from urllib.request import urlopen
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "historial.json"))
+            servidor = crear_servidor(partida, puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            hilo.start()
+            try:
+                with urlopen(f"http://127.0.0.1:{servidor.server_port}/truco/estado") as respuesta:
+                    self.assertEqual(respuesta.status, 200)
+            finally:
+                servidor.shutdown()
+                hilo.join()
+                servidor.server_close()
 
 
 class TestTrucoReglasYMotor(unittest.TestCase):
@@ -82,6 +259,113 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual(estado["ronda"], 2)
         self.assertFalse(estado["envido_disponible"])
         self.assertIn("error", partida.cantar_envido_humano("ENVIDO"))
+
+    def test_carta_ajena_no_cambia_mano_mesa_ni_turno(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        antes = copy.deepcopy(partida.estado_publico())
+        carta = next({"valor": valor, "palo": palo} for palo in ("Espada", "Basto", "Oro", "Copa")
+                     for valor in (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
+                     if not any(c["valor"] == valor and c["palo"] == palo for c in antes["cartas_humano_disponibles"]))
+        resultado = partida.jugar_carta_humano(carta)
+        self.assertEqual(resultado.get("error"), "Esa carta no está en tu mano")
+        for campo in ("cartas_humano_disponibles", "mesa", "turno_carta"):
+            self.assertEqual(resultado["estado"][campo], antes[campo])
+
+    def test_carta_malformada_es_rechazada(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        for carta in ({"valor": "incorrecto", "palo": "Oro"}, {"valor": 1, "palo": "Inexistente"},
+                      {"valor": 1.5, "palo": "Oro"}, {"valor": True, "palo": "Oro"}, None):
+            with self.subTest(carta=carta):
+                resultado = partida.jugar_carta_humano(carta)
+                self.assertEqual(resultado.get("error"), "Esa carta no está en tu mano")
+
+    def test_voz_rechaza_carta_ajena(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        antes = copy.deepcopy(partida.estado_publico())
+        carta = next({"valor": valor, "palo": palo} for palo in ("Espada", "Basto", "Oro", "Copa")
+                     for valor in (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
+                     if not any(c["valor"] == valor and c["palo"] == palo for c in antes["cartas_humano_disponibles"]))
+        resultado = partida.procesar_voz_truco(f"juego {carta['valor']} de {carta['palo']}")
+        self.assertEqual(resultado.get("error"), "Esa carta no está en tu mano")
+        for campo in ("cartas_humano_disponibles", "mesa", "turno_carta"):
+            self.assertEqual(resultado["estado"][campo], antes[campo])
+
+    def test_voz_rechaza_carta_incompleta(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        resultado = partida.procesar_voz_truco("juego una carta")
+        self.assertEqual(resultado.get("error"), "Esa carta no está en tu mano")
+
+    def test_carta_repartida_se_juega(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        carta = copy.deepcopy(partida.estado_publico()["cartas_humano_disponibles"][0])
+        resultado = partida.jugar_carta_humano(carta)
+        self.assertNotIn("error", resultado)
+        self.assertEqual(resultado["carta_jugada"], carta)
+        self.assertTrue(any(j["quien"] == "humano" and j["carta"] == carta for j in resultado["estado"]["mesa"]))
+
+    def test_camara_envia_deteccion_sin_sustituir_carta(self):
+        import servidor_truco as servidor
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        antes = copy.deepcopy(partida.estado_publico())
+        carta = next({"valor": valor, "palo": palo} for palo in ("Espada", "Basto", "Oro", "Copa")
+                     for valor in (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
+                     if not any(c["valor"] == valor and c["palo"] == palo for c in antes["cartas_humano_disponibles"]))
+
+        class Camara:
+            def procesar_frame_base64(self, imagen, cartas_mano=None):
+                return cartas_mano[0] if cartas_mano else carta
+
+        server = servidor.crear_servidor(partida, puerto=0, sin_robot=True)
+        server.detector = Camara()
+        hilo = threading.Thread(target=server.serve_forever, daemon=True)
+        hilo.start()
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", server.server_port)
+            conn.request("POST", "/truco/detectar", json.dumps({"imagen": "frame", "usar_mano": True}))
+            detectada = json.loads(conn.getresponse().read())
+            conn.request("POST", "/truco/jugar", json.dumps({"carta": detectada}))
+            resultado = json.loads(conn.getresponse().read())
+            conn.close()
+            self.assertEqual(resultado.get("error"), "Esa carta no está en tu mano")
+            for campo in ("cartas_humano_disponibles", "mesa", "turno_carta"):
+                self.assertEqual(resultado["estado"][campo], antes[campo])
+        finally:
+            server.shutdown()
+            server.server_close()
+            hilo.join()
+
+    def test_historial_corrupto_se_respalda_y_usa_valores_iniciales(self):
+        ruta = Path(self.tmp_hist)
+        ruta.write_text('{incompleto', encoding='utf-8')
+        salida = io.StringIO()
+        with contextlib.redirect_stdout(salida):
+            partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        respaldos = list(ruta.parent.glob(ruta.name + '.*.bak'))
+        self.assertEqual(len(respaldos), 1)
+        self.assertEqual(respaldos[0].read_text(encoding='utf-8'), '{incompleto')
+        self.assertEqual(partida.ia.resumen_aprendizaje()['partidas_jugadas'], 0)
+        self.assertTrue(salida.getvalue())
+
+    def test_error_al_guardar_conserva_el_historial_y_avisa(self):
+        ruta = Path(self.tmp_hist)
+        original = '{"parametros_ia": {}, "partidas": []}'
+        ruta.write_text(original, encoding='utf-8')
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
+        salida = io.StringIO()
+        with patch('os.replace', side_effect=OSError('falló el reemplazo')):
+            with contextlib.redirect_stdout(salida):
+                partida.ia.guardar_historial()
+        self.assertEqual(ruta.read_text(encoding='utf-8'), original)
+        self.assertIn('falló el reemplazo', salida.getvalue())
+        self.assertEqual(list(ruta.parent.iterdir()), [ruta])
+
+    def test_primera_ejecucion_crea_historial_desde_semilla(self):
+        carpeta = Path(self._tmpdir.name)
+        for nombre in ('partida_truco.py', 'truco_ia.py', 'truco_reglas.py', 'historial_truco.py', 'truco_stats.json', 'historial_partidas.seed.json'):
+            shutil.copy(PROYECTO_DIR / nombre, carpeta / nombre)
+        subprocess.run([sys.executable, '-c', 'from partida_truco import PartidaTruco; PartidaTruco(robot=None)'], cwd=carpeta, check=True, capture_output=True)
+        historial = carpeta / 'historial_partidas.json'
+        self.assertEqual(json.loads(historial.read_text(encoding='utf-8')), json.loads((carpeta / 'historial_partidas.seed.json').read_text(encoding='utf-8')))
 
     def test_jerarquia_cartas(self):
         self.assertGreater(tr.valor_carta_truco(1, "Espada"), tr.valor_carta_truco(1, "Basto"))
@@ -230,6 +514,8 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual(len(resumen["partidas"]), 1)
         self.assertEqual(resumen["partidas"][0]["bluffs_truco_intentados"], 3)
         self.assertAlmostEqual(ia2.prob_farol_truco, ia.prob_farol_truco, places=3)
+        self.assertEqual(len(json.loads(Path(self.tmp_hist).read_text(encoding='utf-8'))['partidas']), 1)
+        self.assertEqual(list(Path(self._tmpdir.name).iterdir()), [Path(self.tmp_hist)])
 
     def test_escena_mesa_truco_y_animacion_repartiendo(self):
         ruta = Path(G1.ruta_escena())
