@@ -25,9 +25,9 @@ def main():
     if args.matches < 1:
         parser.error('--matches must be positive')
     jobs = [(args.seed+i, args.target, tuple(args.score), args.mirror, (args.policy_a, args.policy_b)) for i in range(args.matches)]
-    for threads in (1, 16):
+    for workers in (1, 16):
         start = perf_counter()
-        with ProcessPoolExecutor(max_workers=threads) as executor:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
             results = list(executor.map(run_one, jobs))
         elapsed = perf_counter() - start
         wins = [0, 0]
@@ -35,7 +35,7 @@ def main():
             for index, result in enumerate(pair):
                 wins[result.winner if index == 0 else 1-result.winner] += 1
         total = sum(wins)
-        print(f'{threads} threads: {total} matches, wins {wins}, {total / elapsed:.2f} matches/second; mirror={args.mirror}')
+        print(f'{workers} workers: {total} matches, wins {wins}, {total / elapsed:.2f} matches/second; mirror={args.mirror}')
 
 if __name__ == '__main__':
     main()

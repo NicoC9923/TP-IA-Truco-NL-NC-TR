@@ -11,6 +11,19 @@ class NetworkEngineTests(unittest.TestCase):
         self.assertTrue(all(d['action'] in d['legal_actions'] for d in result.decisions))
 
 class TrainerTests(unittest.TestCase):
+    def test_training_reports_league_and_check_times(self):
+        import contextlib
+        import io
+        import tempfile
+        from phase1_trainer import train
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(output):
+            train(directory, population_size=2, generations=2, pairs=1, workers=1, target=1, seed=13, validation_pairs=2)
+        lines = output.getvalue().splitlines()
+        self.assertEqual(len(lines), 2)
+        for line in lines:
+            self.assertRegex(line, r"\| league \d+\.\d{2} s \| check \d+\.\d{2} s$")
+
     def test_generation_logs_and_saves_a_loadable_champion(self):
         import json
         import tempfile

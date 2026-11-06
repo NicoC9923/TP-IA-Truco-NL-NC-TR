@@ -47,7 +47,7 @@ class EngineTests(unittest.TestCase):
         from pathlib import Path
         output = subprocess.check_output([sys.executable, str(Path(__file__).with_name('match_runner.py')), '--matches', '2', '--mirror'], text=True)
         self.assertIn('matches/second', output)
-        self.assertIn('16 threads', output)
+        self.assertIn('16 workers', output)
         self.assertIn('mirror', output)
 
     def test_mirror_keeps_mano_and_swaps_policies(self):
