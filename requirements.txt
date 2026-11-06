@@ -1,0 +1,5 @@
+# Dependencias de Python. Se instalan una vez por máquina con instalar.bat
+# (Windows) o ./instalar.sh (Linux/macOS). Los lanzadores no instalan nada.
+mujoco==3.12.0
+numpy==2.4.3
+opencv-python>=4.10,<5

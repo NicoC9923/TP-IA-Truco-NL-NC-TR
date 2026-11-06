@@ -22,6 +22,8 @@ try:
 except ImportError:
     _CV2_DISPONIBLE = False
 
+MENSAJE_SIN_OPENCV = "Cámara desactivada: falta OpenCV. Ejecutá instalar.bat (o instalar.sh) y reiniciá el servidor."
+
 
 class DetectorCartas:
     def __init__(self):

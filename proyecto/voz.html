@@ -1206,7 +1206,9 @@
     detInfo.textContent = 'Mirando la carta…';
     try {
       const data = await postJSON('/truco/detectar', { imagen: b64, usar_mano: true });
-      if (data.valor > 0) {
+      if (data.disponible === false) {
+        detInfo.innerHTML = `<span class="err">${esc(data.error)}</span>`;
+      } else if (data.valor > 0) {
         detInfo.innerHTML = `Vi el <b>${esc(data.nombre || (data.valor + ' de ' + data.palo))}</b> · ${(data.confianza * 100).toFixed(0)} % de confianza`;
         await tirarCartaDirecta({ valor: data.valor, palo: data.palo });
       } else {
@@ -1223,7 +1225,9 @@
     try {
       const data = await postJSON('/truco/detectar', { imagen: b64, usar_mano: false });
       const libre = data.deteccion_libre || data;
-      if (libre.valor > 0) {
+      if (data.disponible === false) {
+        detInfo.innerHTML = `<span class="err">${esc(data.error)}</span>`;
+      } else if (libre.valor > 0) {
         detInfo.innerHTML = `Modo libre: <b>${esc(libre.valor)} de ${esc(libre.palo)}</b> · ${(libre.confianza * 100).toFixed(0)} % de confianza`;
       } else {
         detInfo.textContent = 'Modo libre: no reconocí ninguna carta.';

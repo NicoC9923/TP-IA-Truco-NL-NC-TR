@@ -242,6 +242,27 @@ class TestServidorHTTP(unittest.TestCase):
             finally:
                 cliente.close(); servidor.shutdown(); hilo.join(); servidor.server_close()
 
+    def test_detectar_sin_opencv_avisa_camara_desactivada(self):
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            servidor = crear_servidor(PartidaTruco(historial_path=str(Path(tmp) / "h.json")), puerto=0, sin_robot=True)
+            servidor.detector.disponible = False
+            hilo = threading.Thread(target=servidor.serve_forever, daemon=True); hilo.start()
+            try:
+                for usar_mano in (True, False):
+                    with self.subTest(usar_mano=usar_mano):
+                        c = http.client.HTTPConnection("127.0.0.1", servidor.server_port, timeout=2)
+                        c.request("POST", "/truco/detectar", body=json.dumps({"imagen": "x", "usar_mano": usar_mano}))
+                        r = c.getresponse()
+                        datos = json.loads(r.read())
+                        c.close()
+                        self.assertEqual(r.status, 200)
+                        self.assertIs(datos["disponible"], False)
+                        self.assertIn("falta OpenCV", datos["error"])
+                        self.assertEqual(datos["valor"], 0)
+            finally:
+                servidor.shutdown(); hilo.join(); servidor.server_close()
+
     def test_historial_oculta_razonamiento_hasta_fin_de_mano(self):
         from servidor_truco import crear_servidor
         with tempfile.TemporaryDirectory() as tmp:

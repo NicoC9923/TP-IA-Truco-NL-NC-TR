@@ -21,7 +21,7 @@ from pathlib import Path
 from robot import Robot
 from control_voz import AgenteRobot
 from partida_truco import PartidaTruco
-from truco_vision import DetectorCartas
+from truco_vision import DetectorCartas, MENSAJE_SIN_OPENCV
 
 PUERTO_DEFAULT = 8080
 DIR_PROYECTO = Path(__file__).resolve().parent
@@ -196,6 +196,9 @@ class Handler(BaseHTTPRequestHandler):
             return 200, resultado
 
         elif self.path == "/truco/detectar":
+            if not getattr(detector_vision, "disponible", True):
+                return 200, {"palo": "Desconocido", "valor": 0, "confianza": 0.0,
+                             "disponible": False, "error": MENSAJE_SIN_OPENCV}
             b64_img = datos.get("imagen", "")
             res = detector_vision.procesar_frame_base64(b64_img, cartas_mano=partida_truco.cartas_humano_disponibles if datos.get("usar_mano", True) else None)
             if res:
@@ -274,6 +277,8 @@ def main() -> None:
     server = crear_servidor(partida_truco, puerto, sin_robot_flag)
     if not sin_robot_flag and server.asegurar_robot() is None:
         print("  [AVISO] Simulador aún no detectado. Se conectará automáticamente en cuanto abras sim.bat.")
+    if not server.detector.disponible:
+        print(f"  [AVISO] {MENSAJE_SIN_OPENCV}")
 
     # Asegurar que las 40 imágenes de la Baraja Española estén generadas
     if not (DIR_CARTAS / "1_Espada.png").is_file() and (DIR_CARTAS / "template_naipes.jpg").is_file():
