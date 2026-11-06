@@ -1,139 +1,148 @@
-# Truco con Ottoman
+# Truco with Ottoman
 
-Partida de truco argentino 1 contra 1 (sin flor, a 15 o 30 puntos) entre un humano y Ottoman, un agente de IA, y el entrenamiento de agentes que aprenden a jugarla.
+A 1-vs-1 Argentine truco match (no flor, to 15 or 30 points) between a human and Ottoman, an AI agent, plus the training of agents that learn to play it.
 
-## Lenguaje
+Docs and code are in English; only the UI is in Spanish. Where a term appears in the UI, its Spanish label is given as **UI:**. Truco's own game vocabulary (truco, retruco, vale cuatro, envido, real envido, falta envido, "son buenas", brava, pardas, tantos) has no English equivalent and is used as-is.
 
-### Juego
+## Language
 
-**Partida**:
-Enfrentamiento completo entre dos jugadores, que termina cuando uno llega a la meta de 15 o 30 puntos.
-_Evitar_: partido, juego, match
+### Game
 
-**Mano**:
-Un reparto: desde que se dan las cartas hasta que se anotan sus puntos.
-_Evitar_: ronda, jugada, hand
+**Match**:
+A complete game between two players, ending when one reaches the target of 15 or 30 points. UI: "partida".
+_Avoid_: game, partido
 
-**Baza**:
-Cada uno de los hasta tres enfrentamientos de una carta contra otra dentro de una mano.
-_Evitar_: ronda, vuelta, truco (como sinónimo de baza)
+**Hand**:
+One deal: from dealing the cards until its points are scored. UI: "mano".
+_Avoid_: round, play
 
-**Ser mano / ser pie**:
-Rol de cada jugador en una mano: el que es mano juega primero y gana los empates de tantos.
-_Evitar_: "es mano" para referirse al reparto
+**Trick**:
+Each of the up to three card-against-card contests inside a hand. UI: "baza".
+_Avoid_: round, turn, truco (as a synonym for trick)
 
-**Cartas** (o **manojo**):
-Las tres cartas que recibe un jugador en una mano.
-_Evitar_: mano (para las cartas)
+**Mano / pie**:
+Each player's role in a hand: the mano plays first and wins ties in tantos.
+_Avoid_: using "mano" for the deal
 
-**Farol**:
-Canto o subida hecho con una mano objetivamente débil: menos de 24 tantos en el envido, o una fuerza de mano menor al percentil 0,44 en el truco. El criterio es el mismo para cualquier jugador, humano o agente.
-_Evitar_: bluff, mentira (salvo en textos para el público)
+**Cards**:
+The three cards a player receives in a hand. UI: "cartas".
+_Avoid_: hand (for the cards)
 
-**Evidencia segura**:
-Información sobre las cartas del rival que no puede ser falsa: los tantos declarados, un "son buenas" y las cartas ya jugadas.
-_Evitar_: pista, dato confirmado
+**Bluff**:
+A call or raise made with an objectively weak hand: fewer than 24 tantos for envido, or a hand-strength percentile below 0.44 for truco. The criterion is the same for every player, human or agent. UI: "farol".
+_Avoid_: lie (except in audience-facing text)
 
-**Señal de comportamiento**:
-Información sobre el rival que puede ser un farol, como cantar, subir o aceptar el truco.
-_Evitar_: tell, indicio
+**Certain evidence**:
+Information about the opponent's cards that cannot be false: declared tantos, a "son buenas", and cards already played.
+_Avoid_: hint, confirmed data
 
-**Evidencia ponderada**:
-Una señal de comportamiento a la que se le da más o menos peso según cuánto farolea ese rival. Cambia lo que se cree de sus cartas, pero nunca descarta una mano.
-_Evitar_: evidencia probable, evidencia débil
+**Behavioral signal**:
+Information about the opponent that may be a bluff, such as calling, raising or accepting truco.
+_Avoid_: tell
 
-### Agentes
+**Weighted evidence**:
+A behavioral signal given more or less weight according to how often that opponent bluffs. It changes what is believed about their cards but never rules a hand out.
+_Avoid_: probable evidence, weak evidence
 
-**Modo de agente**:
-Cada arquitectura de IA que Ottoman puede usar en una partida y que se elige desde la interfaz: Reactivo, Utilidad adaptativa, Red neuronal · Neuroevolución o Red neuronal · Aprendizaje por refuerzo.
-_Evitar_: perfil, dificultad, nivel
+### Agents
 
-**Agente existente**:
-Cada agente que ya estaba en la app antes del agente entrenado: Reactivo y Utilidad adaptativa. No participa del entrenamiento del agente entrenado.
-_Evitar_: legacy, agente viejo, agente heredado
+**Agent mode**:
+Each AI architecture Ottoman can use in a match, chosen from the UI: Reactive, Adaptive Utility, Neuroevolution network and Reinforcement-learning network.
+_Avoid_: profile, difficulty, level
 
-**Agente entrenado**:
-Agente cuya política no fue escrita a mano: surge de un proceso de entrenamiento iterativo. Hay uno por fase, y cada uno es un modo de red.
-_Evitar_: IA nueva, bot entrenado, Entrenado (como nombre de modo)
+**Reactive**:
+The existing simple-reflex agent mode. UI: "Reactivo".
 
-**Modo de red**:
-Cada uno de los dos modos de agente que juegan con un agente entrenado: Red neuronal · Neuroevolución (fase 1) y Red neuronal · Aprendizaje por refuerzo (fase 2).
-_Evitar_: modo entrenado, modo IA
+**Adaptive Utility**:
+The existing agent mode built on thresholds over the 474,000-hand tables, with online adjustment. UI: "Utilidad adaptativa".
+_Avoid_: Learning mode, "aprendizaje" (its former name)
 
-**Adaptarse al rival**:
-Opción de un modo de red que, prendida, hace que el agente use el perfil del rival y la evidencia ponderada; apagada, usa valores neutros en los dos.
-_Evitar_: modo adaptativo, Entrenado adaptativo
+**Existing agent**:
+Each agent that was already in the app before the trained agent: Reactive and Adaptive Utility. It takes no part in training the trained agent.
+_Avoid_: legacy agent, old agent
 
-**Traza de razonamiento**:
-Registro, visible para el público, de por qué el agente tomó cada decisión en una mano.
-_Evitar_: log, XAI, pensamiento
+**Trained agent**:
+An agent whose policy was not hand-written: it comes from an iterative training process. There is one per phase, and each one is a network mode.
+_Avoid_: new AI, trained bot, "Entrenado" (as a mode name)
 
-**Perfil del rival**:
-Estadísticas de cómo juega un rival concreto (faroles vistos, idas al mazo, truco aceptado, envido cantado), medidas a partir de lo que se observa de él, que arrancan en un valor neutro y se acumulan entre partidas.
-_Evitar_: modelo del humano, estilo (para el perfil observado)
+**Network mode**:
+Each of the two agent modes that play with a trained agent: the Neuroevolution network (phase 1, UI: "Red neuronal · Neuroevolución") and the Reinforcement-learning network (phase 2, UI: "Red neuronal · Aprendizaje por refuerzo").
+_Avoid_: trained mode, AI mode
 
-**Estilo**:
-Forma fija de jugar que se le impone a un rival con estilo: mentiroso, cauteloso, agresivo o calculador.
-_Evitar_: personalidad, perfil (para el estilo)
+**Adapt to opponent**:
+A network-mode option. When on, the agent uses the opponent profile and weighted evidence; when off, it uses neutral values for both. UI: "Adaptarse al rival".
+_Avoid_: adaptive mode, "Entrenado adaptativo"
 
-### Entrenamiento
+**Reasoning trace**:
+An audience-visible record of why the agent made each decision in a hand.
+_Avoid_: log, XAI, thoughts
 
-**Fase**:
-Cada etapa del entrenamiento, con su propia técnica: fase 1, neuroevolución; fase 2, aprendizaje por refuerzo. Las dos fases son independientes: no se usan una a la otra para entrenar.
-_Evitar_: etapa, versión
+**Opponent profile**:
+Statistics on how a specific opponent plays (bluffs seen, folds, truco accepted, envido called), measured from what is observed of them, starting from a neutral value and accumulated across matches.
+_Avoid_: human model, style (for the observed profile)
 
-**Autojuego**:
-Entrenamiento en el que el agente juega contra copias de sí mismo o contra versiones anteriores suyas.
-_Evitar_: self-play, jugar contra un clon
+**Style**:
+A fixed way of playing imposed on a styled opponent: liar, cautious, aggressive or calculating.
+_Avoid_: personality, profile (for the style)
 
-**Liga**:
-El conjunto de rivales contra los que juega un agente mientras entrena: clones, el salón de la fama y rivales con estilo, todos de su misma fase.
-_Evitar_: pool, torneo
+### Training
 
-**Rival con estilo**:
-Una copia de una red de la propia fase a la que se le suma un sesgo fijo en sus salidas para que juegue con un estilo.
-_Evitar_: sparring, bot de estilo, rival de referencia (para estos rivales)
+**Phase**:
+Each stage of training, with its own technique: phase 1, neuroevolution; phase 2, reinforcement learning. The two phases are independent: neither is used to train the other.
+_Avoid_: stage, version
 
-**Generación**:
-Una población completa de individuos que se evalúa de una vez; de la evaluación salen los padres de la generación siguiente. En la fase 2, que no tiene población, se llama generación a cada control periódico del campeón.
-_Evitar_: época, iteración
+**Self-play**:
+Training in which the agent plays against copies of itself or earlier versions of itself.
+_Avoid_: playing against a clone
 
-**Individuo**:
-Un candidato de la población, definido por su genoma (los pesos de su red).
-_Evitar_: agente (para un candidato), bot
+**League**:
+The set of opponents an agent plays while training: clones, the hall of fame and styled opponents, all from its own phase.
+_Avoid_: pool, tournament
 
-**Genoma**:
-El vector con todos los pesos de la red de un individuo; es lo que el algoritmo genético cruza y muta.
-_Evitar_: cromosoma, ADN
+**Styled opponent**:
+A copy of a network from the same phase with a fixed bias added to its outputs so it plays in a style.
+_Avoid_: sparring partner, style bot, reference opponent (for these)
+
+**Generation**:
+A full population of individuals evaluated at once; the evaluation yields the parents of the next generation. In phase 2, which has no population, each periodic champion check is called a generation.
+_Avoid_: epoch, iteration
+
+**Individual**:
+A candidate in the population, defined by its genome (its network's weights).
+_Avoid_: agent (for a candidate), bot
+
+**Genome**:
+The vector of all of an individual's network weights; what the genetic algorithm crosses over and mutates.
+_Avoid_: chromosome, DNA
 
 **Fitness**:
-Puntaje de un individuo en una generación, que sale de las partidas que gana y de su diferencia de puntos.
-_Evitar_: aptitud, score, recompensa
+An individual's score in a generation, from the matches it wins and its point difference.
+_Avoid_: score, reward
 
-**Campeón**:
-El individuo con mejor fitness de una generación.
-_Evitar_: mejor bot, ganador
+**Champion**:
+The individual with the best fitness in a generation.
+_Avoid_: best bot, winner
 
-**Campeón vigente**:
-El mejor agente de una fase hasta el momento. Un campeón lo reemplaza solo si le gana con claridad; ese reemplazo es una **promoción**. Es el que juega en el modo de red de su fase.
-_Evitar_: mejor campeón, campeón activo
+**Reigning champion**:
+The best agent of a phase so far. A champion replaces it only by beating it clearly; that replacement is a **promotion**. It is the one that plays in its phase's network mode.
+_Avoid_: best champion, active champion
 
-**Salón de la fama**:
-Conjunto de los campeones que fueron promovidos a campeón vigente, contra los que siguen jugando las generaciones nuevas.
-_Evitar_: hall of fame, archivo
+**Hall of fame**:
+The set of champions that were promoted to reigning champion, which new generations keep playing against.
+_Avoid_: archive
 
-**Rival de referencia**:
-Agente existente (Reactivo o Utilidad adaptativa) contra el que se mide al agente entrenado en la evaluación de referencia. Nunca es rival en la liga.
-_Evitar_: benchmark, sparring
+**Reference opponent**:
+An existing agent (Reactive or Adaptive Utility) the trained agent is measured against in the reference evaluation. Never an opponent in the league.
+_Avoid_: benchmark, sparring partner
 
-**Evaluación de referencia**:
-Medición de los campeones contra los rivales de referencia, hecha aparte del entrenamiento. Su resultado se muestra, pero el entrenamiento nunca lo lee.
-_Evitar_: benchmark, test, validación (para esta medición)
+**Reference evaluation**:
+Measuring champions against the reference opponents, done separately from training. Its result is shown but training never reads it.
+_Avoid_: benchmark, test, validation (for this measurement)
 
-**Repartos de validación**:
-Conjunto fijo de repartos que nunca se usa para entrenar y sobre el que se deciden las promociones y se hace la evaluación de referencia.
-_Evitar_: test set, seeds de evaluación
+**Validation deals**:
+A fixed set of deals never used for training, on which promotions are decided and the reference evaluation is run.
+_Avoid_: test set, evaluation seeds
 
-**Partidas espejo**:
-Par de partidas sobre los mismos repartos en las que los jugadores intercambian asientos, para compensar la suerte de las cartas.
-_Evitar_: duplicado, partida invertida
+**Mirror matches**:
+A pair of matches on the same deals in which the players swap seats, to cancel out the luck of the cards.
+_Avoid_: duplicate, reversed match
