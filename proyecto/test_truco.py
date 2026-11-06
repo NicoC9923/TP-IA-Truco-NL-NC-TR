@@ -33,6 +33,174 @@ from entorno.sim.robots import G1
 from entorno.sim.mundo import Mundo
 
 
+class TestServidorHTTP(unittest.TestCase):
+    def test_peticion_invalida_no_detiene_servidor(self):
+        import http.client
+        import threading
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "historial.json"))
+            servidor = crear_servidor(partida, puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            hilo.start()
+            try:
+                for largo, cuerpo, codigo in [("abc", b"", 400), ("-1", b"", 400),
+                                             ("1048577", b"", 413), ("2", b"[]", 400),
+                                             ("3", b'"x"', 400)]:
+                    conexion = http.client.HTTPConnection("127.0.0.1", servidor.server_port, timeout=3)
+                    conexion.request("POST", "/truco/mazo", body=cuerpo, headers={"Content-Length": largo})
+                    respuesta = conexion.getresponse()
+                    self.assertEqual(respuesta.status, codigo)
+                    respuesta.read()
+                    conexion.close()
+                conexion = http.client.HTTPConnection("127.0.0.1", servidor.server_port, timeout=3)
+                conexion.request("GET", "/truco/estado")
+                self.assertEqual(conexion.getresponse().status, 200)
+                conexion.close()
+            finally:
+                servidor.shutdown()
+                hilo.join()
+                servidor.server_close()
+
+    def test_valores_desconocidos_se_rechazan(self):
+        import http.client
+        import json
+        import threading
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            servidor = crear_servidor(PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json")), puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            hilo.start()
+            try:
+                casos = [("envido", {"canto": "inventado"}), ("truco", {"nivel": "inventado"}),
+                         ("responder", {"respuesta": "inventado"}), ("modo_ia", {"modo": "inventado"}),
+                         ("reiniciar", {"meta_puntos": 99}), ("reiniciar", {"meta_puntos": "mala"}),
+                         ("jugar", {"carta": {"valor": "mala", "palo": "Oro"}}),
+                         ("jugar", {"carta": {"valor": 1, "palo": "malo"}})]
+                for ruta, datos in casos:
+                    with self.subTest(ruta=ruta, datos=datos):
+                        c = http.client.HTTPConnection("127.0.0.1", servidor.server_port, timeout=3)
+                        c.request("POST", "/truco/" + ruta, body=json.dumps(datos))
+                        r = c.getresponse()
+                        self.assertEqual(r.status, 400)
+                        r.read()
+                        c.close()
+            finally:
+                servidor.shutdown()
+                hilo.join()
+                servidor.server_close()
+
+    def test_conexion_concurrente_al_simulador_es_unica(self):
+        import concurrent.futures
+        import threading
+        import time
+        from unittest.mock import patch
+        from urllib.request import urlopen
+        from servidor_truco import crear_servidor
+        conexiones = []
+        class RobotPrueba:
+            def conectar(self):
+                time.sleep(0.05)
+                conexiones.append(1)
+        with tempfile.TemporaryDirectory() as tmp:
+            servidor = crear_servidor(PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json")), puerto=0)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            with patch("servidor_truco.Robot", RobotPrueba):
+                hilo.start()
+                try:
+                    def consultar(_):
+                        with urlopen(f"http://127.0.0.1:{servidor.server_port}/truco/estado") as r:
+                            return r.status
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+                        self.assertEqual(list(pool.map(consultar, range(8))), [200] * 8)
+                    self.assertEqual(len(conexiones), 1)
+                finally:
+                    servidor.shutdown()
+                    hilo.join()
+                    servidor.server_close()
+
+    def test_jugadas_y_consultas_concurrentes_mantienen_estado_valido(self):
+        import concurrent.futures
+        import json
+        import threading
+        from urllib.request import Request, urlopen
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json"))
+            servidor = crear_servidor(partida, puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            hilo.start()
+            try:
+                url = f"http://127.0.0.1:{servidor.server_port}"
+                with urlopen(url + "/truco/estado") as r:
+                    estado = json.load(r)
+                carta = estado["cartas_humano"][0]
+                def solicitar(i):
+                    req = Request(url + ("/truco/jugar" if i % 2 else "/truco/estado"),
+                                  data=json.dumps({"carta": carta}).encode() if i % 2 else None)
+                    with urlopen(req, timeout=5) as r:
+                        return json.load(r)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=10) as pool:
+                    resultados = list(pool.map(solicitar, range(30)))
+                for i, resultado in enumerate(resultados):
+                    estado = resultado.get("estado", resultado) if i % 2 else resultado
+                    self.assertIsInstance(estado, dict)
+                    self.assertIn("cartas_humano", estado)
+            finally:
+                servidor.shutdown()
+                hilo.join()
+                servidor.server_close()
+
+    def test_rutas_y_formas_de_respuesta_se_conservan(self):
+        import json
+        import threading
+        from urllib.request import Request, urlopen
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            servidor = crear_servidor(PartidaTruco(robot=None, historial_path=str(Path(tmp) / "h.json")), puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            hilo.start()
+            try:
+                base = f"http://127.0.0.1:{servidor.server_port}"
+                for ruta in ("/truco/estado", "/truco/historial"):
+                    with urlopen(base + ruta) as r:
+                        self.assertIsInstance(json.load(r), dict)
+                with urlopen(base + "/cartas/1_Espada.png") as r:
+                    self.assertEqual(r.headers.get_content_type(), "image/png")
+                casos = [("/truco/jugar", {"carta": {"valor": 1, "palo": "Oro"}}),
+                         ("/truco/envido", {}), ("/truco/truco", {}),
+                         ("/truco/responder", {}), ("/truco/mazo", {}),
+                         ("/truco/voz", {"texto": "hola"}), ("/truco/nuevo", {}),
+                         ("/truco/reiniciar", {}), ("/truco/modo_ia", {}),
+                         ("/truco/detectar", {}), ("/comando", {"texto": "hola"})]
+                for ruta, datos in casos:
+                    with self.subTest(ruta=ruta):
+                        req = Request(base + ruta, data=json.dumps(datos).encode())
+                        with urlopen(req) as r:
+                            self.assertIsInstance(json.load(r), dict)
+            finally:
+                servidor.shutdown()
+                hilo.join()
+                servidor.server_close()
+
+    def test_servidor_inyectado_inicia_y_se_detiene(self):
+        import threading
+        from urllib.request import urlopen
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(robot=None, historial_path=str(Path(tmp) / "historial.json"))
+            servidor = crear_servidor(partida, puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever)
+            hilo.start()
+            try:
+                with urlopen(f"http://127.0.0.1:{servidor.server_port}/truco/estado") as respuesta:
+                    self.assertEqual(respuesta.status, 200)
+            finally:
+                servidor.shutdown()
+                hilo.join()
+                servidor.server_close()
+
+
 class TestTrucoReglasYMotor(unittest.TestCase):
     def setUp(self):
         self._tmpdir = tempfile.TemporaryDirectory()
