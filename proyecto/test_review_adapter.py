@@ -17,3 +17,10 @@ class AdapterReviewTests(unittest.TestCase):
     def test_reactive_does_not_read_history(self):
         with patch('historial_truco.HistorialTruco.cargar', side_effect=AssertionError('history read')):
             ReactivePolicy(1)
+    def test_adapter_matches_direct_agent_for_endgame_envido(self):
+        hand = ((7, 'Oro'), (6, 'Oro'), (1, 'Basto'))
+        obs = dict(hand=hand, available=(0,1,2), pending=dict(kind='envido', call='falta_envido', declined=3), table=(), tricks=(), player=1, mano=0, score=(23, 11), target=30)
+        adapter, direct = ReactivePolicy(7), ReactivePolicy(7)
+        cards = [{'valor': v, 'palo': p} for v,p in hand]
+        expected = direct.agent.responder_envido(cards, 'FALTA_ENVIDO', False, puntos_acumulados_no_quiero=3, puntos_humano=23, puntos_robot=11, meta_puntos=30)[0].lower()
+        self.assertEqual(adapter(obs, ('quiero', 'no_quiero')), expected)
