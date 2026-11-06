@@ -47,6 +47,11 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             raise ValueError('Checkpoint configuration does not match')
         rng.bit_generator.state = state['rng']
         reigning_generation, stale, first_generation = state['reigning_generation'], state['stale'], state['generation'] + 1
+        log_path = output / 'generations.jsonl'
+        if log_path.exists():
+            lines = log_path.read_text(encoding='utf-8').splitlines()
+            kept = [line for line in lines if json.loads(line)['generation'] <= state['generation']]
+            log_path.write_text(''.join(line + '\n' for line in kept), encoding='utf-8')
         if state['ended']:
             return
     with (output / 'generations.jsonl').open('a' if resume else 'w', encoding='utf-8') as log:
