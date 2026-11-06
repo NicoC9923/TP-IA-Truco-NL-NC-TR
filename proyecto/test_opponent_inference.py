@@ -82,3 +82,11 @@ class EvidenceTests(unittest.TestCase):
             return 'truco' if 'truco' in legal else 'no_quiero' if 'no_quiero' in legal else 'fold'
         self.assertFalse(play_match(caller, caller, seed=0, target=1).decisions[0]['bluff'])
         self.assertTrue(play_match(caller, caller, seed=3, target=1).decisions[0]['bluff'])
+    def test_inference_command_shows_each_decision(self):
+        import subprocess
+        import sys
+        from pathlib import Path
+        output = subprocess.check_output([sys.executable, str(Path(__file__).with_name('inference_demo.py')), '--seed', '3', '--target', '2'], text=True)
+        self.assertIn('possible_hands', output)
+        self.assertIn('next_trick_win_probability', output)
+        self.assertIn('profile', output)

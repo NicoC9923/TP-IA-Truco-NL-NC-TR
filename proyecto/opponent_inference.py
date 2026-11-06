@@ -48,3 +48,23 @@ class Inference:
 
 def _tantos(hand):
     return rules.calcular_envido([{'valor': v, 'palo': p} for v, p in hand])
+
+
+def inference_from_observation(obs, bluff_rate):
+    belief = Inference(obs['hand'])
+    opponent = 1 - obs['player']
+    played = [card for player, card in obs['table'] if player == opponent]
+    belief.seen_cards(opponent_played=played)
+    reveal = obs.get('envido_reveal')
+    if reveal:
+        declarations = dict(reveal['declarations'])
+        value = declarations[opponent]
+        if value == 'son buenas':
+            belief.son_buenas(declarations[obs['player']], opponent == obs['mano'])
+        else:
+            belief.declared_tantos(value)
+    for player, action in obs['history']:
+        if player == opponent and action in ('truco', 'retruco', 'vale_cuatro'):
+            belief.truco_call(bluff_rate)
+    return belief
+

@@ -152,3 +152,9 @@ The information available to a player at one decision, including that player's c
 
 **Legal action**:
 An action permitted by the game state at a decision; a policy chooses from these actions.
+
+**Revealed hand**:
+An opponent's original cards are all publicly known; the engine records this when all three have been played. Only revealed hands contribute to the observed bluff rate.
+
+**Next-trick win probability**:
+The weighted probability that a specified card wins against a uniformly selected remaining opponent card, with the relevant tie rule supplied by the caller.
