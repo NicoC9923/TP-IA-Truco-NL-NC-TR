@@ -37,3 +37,5 @@ The table above records the historical first run, not the current defaults. The 
 Future runs default to reject-only early stopping (ADR 0017). Run 2 retains `both` when resuming its existing checkpoint.
 
 Run 2 is preserved separately in [experiments/phase1-run2](../../experiments/phase1-run2/README.md). Its fresh head-to-head did not satisfy the 55% replacement rule, so run 1 remains the shipped champion.
+
+Extra [seed 1](../../experiments/phase1-seed1/README.md) and [seed 2](../../experiments/phase1-seed2/README.md) experiments scored 53.1% and 46.6%, respectively, against run 1 in 1,000-pair network-only comparisons. Neither reached the 55% replacement rule, and run 1 remains shipped (user decision, 2026-11-07).
