@@ -32,7 +32,10 @@ def _behavior(results):
     opportunities = [d for d in own if d['observation']['pending'] and d['observation']['pending']['kind'] == 'truco']
     return {'envido': sum(d['action'] in ('envido', 'real_envido', 'falta_envido') for d in own) / max(hands, 1), 'bluff': sum(d['bluff'] for d in calls) / max(len(calls), 1), 'truco_acceptance': sum(d['action'] in ('quiero', 'retruco', 'vale_cuatro') for d in opportunities) / max(len(opportunities), 1)}
 
-def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200, finalists=8, finalist_pairs_multiplier=4, output_init_sigma=.3, fitness_mode="classic", points_weight=.1, style_strength=.5, styles_after_first_promotion=True, early_stop=None):
+def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200, finalists=8, finalist_pairs_multiplier=4, output_init_sigma=.3, fitness_mode="classic", points_weight=.1, style_strength=.5, styles_after_first_promotion=True, early_stop=None, extend_patience=None):
+    if extend_patience is not None and not resume:
+        raise ValueError("--extend-patience requires --resume")
+    extension_from = None
     if early_stop not in (None, 'reject-only', 'both'):
         raise ValueError('Invalid early-stop mode')
     if not math.isfinite(style_strength) or style_strength < 0 or fitness_mode not in ('classic', 'mixed') or not math.isfinite(points_weight) or points_weight < 0 or (fitness_mode == 'mixed' and points_weight > 1) or output_init_sigma < 0 or finalists < 0 or finalist_pairs_multiplier < 1 or check_batch < 0 or min(population_size - 1, generations, pairs, workers, validation_pairs, patience) < 1 or (target is not None and target < 1):
@@ -51,7 +54,19 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
         saved_config = state['config']
         saved_mode = saved_config[15] if len(saved_config) > 15 else 'both'
         early_stop = saved_mode if early_stop is None else early_stop
-        if saved_config[:15] != [population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier, output_init_sigma, fitness_mode, points_weight, style_strength, styles_after_first_promotion] or early_stop != saved_mode:
+        saved_patience = saved_config[6]
+        if extend_patience is not None:
+            if extend_patience < saved_patience or (extend_patience == saved_patience and not state.get('patience_extended_from')):
+                raise ValueError('Checkpoint configuration does not match')
+            if patience not in (saved_patience, extend_patience, 50):
+                raise ValueError('Checkpoint configuration does not match')
+            extension_from = state.get('patience_extended_from') if extend_patience == saved_patience else saved_patience
+            patience = extend_patience
+        expected_config = [population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier, output_init_sigma, fitness_mode, points_weight, style_strength, styles_after_first_promotion]
+        comparable_config = saved_config[:15].copy()
+        if extend_patience is not None:
+            comparable_config[6] = patience
+        if comparable_config != expected_config or early_stop != saved_mode:
             raise ValueError('Checkpoint configuration does not match')
         rng.bit_generator.state = state['rng']
         reigning_generation, stale, first_generation = state['reigning_generation'], state['stale'], state['generation'] + 1
@@ -60,7 +75,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             lines = log_path.read_text(encoding='utf-8').splitlines()
             kept = [line for line in lines if json.loads(line)['generation'] <= state['generation']]
             log_path.write_text(''.join(line + '\n' for line in kept), encoding='utf-8')
-        if state['ended']:
+        if state['ended'] and (extend_patience is None or stale >= patience):
             return
     early_stop = early_stop or 'reject-only'
     with (output / 'generations.jsonl').open('a' if resume else 'w', encoding='utf-8') as log:
@@ -175,6 +190,8 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             hand = [d for d in first.decisions if d['hand_index'] == 0]
             entry = {'generation': generation, 'phase': 1, 'fitness': {'max': float(scores.max()), 'average': float(scores.mean()), 'min': float(scores.min())}, 'behavior': _behavior(group), 'diversity': float(np.std(population, axis=0).mean()), 'example_hand': hand, 'champion': name}
             entry.update(promotion_check=check, promoted=promoted, reigning_champion=reigning_generation, phase_ended=ended, league=styles, schedule=schedule, finalists=finalist_scores, finalist_pairs=retest_pairs, selected_individual=champion)
+            if extension_from is not None and generation == first_generation:
+                entry.update(patience_extended_from=extension_from, patience=patience)
             log.write(json.dumps(entry) + '\n')
             log.flush()
             status = 'first champion' if check is None else f"{'promoted' if promoted else 'not promoted'} {check['win_rate']:.0%} +/-{check['margin_of_error']*100:.0f} ({check['pairs']}/{check['max_pairs']} pairs)"
@@ -190,7 +207,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
                 next_population.append(child)
             population = np.array(next_population)
             if generation % 10 == 0:
-                state = dict(generation=generation, config=[population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier, output_init_sigma, fitness_mode, points_weight, style_strength, styles_after_first_promotion, early_stop], rng=rng.bit_generator.state, reigning_generation=reigning_generation, stale=stale, ended=ended)
+                state = dict(generation=generation, config=[population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier, output_init_sigma, fitness_mode, points_weight, style_strength, styles_after_first_promotion, early_stop], patience_extended_from=extension_from, rng=rng.bit_generator.state, reigning_generation=reigning_generation, stale=stale, ended=ended)
                 np.savez_compressed(output / f'checkpoint_{generation:04d}.npz', population=population, reigning=reigning, hall=np.asarray(hall).reshape(-1, GENOME_SIZE), state=json.dumps(state))
             if ended:
                 break
@@ -217,8 +234,11 @@ def main():
     parser.add_argument('--style-strength', type=float, default=.5)
     parser.add_argument('--styles-after-first-promotion', action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument('--resume')
+    parser.add_argument('--extend-patience', type=int)
     parser.add_argument('--publish', action='store_true')
     args = parser.parse_args()
+    if args.extend_patience is not None and not args.resume:
+        parser.error('--extend-patience requires --resume')
     if args.publish:
         destination = Path(__file__).resolve().parent.parent / 'champions' / 'phase1'
         destination.mkdir(parents=True, exist_ok=True)
@@ -227,7 +247,7 @@ def main():
             if name != 'reference_evaluation.jsonl' or source.exists():
                 shutil.copy2(source, destination / name)
     else:
-        train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed, args.validation_pairs, args.promotion_threshold, args.patience, args.resume, args.check_batch, args.finalists, args.finalist_pairs_multiplier, args.output_init_sigma, args.fitness_mode, args.points_weight, args.style_strength, args.styles_after_first_promotion, args.early_stop)
+        train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed, args.validation_pairs, args.promotion_threshold, args.patience, args.resume, args.check_batch, args.finalists, args.finalist_pairs_multiplier, args.output_init_sigma, args.fitness_mode, args.points_weight, args.style_strength, args.styles_after_first_promotion, args.early_stop, args.extend_patience)
 
 if __name__ == '__main__':
     main()

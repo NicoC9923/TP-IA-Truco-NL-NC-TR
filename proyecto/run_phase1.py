@@ -52,6 +52,7 @@ def main():
     parser.add_argument('--early-stop', choices=('reject-only', 'both'), default=None)
     parser.add_argument('--check-batch', type=int, default=200)
     parser.add_argument('--promotion-threshold', type=float, default=.55)
+    parser.add_argument('--extend-patience', type=int)
     parser.add_argument('--patience', type=int, default=50)
     parser.add_argument('--finalists', type=int, default=8)
     parser.add_argument('--finalist-pairs-multiplier', type=int, default=4)
@@ -84,6 +85,10 @@ def main():
         checkpoints = sorted(output.glob('checkpoint_*.npz'))
         if checkpoints:
             train += ['--resume', str(checkpoints[-1])]
+        if args.extend_patience is not None:
+            if not checkpoints:
+                parser.error('--extend-patience requires a checkpoint')
+            train += ['--extend-patience', str(args.extend_patience)]
         run('1/4 training', train, log)
 
         # A fresh log avoids duplicate rows when the pipeline is re-run.

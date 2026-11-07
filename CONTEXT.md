@@ -167,3 +167,6 @@ The mean standard deviation of genome weights across individuals in a generation
 A standalone round-robin comparison of reference opponents and optional policies using mirror match pairs; its bluff rate is the share of calls or raises marked as bluffs by the engine.
 
 
+
+**Patience extension**:
+An explicitly requested increase of the remaining promotion patience when resuming a training checkpoint, recorded in the generation log.
