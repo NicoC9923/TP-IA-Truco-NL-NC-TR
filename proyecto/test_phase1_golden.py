@@ -1,25 +1,14 @@
-"""Golden phase-one behavior captured before inference optimization."""
-import json
-from pathlib import Path
 import tempfile
 import unittest
-import numpy as np
-from phase1_network import GENOME_SIZE, NetworkPolicy
+from pathlib import Path
 from phase1_trainer import train
-from symmetric_engine import play_match
 
-class GoldenPhase1Tests(unittest.TestCase):
-    def test_matches_and_training_log(self):
-        golden = json.loads(Path(__file__).with_name('golden_phase1.json').read_text(encoding='utf-8'))
-        matches = []
-        for seed in (11, 22, 33):
-            rng = np.random.default_rng(seed)
-            a = NetworkPolicy(rng.normal(0, .1, GENOME_SIZE), seed=seed * 2)
-            b = NetworkPolicy(rng.normal(0, .1, GENOME_SIZE), seed=seed * 2 + 1)
-            result = play_match(a, b, seed=seed, target=3)
-            matches.append(dict(winner=result.winner, points=list(result.points), actions=[d['action'] for d in result.decisions]))
-        self.assertEqual(matches, golden['matches'])
-        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
-            for directory in (first, second):
-                train(directory, population_size=2, generations=2, pairs=1, workers=1, target=1, seed=13, validation_pairs=2)
-            self.assertEqual(Path(first, 'generations.jsonl').read_text(encoding='utf-8'), Path(second, 'generations.jsonl').read_text(encoding='utf-8'))
+
+class TrainingGoldenTest(unittest.TestCase):
+    def test_generation_log_matches_original_trainer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            train(directory, population_size=4, pairs=2, generations=3, workers=1,
+                  seed=42, validation_pairs=2, finalists=0, target=2)
+            actual = (Path(directory) / 'generations.jsonl').read_bytes()
+        expected = (Path(__file__).parent / 'test_fixtures/phase1_golden.jsonl').read_bytes()
+        self.assertEqual(actual, expected)
