@@ -47,6 +47,37 @@ class EvolutionServerTests(unittest.TestCase):
                 thread.join()
                 server.server_close()
 
+    def test_existing_http_contract(self):
+        import http.client
+        import random
+        with tempfile.TemporaryDirectory() as tmp:
+            match = PartidaTruco(historial_path=str(Path(tmp) / 'history.json'), rng=random.Random(7))
+            server = crear_servidor(match, puerto=0, sin_robot=True)
+            thread = threading.Thread(target=server.serve_forever); thread.start()
+            try:
+                conn = http.client.HTTPConnection('127.0.0.1', server.server_port)
+                expected = {
+                    '/truco/estado': set('aprendizaje_ia apuesta_truco bluffs_mano_actual canto_pendiente cartas_humano cartas_humano_disponibles cartas_robot_restantes cartas_robot_reveladas envido_disponible envido_resuelto es_mano estadisticas_partida ganador_mano ganador_partido ganadores_ronda log mano_terminada mesa partido_terminado por_el_partido puntos_truco_actuales resultado_envido ronda siguiente_truco_humano tanteador tantos_humano tantos_robot turno_carta ultima_frase_robot robot_conectado'.split()),
+                    '/truco/historial': set('adaptacion_activa arquitectura_nombre arquitectura_subtitulo bluffs_humano_detectados manos_totales modo_agente modos_disponibles partidas partidas_jugadas perfil_humano_detectado perfil_rival prob_farol_envido_pct prob_farol_truco_pct tasa_bluff_humano_pct tasa_fold_envido_humano_pct tasa_fold_truco_humano_pct traza_razonamiento ultimo_razonamiento umbral_envido_offset umbral_truco_offset victorias_humano victorias_robot'.split()),
+                }
+                for route, keys in expected.items():
+                    conn.request('GET', route); response = conn.getresponse()
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(set(json.loads(response.read())), keys)
+                posts = [('/comando', {}, 400), ('/truco/detectar', {}, 200),
+                         ('/truco/jugar', {}, 400), ('/truco/envido', {}, 200),
+                         ('/truco/truco', {}, 200), ('/truco/responder', {}, 200),
+                         ('/truco/mazo', {}, 200), ('/truco/voz', {}, 200),
+                         ('/truco/nuevo', {}, 200), ('/truco/reiniciar', {}, 200),
+                         ('/truco/modo_ia', {}, 200)]
+                for route, body, status in posts:
+                    with self.subTest(route=route):
+                        conn.request('POST', route, json.dumps(body)); response = conn.getresponse()
+                        self.assertEqual(response.status, status); response.read()
+                conn.close()
+            finally:
+                server.shutdown(); thread.join(); server.server_close()
+
     def test_server_can_open_evolution_page_without_robot(self):
         from unittest.mock import patch
         from servidor_truco import main
