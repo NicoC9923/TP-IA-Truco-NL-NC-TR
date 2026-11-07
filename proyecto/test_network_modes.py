@@ -153,3 +153,20 @@ class NetworkModesServerTests(unittest.TestCase):
             self.assertGreater(traces[0]['perfil_rival']['bluff'], .9)
             self.assertIsNone(traces[1]['perfil_rival'])
             self.assertNotEqual(traces[0]['inferencia']['expected_strength'], traces[1]['inferencia']['expected_strength'])
+
+    def test_shipped_champion_and_trace_match_explicit_v1(self):
+        from unittest.mock import patch
+        from phase1_network import NetworkPolicy
+        with tempfile.TemporaryDirectory() as tmp:
+            def play(name, explicit):
+                match = PartidaTruco(historial_path=str(Path(tmp) / name), rng=random.Random(7))
+                if explicit:
+                    original = NetworkPolicy.load
+                    with patch.object(NetworkPolicy, 'load', side_effect=lambda path, **kwargs: original(path, encoder='v1', **kwargs)):
+                        match.cambiar_modo_ia('neuroevolucion')
+                else:
+                    match.cambiar_modo_ia('neuroevolucion')
+                self.assertEqual(match.network.encoder, 'v1')
+                match.jugar_carta_humano(match.cartas_humano_disponibles[0])
+                return match.ia.traza_razonamiento
+            self.assertEqual(play('default.json', False), play('explicit.json', True))
