@@ -205,7 +205,8 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             hand = [d for d in first.decisions if d['hand_index'] == 0]
             entry = {'generation': generation, 'phase': 1, 'fitness': {'max': float(scores.max()), 'average': float(scores.mean()), 'min': float(scores.min())}, 'behavior': _behavior(group), 'diversity': float(np.std(population, axis=0).mean()), 'example_hand': hand, 'champion': name}
             entry.update(promotion_check=check, promoted=promoted, reigning_champion=reigning_generation, phase_ended=ended, league=styles, schedule=schedule, finalists=finalist_scores, finalist_pairs=retest_pairs, selected_individual=champion)
-            entry['encoder'] = encoder
+            if encoder != 'v1':
+                entry['encoder'] = encoder
             if extension_from is not None and generation == first_generation:
                 entry.update(patience_extended_from=extension_from, patience=patience)
             log.write(json.dumps(entry) + '\n')
