@@ -26,3 +26,14 @@ class EncoderMetadataTests(unittest.TestCase):
             with patch('reference_evaluation._evaluate_pair', return_value=0.5) as match:
                 evaluate(root, pairs=1, target=1)
                 self.assertEqual({call.args[0][4] for call in match.call_args_list}, {'v2'})
+
+    def test_watch_retries_sidecar_missing_encoder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / 'champion_0001.npy'
+            np.save(path, np.zeros(GENOME_SIZE))
+            path.with_suffix('.encoder.json').write_text('{}')
+            with self.assertRaisesRegex(ValueError, 'encoder'):
+                NetworkPolicy.load(path)
+            evaluate(root, pairs=1, target=1, only_new=True)
+            self.assertFalse((root / 'reference_evaluation.jsonl').exists())
