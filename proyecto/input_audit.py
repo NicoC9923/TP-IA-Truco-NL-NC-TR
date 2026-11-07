@@ -7,6 +7,33 @@ def card_strength(card):
     return rules.valor_carta_truco(*card)
 
 
+def cannot_lose_hand(obs):
+    """Conservatively detect a secured first trick plus unbeatable remaining cards."""
+    player = obs['player']
+    if not obs['tricks'] or obs['tricks'][0] != player or not obs['available']:
+        return False
+    known = set(obs['hand']) | {card for seat, card in obs['table'] if seat != player}
+    possible = [(value, suit) for suit in rules.PALOS for value in rules.VALORES
+                if (value, suit) not in known]
+    if len(obs['table']) % 2 and obs['table'][-1][0] != player:
+        possible.append(obs['table'][-1][1])
+    return bool(possible) and min(card_strength(obs['hand'][i]) for i in obs['available']) > max(map(card_strength, possible))
+
+
+def mistake_audit(rows):
+    """Average mistake probability over decisions satisfying each exact check."""
+    types = ('fold_guaranteed_hand', 'decline_high_envido',
+             'accept_known_losing_envido', 'lose_last_trick')
+    collected = {name: [] for name in types}
+    for obs, probabilities in rows:
+        for name, actions in mistake_actions(obs, probabilities).items():
+            if actions:
+                collected[name].append(sum(probabilities[action] for action in actions))
+    return {name: {'opportunities': len(values),
+                   'mean_probability': sum(values) / len(values) if values else None}
+            for name, values in collected.items()}
+
+
 def determinable_winners(observation):
     """Return card indices winning the current trick, or None if unknown."""
     table = observation['table']
@@ -31,30 +58,44 @@ def mistake_actions(obs, legal):
             result['accept_known_losing_envido'] = ('quiero',)
     winning = determinable_winners(obs)
     if len(obs['tricks']) == 2 and winning:
+        opponent_rank = card_strength(obs['table'][-1][1])
         result['lose_last_trick'] = tuple('card_%d' % i for i in obs['available']
-                                          if i not in winning and 'card_%d' % i in legal)
+                                          if card_strength(obs['hand'][i]) < opponent_rank
+                                          and 'card_%d' % i in legal)
+    if cannot_lose_hand(obs):
+        actions = ('no_quiero', 'fold') if pending.get('kind') == 'truco' else ('fold',)
+        result['fold_guaranteed_hand'] = tuple(a for a in actions if a in legal)
     return result
 
 
 def aliasing(features, facts, radius=0.01):
-    """Count observations with a strategically different exact or nearby peer."""
+    """Count observations and connected groups with strategically different peers."""
     import numpy as np
-    from collections import defaultdict
-    exact = defaultdict(list)
-    for i, vector in enumerate(features):
-        exact[tuple(vector)].append(i)
-    exact_pairs = [(g[i], g[j]) for g in exact.values() for i in range(len(g))
-                   for j in range(i + 1, len(g)) if facts[g[i]] != facts[g[j]]]
-    near_pairs = []
-    for i, vector in enumerate(features):
-        distance = np.linalg.norm(features[i + 1:] - vector, axis=1)
-        near_pairs.extend((i, i + 1 + int(j)) for j in np.flatnonzero(distance <= radius)
-                          if facts[i] != facts[i + 1 + int(j)])
-    def summarize(pairs):
-        members = {i for pair in pairs for i in pair}
+    if len(features) != len(facts) or radius < 0:
+        raise ValueError('invalid alias inputs')
+    def summarize(limit):
+        parents = list(range(len(features)))
+        members, pairs, examples = set(), 0, []
+        def root(i):
+            while parents[i] != i:
+                parents[i] = parents[parents[i]]
+                i = parents[i]
+            return i
+        for i, vector in enumerate(features):
+            distances = np.linalg.norm(features[i + 1:] - vector, axis=1)
+            for j in np.flatnonzero(distances <= limit) + i + 1:
+                j = int(j)
+                if facts[i] == facts[j]:
+                    continue
+                pairs += 1
+                members.update((i, j))
+                parents[root(i)] = root(j)
+                if len(examples) < 5:
+                    examples.append({'indices': [i, j], 'distance': float(distances[j-i-1]),
+                                     'facts': [facts[i], facts[j]]})
         return {'observations': len(members), 'rate': len(members) / len(features) if len(features) else 0,
-                'pairs': len(pairs), 'examples': [list(pair) for pair in pairs[:5]]}
-    return {'exact': summarize(exact_pairs), 'near': summarize(near_pairs)}
+                'groups': len({root(i) for i in members}), 'pairs': pairs, 'examples': examples}
+    return {'exact': summarize(0), 'near': summarize(radius), 'radius': radius}
 
 
 def card_choice_audit(rows, *, bootstrap_samples=2000, seed=73141):
@@ -188,3 +229,167 @@ def preference_probe(genome, features, *, slot, legal_cards=(0, 1, 2)):
     return {'face_value_correlation': correlation([card[0] for card in cards]),
             'strength_correlation': correlation([card_strength(card) for card in cards]),
             'cards': len(cards)}
+
+
+BANK_SEED = 10**20
+DEFAULT_CHECKPOINT = 'E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/seeds-phase1-seeds/training_output/phase1_seed1/checkpoint_0070.npz'
+CHAMPIONS = ('champions/phase1/reigning_champion.npy',
+             'experiments/phase1-seed1/reigning_champion.npy',
+             'experiments/phase1-gate53-seed1/reigning_champion.npy')
+
+
+def bank_seed(index):
+    if index < 0 or index >= 10**9:
+        raise ValueError('bank index outside reserved range')
+    return 2 * (BANK_SEED + index) + 1
+
+
+def strategic_facts(obs, legal):
+    """Return card strengths, legal actions, and envido points for alias checks."""
+    return (tuple(card_strength(card) for card in obs['hand']), tuple(sorted(legal)),
+            rules.calcular_envido([{'valor': v, 'palo': s} for v, s in obs['hand']]))
+
+
+def interpret(h1, h2, probe, aliases):
+    """Apply fixed thresholds, with missing opportunities treated as unsupported."""
+    import math
+    ratio, interval = h1.get('error_rate_ratio'), h1.get('error_rate_ratio_ci95')
+    face, strength = probe.get('mean_face_value_correlation'), probe.get('mean_strength_correlation')
+    h1_supported = bool((ratio is not None and ratio >= 2 and interval and interval[0] >= 2)
+                        or (face is not None and strength is not None and face > strength))
+    first, other = h2['first'], h2['other']
+    p, q = first['best_card_argmax_rate'], other['best_card_argmax_rate']
+    n, m = first['opportunities'], other['opportunities']
+    h2_supported = False
+    if n and m and p is not None and q is not None:
+        difference = p - q
+        standard_error = math.sqrt(p * (1-p) / n + q * (1-q) / m)
+        h2_supported = difference >= .10 and difference - 1.96 * standard_error > 0
+    return {'H1': h1_supported, 'H2': h2_supported, 'H3': aliases['near']['rate'] >= .05}
+
+
+def _prepare_observation(item):
+    from phase1_network import encode_observation
+    from opponent_profile import OpponentProfile
+    obs, legal = item
+    features = encode_observation(obs, OpponentProfile())
+    chances = per_card_win_probabilities(obs) if any(a.startswith('card_') for a in legal) else {}
+    return features, chances
+
+
+def build_bank(population, *, card_decisions, workers):
+    """Use behavior_diversity's match builder and odd training-partition seeds."""
+    import numpy as np
+    from concurrent.futures import ProcessPoolExecutor
+    from behavior_diversity import _bank_match
+    if card_decisions < 1 or workers < 1 or len(population) < 2:
+        raise ValueError('counts must be positive and population must have at least two members')
+    rng = np.random.default_rng(770184)
+    bank, cards, index = [], 0, 0
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        while cards < card_decisions:
+            jobs = []
+            for _ in range(8):
+                a, b = rng.choice(len(population), 2, replace=False)
+                jobs.append((population[a], population[b], bank_seed(index)))
+                index += 1
+            for match in pool.map(_bank_match, jobs):
+                for item in match:
+                    bank.append(item)
+                    cards += any(a.startswith('card_') for a in item[1])
+                    if cards >= card_decisions:
+                        break
+                if cards >= card_decisions:
+                    break
+    return bank, index
+
+
+def audit(checkpoint, *, card_decisions=2000, workers=12, members=16, radius=.01,
+          champions=None):
+    """Build a shared observation bank and audit frozen policies, without training."""
+    import hashlib
+    import numpy as np
+    from concurrent.futures import ProcessPoolExecutor
+    from pathlib import Path
+    from time import perf_counter
+    from behavior_diversity import probabilities
+    from phase1_network import ACTIONS
+    start = perf_counter()
+    if min(card_decisions, workers, members) < 1 or radius < 0:
+        raise ValueError('counts must be positive and radius nonnegative')
+    root = Path(__file__).resolve().parent.parent
+    checkpoint = Path(checkpoint)
+    with np.load(checkpoint, allow_pickle=False) as data:
+        population = data['population'].copy()
+    if len(population) < max(2, members):
+        raise ValueError('population is too small')
+    indices = np.random.default_rng(770185).choice(len(population), members, replace=False)
+    selected = [(str(p), np.load(p, allow_pickle=False)) for p in
+                (champions if champions is not None else [root / p for p in CHAMPIONS])]
+    selected += [('population_%d' % i, population[i]) for i in indices]
+    bank, matches_scheduled = build_bank(population, card_decisions=card_decisions, workers=workers)
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        prepared = list(pool.map(_prepare_observation, bank, chunksize=8))
+    features = np.array([item[0] for item in prepared])
+    mask = np.array([[a in legal for a in ACTIONS] for _, legal in bank])
+    facts = [strategic_facts(obs, legal) for obs, legal in bank]
+    aliases = aliasing(features, facts, radius)
+    for group in ('exact', 'near'):
+        for example in aliases[group]['examples']:
+            example['observations'] = [bank[i][0] for i in example['indices']]
+    networks = {}
+    for name, genome in selected:
+        probs = probabilities(genome, features, mask)
+        rows = [(obs, {action: float(probs[i, j]) for j, action in enumerate(ACTIONS) if mask[i, j]})
+                for i, (obs, _) in enumerate(bank)]
+        card_rows = [(obs, p, prepared[i][1]) for i, (obs, p) in enumerate(rows)
+                     if prepared[i][1]]
+        probes = []
+        for i, (obs, legal) in enumerate(bank):
+            slots = tuple(slot for slot in obs['available'] if 'card_%d' % slot in legal)
+            if len(slots) >= 2:
+                probes.extend(preference_probe(genome, features[i], slot=slot, legal_cards=slots) for slot in slots)
+        def mean_probe(key):
+            values = [v[key] for v in probes if v[key] is not None]
+            return sum(values) / len(values) if values else None
+        networks[name] = {'sha256': hashlib.sha256(np.asarray(genome, dtype=np.float64).tobytes()).hexdigest(),
+                          'h1': card_choice_audit(rows), 'h2': per_card_audit(card_rows),
+                          'preference_probe': {'sweeps': len(probes),
+                                               'mean_face_value_correlation': mean_probe('face_value_correlation'),
+                                               'mean_strength_correlation': mean_probe('strength_correlation')},
+                          'mistakes': mistake_audit(rows)}
+        report = networks[name]
+        report['interpretation'] = interpret(report['h1'], report['h2'], report['preference_probe'], aliases)
+    return {'checkpoint': str(checkpoint), 'checkpoint_sha256': hashlib.sha256(checkpoint.read_bytes()).hexdigest(),
+            'population_indices': list(map(int, indices)), 'card_decisions': card_decisions,
+            'observations': len(bank), 'matches_scheduled': matches_scheduled,
+            'bank_seed_namespace': 'odd 2*(10^20 + match_index)+1, index < 10^9',
+            'profile': 'fresh default profile', 'inference': 'uniform opponent card, strict win',
+            'near_alias_groups': 'connected components; endpoints may exceed radius',
+            'aliasing': aliases, 'networks': networks, 'seconds': perf_counter() - start}
+
+
+def main(argv=None):
+    import argparse
+    import json
+    from pathlib import Path
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--checkpoint', default=DEFAULT_CHECKPOINT)
+    parser.add_argument('--output', required=True)
+    parser.add_argument('--card-decisions', type=int, default=2000)
+    parser.add_argument('--workers', type=int, default=12)
+    parser.add_argument('--members', type=int, default=16)
+    parser.add_argument('--radius', type=float, default=.01)
+    args = parser.parse_args(argv)
+    if min(args.card_decisions, args.workers, args.members) < 1 or not 0 <= args.radius < float('inf'):
+        parser.error('counts must be positive and radius finite and nonnegative')
+    try:
+        result = audit(args.checkpoint, card_decisions=args.card_decisions, workers=args.workers,
+                       members=args.members, radius=args.radius)
+    except (ValueError, OSError) as exc:
+        parser.error(str(exc))
+    Path(args.output).write_text(json.dumps(result, indent=2, allow_nan=False) + '\n', encoding='utf-8')
+
+
+if __name__ == '__main__':
+    main()
