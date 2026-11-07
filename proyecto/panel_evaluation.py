@@ -61,6 +61,9 @@ def evaluate(candidate, baseline, *, panel_dir=PANEL, baseline_pairs=4000, panel
         row = {'name': member['name'], 'sha256': member['sha256']}
         if member['sha256'] == chash:
             row['skipped'] = 'candidate is panel member'
+        elif member['sha256'] == bhash:
+            # The baseline vs itself is ~50% by construction and would distort the panel mean and regression check.
+            row['skipped'] = 'baseline is panel member'
         else:
             opponent = np.load(panel_dir / member['file'], allow_pickle=False)
             NetworkPolicy(opponent)

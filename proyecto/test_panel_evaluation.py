@@ -54,6 +54,23 @@ class PanelTests(unittest.TestCase):
             self.assertEqual(report['schedule_seeds'], {'baseline': 9001, 'panel': 9002})
             json.dumps(report)
 
+    def test_baseline_panel_member_is_skipped(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name, value in [('candidate', 1), ('baseline', 2), ('other', 3)]:
+                np.save(root / (name + '.npy'), np.full(GENOME_SIZE, value))
+            rows = [{'name': name, 'file': name + '.npy', 'sha256': panel.digest(root / (name + '.npy'))} for name in ('baseline', 'other')]
+            (root / 'panel.json').write_text(json.dumps(rows))
+            def fake(job):
+                a, b, seed, target, score, style = job
+                winner = 0 if a[0] == 1 else 1
+                return [(SimpleNamespace(winner=winner), 0), (SimpleNamespace(winner=1-winner), 1)]
+            with patch.object(panel, '_evaluate', side_effect=fake):
+                report = panel.evaluate(root / 'candidate.npy', root / 'baseline.npy', panel_dir=root, baseline_pairs=2, panel_pairs=2, workers=1)
+            self.assertEqual(report['panel'][0]['skipped'], 'baseline is panel member')
+            self.assertNotIn('candidate', report['panel'][0])
+            self.assertEqual([r['name'] for r in report['panel'] if 'candidate' in r], ['other'])
+
     def test_cli_rejects_invalid_counts(self):
         result = subprocess.run([sys.executable, str(Path(panel.__file__)), '--candidate', 'a', '--baseline', 'b', '--output', 'c', '--workers', '0'], capture_output=True)
         self.assertNotEqual(result.returncode, 0)
