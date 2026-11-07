@@ -41,7 +41,7 @@ class PanelTests(unittest.TestCase):
             rows = [{'name': name, 'file': name + '.npy', 'sha256': panel.digest(root / (name + '.npy'))} for name in ('candidate', 'other')]
             (root / 'panel.json').write_text(json.dumps(rows))
             def fake(job):
-                a, b, seed, target, score, style = job
+                a, b, seed, target, score, style = job[:6]
                 winner = 0 if a[0] == 1 else 1
                 return [(SimpleNamespace(winner=winner), 0), (SimpleNamespace(winner=1-winner), 1)]
             with patch.object(panel, '_evaluate', side_effect=fake):
@@ -62,7 +62,7 @@ class PanelTests(unittest.TestCase):
             rows = [{'name': name, 'file': name + '.npy', 'sha256': panel.digest(root / (name + '.npy'))} for name in ('baseline', 'other')]
             (root / 'panel.json').write_text(json.dumps(rows))
             def fake(job):
-                a, b, seed, target, score, style = job
+                a, b, seed, target, score, style = job[:6]
                 winner = 0 if a[0] == 1 else 1
                 return [(SimpleNamespace(winner=winner), 0), (SimpleNamespace(winner=1-winner), 1)]
             with patch.object(panel, '_evaluate', side_effect=fake):
@@ -78,3 +78,4 @@ class PanelTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

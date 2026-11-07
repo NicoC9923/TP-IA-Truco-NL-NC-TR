@@ -71,3 +71,33 @@ class TrainerEncoderTests(unittest.TestCase):
             train(directory, population_size=2, generations=2, pairs=1, workers=1, target=1, validation_pairs=1, finalists=1, finalist_pairs_multiplier=1, encoder='v2')
         self.assertTrue(seen)
         self.assertEqual(set(seen), {'v2'})
+
+class EvaluationEncoderTests(unittest.TestCase):
+    def test_mixed_encoder_mirror_uses_both_encoders(self):
+        from unittest.mock import patch
+        from panel_evaluation import _measure
+        original = NetworkPolicy.__call__
+        seen = []
+        def record(policy, observation, legal_actions):
+            seen.append((policy.encoder, observation['player']))
+            return original(policy, observation, legal_actions)
+        with patch.object(NetworkPolicy, '__call__', record):
+            _measure(np.zeros(GENOME_SIZE), np.zeros(GENOME_SIZE), 2, 123, 1, 'v2', 'v1')
+        self.assertEqual(set(seen), {('v1', 0), ('v1', 1), ('v2', 0), ('v2', 1)})
+
+    def test_reference_uses_champion_sidecar(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from reference_evaluation import evaluate
+        original = NetworkPolicy.__call__
+        seen = []
+        def record(policy, observation, legal_actions):
+            seen.append(policy.encoder)
+            return original(policy, observation, legal_actions)
+        with tempfile.TemporaryDirectory() as directory:
+            NetworkPolicy(np.zeros(GENOME_SIZE), encoder='v2').save(Path(directory) / 'champion_0001.npy')
+            with patch.object(NetworkPolicy, '__call__', record):
+                evaluate(directory, pairs=1, target=1)
+        self.assertTrue(seen)
+        self.assertEqual(set(seen), {'v2'})

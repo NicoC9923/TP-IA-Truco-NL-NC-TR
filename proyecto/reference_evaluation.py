@@ -13,16 +13,17 @@ from validation_schedule import validation_schedule
 
 
 def _evaluate_pair(job):
-    genome, name, deal_seed, match_target = job
+    genome, name, deal_seed, match_target = job[:4]
+    encoder = job[4] if len(job) > 4 else 'v1'
     factory = ReactivePolicy if name == 'reactive' else AdaptiveUtilityPolicy
-    network = NetworkPolicy(genome, seed=deal_seed * 2)
+    network = NetworkPolicy(genome, seed=deal_seed * 2, encoder=encoder)
     reference = factory(deal_seed * 2 + 1)
     first = play_match(network, reference, seed=deal_seed, target=match_target, deal_partition=0)
     second = play_match(reference, network, seed=deal_seed, target=match_target, deal_partition=0)
     return ((first.winner == 0) + (second.winner == 1)) / 2
 
 
-def evaluate(directory, *, pairs=1000, seed=None, target=None, only_new=False, workers=1, every=1, promoted_only=False):
+def evaluate(directory, *, pairs=1000, seed=None, target=None, only_new=False, workers=1, every=1, promoted_only=False, encoder=None):
     if pairs < 1 or workers < 1 or every < 1:
         raise ValueError('pairs must be positive')
     root = Path(directory)
@@ -53,9 +54,8 @@ def evaluate(directory, *, pairs=1000, seed=None, target=None, only_new=False, w
         if generation not in (1, final) and (generation % every != 0 or (promoted_only and generation not in promoted)):
             continue
         try:
-            genome = np.load(champion, allow_pickle=False)
-            # Validate the shape before starting any matches.
-            NetworkPolicy(genome)
+            policy = NetworkPolicy.load(champion, **({'encoder': encoder} if encoder else {}))
+            genome = policy.genome
         except (OSError, ValueError, EOFError):
             if only_new:
                 # The trainer may still be writing this champion; retry next scan.
@@ -65,7 +65,7 @@ def evaluate(directory, *, pairs=1000, seed=None, target=None, only_new=False, w
             if (generation, name) in done:
                 continue
             started = time.perf_counter()
-            jobs = [(genome, name, deal_seed, match_target) for deal_seed, match_target in validation_schedule(seed, target, pairs)]
+            jobs = [(genome, name, deal_seed, match_target, policy.encoder) for deal_seed, match_target in validation_schedule(seed, target, pairs)]
             if workers == 1:
                 rates = list(map(_evaluate_pair, jobs))
             else:
@@ -81,6 +81,7 @@ def evaluate(directory, *, pairs=1000, seed=None, target=None, only_new=False, w
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', default='training_output/phase1')
+    parser.add_argument('--encoder', choices=('v1', 'v2'))
     parser.add_argument('--pairs', type=int, default=1000)
     parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--target', type=int, default=None)
@@ -90,7 +91,7 @@ def main():
     parser.add_argument('--watch', type=float, default=0, metavar='SECONDS')
     args = parser.parse_args()
     while True:
-        evaluate(args.directory, pairs=args.pairs, seed=args.seed, target=args.target, only_new=bool(args.watch), workers=args.workers, every=args.every, promoted_only=args.promoted_only)
+        evaluate(args.directory, pairs=args.pairs, seed=args.seed, target=args.target, only_new=bool(args.watch), workers=args.workers, every=args.every, promoted_only=args.promoted_only, encoder=args.encoder)
         if not args.watch:
             break
         time.sleep(args.watch)
