@@ -740,6 +740,14 @@
   .agente[aria-checked="true"] small { color: var(--txt-2); }
   .agente:not([aria-checked="true"]) small { display: none; }
   .agente:disabled small { display: block; }
+  #adaptacion-red:not([hidden]) { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:8px 12px 12px; }
+  .adaptacion-switch { display:inline-flex; align-items:center; gap:8px; font-weight:600; }
+  .adaptacion-switch input { appearance:none; width:38px; height:22px; border:1px solid var(--line); border-radius:12px; background:var(--ink-4); cursor:pointer; }
+  .adaptacion-switch input::before { content:""; display:block; width:16px; height:16px; margin:2px; border-radius:50%; background:var(--txt-2); }
+  .adaptacion-switch input:checked { background:var(--ott); border-color:var(--ott); }
+  .adaptacion-switch input:checked::before { transform:translateX(16px); background:var(--ott-ink); }
+  .adaptacion-switch input:focus-visible { outline:3px solid var(--ott); outline-offset:3px; }
+  .agente { text-align:left; }
   .agente:disabled { opacity: .65; cursor: not-allowed; }
   .agente:not([aria-checked="true"]) { background: transparent; border-color: transparent; }
   .agente:not([aria-checked="true"]) .n { grid-row: auto; }
@@ -979,8 +987,8 @@
   <section class="plate">
       <div class="plate-h"><h3 class="plate-t">Cerebro de Ottoman</h3></div>
       <div class="agentes" role="radiogroup" aria-label="Arquitectura del agente" id="agentes"></div>
-      <div id="adaptacion-red" style="margin-top:12px">
-        <label><input type="checkbox" id="adaptar-rival"> Adaptarse al rival</label>
+      <div id="adaptacion-red">
+        <label class="adaptacion-switch"><input type="checkbox" id="adaptar-rival"><span>Adaptarse al rival</span></label>
         <button type="button" class="btn-canto" id="reset-perfil">Reiniciar perfil</button>
       </div>
     </section>
@@ -1532,7 +1540,7 @@
           const esFarol = String(t.decision || '').includes('FAROL');
           return `<article class="paso">
             <div class="paso-top"><span class="paso-fase">${esc(t.fase)}${t.hora ? `<small>${esc(t.hora)}</small>` : ''}</span><span class="paso-dec ${esFarol ? 'farol-dec' : ''}">${esc(t.decision)}</span></div>
-            ${t.metrica ? `<dl><dt>Métrica</dt><dd>${esc(t.metrica)}</dd><dt>Umbral</dt><dd>${esc(t.umbral)}</dd><dt>Engaño</dt><dd>${esc(t.farol_info)}</dd></dl>` : ''}
+            ${t.metrica ? `<dl><dt>Métrica</dt><dd>${t.acciones_probables ? t.acciones_probables.map(a => `${esc(a.accion.replaceAll("_", " ").replace(/^card (\d)$/, (_, n) => `carta ${Number(n)+1}`).replace(/^fold$/, "irse al mazo"))}: ${a.porcentaje.toFixed(1)} %`).join(", ") : esc(t.metrica)}</dd>${t.umbral ? `<dt>Umbral</dt><dd>${esc(t.umbral)}</dd>` : ""}<dt>Engaño</dt><dd>${esc(t.farol_info)}</dd></dl>` : ''}
             ${t.explicacion ? `<p>${esc(t.explicacion)}</p>` : ''}
             ${t.inferencia ? `<p>P(tenés una brava): ${(t.inferencia.brava_probability * 100).toFixed(1)} % · Fuerza esperada: ${t.inferencia.expected_strength.toFixed(1)} · P(ganar la próxima baza): ${(t.inferencia.next_trick_win_probability * 100).toFixed(1)} %</p>` : ''}
             ${t.perfil_rival ? `<p>Perfil: farol ${(t.perfil_rival.bluff * 100).toFixed(1)} % · mazo ${(t.perfil_rival.fold * 100).toFixed(1)} % · acepta truco ${(t.perfil_rival.truco_accepted * 100).toFixed(1)} % · canta envido ${(t.perfil_rival.envido_called * 100).toFixed(1)} %</p>` : ''}
