@@ -19,6 +19,7 @@ def fitness(results, mode='classic', points_weight=.1):
 def _evaluate(job):
     genome, opponent, seed, target, starting_score, style = job[:6]
     strength = job[6] if len(job) > 6 else 1.0
+    # Legacy short jobs represent v1 policies on both sides.
     encoder_a, encoder_b = job[7:9] if len(job) >= 9 else ('v1', 'v1')
     a = NetworkPolicy(genome, seed=seed * 2, encoder=encoder_a)
     b = NetworkPolicy(opponent, seed=seed * 2 + 1, style=style, style_strength=strength, encoder=encoder_b)
