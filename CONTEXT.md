@@ -187,3 +187,6 @@ A fixed collection of legal decision situations used to compare policy action di
 
 **Behavioral diversity**:
 Differences in action probability distributions between policies on a shared decision observation bank.
+
+**Encoder version**:
+The agreed interpretation of a network's observation features; a trained network is evaluated with the version used during training.

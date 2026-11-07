@@ -10,3 +10,7 @@ The decision network sees six groups of data, encoded as numbers (about 60 input
 6. **The opponent profile** (ADR 0012): neutral when adaptation is off.
 
 Groups 5 and 6 are computed by the same code in training and against the human. The network gets precomputed summaries (inference, score) instead of the raw history, because a small evolved network cannot derive them on its own.
+
+## Encoder version clarification
+
+ADR 0035 distinguishes the existing face-value encoding from experimental held-card Truco rank encoding.
