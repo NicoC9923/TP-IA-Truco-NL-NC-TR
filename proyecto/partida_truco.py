@@ -21,7 +21,7 @@ import truco_reglas as tr
 from truco_ia import AgenteTrucoIA, PHASE1_CHAMPION
 from opponent_profile import OpponentProfile
 from phase1_network import NetworkPolicy
-from symmetric_engine import bluff
+from symmetric_engine import bluff as is_bluff
 
 
 class PartidaTruco:
@@ -261,7 +261,7 @@ class PartidaTruco:
         hand = tuple((c['valor'], c['palo']) for c in self.cartas_humano)
         for decision in self._human_decisions:
             decision['revealed'] = revealed
-            decision['bluff'] = bluff(decision['action'], hand) if revealed else None
+            decision['bluff'] = is_bluff(decision['action'], hand) if revealed else None
         self.opponent_profile.observe(self._human_decisions, 0)
         self.estadisticas_partida["manos_jugadas"] += 1
         self.ia.analizar_mano_humano(
@@ -451,7 +451,7 @@ class PartidaTruco:
                'envido_done': self.envido_resuelto, 'envido_reveal': reveal,
                'raise_owner': {'humano': 0, 'robot': 1}.get(self.quien_tiene_quiero_truco)}
         action = self.network(obs, tuple(actions))
-        bluff = bluff(action, cards)
+        bluff = is_bluff(action, cards)
         self.ia.ultimo_canto_fue_farol = bool(bluff)
         probabilities = sorted(self.network.last_probabilities.items(), key=lambda p: p[1], reverse=True)[:3]
         belief = self.network.last_belief
