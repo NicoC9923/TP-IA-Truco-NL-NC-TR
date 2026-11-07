@@ -33,6 +33,15 @@ def _measure(a, b, pairs, seed, workers):
     return {'win_rate': mean, 'margin_of_error': margin, 'pairs': pairs}
 
 
+def decision(direct, candidate_rates, baseline_rates):
+    if (candidate_rates and len(candidate_rates) == len(baseline_rates)
+            and direct['win_rate'] - direct['margin_of_error'] > .5
+            and np.mean(candidate_rates) > np.mean(baseline_rates)
+            and all(c >= b - .02 for c, b in zip(candidate_rates, baseline_rates))):
+        return 'promising'
+    return 'no demonstrated benefit'
+
+
 def evaluate(candidate, baseline, *, panel_dir=PANEL, baseline_pairs=4000, panel_pairs=1000, workers=12):
     if min(baseline_pairs, panel_pairs) < 2 or workers < 1:
         raise ValueError('pairs must be at least 2 and workers positive')
