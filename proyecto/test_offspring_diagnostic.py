@@ -32,3 +32,16 @@ class CliTests(unittest.TestCase):
         run = subprocess.run([sys.executable, str(script), 'missing', '--output', 'unused', '--workers', '0'], capture_output=True, text=True)
         self.assertNotEqual(run.returncode, 0)
         self.assertIn('workers positive', run.stderr)
+
+class MutationTests(unittest.TestCase):
+    def test_each_mutation_only_uses_trainer_formula(self):
+        a, b = np.zeros(1860), np.ones(1860)
+        actual = variants(a, b, np.random.default_rng(7))
+        rng = np.random.default_rng(7)
+        rng.random(1860)
+        rng.normal(0, .05, 1860)
+        rng.random(1860)
+        for sigma in (.025, .05, .1):
+            expected = a + rng.normal(0, sigma, 1860) * (rng.random(1860) < .1)
+            np.testing.assert_array_equal(actual[f'mutation_{sigma:.3f}'], expected)
+        np.testing.assert_array_equal(actual['parent'], a)
