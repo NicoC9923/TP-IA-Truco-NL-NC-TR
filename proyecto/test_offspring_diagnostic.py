@@ -23,3 +23,12 @@ class SummaryTests(unittest.TestCase):
         self.assertGreater(result['ci95'][1], 0)
         self.assertGreater(SEED_BASE, 10**17 + 10**6)
         self.assertGreater(BANK_SEED, SEED_BASE + 10**6)
+
+class CliTests(unittest.TestCase):
+    def test_rejects_invalid_workers(self):
+        import subprocess, sys
+        from pathlib import Path
+        script = Path(__file__).with_name('offspring_diagnostic.py')
+        run = subprocess.run([sys.executable, str(script), 'missing', '--output', 'unused', '--workers', '0'], capture_output=True, text=True)
+        self.assertNotEqual(run.returncode, 0)
+        self.assertIn('workers positive', run.stderr)
