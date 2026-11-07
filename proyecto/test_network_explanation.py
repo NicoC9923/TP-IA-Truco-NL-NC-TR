@@ -11,3 +11,12 @@ class NetworkExplanationTests(unittest.TestCase):
         self.assertEqual(set(policy.last_probabilities), {'card_0', 'card_1', 'truco'})
         self.assertAlmostEqual(sum(policy.last_probabilities.values()), 1)
         self.assertIn('brava_probability', policy.last_belief)
+    def test_measured_profile_changes_network_input_without_calls(self):
+        from opponent_profile import OpponentProfile
+        from phase1_network import encode_observation
+        obs = {'player': 1, 'hand': ((1, 'Espada'), (2, 'Oro'), (3, 'Copa')), 'available': (0, 1, 2), 'score': (0, 0), 'target': 15, 'mano': 0, 'table': (), 'tricks': (), 'truco': 1, 'pending': None, 'history': (), 'envido_done': False, 'envido_reveal': None, 'raise_owner': None}
+        profile = OpponentProfile()
+        profile.observe([{'player': 0, 'action': 'fold', 'observation': {'pending': None}, 'revealed': False, 'bluff': None}] * 100, 0)
+        measured = encode_observation(obs, profile)
+        neutral = encode_observation(obs, OpponentProfile())
+        self.assertFalse(np.array_equal(measured, neutral))
