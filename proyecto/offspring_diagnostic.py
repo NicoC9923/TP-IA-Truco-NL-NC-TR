@@ -53,6 +53,26 @@ def diagnose(checkpoint, k=32, pairs=32, workers=12):
     difference = deltas[:, names[1:].index('crossover_mutation')] - deltas[:, names[1:].index('mutation_0.050')]
     return {'checkpoint': str(checkpoint), 'generation': state['generation'], 'k': k, 'pairs': pairs, 'parent_sampling': 'uniform with replacement; checkpoint has no scores', 'parent_indices': indices.tolist(), 'reserved_opponent_indices': reserved.tolist(), 'seed_namespace': 'odd 2*(10^18 + pair)+1', 'variants': summaries, 'crossover_minus_mutation': summary(difference), 'pair_rates': rates.tolist(), 'seconds': perf_counter()-start}
 
+def interpretation(offspring, behavior):
+    m = offspring['variants']['mutation_0.050']
+    small = offspring['variants']['mutation_0.025']
+    diff = offspring['crossover_minus_mutation']
+    agreement = behavior['variants']['mutation_0.050']['mean_argmax_agreement']
+    pop = behavior['population']['mean_pairwise_tv']
+    panel = behavior['panel']['mean_pairwise_tv']
+    scores = {}
+    def ratio(value, width):
+        return value / width if width else float('inf')
+    if diff['ci95'][1] < 0:
+        scores['crossover damage: proposal 4'] = ratio(-diff['mean'], (diff['ci95'][1]-diff['ci95'][0])/2)
+    if agreement > .98 and m['ci95'][0] <= 0 <= m['ci95'][1] and m['spread'] < .044 * math.sqrt(64/offspring['pairs']):
+        scores['mutation too weak: larger sigma'] = (agreement-.98)/.02
+    if m['ci95'][1] < 0 and m['fraction_beating_parent'] < .4 and small['mean'] >= m['mean']:
+        scores['mutation too destructive: smaller sigma'] = ratio(-m['mean'], (m['ci95'][1]-m['ci95'][0])/2)
+    if panel > 0 and pop < panel/3:
+        scores['low behavioral diversity: proposal 6'] = 1-pop/(panel/3)
+    return {'fired_rules': scores, 'recommendation': max(scores, key=scores.get) if scores else 'no operator diagnosis; consider inputs (proposal 7)'}
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('checkpoint'); parser.add_argument('--output', required=True)
