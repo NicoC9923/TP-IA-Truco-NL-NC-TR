@@ -30,8 +30,9 @@ DIR_CARTAS = DIR_PROYECTO / "cartas"
 DIR_FUENTES = DIR_PROYECTO / "fuentes"
 
 class ServidorTruco(ThreadingHTTPServer):
-    def __init__(self, direccion, partida, sin_robot):
+    def __init__(self, direccion, partida, sin_robot, evolution_root=None):
         super().__init__(direccion, Handler)
+        self.evolution_root = Path(evolution_root) if evolution_root is not None else DIR_PROYECTO.parent
         self.lock = threading.RLock()
         self.partida = partida
         self.robot = partida.robot
@@ -69,7 +70,28 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         partida_truco = self.server.partida
         ruta_limpia = self.path.split("?", 1)[0]
-        if ruta_limpia in ("/", "/voz.html"):
+        if ruta_limpia in ("/evolucion", "/evolucion.html"):
+            cuerpo = (DIR_PROYECTO / "evolucion.html").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(cuerpo)))
+            self.end_headers()
+            self.wfile.write(cuerpo)
+        elif ruta_limpia in ("/evolucion/phase1/generations", "/evolucion/phase1/reference"):
+            filename = "generations.jsonl" if ruta_limpia.endswith("generations") else "reference_evaluation.jsonl"
+            live = self.server.evolution_root / "training_output" / "phase1" / filename
+            committed = self.server.evolution_root / "champions" / "phase1" / filename
+            source = live if live.is_file() else committed
+            records = []
+            if source.is_file():
+                with source.open(encoding="utf-8") as stream:
+                    for line in stream:
+                        try:
+                            records.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            continue
+            self._responder(200, records)
+        elif ruta_limpia in ("/", "/voz.html"):
             cuerpo = PAGINA.read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -275,13 +297,14 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(cuerpo)
 
 
-def crear_servidor(partida, puerto=PUERTO_DEFAULT, sin_robot=False):
-    return ServidorTruco(("127.0.0.1", puerto), partida, sin_robot)
+def crear_servidor(partida, puerto=PUERTO_DEFAULT, sin_robot=False, evolution_root=None):
+    return ServidorTruco(("127.0.0.1", puerto), partida, sin_robot, evolution_root)
 
 
 def main() -> None:
     sin_robot_flag = "--sin-robot" in sys.argv
-    abrir_nav = "--abrir" in sys.argv
+    abrir_evolution = "--abrir-evolucion" in sys.argv
+    abrir_nav = "--abrir" in sys.argv or abrir_evolution
     puerto = PUERTO_DEFAULT
     for arg in sys.argv:
         if arg.startswith("--puerto="):
@@ -299,7 +322,9 @@ def main() -> None:
         from generar_baraja import generar_baraja_40
         generar_baraja_40(str(DIR_CARTAS / "template_naipes.jpg"), str(DIR_CARTAS))
 
-    url = f"http://127.0.0.1:{puerto}"
+    url = f"http://127.0.0.1:{server.server_port}"
+    if abrir_evolution:
+        url += "/evolucion"
     print("\n  =========================================================")
     print("  [OK] TRUCO & VOZ CON OTTOMAN (Unitree G1) LISTO")
     print(f"  [WEB] Abri en Chrome o Edge: {url}")
