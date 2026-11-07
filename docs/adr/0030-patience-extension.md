@@ -11,3 +11,5 @@ Allow an explicit patience extension when resuming a checkpoint. The first resum
 ## Alternatives
 
 Silently changing patience defaults obscures the experiment; restarting with a new seed does not continue this run; manually editing checkpoints is error-prone and conceals the change.
+
+The [seed 1 extension record](../../experiments/phase1-seed1-extension/README.md) reports no further promotions through generation 123; generation 23 remains seed 1's champion.
