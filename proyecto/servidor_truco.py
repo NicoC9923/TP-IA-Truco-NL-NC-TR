@@ -79,9 +79,9 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(cuerpo)
         elif ruta_limpia in ("/evolucion/phase1/generations", "/evolucion/phase1/reference"):
             filename = "generations.jsonl" if ruta_limpia.endswith("generations") else "reference_evaluation.jsonl"
-            live = self.server.evolution_root / "training_output" / "phase1" / filename
-            committed = self.server.evolution_root / "champions" / "phase1" / filename
-            source = live if live.is_file() else committed
+            live = self.server.evolution_root / "training_output" / "phase1"
+            committed = self.server.evolution_root / "champions" / "phase1"
+            source = (live if (live / "generations.jsonl").is_file() else committed) / filename
             records = []
             if source.is_file():
                 with source.open(encoding="utf-8") as stream:

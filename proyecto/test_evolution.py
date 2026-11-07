@@ -16,6 +16,7 @@ class EvolutionServerTests(unittest.TestCase):
             committed = root / 'champions' / 'phase1'
             committed.mkdir(parents=True)
             (committed / 'generations.jsonl').write_text('{"generation": 1}\n', encoding='utf8')
+            (committed / 'reference_evaluation.jsonl').write_text('{"generation": 1}\n', encoding='utf8')
             server = crear_servidor(PartidaTruco(None, historial_path=str(root / 'history.json')), puerto=0, sin_robot=True, evolution_root=root)
             thread = threading.Thread(target=server.serve_forever)
             thread.start()
@@ -46,6 +47,18 @@ class EvolutionServerTests(unittest.TestCase):
                 server.shutdown()
                 thread.join()
                 server.server_close()
+
+    def test_missing_logs_return_empty_lists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            server = crear_servidor(PartidaTruco(historial_path=str(root / 'history.json')), puerto=0, sin_robot=True, evolution_root=root)
+            thread = threading.Thread(target=server.serve_forever); thread.start()
+            try:
+                for name in ('generations', 'reference'):
+                    with urlopen(f'http://127.0.0.1:{server.server_port}/evolucion/phase1/{name}') as response:
+                        self.assertEqual(json.load(response), [])
+            finally:
+                server.shutdown(); thread.join(); server.server_close()
 
     def test_existing_http_contract(self):
         import http.client
