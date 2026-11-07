@@ -13,7 +13,7 @@ def _percentiles():
         return {float(k): float(v) for k, v in json.load(file)['truco_poder_percentil'].items()}
 
 
-def _bluff(action, hand):
+def bluff(action, hand):
     cards = [{'valor': v, 'palo': p} for v, p in hand]
     if action in ('envido', 'real_envido', 'falta_envido'):
         return rules.calcular_envido(cards) < 24
@@ -22,6 +22,8 @@ def _bluff(action, hand):
         percentiles = _percentiles()
         return percentiles[min(percentiles, key=lambda k: abs(k - power))] < 0.44
     return None
+
+_bluff = bluff  # Backwards-compatible alias.
 
 @dataclass
 class MatchResult:

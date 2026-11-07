@@ -18,10 +18,10 @@ import threading
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import truco_reglas as tr
-from truco_ia import AgenteTrucoIA
+from truco_ia import AgenteTrucoIA, PHASE1_CHAMPION
 from opponent_profile import OpponentProfile
 from phase1_network import NetworkPolicy
-from symmetric_engine import _bluff
+from symmetric_engine import bluff
 
 
 class PartidaTruco:
@@ -163,11 +163,16 @@ class PartidaTruco:
         if not self.ia.mode_available(modo):
             return self.estado_publico()
         if modo == 'neuroevolucion':
-            champion = self.ia.champions_dir / 'phase1/reigning_champion.npy'
+            champion = self.ia.champions_dir / PHASE1_CHAMPION
             self.network = NetworkPolicy.load(champion, seed=self.rng.randrange(2**32), explain=True)
         info = self.ia.set_modo_agente(modo)
         self.registrar(f"🧠 Arquitectura IA cambiada a: {info['nombre']}")
         return self.estado_publico()
+
+    def reset_profile(self):
+        """Reset the persisted opponent profile and pending observations."""
+        self.opponent_profile.reset()
+        self._human_decisions.clear()
 
     def reiniciar_partido(self, meta_puntos: Optional[int] = None) -> Dict:
         if meta_puntos in (15, 30):
@@ -256,7 +261,7 @@ class PartidaTruco:
         hand = tuple((c['valor'], c['palo']) for c in self.cartas_humano)
         for decision in self._human_decisions:
             decision['revealed'] = revealed
-            decision['bluff'] = _bluff(decision['action'], hand) if revealed else None
+            decision['bluff'] = bluff(decision['action'], hand) if revealed else None
         self.opponent_profile.observe(self._human_decisions, 0)
         self.estadisticas_partida["manos_jugadas"] += 1
         self.ia.analizar_mano_humano(
@@ -446,7 +451,7 @@ class PartidaTruco:
                'envido_done': self.envido_resuelto, 'envido_reveal': reveal,
                'raise_owner': {'humano': 0, 'robot': 1}.get(self.quien_tiene_quiero_truco)}
         action = self.network(obs, tuple(actions))
-        bluff = _bluff(action, cards)
+        bluff = bluff(action, cards)
         self.ia.ultimo_canto_fue_farol = bool(bluff)
         probabilities = sorted(self.network.last_probabilities.items(), key=lambda p: p[1], reverse=True)[:3]
         belief = self.network.last_belief

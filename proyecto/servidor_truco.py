@@ -21,6 +21,7 @@ from pathlib import Path
 from robot import Robot
 from control_voz import AgenteRobot
 from partida_truco import PartidaTruco
+from truco_ia import AgenteTrucoIA
 from truco_vision import DetectorCartas, MENSAJE_SIN_OPENCV
 
 PUERTO_DEFAULT = 8080
@@ -167,7 +168,7 @@ class Handler(BaseHTTPRequestHandler):
             "/truco/envido": ("canto", "ENVIDO", {"ENVIDO", "ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"}),
             "/truco/truco": ("nivel", None, {None, "TRUCO", "RETRUCO", "VALE_CUATRO"}),
             "/truco/responder": ("respuesta", "QUIERO", {"QUIERO", "NO_QUIERO", "ENVIDO", "ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO", "TRUCO", "RETRUCO", "VALE_CUATRO"}),
-            "/truco/modo_ia": ("modo", "utilidad_adaptativa", {"reactivo", "utilidad_adaptativa", "neuroevolucion", "refuerzo"}),
+            "/truco/modo_ia": ("modo", "utilidad_adaptativa", set(AgenteTrucoIA.MODOS_DISPONIBLES)),
         }
         if self.path in listas:
             campo, defecto, permitidos = listas[self.path]
@@ -281,8 +282,7 @@ class Handler(BaseHTTPRequestHandler):
             return 200, {"estado": partida_truco.estado_publico()}
 
         elif self.path == "/truco/perfil/reset":
-            partida_truco.opponent_profile.reset()
-            partida_truco._human_decisions.clear()
+            partida_truco.reset_profile()
             return 200, {"estado": partida_truco.estado_publico()}
 
         else:

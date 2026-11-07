@@ -30,6 +30,9 @@ class _MemoryHistory:
         pass
 
 
+PHASE1_CHAMPION = Path('phase1/reigning_champion.npy')
+
+
 class AgenteTrucoIA:
     MODOS_DISPONIBLES = {
         "reactivo": {
@@ -107,7 +110,7 @@ class AgenteTrucoIA:
 
     def mode_available(self, mode):
         if mode == 'neuroevolucion':
-            return (self.champions_dir / 'phase1/reigning_champion.npy').is_file()
+            return (self.champions_dir / PHASE1_CHAMPION).is_file()
         if mode == 'refuerzo':
             return False
         return mode in self.MODOS_DISPONIBLES
