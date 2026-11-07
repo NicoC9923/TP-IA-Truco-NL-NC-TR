@@ -48,7 +48,7 @@ def main():
     parser.add_argument('--validation-pairs', type=int, default=1000)
     parser.add_argument('--check-batch', type=int, default=200)
     parser.add_argument('--promotion-threshold', type=float, default=.55)
-    parser.add_argument('--patience', type=int, default=30)
+    parser.add_argument('--patience', type=int, default=50)
     parser.add_argument('--eval-pairs', type=int, default=1000)
     parser.add_argument('--eval-workers', type=int, default=12)
     parser.add_argument('--no-commit', action='store_true', help='publish but do not git commit')

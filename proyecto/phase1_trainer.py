@@ -30,7 +30,7 @@ def _behavior(results):
     opportunities = [d for d in own if d['observation']['pending'] and d['observation']['pending']['kind'] == 'truco']
     return {'envido': sum(d['action'] in ('envido', 'real_envido', 'falta_envido') for d in own) / max(hands, 1), 'bluff': sum(d['bluff'] for d in calls) / max(len(calls), 1), 'truco_acceptance': sum(d['action'] in ('quiero', 'retruco', 'vale_cuatro') for d in opportunities) / max(len(opportunities), 1)}
 
-def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=20, resume=None, check_batch=200):
+def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200):
     if check_batch < 0 or min(population_size - 1, generations, pairs, workers, validation_pairs, patience) < 1 or (target is not None and target < 1):
         raise ValueError('Invalid training configuration')
     output = Path(directory)
@@ -152,7 +152,7 @@ def main():
     parser.add_argument('--validation-pairs', type=int, default=1000)
     parser.add_argument('--check-batch', type=int, default=200)
     parser.add_argument('--promotion-threshold', type=float, default=.55)
-    parser.add_argument('--patience', type=int, default=20)
+    parser.add_argument('--patience', type=int, default=50)
     parser.add_argument('--resume')
     parser.add_argument('--publish', action='store_true')
     args = parser.parse_args()
