@@ -1,0 +1,4 @@
+gen 66: {"a": "training_output/phase1_seed1/champion_0066.npy", "b": "training_output/phase1_seed1/champion_0023.npy", "seed": 4242, "pairs": 2000, "a_win_rate": 0.5485, "margin": 0.01376871042957352}
+gen 87: {"a": "training_output/phase1_seed1_ext/champion_0087.npy", "b": "training_output/phase1_seed1/champion_0023.npy", "seed": 4242, "pairs": 2000, "a_win_rate": 0.548, "margin": 0.014133625029631962}
+gen 121: {"a": "training_output/phase1_seed1_ext/champion_0121.npy", "b": "training_output/phase1_seed1/champion_0023.npy", "seed": 4242, "pairs": 2000, "a_win_rate": 0.5535, "margin": 0.013872303723798099}
+gen 123: {"a": "training_output/phase1_seed1_ext/champion_0123.npy", "b": "training_output/phase1_seed1/champion_0023.npy", "seed": 4242, "pairs": 2000, "a_win_rate": 0.5215, "margin": 0.013761031690850738}
