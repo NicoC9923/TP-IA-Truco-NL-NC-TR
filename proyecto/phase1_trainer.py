@@ -58,18 +58,33 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
         for generation in range(first_generation, generations + 1):
             start = perf_counter()
             jobs = []
-            styles = []
+            schedule = []
+            for p in range(pairs):
+                style = (None, None, None, None, 'bluffer', 'cautious', 'aggressive', 'calculating')[p % 8]
+                opponent_index = int(rng.integers(population_size))
+                opponent_kind = 'population'
+                if p == 0 and reigning is not None:
+                    opponent_kind = 'reigning'
+                    style = None
+                elif style is None and hall and rng.random() < .5:
+                    opponent_kind = 'hall'
+                    opponent_index = int(rng.integers(len(hall)))
+                match_target = target if target is not None else int(rng.choice((15, 30)))
+                starting_score = tuple(int(x) for x in rng.integers(match_target, size=2)) if rng.random() < .3 else (0, 0)
+                deal_seed = 2 * (seed * 1000000000 + generation * population_size * pairs + p) + 1
+                schedule.append(dict(opponent=opponent_kind, index=opponent_index, style=style,
+                                     seed=deal_seed, target=match_target, starting_score=starting_score))
+            styles = [item['style'] or 'unbiased' for i in range(population_size) for item in schedule]
             for i in range(population_size):
-                for p in range(pairs):
-                    style = (None, None, None, None, 'bluffer', 'cautious', 'aggressive', 'calculating')[(i * pairs + p + generation - 1) % 8]
-                    opponent_index = (i + 1 + int(rng.integers(population_size - 1))) % population_size
-                    opponent = population[opponent_index]
-                    if style is None and hall and rng.random() < .5:
-                        opponent = hall[int(rng.integers(len(hall)))]
-                    styles.append(style or 'unbiased')
-                    match_target = target if target is not None else int(rng.choice((15, 30)))
-                    starting_score = tuple(int(x) for x in rng.integers(match_target, size=2)) if rng.random() < .3 else (0, 0)
-                    jobs.append((population[i], opponent, 2 * (seed * 1000000000 + generation * population_size * pairs + i * pairs + p) + 1, match_target, starting_score, style))
+                for item in schedule:
+                    if item['opponent'] == 'reigning':
+                        opponent = reigning
+                    elif item['opponent'] == 'hall':
+                        opponent = hall[item['index']]
+                    else:
+                        index = item['index']
+                        opponent = population[(index + 1) % population_size if index == i else index]
+                    jobs.append((population[i], opponent, item['seed'], item['target'], item['starting_score'], item['style']))
             if workers == 1:
                 evaluated = list(map(_evaluate, jobs))
             else:
@@ -119,7 +134,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             first, seat = group[0]
             hand = [d for d in first.decisions if d['hand_index'] == 0]
             entry = {'generation': generation, 'phase': 1, 'fitness': {'max': float(scores.max()), 'average': float(scores.mean()), 'min': float(scores.min())}, 'behavior': _behavior(group), 'diversity': float(np.std(population, axis=0).mean()), 'example_hand': hand, 'champion': name}
-            entry.update(promotion_check=check, promoted=promoted, reigning_champion=reigning_generation, phase_ended=ended, league=styles)
+            entry.update(promotion_check=check, promoted=promoted, reigning_champion=reigning_generation, phase_ended=ended, league=styles, schedule=schedule)
             log.write(json.dumps(entry) + '\n')
             log.flush()
             status = 'first champion' if check is None else f"{'promoted' if promoted else 'not promoted'} {check['win_rate']:.0%} +/-{check['margin_of_error']*100:.0f} ({check['pairs']}/{check['max_pairs']} pairs)"

@@ -14,3 +14,13 @@ class Phase1DefaultsTests(unittest.TestCase):
             with np.load(Path(directory) / 'checkpoint_0010.npz') as checkpoint:
                 state = json.loads(str(checkpoint['state']))
             self.assertEqual(state['config'][6], 50)
+    def test_shared_league_schedule_is_recorded(self):
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            train(directory, population_size=4, generations=2, pairs=8, workers=1,
+                  target=1, validation_pairs=1)
+            entries = [json.loads(line) for line in (Path(directory) / 'generations.jsonl').read_text().splitlines()]
+            for entry in entries:
+                self.assertEqual(len(entry['schedule']), 8)
+                self.assertEqual(sum(item['style'] is None for item in entry['schedule']), 4)
+            self.assertEqual(entries[1]['schedule'][0]['opponent'], 'reigning')
