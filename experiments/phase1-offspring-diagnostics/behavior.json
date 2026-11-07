@@ -1,0 +1,37 @@
+{
+  "checkpoint": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/seeds-phase1-seeds/training_output/phase1_seed1/checkpoint_0070.npz",
+  "observations": 2000,
+  "bank_seed_namespace": "odd 2*(10^19 + offset)+1",
+  "profile": "fresh default profile for all observations",
+  "population": {
+    "mean_pairwise_tv": 0.19806748181450168,
+    "mean_argmax_agreement": 0.586418650793651
+  },
+  "panel": {
+    "mean_pairwise_tv": 0.25050622558048297,
+    "mean_argmax_agreement": 0.46356666666666674
+  },
+  "variants": {
+    "crossover_mutation": {
+      "mean_tv": 0.15124270124965172,
+      "mean_argmax_agreement": 0.6623125000000001
+    },
+    "crossover_only": {
+      "mean_tv": 0.1495929804313735,
+      "mean_argmax_agreement": 0.6660937499999999
+    },
+    "mutation_0.025": {
+      "mean_tv": 0.011731610321068772,
+      "mean_argmax_agreement": 0.973328125
+    },
+    "mutation_0.050": {
+      "mean_tv": 0.02264749949982311,
+      "mean_argmax_agreement": 0.9488749999999999
+    },
+    "mutation_0.100": {
+      "mean_tv": 0.04474831720339964,
+      "mean_argmax_agreement": 0.8983281249999999
+    }
+  },
+  "seconds": 19.990153400001873
+}

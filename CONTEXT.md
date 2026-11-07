@@ -178,3 +178,12 @@ _Avoid_: league, reference opponents
 **Pre-registered experiment decision**:
 The decision about whether an experiment is promising, using comparison criteria fixed before its outcome is known.
 _Avoid_: promotion, shipping decision
+
+**Offspring diagnostic**:
+A frozen-population comparison of offspring with their parents against a shared set of opponents.
+
+**Decision observation bank**:
+A fixed collection of legal decision situations used to compare policy action distributions.
+
+**Behavioral diversity**:
+Differences in action probability distributions between policies on a shared decision observation bank.
