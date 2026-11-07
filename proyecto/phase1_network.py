@@ -77,7 +77,7 @@ class NetworkPolicy:
         probabilities = weights / weights.sum()
         if self.explain:
             self.last_probabilities = dict(zip(legal_actions, map(float, probabilities)))
-            card = observation['hand'][observation['available'][0]]
+            card = observation['hand'][observation['available'][0] if observation['available'] else 0]
             self.last_belief = self.inference.belief.summaries(card, ties_win=observation['mano'] == observation['player'])
         return legal_actions[self.rng.choice(len(legal_actions), p=probabilities)]
 

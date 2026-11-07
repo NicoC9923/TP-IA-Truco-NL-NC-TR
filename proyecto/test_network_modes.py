@@ -31,6 +31,23 @@ class NetworkModesServerTests(unittest.TestCase):
                 connection.close()
             finally:
                 server.shutdown(); thread.join(); server.server_close()
+    def test_truco_after_robot_plays_all_cards(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            match = PartidaTruco(historial_path=str(Path(tmp) / 'history.json'), rng=random.Random(7))
+            match.cambiar_modo_ia('neuroevolucion')
+            match.irse_al_mazo_humano()
+            match.nueva_mano()
+            while match.cartas_robot_disponibles and not match.mano_terminada:
+                if match.canto_pendiente:
+                    match.responder_canto_humano('QUIERO')
+                else:
+                    match.jugar_carta_humano(match.cartas_humano_disponibles[0])
+            self.assertFalse(match.mano_terminada)
+            response = match.cantar_truco_humano('TRUCO')
+            self.assertNotIn('error', response)
+            trace = match.ia.traza_razonamiento[-1]
+            self.assertTrue({'acciones_probables', 'inferencia', 'es_farol', 'perfil_rival'} <= trace.keys())
+
     def test_network_mode_plays_and_explains_after_hand(self):
         with tempfile.TemporaryDirectory() as tmp:
             match = PartidaTruco(historial_path=str(Path(tmp) / 'history.json'), rng=random.Random(7))
