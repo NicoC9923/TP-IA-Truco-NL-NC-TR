@@ -1,0 +1,50 @@
+[
+  {
+    "name": "run1-gen22",
+    "source_run": "run1",
+    "generation": 22,
+    "original_path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/run1-phase1-training/training_output/phase1/champion_0022.npy",
+    "file": "run1-gen22.npy",
+    "sha256": "24d716b552d0ce9b14adde6c5943c89fd55fcb4013a07114d8af6306b8764e6b"
+  },
+  {
+    "name": "run1-gen48",
+    "source_run": "run1",
+    "generation": 48,
+    "original_path": "champions/phase1/reigning_champion.npy",
+    "file": "run1-gen48.npy",
+    "sha256": "0b3e04fad09334f60d2d416b9c6848c7b3aabcfa6bb0d6593ac825feb32e47f7"
+  },
+  {
+    "name": "run2-gen12",
+    "source_run": "run2",
+    "generation": 12,
+    "original_path": "experiments/phase1-run2/reigning_champion.npy",
+    "file": "run2-gen12.npy",
+    "sha256": "1c2b8378a0b7056d2d8c049f36aceb1a64e6a3e01c1ad89eb851e598d2c8db8d"
+  },
+  {
+    "name": "seed1-gen9",
+    "source_run": "seed1",
+    "generation": 9,
+    "original_path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/seeds-phase1-seeds/training_output/phase1_seed1/champion_0009.npy",
+    "file": "seed1-gen9.npy",
+    "sha256": "7aeea8e634424b51913c8f5686b26f13ee7162e647d5f1f2de052e2f754ae2e4"
+  },
+  {
+    "name": "seed1-gen23",
+    "source_run": "seed1",
+    "generation": 23,
+    "original_path": "experiments/phase1-seed1/reigning_champion.npy",
+    "file": "seed1-gen23.npy",
+    "sha256": "413542520b893418371fa0ff29b4b693d0675ef60cd4be55f8e782dd544db31c"
+  },
+  {
+    "name": "seed2-gen2",
+    "source_run": "seed2",
+    "generation": 2,
+    "original_path": "experiments/phase1-seed2/reigning_champion.npy",
+    "file": "seed2-gen2.npy",
+    "sha256": "5f00bfbaa27d7ee9fcedd7610ca36b092c71b8e935218a8f337a7cc1e25a3e79"
+  }
+]
