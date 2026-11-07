@@ -24,3 +24,12 @@ class Phase1DefaultsTests(unittest.TestCase):
                 self.assertEqual(len(entry['schedule']), 8)
                 self.assertEqual(sum(item['style'] is None for item in entry['schedule']), 4)
             self.assertEqual(entries[1]['schedule'][0]['opponent'], 'reigning')
+    def test_finalist_retest_scores_are_logged(self):
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            train(directory, population_size=3, generations=1, pairs=1, workers=1,
+                  target=1, validation_pairs=1, finalists=2, finalist_pairs_multiplier=2)
+            entry = json.loads((Path(directory) / 'generations.jsonl').read_text())
+            self.assertEqual(len(entry['finalists']), 2)
+            self.assertEqual(entry['finalist_pairs'], 2)
+            self.assertEqual(entry['selected_individual'], max(entry['finalists'], key=lambda row: row['score'])['individual'])

@@ -49,6 +49,8 @@ def main():
     parser.add_argument('--check-batch', type=int, default=200)
     parser.add_argument('--promotion-threshold', type=float, default=.55)
     parser.add_argument('--patience', type=int, default=50)
+    parser.add_argument('--finalists', type=int, default=8)
+    parser.add_argument('--finalist-pairs-multiplier', type=int, default=4)
     parser.add_argument('--eval-pairs', type=int, default=1000)
     parser.add_argument('--eval-workers', type=int, default=12)
     parser.add_argument('--no-commit', action='store_true', help='publish but do not git commit')
@@ -63,7 +65,8 @@ def main():
                  '--generations', str(args.generations), '--population', str(args.population),
                  '--pairs', str(args.pairs), '--workers', str(args.workers), '--seed', str(args.seed),
                  '--validation-pairs', str(args.validation_pairs), '--check-batch', str(args.check_batch),
-                 '--promotion-threshold', str(args.promotion_threshold), '--patience', str(args.patience)]
+                 '--promotion-threshold', str(args.promotion_threshold), '--patience', str(args.patience),
+                 '--finalists', str(args.finalists), '--finalist-pairs-multiplier', str(args.finalist_pairs_multiplier)]
         checkpoints = sorted(output.glob('checkpoint_*.npz'))
         if checkpoints:
             train += ['--resume', str(checkpoints[-1])]

@@ -30,8 +30,8 @@ def _behavior(results):
     opportunities = [d for d in own if d['observation']['pending'] and d['observation']['pending']['kind'] == 'truco']
     return {'envido': sum(d['action'] in ('envido', 'real_envido', 'falta_envido') for d in own) / max(hands, 1), 'bluff': sum(d['bluff'] for d in calls) / max(len(calls), 1), 'truco_acceptance': sum(d['action'] in ('quiero', 'retruco', 'vale_cuatro') for d in opportunities) / max(len(opportunities), 1)}
 
-def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200):
-    if check_batch < 0 or min(population_size - 1, generations, pairs, workers, validation_pairs, patience) < 1 or (target is not None and target < 1):
+def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200, finalists=8, finalist_pairs_multiplier=4):
+    if finalists < 0 or finalist_pairs_multiplier < 1 or check_batch < 0 or min(population_size - 1, generations, pairs, workers, validation_pairs, patience) < 1 or (target is not None and target < 1):
         raise ValueError('Invalid training configuration')
     output = Path(directory)
     output.mkdir(parents=True, exist_ok=True)
@@ -43,7 +43,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
         with np.load(resume, allow_pickle=False) as data:
             population, reigning, hall = data['population'], data['reigning'], list(data['hall'])
             state = json.loads(str(data['state']))
-        if state['config'] != [population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch]:
+        if state['config'] != [population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier]:
             raise ValueError('Checkpoint configuration does not match')
         rng.bit_generator.state = state['rng']
         reigning_generation, stale, first_generation = state['reigning_generation'], state['stale'], state['generation'] + 1
@@ -94,6 +94,35 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             results = [sum(evaluated[i*pairs:(i+1)*pairs], []) for i in range(population_size)]
             scores = np.array([fitness(group) for group in results])
             champion = int(np.argmax(scores))
+            finalist_scores = []
+            retest_pairs = pairs * finalist_pairs_multiplier if finalists else 0
+            if finalists:
+                candidates = np.argsort(-scores, kind='stable')[:min(finalists, population_size)]
+                retest_schedule = []
+                for p in range(retest_pairs):
+                    item = dict(schedule[p % pairs])
+                    item['seed'] = 2 * (10**15 + seed * 1000000000 + generation * 1000000 + p) + 1
+                    item['target'] = target if target is not None else int(rng.choice((15, 30)))
+                    item['starting_score'] = tuple(int(x) for x in rng.integers(item['target'], size=2)) if rng.random() < .3 else (0, 0)
+                    retest_schedule.append(item)
+                retest_jobs = []
+                for i in candidates:
+                    for item in retest_schedule:
+                        if item['opponent'] == 'reigning':
+                            opponent = reigning
+                        elif item['opponent'] == 'hall':
+                            opponent = hall[item['index']]
+                        else:
+                            index = item['index']
+                            opponent = population[(index + 1) % population_size if index == i else index]
+                        retest_jobs.append((population[i], opponent, item['seed'], item['target'], item['starting_score'], item['style']))
+                if workers == 1:
+                    retested = list(map(_evaluate, retest_jobs))
+                else:
+                    with ProcessPoolExecutor(max_workers=workers) as pool:
+                        retested = list(pool.map(_evaluate, retest_jobs))
+                finalist_scores = [dict(individual=int(i), score=float(fitness(sum(retested[n * retest_pairs:(n + 1) * retest_pairs], [])))) for n, i in enumerate(candidates)]
+                champion = max(finalist_scores, key=lambda row: row['score'])['individual']
             name = f'champion_{generation:04d}.npy'
             NetworkPolicy(population[champion]).save(output / name)
             genome = population[champion].copy()
@@ -134,7 +163,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             first, seat = group[0]
             hand = [d for d in first.decisions if d['hand_index'] == 0]
             entry = {'generation': generation, 'phase': 1, 'fitness': {'max': float(scores.max()), 'average': float(scores.mean()), 'min': float(scores.min())}, 'behavior': _behavior(group), 'diversity': float(np.std(population, axis=0).mean()), 'example_hand': hand, 'champion': name}
-            entry.update(promotion_check=check, promoted=promoted, reigning_champion=reigning_generation, phase_ended=ended, league=styles, schedule=schedule)
+            entry.update(promotion_check=check, promoted=promoted, reigning_champion=reigning_generation, phase_ended=ended, league=styles, schedule=schedule, finalists=finalist_scores, finalist_pairs=retest_pairs, selected_individual=champion)
             log.write(json.dumps(entry) + '\n')
             log.flush()
             status = 'first champion' if check is None else f"{'promoted' if promoted else 'not promoted'} {check['win_rate']:.0%} +/-{check['margin_of_error']*100:.0f} ({check['pairs']}/{check['max_pairs']} pairs)"
@@ -150,7 +179,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
                 next_population.append(child)
             population = np.array(next_population)
             if generation % 10 == 0:
-                state = dict(generation=generation, config=[population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch], rng=rng.bit_generator.state, reigning_generation=reigning_generation, stale=stale, ended=ended)
+                state = dict(generation=generation, config=[population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier], rng=rng.bit_generator.state, reigning_generation=reigning_generation, stale=stale, ended=ended)
                 np.savez_compressed(output / f'checkpoint_{generation:04d}.npz', population=population, reigning=reigning, hall=np.asarray(hall).reshape(-1, GENOME_SIZE), state=json.dumps(state))
             if ended:
                 break
@@ -168,6 +197,8 @@ def main():
     parser.add_argument('--check-batch', type=int, default=200)
     parser.add_argument('--promotion-threshold', type=float, default=.55)
     parser.add_argument('--patience', type=int, default=50)
+    parser.add_argument('--finalists', type=int, default=8)
+    parser.add_argument('--finalist-pairs-multiplier', type=int, default=4)
     parser.add_argument('--resume')
     parser.add_argument('--publish', action='store_true')
     args = parser.parse_args()
@@ -179,7 +210,7 @@ def main():
             if name != 'reference_evaluation.jsonl' or source.exists():
                 shutil.copy2(source, destination / name)
     else:
-        train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed, args.validation_pairs, args.promotion_threshold, args.patience, args.resume, args.check_batch)
+        train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed, args.validation_pairs, args.promotion_threshold, args.patience, args.resume, args.check_batch, args.finalists, args.finalist_pairs_multiplier)
 
 if __name__ == '__main__':
     main()
