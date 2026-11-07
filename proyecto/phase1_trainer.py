@@ -32,6 +32,50 @@ def _behavior(results):
     opportunities = [d for d in own if d['observation']['pending'] and d['observation']['pending']['kind'] == 'truco']
     return {'envido': sum(d['action'] in ('envido', 'real_envido', 'falta_envido') for d in own) / max(hands, 1), 'bluff': sum(d['bluff'] for d in calls) / max(len(calls), 1), 'truco_acceptance': sum(d['action'] in ('quiero', 'retruco', 'vale_cuatro') for d in opportunities) / max(len(opportunities), 1)}
 
+def league_schedule(rng, generation, population_size, pairs, seed, target, hall, reigning, styles_after_first_promotion):
+    schedule = []
+    for p in range(pairs):
+        style = None if p % 2 == 0 else ('bluffer', 'cautious', 'aggressive', 'calculating')[(p // 2 + 2 * (generation - 1)) % 4]
+        if styles_after_first_promotion and not hall:
+            style = None
+        opponent_index = int(rng.integers(population_size))
+        opponent_kind = 'population'
+        if p == 0 and reigning is not None:
+            opponent_kind = 'reigning'
+            style = None
+        elif style is None and hall and rng.random() < .5:
+            opponent_kind = 'hall'
+            opponent_index = int(rng.integers(len(hall)))
+        match_target = target if target is not None else int(rng.choice((15, 30)))
+        starting_score = tuple(int(x) for x in rng.integers(match_target, size=2)) if rng.random() < .3 else (0, 0)
+        deal_seed = 2 * (seed * 1000000000 + generation * population_size * pairs + p) + 1
+        schedule.append(dict(opponent=opponent_kind, index=opponent_index, style=style,
+                             seed=deal_seed, target=match_target, starting_score=starting_score))
+    return schedule
+
+def league_scores(population, schedule, hall, reigning, workers, style_strength, fitness_mode, points_weight):
+    population_size = len(population)
+    pairs = len(schedule)
+    jobs = []
+    for i in range(population_size):
+        for item in schedule:
+            if item['opponent'] == 'reigning':
+                opponent = reigning
+            elif item['opponent'] == 'hall':
+                opponent = hall[item['index']]
+            else:
+                index = item['index']
+                opponent = population[(index + 1) % population_size if index == i else index]
+            jobs.append((population[i], opponent, item['seed'], item['target'], item['starting_score'], item['style'], style_strength))
+    if workers == 1:
+        evaluated = list(map(_evaluate, jobs))
+    else:
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            evaluated = list(pool.map(_evaluate, jobs))
+    results = [sum(evaluated[i*pairs:(i+1)*pairs], []) for i in range(population_size)]
+    scores = np.array([fitness(group, fitness_mode, points_weight) for group in results])
+    return scores, results
+
 def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200, finalists=8, finalist_pairs_multiplier=4, output_init_sigma=.3, fitness_mode="classic", points_weight=.1, style_strength=.5, styles_after_first_promotion=True, early_stop=None, extend_patience=None):
     if extend_patience is not None and not resume:
         raise ValueError("--extend-patience requires --resume")
@@ -81,44 +125,10 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
     with (output / 'generations.jsonl').open('a' if resume else 'w', encoding='utf-8') as log:
         for generation in range(first_generation, generations + 1):
             start = perf_counter()
-            jobs = []
-            schedule = []
-            for p in range(pairs):
-                style = None if p % 2 == 0 else ('bluffer', 'cautious', 'aggressive', 'calculating')[(p // 2 + 2 * (generation - 1)) % 4]
-                if styles_after_first_promotion and not hall:
-                    style = None
-                opponent_index = int(rng.integers(population_size))
-                opponent_kind = 'population'
-                if p == 0 and reigning is not None:
-                    opponent_kind = 'reigning'
-                    style = None
-                elif style is None and hall and rng.random() < .5:
-                    opponent_kind = 'hall'
-                    opponent_index = int(rng.integers(len(hall)))
-                match_target = target if target is not None else int(rng.choice((15, 30)))
-                starting_score = tuple(int(x) for x in rng.integers(match_target, size=2)) if rng.random() < .3 else (0, 0)
-                deal_seed = 2 * (seed * 1000000000 + generation * population_size * pairs + p) + 1
-                schedule.append(dict(opponent=opponent_kind, index=opponent_index, style=style,
-                                     seed=deal_seed, target=match_target, starting_score=starting_score))
+            schedule = league_schedule(rng, generation, population_size, pairs, seed, target, hall, reigning, styles_after_first_promotion)
             styles = [item['style'] or 'unbiased' for i in range(population_size) for item in schedule]
-            for i in range(population_size):
-                for item in schedule:
-                    if item['opponent'] == 'reigning':
-                        opponent = reigning
-                    elif item['opponent'] == 'hall':
-                        opponent = hall[item['index']]
-                    else:
-                        index = item['index']
-                        opponent = population[(index + 1) % population_size if index == i else index]
-                    jobs.append((population[i], opponent, item['seed'], item['target'], item['starting_score'], item['style'], style_strength))
-            if workers == 1:
-                evaluated = list(map(_evaluate, jobs))
-            else:
-                with ProcessPoolExecutor(max_workers=workers) as pool:
-                    evaluated = list(pool.map(_evaluate, jobs))
+            scores, results = league_scores(population, schedule, hall, reigning, workers, style_strength, fitness_mode, points_weight)
             league_seconds = perf_counter() - start
-            results = [sum(evaluated[i*pairs:(i+1)*pairs], []) for i in range(population_size)]
-            scores = np.array([fitness(group, fitness_mode, points_weight) for group in results])
             champion = int(np.argmax(scores))
             finalist_scores = []
             retest_pairs = pairs * finalist_pairs_multiplier if finalists else 0
