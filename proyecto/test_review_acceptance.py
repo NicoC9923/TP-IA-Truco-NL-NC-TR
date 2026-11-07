@@ -28,7 +28,7 @@ class AcceptanceReviewTests(unittest.TestCase):
             r = SimpleNamespace(winner=0, points=(2, 0), decisions=[decision])
             return [(r, 0), (r, 1)]
         with tempfile.TemporaryDirectory() as d, patch('phase1_trainer._evaluate', side_effect=evaluate), redirect_stdout(io.StringIO()):
-            train(d, population_size=64, generations=2, pairs=64, workers=1, seed=9, validation_pairs=8, promotion_threshold=0, finalists=0)
+            train(d, population_size=64, generations=2, pairs=64, workers=1, seed=9, validation_pairs=8, promotion_threshold=0, finalists=0, styles_after_first_promotion=False)
             rows = [json.loads(line) for line in Path(d, 'generations.jsonl').read_text().splitlines()]
         training = [j for j in jobs if j[2] % 2]
         validation = [j for j in jobs if not j[2] % 2]
@@ -71,7 +71,7 @@ class AcceptanceReviewTests(unittest.TestCase):
             result = SimpleNamespace(winner=0, points=(2, 0), decisions=[decision])
             return [(result, 0), (result, 1)]
         with tempfile.TemporaryDirectory() as d, patch('phase1_trainer._evaluate', side_effect=evaluate), redirect_stdout(io.StringIO()):
-            train(d, population_size=4, generations=4, pairs=64, workers=1, target=1, seed=9, validation_pairs=1, promotion_threshold=0, finalists=0)
+            train(d, population_size=4, generations=4, pairs=64, workers=1, target=1, seed=9, validation_pairs=1, promotion_threshold=0, finalists=0, styles_after_first_promotion=False)
             rows = [json.loads(line) for line in Path(d, 'generations.jsonl').read_text().splitlines()]
         slots = [item for row in rows[2:] for item in row['schedule'] if item['style'] is None and item['opponent'] != 'reigning']
         fraction = sum(item['opponent'] == 'hall' for item in slots) / len(slots)

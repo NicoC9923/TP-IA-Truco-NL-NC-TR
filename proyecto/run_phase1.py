@@ -54,6 +54,8 @@ def main():
     parser.add_argument('--output-init-sigma', type=float, default=.3)
     parser.add_argument('--fitness-mode', choices=('classic', 'mixed'), default='classic')
     parser.add_argument('--points-weight', type=float, default=.1)
+    parser.add_argument('--style-strength', type=float, default=.5)
+    parser.add_argument('--styles-after-first-promotion', action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument('--eval-pairs', type=int, default=1000)
     parser.add_argument('--eval-workers', type=int, default=12)
     parser.add_argument('--no-commit', action='store_true', help='publish but do not git commit')
@@ -70,7 +72,9 @@ def main():
                  '--validation-pairs', str(args.validation_pairs), '--check-batch', str(args.check_batch),
                  '--promotion-threshold', str(args.promotion_threshold), '--patience', str(args.patience),
                  '--finalists', str(args.finalists), '--finalist-pairs-multiplier', str(args.finalist_pairs_multiplier), '--output-init-sigma', str(args.output_init_sigma),
-                 '--fitness-mode', args.fitness_mode, '--points-weight', str(args.points_weight)]
+                 '--fitness-mode', args.fitness_mode, '--points-weight', str(args.points_weight),
+                 '--style-strength', str(args.style_strength),
+                 '--styles-after-first-promotion' if args.styles_after_first_promotion else '--no-styles-after-first-promotion']
         checkpoints = sorted(output.glob('checkpoint_*.npz'))
         if checkpoints:
             train += ['--resume', str(checkpoints[-1])]

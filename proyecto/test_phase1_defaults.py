@@ -10,15 +10,15 @@ class Phase1DefaultsTests(unittest.TestCase):
     def test_default_patience_is_recorded_in_checkpoint(self):
         with tempfile.TemporaryDirectory() as directory:
             train(directory, population_size=2, generations=10, pairs=1, workers=1,
-                  target=1, validation_pairs=1, promotion_threshold=0)
+                  target=1, validation_pairs=1, promotion_threshold=0, finalists=0)
             with np.load(Path(directory) / 'checkpoint_0010.npz') as checkpoint:
                 state = json.loads(str(checkpoint['state']))
             self.assertEqual(state['config'][6], 50)
     def test_shared_league_schedule_is_recorded(self):
         import json
         with tempfile.TemporaryDirectory() as directory:
-            train(directory, population_size=4, generations=2, pairs=8, workers=1,
-                  target=1, validation_pairs=1)
+            train(directory, population_size=2, generations=2, pairs=8, workers=1,
+                  target=1, validation_pairs=1, finalists=0, styles_after_first_promotion=False)
             entries = [json.loads(line) for line in (Path(directory) / 'generations.jsonl').read_text().splitlines()]
             for entry in entries:
                 self.assertEqual(len(entry['schedule']), 8)
@@ -60,3 +60,25 @@ class Phase1DefaultsTests(unittest.TestCase):
         wins, classic, mixed, points = scores
         self.assertAlmostEqual(mixed, classic / 2)
         self.assertAlmostEqual(points, classic - wins)
+    def test_styles_start_after_first_promotion_and_can_be_enabled_immediately(self):
+        with tempfile.TemporaryDirectory() as directory:
+            train(directory, population_size=2, generations=3, pairs=2, workers=1,
+                  target=1, validation_pairs=1, promotion_threshold=0, finalists=0)
+            entries = [json.loads(line) for line in (Path(directory) / 'generations.jsonl').read_text().splitlines()]
+            self.assertTrue(all(item['style'] is None for entry in entries[:2] for item in entry['schedule']))
+            self.assertTrue(entries[1]['promoted'])
+            self.assertTrue(any(item['style'] is not None for item in entries[2]['schedule']))
+        with tempfile.TemporaryDirectory() as directory:
+            train(directory, population_size=2, generations=1, pairs=2, workers=1,
+                  target=1, finalists=0, styles_after_first_promotion=False)
+            entry = json.loads((Path(directory) / 'generations.jsonl').read_text())
+            self.assertTrue(any(item['style'] is not None for item in entry['schedule']))
+
+    def test_zero_style_strength_matches_unbiased_play(self):
+        fitnesses = []
+        for delayed in (False, True):
+            with tempfile.TemporaryDirectory() as directory:
+                train(directory, population_size=2, generations=1, pairs=2, workers=1,
+                      target=1, finalists=0, style_strength=0, styles_after_first_promotion=delayed)
+                fitnesses.append(json.loads((Path(directory) / 'generations.jsonl').read_text())['fitness'])
+        self.assertEqual(*fitnesses)

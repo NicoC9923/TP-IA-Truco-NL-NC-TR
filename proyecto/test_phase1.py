@@ -136,7 +136,7 @@ class LeagueAcceptanceTests(unittest.TestCase):
         from collections import Counter
         from phase1_trainer import train
         with tempfile.TemporaryDirectory() as d:
-            train(d, population_size=2, generations=1, pairs=8, workers=1, target=1, seed=6, validation_pairs=1)
+            train(d, population_size=2, generations=1, pairs=8, workers=1, target=1, seed=6, validation_pairs=1, finalists=0, styles_after_first_promotion=False)
             entry = json.loads(Path(d, 'generations.jsonl').read_text())
             self.assertEqual(Counter(entry['league']), {'unbiased': 8, 'bluffer': 2, 'cautious': 2, 'aggressive': 2, 'calculating': 2})
 
