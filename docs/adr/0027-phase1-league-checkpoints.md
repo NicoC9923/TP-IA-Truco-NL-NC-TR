@@ -13,3 +13,7 @@ A checkpoint contains the next population, reigning genome, promoted genomes, ra
 The trainer records the run seed and target in `run_config.json`. The separate reference evaluation reads these defaults and uses the same shared seed and target schedule as promotion, including alternating targets when no fixed target was configured. Explicit evaluation options override those defaults.
 
 The CLI defaults to eight pairs per candidate to cover the eight-slot league cycle; a single pair of matches is too noisy.
+
+## Wider-population alignment measurement
+
+In one evaluation of 48 generation 1–78 champions and 16 randomly initialized networks, alignment with an independent fixed-panel win-rate estimate was Spearman 0.58 for the independent-schedule baseline and 0.74 for the common schedule with classic fitness. The baseline omitted hall opponents and used stronger styles, while the common schedule included the incumbent and hall with style strength 0.5, so this is a comparison of configurations rather than an isolated estimate of the schedule's effect. Each fitness score used 16 mirror pairs; the reference used 32 pairs per panel opponent, and this single population and seed comparison does not establish a general effect.
