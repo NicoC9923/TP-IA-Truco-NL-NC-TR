@@ -39,3 +39,7 @@ Future runs default to reject-only early stopping (ADR 0017). Run 2 retains `bot
 Run 2 is preserved separately in [experiments/phase1-run2](../../experiments/phase1-run2/README.md). Its fresh head-to-head did not satisfy the 55% replacement rule, so run 1 remains the shipped champion.
 
 Extra [seed 1](../../experiments/phase1-seed1/README.md) and [seed 2](../../experiments/phase1-seed2/README.md) experiments scored 53.1% and 46.6%, respectively, against run 1 in 1,000-pair network-only comparisons. Neither reached the 55% replacement rule, and run 1 remains shipped (user decision, 2026-11-07).
+
+The [fresh-deal diagnostic](../../experiments/phase1-fresh-deal-diagnostic/README.md) records the pre-registered near-miss comparisons.
+
+The [53% gate seed 1 experiment](../../experiments/phase1-gate53-seed1/README.md) records training and the frozen panel decision.
