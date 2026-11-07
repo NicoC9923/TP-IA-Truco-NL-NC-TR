@@ -145,7 +145,7 @@ class Handler(BaseHTTPRequestHandler):
             "/truco/envido": ("canto", "ENVIDO", {"ENVIDO", "ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"}),
             "/truco/truco": ("nivel", None, {None, "TRUCO", "RETRUCO", "VALE_CUATRO"}),
             "/truco/responder": ("respuesta", "QUIERO", {"QUIERO", "NO_QUIERO", "ENVIDO", "ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO", "TRUCO", "RETRUCO", "VALE_CUATRO"}),
-            "/truco/modo_ia": ("modo", "utilidad_adaptativa", {"reactivo", "utilidad_adaptativa"}),
+            "/truco/modo_ia": ("modo", "utilidad_adaptativa", {"reactivo", "utilidad_adaptativa", "neuroevolucion", "refuerzo"}),
         }
         if self.path in listas:
             campo, defecto, permitidos = listas[self.path]
@@ -162,6 +162,9 @@ class Handler(BaseHTTPRequestHandler):
             if type(meta) is not int or meta not in (15, 30):
                 self._responder(400, {"error": "Meta inválida"})
                 return
+        if self.path == "/truco/adaptacion" and type(datos.get('activa')) is not bool:
+            self._responder(400, {"error": "Estado de adaptación inválido"})
+            return
         if self.path == "/truco/jugar":
             carta = datos.get("carta")
             if (not isinstance(carta, dict) or type(carta.get("valor")) is not int
@@ -246,8 +249,19 @@ class Handler(BaseHTTPRequestHandler):
 
         elif self.path == "/truco/modo_ia":
             modo = str(datos.get("modo", "utilidad_adaptativa"))
+            if not partida_truco.ia.mode_available(modo.strip().lower()):
+                return 409, {"error": "Modo no disponible"}
             est = partida_truco.cambiar_modo_ia(modo)
             return 200, {"mensaje": f"Modo de IA actualizado a {modo}", "estado": est}
+
+        elif self.path == "/truco/adaptacion":
+            partida_truco.adapt_to_opponent = datos['activa']
+            return 200, {"estado": partida_truco.estado_publico()}
+
+        elif self.path == "/truco/perfil/reset":
+            partida_truco.opponent_profile.reset()
+            partida_truco._human_decisions.clear()
+            return 200, {"estado": partida_truco.estado_publico()}
 
         else:
             return 404, None

@@ -15,18 +15,26 @@ from __future__ import annotations
 import random
 import re
 import threading
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import truco_reglas as tr
 from truco_ia import AgenteTrucoIA
+from opponent_profile import OpponentProfile
+from phase1_network import NetworkPolicy
+from symmetric_engine import _bluff
 
 
 class PartidaTruco:
     def __init__(self, robot=None, meta_puntos: int = 15, historial_path: Optional[str] = None,
-                 rng: random.Random | None = None):
+                 rng: random.Random | None = None, champions_dir=None):
         self.robot = robot
         self.rng = rng if rng is not None else random.Random()
         self._robot_lock = threading.Lock()
-        self.ia = AgenteTrucoIA(historial_path=historial_path, rng=self.rng)
+        self.ia = AgenteTrucoIA(historial_path=historial_path, rng=self.rng, champions_dir=champions_dir)
+        profile_path = Path(historial_path).with_name('opponent_profile.json') if historial_path else Path(__file__).with_name('opponent_profile.json')
+        self.opponent_profile = OpponentProfile(profile_path)
+        self.adapt_to_opponent = True
+        self.network = None
 
         self.puntos_humano = 0
         self.puntos_robot = 0
@@ -151,6 +159,11 @@ class PartidaTruco:
     # ---------- ciclo de partida y mano ----------
     def cambiar_modo_ia(self, modo: str) -> Dict:
         """Change the active agent mode."""
+        if not self.ia.mode_available(modo):
+            return self.estado_publico()
+        if modo == 'neuroevolucion':
+            champion = self.ia.champions_dir / 'phase1/reigning_champion.npy'
+            self.network = NetworkPolicy.load(champion, seed=self.rng.randrange(2**32), explain=True)
         info = self.ia.set_modo_agente(modo)
         self.registrar(f"🧠 Arquitectura IA cambiada a: {info['nombre']}")
         return self.estado_publico()
@@ -211,6 +224,11 @@ class PartidaTruco:
         self._humano_canto_truco_mano = False
         self._mano_analizada = False
         self.ia.limpiar_traza_mano()
+        self._network_history = []
+        self._human_decisions = []
+        self._human_pending = None
+        if self.network:
+            self.network.inference.reset()
 
         self.mano_terminada = False
         self.ganador_mano = None
@@ -233,6 +251,12 @@ class PartidaTruco:
         if self._mano_analizada:
             return
         self._mano_analizada = True
+        revealed = not self.cartas_humano_disponibles
+        hand = tuple((c['valor'], c['palo']) for c in self.cartas_humano)
+        for decision in self._human_decisions:
+            decision['revealed'] = revealed
+            decision['bluff'] = _bluff(decision['action'], hand) if revealed else None
+        self.opponent_profile.observe(self._human_decisions, 0)
         self.estadisticas_partida["manos_jugadas"] += 1
         self.ia.analizar_mano_humano(
             self.cartas_humano,
@@ -315,6 +339,7 @@ class PartidaTruco:
         if carta_jugada is None:
             return {"error": "Esa carta no está en tu mano", "estado": self.estado_publico()}
 
+        self._record_human('card_%d' % self.cartas_humano.index(carta_jugada))
         self.cartas_humano_disponibles.remove(carta_jugada)
         nombre_c = tr.nombre_carta(carta_jugada["valor"], carta_jugada["palo"])
         self.mesa.append(
@@ -341,6 +366,23 @@ class PartidaTruco:
         if self.mano_terminada or self.canto_pendiente is not None or self.turno_carta != "robot":
             return
         if not self.cartas_robot_disponibles:
+            return
+
+        if self.ia.modo_agente == 'neuroevolucion':
+            actions = ['card_%d' % i for i, card in enumerate(self.cartas_robot) if card in self.cartas_robot_disponibles] + ['fold']
+            if self.puede_cantar_envido():
+                actions += ['envido', 'real_envido', 'falta_envido']
+            if self.quien_tiene_quiero_truco in ('ambos', 'robot') and self._siguiente_nivel_truco():
+                actions.append(self._siguiente_nivel_truco().lower())
+            action = self._network_decide(actions)
+            if action == 'fold':
+                self._adjudicar_mano('humano', 2 if not self.mesa and not self.envido_resuelto and self.apuesta_truco == 'NADA' else self.puntos_truco_actuales, motivo='Ottoman se fue al mazo')
+            elif action.startswith('card_'):
+                self._robot_tira_carta_network(int(action[-1]))
+            elif action in ('envido', 'real_envido', 'falta_envido'):
+                self._robot_canta_envido(action.upper(), '', es_farol=self.ia.ultimo_canto_fue_farol)
+            else:
+                self._robot_canta_truco(action.upper(), '', es_farol=self.ia.ultimo_canto_fue_farol)
             return
 
         carta_humano_en_baza = next(
@@ -386,11 +428,51 @@ class PartidaTruco:
         # 3. Tirar la carta elegida por la IA
         self._robot_tira_carta(carta_humano_en_baza)
 
-    def _robot_tira_carta(self, carta_humano_en_baza: Optional[Dict] = None) -> None:
+    def _network_decide(self, actions, pending=None):
+        profile = self.opponent_profile if self.adapt_to_opponent else OpponentProfile()
+        self.network.profile = profile
+        cards = tuple((c['valor'], c['palo']) for c in self.cartas_robot)
+        reveal = None
+        if self.resultado_envido_detalle and 'pts_humano' in self.resultado_envido_detalle:
+            reveal = {'declarations': ((0, self.resultado_envido_detalle['pts_humano']), (1, self.resultado_envido_detalle['pts_robot']))}
+        obs = {'player': 1, 'hand': cards,
+               'available': tuple(i for i, card in enumerate(self.cartas_robot) if card in self.cartas_robot_disponibles),
+               'score': (self.puntos_humano, self.puntos_robot), 'target': self.meta_puntos,
+               'mano': 0 if self.es_mano_humano else 1,
+               'table': tuple((0 if m['quien'] == 'humano' else 1, (m['carta']['valor'], m['carta']['palo'])) for m in self.mesa),
+               'tricks': tuple(None if w == 'parda' else 0 if w == 'humano' else 1 for w in self.ganadores_ronda),
+               'truco': self.puntos_truco_actuales, 'pending': pending, 'history': tuple(self._network_history),
+               'envido_done': self.envido_resuelto, 'envido_reveal': reveal,
+               'raise_owner': {'humano': 0, 'robot': 1}.get(self.quien_tiene_quiero_truco)}
+        action = self.network(obs, tuple(actions))
+        bluff = _bluff(action, cards)
+        self.ia.ultimo_canto_fue_farol = bool(bluff)
+        probabilities = sorted(self.network.last_probabilities.items(), key=lambda p: p[1], reverse=True)[:3]
+        belief = self.network.last_belief
+        self.ia._registrar_razonamiento('Red neuronal', action.upper(),
+            ', '.join('%s: %.1f%%' % (a, p * 100) for a, p in probabilities),
+            'Inferencia ponderada', 'Farol' if bluff else 'Sin farol',
+            'P(brava): %.1f%%' % (belief['brava_probability'] * 100))
+        trace = self.ia.traza_razonamiento[-1]
+        trace.update(acciones_probables=[{'accion': a, 'porcentaje': p * 100} for a, p in probabilities],
+                     inferencia=belief, es_farol=bluff,
+                     perfil_rival=profile.rates() if self.adapt_to_opponent else None)
+        self._network_history.append((1, action))
+        return action
+
+    def _record_human(self, action, pending=None):
+        self._network_history.append((0, action))
+        self._human_decisions.append({'player': 0, 'action': action, 'hand_index': 0,
+                                      'observation': {'pending': pending}, 'revealed': False, 'bluff': None})
+
+    def _robot_tira_carta_network(self, index):
+        self._robot_tira_carta(selected=self.cartas_robot[index])
+
+    def _robot_tira_carta(self, carta_humano_en_baza: Optional[Dict] = None, selected=None) -> None:
         if not self.cartas_robot_disponibles or self.mano_terminada:
             return
 
-        carta = self.ia.elegir_carta_a_jugar(
+        carta = selected or self.ia.elegir_carta_a_jugar(
             self.cartas_robot_disponibles,
             ronda=self.ronda_actual,
             carta_rival_mesa=carta_humano_en_baza,
@@ -538,6 +620,8 @@ class PartidaTruco:
         es_farol: bool = False,
         detalle_farol: str = "",
     ) -> None:
+        if self.ia.modo_agente != 'neuroevolucion':
+            self._network_history.append((1, 'envido' if canto == 'ENVIDO_ENVIDO' else canto.lower()))
         pts_q, pts_nq = self._valores_envido(canto)
         self.ultimo_canto_envido = canto
         self.por_el_partido = canto == "FALTA_ENVIDO" and tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos)[1]
@@ -595,12 +679,23 @@ class PartidaTruco:
             return {"error": "No podés cantar envido ahora.", "estado": self.estado_publico()}
 
         self._humano_canto_envido_mano = True
+        self._record_human('envido' if canto == 'ENVIDO_ENVIDO' else canto.lower(), self._human_pending)
+        self._human_pending = None
         pts_q, pts_nq = self._valores_envido(canto)
         self.ultimo_canto_envido = canto
         self.por_el_partido = canto == "FALTA_ENVIDO" and tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos)[1]
         self.registrar(f"👤 Humano cantó: {canto.replace('_', ' ')}")
 
-        resp, frase = self.ia.responder_envido(
+        if self.ia.modo_agente == 'neuroevolucion':
+            pending = {'kind': 'envido', 'caller': 0, 'call': canto.lower(), 'accepted': pts_q, 'declined': pts_nq}
+            actions = ['quiero', 'no_quiero', 'fold'] + [('envido' if a == 'ENVIDO_ENVIDO' else a.lower()) for a in self._opciones_subir_envido(canto)]
+            choice = self._network_decide(actions, pending)
+            if choice == 'fold':
+                self._adjudicar_mano('humano', self.puntos_truco_actuales + pts_nq, motivo='Ottoman se fue al mazo')
+                return {'respuesta': 'MAZO', 'estado': self.estado_publico()}
+            resp, frase = ('ENVIDO_ENVIDO' if choice == 'envido' else choice.upper()), ''
+        else:
+            resp, frase = self.ia.responder_envido(
             self.cartas_robot,
             canto,
             es_mano=(not self.es_mano_humano),
@@ -608,7 +703,7 @@ class PartidaTruco:
             puntos_humano=self.puntos_humano,
             puntos_robot=self.puntos_robot,
             meta_puntos=self.meta_puntos,
-        )
+            )
 
         if resp in ("ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"):
             self.puntos_envido_acumulados = pts_q
@@ -708,6 +803,8 @@ class PartidaTruco:
         es_farol: bool = False,
         detalle_farol: str = "",
     ) -> None:
+        if self.ia.modo_agente != 'neuroevolucion':
+            self._network_history.append((1, nivel.lower()))
         pts_q, pts_nq = self._puntos_nivel_truco(nivel)
         self.estadisticas_partida["truco"]["cantados_robot"] += 1
 
@@ -765,6 +862,8 @@ class PartidaTruco:
             return {"error": "Cantá el nivel de truco disponible.", "estado": self.estado_publico()}
         nivel = nivel_pedido or sig_nivel
         self._humano_canto_truco_mano = True
+        self._record_human(nivel.lower(), self._human_pending)
+        self._human_pending = None
         pts_q, pts_nq = self._puntos_nivel_truco(nivel)
         self.registrar(f"👤 Humano cantó: {nivel.replace('_', ' ')}")
 
@@ -773,7 +872,7 @@ class PartidaTruco:
             None,
         )
 
-        if nivel == "TRUCO" and self.ronda_actual == 1 and not self.envido_resuelto:
+        if self.ia.modo_agente != 'neuroevolucion' and nivel == "TRUCO" and self.ronda_actual == 1 and not self.envido_resuelto:
             canto_e, _ = self.ia.decidir_iniciar_envido(
                 self.cartas_robot,
                 es_mano=(not self.es_mano_humano),
@@ -796,14 +895,28 @@ class PartidaTruco:
         return self._responder_truco_robot(nivel, pts_q, pts_nq, carta_humano_en_baza)
 
     def _responder_truco_robot(self, nivel, pts_q, pts_nq, carta_humano_en_baza):
-        resp, frase = self.ia.responder_canto_truco(
+        if self.ia.modo_agente == 'neuroevolucion':
+            pending = {'kind': 'truco', 'caller': 0, 'level': pts_q}
+            actions = ['quiero', 'no_quiero', 'fold']
+            if pts_q < 4:
+                actions.append('retruco' if pts_q == 2 else 'vale_cuatro')
+            if self.puede_cantar_envido():
+                actions += ['envido', 'real_envido', 'falta_envido']
+            choice = self._network_decide(actions, pending)
+            if choice in ('envido', 'real_envido', 'falta_envido'):
+                self.truco_en_espera = {'tipo': 'TRUCO', 'canto': nivel, 'quien_canto': 'humano', 'puntos_quiero': pts_q, 'puntos_no_quiero': pts_nq, 'opciones': ['QUIERO', 'NO_QUIERO']}
+                self._robot_canta_envido(choice.upper(), '', es_farol=self.ia.ultimo_canto_fue_farol)
+                return {'respuesta': choice.upper(), 'estado': self.estado_publico()}
+            resp, frase = ('NO_QUIERO' if choice == 'fold' else choice.upper()), ''
+        else:
+            resp, frase = self.ia.responder_canto_truco(
             self.cartas_robot_disponibles,
             nivel,
             self.ganadores_ronda,
             carta_rival_mesa=carta_humano_en_baza,
             puntos_humano=self.puntos_humano,
             meta_puntos=self.meta_puntos,
-        )
+            )
 
         if resp in ("RETRUCO", "VALE_CUATRO"):
             self.apuesta_truco = nivel
@@ -857,6 +970,9 @@ class PartidaTruco:
         canto_robot = pendiente["canto"]
         era_farol = bool(pendiente.get("es_farol", False))
 
+        if resp in ('QUIERO', 'NO_QUIERO'):
+            self._record_human(resp.lower(), {'kind': tipo.lower()})
+
         if tipo == "ENVIDO":
             if resp == "QUIERO":
                 self.ia.registrar_respuesta_humano_a_canto("ENVIDO", quiso=True, era_farol_robot=era_farol)
@@ -889,6 +1005,7 @@ class PartidaTruco:
                     resp = "ENVIDO_ENVIDO"
                 self.puntos_envido_acumulados = pendiente["puntos_quiero"]
                 self.canto_pendiente = None
+                self._human_pending = {'kind': 'envido'}
                 return self.cantar_envido_humano(resp)
 
         elif tipo == "TRUCO":
@@ -925,6 +1042,7 @@ class PartidaTruco:
                 self.puntos_truco_actuales = pendiente["puntos_quiero"]
                 self.quien_tiene_quiero_truco = "humano"
                 self.canto_pendiente = None
+                self._human_pending = {'kind': 'truco'}
                 return self.cantar_truco_humano(resp)
 
         return {"error": f"Respuesta '{resp}' no válida en este momento.", "estado": self.estado_publico()}
@@ -936,6 +1054,8 @@ class PartidaTruco:
 
         if self.canto_pendiente is not None and self.canto_pendiente["tipo"] == "TRUCO":
             return self.responder_canto_humano("NO_QUIERO")
+
+        self._record_human('fold')
 
         pts = self.puntos_truco_actuales
         if self.canto_pendiente is not None and self.canto_pendiente["tipo"] == "ENVIDO":
@@ -1025,6 +1145,8 @@ class PartidaTruco:
     def estado_publico(self) -> Dict:
         siguiente_truco = self._siguiente_nivel_truco() if self.quien_tiene_quiero_truco in ("ambos", "humano") else None
         aprendizaje = self.ia.resumen_aprendizaje()
+        aprendizaje['adaptacion_activa'] = self.adapt_to_opponent
+        aprendizaje['perfil_rival'] = self.opponent_profile.rates()
         if not self.mano_terminada:
             def vista_publica(paso):
                 if paso is None:

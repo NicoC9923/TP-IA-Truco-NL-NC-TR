@@ -739,6 +739,8 @@
   .agente[aria-checked="true"] .n { color: var(--ott); }
   .agente[aria-checked="true"] small { color: var(--txt-2); }
   .agente:not([aria-checked="true"]) small { display: none; }
+  .agente:disabled small { display: block; }
+  .agente:disabled { opacity: .65; cursor: not-allowed; }
   .agente:not([aria-checked="true"]) { background: transparent; border-color: transparent; }
   .agente:not([aria-checked="true"]) .n { grid-row: auto; }
   .paso { background: transparent; border-top: 1px solid var(--line-soft); border-radius: 0; padding: 10px 0 2px; }
@@ -977,6 +979,10 @@
   <section class="plate">
       <div class="plate-h"><h3 class="plate-t">Cerebro de Ottoman</h3></div>
       <div class="agentes" role="radiogroup" aria-label="Arquitectura del agente" id="agentes"></div>
+      <div id="adaptacion-red" style="margin-top:12px">
+        <label><input type="checkbox" id="adaptar-rival"> Adaptarse al rival</label>
+        <button type="button" class="btn-canto" id="reset-perfil">Reiniciar perfil</button>
+      </div>
     </section>
   <section class="plate relato">
       <div class="plate-h"><h3 class="plate-t">Relato</h3></div>
@@ -1480,12 +1486,14 @@
     const modos = (ia?.modos_disponibles && ia.modos_disponibles.length) ? ia.modos_disponibles : MODOS_RESPALDO;
     const activo = ia?.modo_agente || 'utilidad_adaptativa';
     const cont = $('agentes');
-    const firma = modos.map(m => m.codigo).join() + '|' + activo;
-    if (cont.dataset.firma === firma) { cont.querySelectorAll('.agente').forEach(b => { b.disabled = false; }); return; }
+    $('adaptacion-red').hidden = !['neuroevolucion', 'refuerzo'].includes(activo);
+    $('adaptar-rival').checked = !!ia?.adaptacion_activa;
+    const firma = modos.map(m => m.codigo + ':' + m.disponible).join() + '|' + activo;
+    if (cont.dataset.firma === firma) return;
     cont.dataset.firma = firma;
     cont.innerHTML = modos.map((m, i) => `
-      <button type="button" class="agente" role="radio" aria-checked="${m.codigo === activo}" data-modo="${esc(m.codigo)}" tabindex="${m.codigo === activo ? 0 : -1}">
-        <span class="n">${i + 1}</span><b>${esc(m.nombre)}</b><small>${esc(m.subtitulo)}</small>
+      <button type="button" class="agente" role="radio" aria-checked="${m.codigo === activo}" data-modo="${esc(m.codigo)}" data-disponible="${m.disponible !== false}" tabindex="${m.codigo === activo ? 0 : -1}" ${m.disponible === false ? 'disabled' : ''}>
+        <span class="n">${i + 1}</span><b>${esc(m.nombre)}</b><small>${m.disponible === false ? 'No disponible' : esc(m.subtitulo)}</small>
       </button>`).join('');
     const botones = [...cont.querySelectorAll('.agente')];
     botones.forEach((b, i) => {
@@ -1494,7 +1502,8 @@
         if (!['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft'].includes(e.key)) return;
         e.preventDefault();
         const d = (e.key === 'ArrowDown' || e.key === 'ArrowRight') ? 1 : -1;
-        const sig = botones[(i + d + botones.length) % botones.length];
+        const disponibles = botones.filter(b => !b.disabled);
+        const sig = disponibles[(disponibles.indexOf(b) + d + disponibles.length) % disponibles.length];
         sig.focus(); cambiarModoIA(sig.dataset.modo);
       });
     });
@@ -1525,6 +1534,8 @@
             <div class="paso-top"><span class="paso-fase">${esc(t.fase)}${t.hora ? `<small>${esc(t.hora)}</small>` : ''}</span><span class="paso-dec ${esFarol ? 'farol-dec' : ''}">${esc(t.decision)}</span></div>
             ${t.metrica ? `<dl><dt>Métrica</dt><dd>${esc(t.metrica)}</dd><dt>Umbral</dt><dd>${esc(t.umbral)}</dd><dt>Engaño</dt><dd>${esc(t.farol_info)}</dd></dl>` : ''}
             ${t.explicacion ? `<p>${esc(t.explicacion)}</p>` : ''}
+            ${t.inferencia ? `<p>P(tenés una brava): ${(t.inferencia.brava_probability * 100).toFixed(1)} % · Fuerza esperada: ${t.inferencia.expected_strength.toFixed(1)} · P(ganar la próxima baza): ${(t.inferencia.next_trick_win_probability * 100).toFixed(1)} %</p>` : ''}
+            ${t.perfil_rival ? `<p>Perfil: farol ${(t.perfil_rival.bluff * 100).toFixed(1)} % · mazo ${(t.perfil_rival.fold * 100).toFixed(1)} % · acepta truco ${(t.perfil_rival.truco_accepted * 100).toFixed(1)} % · canta envido ${(t.perfil_rival.envido_called * 100).toFixed(1)} %</p>` : ''}
           </article>`;
         }).join('');
   }
@@ -1643,7 +1654,7 @@
   function bloquearControlesMesa(bloquear) {
     ['btn-envido', 'btn-real-envido', 'btn-falta-envido', 'btn-truco', 'btn-mazo', 'btn-nueva-mano', 'btn-capturar']
       .forEach(id => { const el = $(id); if (el) el.disabled = bloquear; });
-    document.querySelectorAll('#mis-cartas button, #alerta-botones button, .agente').forEach(b => { b.disabled = bloquear; });
+    document.querySelectorAll('#mis-cartas button, #alerta-botones button, .agente').forEach(b => { b.disabled = bloquear || b.dataset.disponible === 'false'; });
   }
 
   async function simularPensamientoOttoman(cartaRecienJugadaHumano = null) {
@@ -1701,6 +1712,8 @@
   const cantarTruco = () => accion(() => postJSON('/truco/truco', {}));
   const responderCanto = (respuesta) => accion(() => postJSON('/truco/responder', { respuesta }));
   const irseAlMazo = () => accion(() => postJSON('/truco/mazo'), { pensar: false });
+  $('adaptar-rival').addEventListener('change', e => accion(() => postJSON('/truco/adaptacion', { activa: e.target.checked }), { pensar: false }));
+  $('reset-perfil').addEventListener('click', () => accion(() => postJSON('/truco/perfil/reset', {}), { pensar: false }));
 
   async function nuevaMano() {
     if (ocupado) return;

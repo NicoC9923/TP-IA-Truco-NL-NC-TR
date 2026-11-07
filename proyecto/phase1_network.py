@@ -42,7 +42,7 @@ def encode_observation(obs, profile, inference=None):
     return np.asarray(values, dtype=np.float64)
 
 class NetworkPolicy:
-    def __init__(self, genome, seed=0, bias=None, profile=None, style=None, style_strength=1.0):
+    def __init__(self, genome, seed=0, bias=None, profile=None, style=None, style_strength=1.0, explain=False):
         self.genome = np.asarray(genome, dtype=np.float64).copy()
         if self.genome.shape != (GENOME_SIZE,):
             raise ValueError('Invalid genome shape')
@@ -51,6 +51,7 @@ class NetworkPolicy:
         self.profile = profile or OpponentProfile()
         self.style = style
         self.style_strength = style_strength
+        self.explain = explain
         self.inference = IncrementalInference()
 
     def __call__(self, observation, legal_actions):
@@ -73,7 +74,12 @@ class NetworkPolicy:
             scores.append(logits[ACTIONS.index(action)] + adjustment)
         scores = np.array(scores)
         weights = np.exp(scores - scores.max())
-        return legal_actions[self.rng.choice(len(legal_actions), p=weights / weights.sum())]
+        probabilities = weights / weights.sum()
+        if self.explain:
+            self.last_probabilities = dict(zip(legal_actions, map(float, probabilities)))
+            card = observation['hand'][observation['available'][0]]
+            self.last_belief = self.inference.belief.summaries(card, ties_win=observation['mano'] == observation['player'])
+        return legal_actions[self.rng.choice(len(legal_actions), p=probabilities)]
 
     def observe_hand(self, decisions, opponent):
         self.profile.observe(decisions, opponent)

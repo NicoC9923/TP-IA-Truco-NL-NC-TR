@@ -42,6 +42,14 @@ class AgenteTrucoIA:
             "nombre": "Utilidad adaptativa",
             "subtitulo": "Utilidad esperada (474k) + cuota dinámica de farol + modelado online del rival humano",
         },
+        "neuroevolucion": {
+            "codigo": "neuroevolucion", "nombre": "Red neuronal · Neuroevolución",
+            "subtitulo": "Red entrenada por neuroevolución",
+        },
+        "refuerzo": {
+            "codigo": "refuerzo", "nombre": "Red neuronal · Aprendizaje por refuerzo",
+            "subtitulo": "Red entrenada por aprendizaje por refuerzo",
+        },
     }
 
     def __init__(
@@ -52,9 +60,11 @@ class AgenteTrucoIA:
         modo_agente: str = "utilidad_adaptativa",
         rng: random.Random | None = None,
         fixed_initial_state: bool = False,
+        champions_dir=None,
     ):
         self.rng = rng if rng is not None else random.Random()
         base_dir = Path(__file__).resolve().parent
+        self.champions_dir = Path(champions_dir) if champions_dir is not None else base_dir.parent / 'champions'
         if stats_path is None:
             stats_path = str(base_dir / "truco_stats.json")
         usar_semilla = historial_path is None
@@ -94,6 +104,13 @@ class AgenteTrucoIA:
         if modo_limpio in self.MODOS_DISPONIBLES:
             self.modo_agente = modo_limpio
         return self.MODOS_DISPONIBLES[self.modo_agente]
+
+    def mode_available(self, mode):
+        if mode == 'neuroevolucion':
+            return (self.champions_dir / 'phase1/reigning_champion.npy').is_file()
+        if mode == 'refuerzo':
+            return False
+        return mode in self.MODOS_DISPONIBLES
 
     def limpiar_traza_mano(self) -> None:
         """Reinicia la traza de razonamiento XAI al comenzar una nueva mano."""
@@ -200,7 +217,7 @@ class AgenteTrucoIA:
             "modo_agente": self.modo_agente,
             "arquitectura_nombre": info_modo["nombre"],
             "arquitectura_subtitulo": info_modo["subtitulo"],
-            "modos_disponibles": list(self.MODOS_DISPONIBLES.values()),
+            "modos_disponibles": [{**mode, "disponible": self.mode_available(code)} for code, mode in self.MODOS_DISPONIBLES.items()],
             "prob_farol_envido_pct": round(self.prob_farol_envido * 100.0, 1),
             "prob_farol_truco_pct": round(self.prob_farol_truco * 100.0, 1),
             "umbral_envido_offset": round(self.umbral_quiero_envido_offset, 3),
