@@ -452,8 +452,7 @@ class PartidaTruco:
         belief = self.network.last_belief
         self.ia._registrar_razonamiento('Red neuronal', action.upper(),
             ', '.join('%s: %.1f%%' % (a, p * 100) for a, p in probabilities),
-            'Inferencia ponderada', 'Farol' if bluff else 'Sin farol',
-            'P(brava): %.1f%%' % (belief['brava_probability'] * 100))
+            '', 'Farol' if bluff else 'Sin farol', '')
         trace = self.ia.traza_razonamiento[-1]
         trace.update(acciones_probables=[{'accion': a, 'porcentaje': p * 100} for a, p in probabilities],
                      inferencia=belief, es_farol=bluff,
