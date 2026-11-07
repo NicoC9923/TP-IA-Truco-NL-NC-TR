@@ -32,3 +32,26 @@ class EncoderTests(unittest.TestCase):
             encode_observation(observation(), OpponentProfile(), encoder='v3')
         with self.assertRaises(ValueError):
             NetworkPolicy(np.zeros(GENOME_SIZE), encoder='v3')
+
+class ArtifactTests(unittest.TestCase):
+    def test_policy_sidecar_and_bare_genome(self):
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'champion.npy'
+            NetworkPolicy(np.zeros(GENOME_SIZE), encoder='v2').save(path)
+            self.assertEqual(NetworkPolicy.load(path).encoder, 'v2')
+            path.with_suffix('.encoder.json').unlink()
+            self.assertEqual(NetworkPolicy.load(path).encoder, 'v1')
+
+    def test_resume_rejects_encoder_mismatch(self):
+        import tempfile
+        import json
+        from pathlib import Path
+        from phase1_trainer import train
+        with tempfile.TemporaryDirectory() as directory:
+            checkpoint = Path(directory) / 'old.npz'
+            state = {'config': [2, 1, 1, 0, 1, .55, 50, 200, 0, 4, .3, 'classic', .1, .5, True, 'reject-only'], 'encoder': 'v2'}
+            np.savez(checkpoint, population=np.zeros((2, GENOME_SIZE)), reigning=np.zeros(GENOME_SIZE), hall=np.empty((0, GENOME_SIZE)), state=json.dumps(state))
+            with self.assertRaisesRegex(ValueError, 'encoder'):
+                train(directory, population_size=2, target=1, workers=1, validation_pairs=1, finalists=0, resume=checkpoint)

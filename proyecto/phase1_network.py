@@ -1,5 +1,7 @@
 """Fixed-topology phase 1 policy and observation encoder."""
 import numpy as np
+import json
+from pathlib import Path
 import truco_reglas as rules
 from opponent_inference import inference_from_observation, IncrementalInference
 from opponent_profile import OpponentProfile
@@ -93,9 +95,20 @@ class NetworkPolicy:
 
     def save(self, path):
         np.save(path, self.genome)
+        path = Path(path)
+        if path.suffix != '.npy':
+            path = Path(str(path) + '.npy')
+        metadata = path.with_suffix('.encoder.json')
+        if self.encoder == 'v2':
+            metadata.write_text(json.dumps({'encoder': self.encoder}), encoding='utf-8')
+        elif metadata.exists():
+            metadata.unlink()
 
     @classmethod
     def load(cls, path, **kwargs):
+        metadata = Path(path).with_suffix('.encoder.json')
+        if 'encoder' not in kwargs:
+            kwargs['encoder'] = json.loads(metadata.read_text(encoding='utf-8'))['encoder'] if metadata.exists() else 'v1'
         return cls(np.load(path, allow_pickle=False), **kwargs)
 
 

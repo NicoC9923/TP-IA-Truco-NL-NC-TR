@@ -76,7 +76,9 @@ def league_scores(population, schedule, hall, reigning, workers, style_strength,
     scores = np.array([fitness(group, fitness_mode, points_weight) for group in results])
     return scores, results
 
-def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200, finalists=8, finalist_pairs_multiplier=4, output_init_sigma=.3, fitness_mode="classic", points_weight=.1, style_strength=.5, styles_after_first_promotion=True, early_stop=None, extend_patience=None):
+def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200, finalists=8, finalist_pairs_multiplier=4, output_init_sigma=.3, fitness_mode="classic", points_weight=.1, style_strength=.5, styles_after_first_promotion=True, early_stop=None, extend_patience=None, encoder='v1'):
+    if encoder not in ('v1', 'v2'):
+        raise ValueError('Unknown encoder')
     if extend_patience is not None and not resume:
         raise ValueError("--extend-patience requires --resume")
     extension_from = None
@@ -86,7 +88,6 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
         raise ValueError('Invalid training configuration')
     output = Path(directory)
     output.mkdir(parents=True, exist_ok=True)
-    (output / 'run_config.json').write_text(json.dumps({'seed': seed, 'target': target}), encoding='utf-8')
     rng = np.random.default_rng(seed)
     population = rng.normal(0, .1, (population_size, GENOME_SIZE))
     population[:, INPUTS * HIDDEN + HIDDEN:] = rng.normal(0, output_init_sigma, (population_size, GENOME_SIZE - INPUTS * HIDDEN - HIDDEN))
@@ -95,6 +96,8 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
         with np.load(resume, allow_pickle=False) as data:
             population, reigning, hall = data['population'], data['reigning'], list(data['hall'])
             state = json.loads(str(data['state']))
+        if state.get('encoder', 'v1') != encoder:
+            raise ValueError('Checkpoint encoder does not match')
         saved_config = state['config']
         saved_mode = saved_config[15] if len(saved_config) > 15 else 'both'
         early_stop = saved_mode if early_stop is None else early_stop
@@ -121,6 +124,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             log_path.write_text(''.join(line + '\n' for line in kept), encoding='utf-8')
         if state['ended'] and (extend_patience is None or stale >= patience):
             return
+    (output / 'run_config.json').write_text(json.dumps({'seed': seed, 'target': target, 'encoder': encoder}), encoding='utf-8')
     early_stop = early_stop or 'reject-only'
     with (output / 'generations.jsonl').open('a' if resume else 'w', encoding='utf-8') as log:
         for generation in range(first_generation, generations + 1):
@@ -160,7 +164,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
                 finalist_scores = [dict(individual=int(i), score=float(fitness(sum(retested[n * retest_pairs:(n + 1) * retest_pairs], []), fitness_mode, points_weight))) for n, i in enumerate(candidates)]
                 champion = max(finalist_scores, key=lambda row: row['score'])['individual']
             name = f'champion_{generation:04d}.npy'
-            NetworkPolicy(population[champion]).save(output / name)
+            NetworkPolicy(population[champion], encoder=encoder).save(output / name)
             genome = population[champion].copy()
             check, promoted = None, False
             check_seconds = 0.0
@@ -194,12 +198,13 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
                 else:
                     stale += 1
             ended = stale >= patience
-            NetworkPolicy(reigning).save(output / 'reigning_champion.npy')
+            NetworkPolicy(reigning, encoder=encoder).save(output / 'reigning_champion.npy')
             group = results[champion]
             first, seat = group[0]
             hand = [d for d in first.decisions if d['hand_index'] == 0]
             entry = {'generation': generation, 'phase': 1, 'fitness': {'max': float(scores.max()), 'average': float(scores.mean()), 'min': float(scores.min())}, 'behavior': _behavior(group), 'diversity': float(np.std(population, axis=0).mean()), 'example_hand': hand, 'champion': name}
             entry.update(promotion_check=check, promoted=promoted, reigning_champion=reigning_generation, phase_ended=ended, league=styles, schedule=schedule, finalists=finalist_scores, finalist_pairs=retest_pairs, selected_individual=champion)
+            entry['encoder'] = encoder
             if extension_from is not None and generation == first_generation:
                 entry.update(patience_extended_from=extension_from, patience=patience)
             log.write(json.dumps(entry) + '\n')
@@ -218,6 +223,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             population = np.array(next_population)
             if generation % 10 == 0:
                 state = dict(generation=generation, config=[population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier, output_init_sigma, fitness_mode, points_weight, style_strength, styles_after_first_promotion, early_stop], patience_extended_from=extension_from, rng=rng.bit_generator.state, reigning_generation=reigning_generation, stale=stale, ended=ended)
+                state['encoder'] = encoder
                 np.savez_compressed(output / f'checkpoint_{generation:04d}.npz', population=population, reigning=reigning, hall=np.asarray(hall).reshape(-1, GENOME_SIZE), state=json.dumps(state))
             if ended:
                 break
