@@ -170,3 +170,11 @@ A standalone round-robin comparison of reference opponents and optional policies
 
 **Patience extension**:
 An explicitly requested increase of the remaining promotion patience when resuming a training checkpoint, recorded in the generation log.
+
+**Evaluation panel**:
+A frozen set of network opponents used to compare a candidate and a baseline across multiple strategies after training.
+_Avoid_: league, reference opponents
+
+**Pre-registered experiment decision**:
+The decision about whether an experiment is promising, using comparison criteria fixed before its outcome is known.
+_Avoid_: promotion, shipping decision
