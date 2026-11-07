@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 from time import perf_counter
 import numpy as np
-from phase1_network import GENOME_SIZE, NetworkPolicy
+from phase1_network import GENOME_SIZE, INPUTS, HIDDEN, NetworkPolicy
 from symmetric_engine import play_match
 from validation_schedule import validation_schedule
 
@@ -30,20 +30,21 @@ def _behavior(results):
     opportunities = [d for d in own if d['observation']['pending'] and d['observation']['pending']['kind'] == 'truco']
     return {'envido': sum(d['action'] in ('envido', 'real_envido', 'falta_envido') for d in own) / max(hands, 1), 'bluff': sum(d['bluff'] for d in calls) / max(len(calls), 1), 'truco_acceptance': sum(d['action'] in ('quiero', 'retruco', 'vale_cuatro') for d in opportunities) / max(len(opportunities), 1)}
 
-def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200, finalists=8, finalist_pairs_multiplier=4):
-    if finalists < 0 or finalist_pairs_multiplier < 1 or check_batch < 0 or min(population_size - 1, generations, pairs, workers, validation_pairs, patience) < 1 or (target is not None and target < 1):
+def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200, finalists=8, finalist_pairs_multiplier=4, output_init_sigma=.3):
+    if output_init_sigma < 0 or finalists < 0 or finalist_pairs_multiplier < 1 or check_batch < 0 or min(population_size - 1, generations, pairs, workers, validation_pairs, patience) < 1 or (target is not None and target < 1):
         raise ValueError('Invalid training configuration')
     output = Path(directory)
     output.mkdir(parents=True, exist_ok=True)
     (output / 'run_config.json').write_text(json.dumps({'seed': seed, 'target': target}), encoding='utf-8')
     rng = np.random.default_rng(seed)
     population = rng.normal(0, .1, (population_size, GENOME_SIZE))
+    population[:, INPUTS * HIDDEN + HIDDEN:] = rng.normal(0, output_init_sigma, (population_size, GENOME_SIZE - INPUTS * HIDDEN - HIDDEN))
     hall, reigning, reigning_generation, stale, first_generation = [], None, None, 0, 1
     if resume:
         with np.load(resume, allow_pickle=False) as data:
             population, reigning, hall = data['population'], data['reigning'], list(data['hall'])
             state = json.loads(str(data['state']))
-        if state['config'] != [population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier]:
+        if state['config'] != [population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier, output_init_sigma]:
             raise ValueError('Checkpoint configuration does not match')
         rng.bit_generator.state = state['rng']
         reigning_generation, stale, first_generation = state['reigning_generation'], state['stale'], state['generation'] + 1
@@ -179,7 +180,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
                 next_population.append(child)
             population = np.array(next_population)
             if generation % 10 == 0:
-                state = dict(generation=generation, config=[population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier], rng=rng.bit_generator.state, reigning_generation=reigning_generation, stale=stale, ended=ended)
+                state = dict(generation=generation, config=[population_size, pairs, target, seed, validation_pairs, promotion_threshold, patience, check_batch, finalists, finalist_pairs_multiplier, output_init_sigma], rng=rng.bit_generator.state, reigning_generation=reigning_generation, stale=stale, ended=ended)
                 np.savez_compressed(output / f'checkpoint_{generation:04d}.npz', population=population, reigning=reigning, hall=np.asarray(hall).reshape(-1, GENOME_SIZE), state=json.dumps(state))
             if ended:
                 break
@@ -199,6 +200,7 @@ def main():
     parser.add_argument('--patience', type=int, default=50)
     parser.add_argument('--finalists', type=int, default=8)
     parser.add_argument('--finalist-pairs-multiplier', type=int, default=4)
+    parser.add_argument('--output-init-sigma', type=float, default=.3)
     parser.add_argument('--resume')
     parser.add_argument('--publish', action='store_true')
     args = parser.parse_args()
@@ -210,7 +212,7 @@ def main():
             if name != 'reference_evaluation.jsonl' or source.exists():
                 shutil.copy2(source, destination / name)
     else:
-        train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed, args.validation_pairs, args.promotion_threshold, args.patience, args.resume, args.check_batch, args.finalists, args.finalist_pairs_multiplier)
+        train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed, args.validation_pairs, args.promotion_threshold, args.patience, args.resume, args.check_batch, args.finalists, args.finalist_pairs_multiplier, args.output_init_sigma)
 
 if __name__ == '__main__':
     main()

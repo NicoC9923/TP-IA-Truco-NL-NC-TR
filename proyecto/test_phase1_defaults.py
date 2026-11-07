@@ -33,3 +33,11 @@ class Phase1DefaultsTests(unittest.TestCase):
             self.assertEqual(len(entry['finalists']), 2)
             self.assertEqual(entry['finalist_pairs'], 2)
             self.assertEqual(entry['selected_individual'], max(entry['finalists'], key=lambda row: row['score'])['individual'])
+    def test_output_initialization_sigma_is_configurable(self):
+        from phase1_network import INPUTS, HIDDEN
+        with tempfile.TemporaryDirectory() as directory:
+            train(directory, population_size=2, generations=1, pairs=1, workers=1,
+                  target=1, finalists=0, output_init_sigma=0)
+            champion = np.load(Path(directory) / 'champion_0001.npy')
+            self.assertTrue(np.all(champion[INPUTS * HIDDEN + HIDDEN:] == 0))
+            self.assertTrue(np.any(champion[:INPUTS * HIDDEN + HIDDEN] != 0))
