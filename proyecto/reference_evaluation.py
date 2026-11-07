@@ -54,7 +54,10 @@ def evaluate(directory, *, pairs=1000, seed=None, target=None, only_new=False, w
         if generation not in (1, final) and (generation % every != 0 or (promoted_only and generation not in promoted)):
             continue
         try:
-            policy = NetworkPolicy.load(champion, **({'encoder': encoder} if encoder else {}))
+            selected_encoder = encoder
+            if selected_encoder is None and not champion.with_suffix('.encoder.json').exists():
+                selected_encoder = config.get('encoder')
+            policy = NetworkPolicy.load(champion, **({'encoder': selected_encoder} if selected_encoder is not None else {}))
             genome = policy.genome
         except (OSError, ValueError, EOFError):
             if only_new:

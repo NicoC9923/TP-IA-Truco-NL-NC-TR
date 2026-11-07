@@ -107,8 +107,13 @@ class NetworkPolicy:
     @classmethod
     def load(cls, path, **kwargs):
         metadata = Path(path).with_suffix('.encoder.json')
-        if 'encoder' not in kwargs:
-            kwargs['encoder'] = json.loads(metadata.read_text(encoding='utf-8'))['encoder'] if metadata.exists() else 'v1'
+        if metadata.exists():
+            stored_encoder = json.loads(metadata.read_text(encoding='utf-8'))['encoder']
+            if 'encoder' in kwargs and kwargs['encoder'] != stored_encoder:
+                raise ValueError('Explicit encoder disagrees with sidecar encoder')
+            kwargs['encoder'] = stored_encoder
+        else:
+            kwargs.setdefault('encoder', 'v1')
         return cls(np.load(path, allow_pickle=False), **kwargs)
 
 
