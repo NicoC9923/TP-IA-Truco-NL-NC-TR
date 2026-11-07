@@ -49,3 +49,14 @@ class Phase1DefaultsTests(unittest.TestCase):
             entry = json.loads((Path(directory) / 'generations.jsonl').read_text())
             self.assertEqual(entry['finalists'], [])
             self.assertEqual(entry['finalist_pairs'], 0)
+    def test_fitness_modes_change_logged_scores_as_specified(self):
+        scores = []
+        for mode, weight in [('classic', 0), ('classic', 1), ('mixed', .5), ('mixed', 1)]:
+            with tempfile.TemporaryDirectory() as directory:
+                train(directory, population_size=2, generations=1, pairs=1, workers=1,
+                      target=1, seed=12, finalists=0, fitness_mode=mode, points_weight=weight)
+                entry = json.loads((Path(directory) / 'generations.jsonl').read_text())
+                scores.append(entry['fitness']['average'])
+        wins, classic, mixed, points = scores
+        self.assertAlmostEqual(mixed, classic / 2)
+        self.assertAlmostEqual(points, classic - wins)
