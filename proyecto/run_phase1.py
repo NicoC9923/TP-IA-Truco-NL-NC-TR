@@ -49,6 +49,7 @@ def main():
     parser.add_argument('--workers', type=int, default=12)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--validation-pairs', type=int, default=1000)
+    parser.add_argument('--early-stop', choices=('reject-only', 'both'), default=None)
     parser.add_argument('--check-batch', type=int, default=200)
     parser.add_argument('--promotion-threshold', type=float, default=.55)
     parser.add_argument('--patience', type=int, default=50)
@@ -78,6 +79,8 @@ def main():
                  '--fitness-mode', args.fitness_mode, '--points-weight', str(args.points_weight),
                  '--style-strength', str(args.style_strength),
                  '--styles-after-first-promotion' if args.styles_after_first_promotion else '--no-styles-after-first-promotion']
+        if args.early_stop is not None:
+            train += ['--early-stop', args.early_stop]
         checkpoints = sorted(output.glob('checkpoint_*.npz'))
         if checkpoints:
             train += ['--resume', str(checkpoints[-1])]

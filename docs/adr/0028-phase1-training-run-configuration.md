@@ -33,3 +33,5 @@ Expected duration: ~75 s per generation (up to ~130 s when a check is close), 40
 ## Changes after the first run
 
 The table above records the historical first run, not the current defaults. The default patience is now 50 failed promotion checks; the Sonnet learning review F6 observed that 30 could cut off slow progress, while the empirical review subsequently found promotions at generations 22 and 48 and stopping at 78. Selection now uses the shared league and finalist re-test in ADR 0027, output initialization in ADR 0026, and the configurable fitness in ADR 0007. Phase 1 styles default to ±1.5 after the first promotion, a user-approved deviation from story 17's 50/50-from-the-start requirement; see ADR 0013 for the reasoning and evidence limits. Every new setting is forwarded by the pipeline and recorded in checkpoint configuration so resume detects mismatches.
+
+Future runs default to reject-only early stopping (ADR 0017). Run 2 retains `both` when resuming its existing checkpoint.

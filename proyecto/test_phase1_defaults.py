@@ -15,7 +15,7 @@ class Phase1DefaultsTests(unittest.TestCase):
             with np.load(Path(directory) / 'checkpoint_0010.npz') as checkpoint:
                 state = json.loads(str(checkpoint['state']))
             self.assertEqual(state['config'][6], 50)
-            self.assertEqual(state['config'][11:], ['mixed', .7, .25, False])
+            self.assertEqual(state['config'][11:], ['mixed', .7, .25, False, 'reject-only'])
     def test_shared_league_schedule_is_recorded(self):
         import json
         with tempfile.TemporaryDirectory() as directory:
@@ -84,3 +84,4 @@ class Phase1DefaultsTests(unittest.TestCase):
                       target=1, finalists=0, style_strength=0, styles_after_first_promotion=delayed)
                 fitnesses.append(json.loads((Path(directory) / 'generations.jsonl').read_text())['fitness'])
         self.assertEqual(*fitnesses)
+

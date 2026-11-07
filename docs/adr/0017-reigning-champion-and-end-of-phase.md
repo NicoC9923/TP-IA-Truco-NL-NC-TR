@@ -3,7 +3,7 @@
 Progress and the end of a phase are decided only with networks from the phase itself, without the existing agents (ADR 0021):
 
 - There is a **reigning champion**, initially the first champion.
-- At the end of each generation, its champion plays up to 1,000 pairs of mirror matches against the reigning champion on the validation deals. If the check establishes a result above or below the threshold it can stop early; otherwise it uses all pairs. If its observed win rate is at least 55%, it is **promoted**: it becomes the reigning champion and enters the hall of fame.
+- At the end of each generation, its champion plays up to 1,000 pairs of mirror matches against the reigning champion on the validation deals. The check can stop early only to reject a challenger; promotion requires all pairs. If its observed win rate is at least 55%, it is **promoted**: it becomes the reigning champion and enters the hall of fame.
 - The phase **ends** after 20 consecutive generations without a promotion. The number is a starting point, to be tuned once the engine's speed is measured.
 - The app's network modes load their phase's reigning champion.
 
@@ -17,4 +17,6 @@ This is AlphaGo Zero's method: a new network replaced the best one only if it wo
 - **Measure over few matches (say, 50):** can't tell skill from chance.
 - **Promote every generation's champion without a check:** a generation's champion can be worse than an earlier one, and the hall of fame would fill with near-copies.
 
-Promotion checks now inspect up to 1,000 validation pairs in batches of 200. A check stops early when the 95% paired interval is wholly below or at least the promotion threshold; otherwise the final decision uses the observed win rate. This saves matches when the result is clear. Repeated looks slightly inflate the error rate, as in sequential testing; AlphaGo Zero used 400 games. Always playing a fixed 1,000 pairs wastes work on clear outcomes, while a fixed 200 gives insufficient precision for close outcomes. Batch size zero disables early stopping.
+Promotion checks inspect up to 1,000 validation pairs in batches of 200. The default stops early only when the upper paired interval is below the threshold; otherwise promotion uses the observed win rate after all pairs. Repeated looks at ordinary 95% intervals inflate error rates, making early promotions overconfident. The rejection rule can still discard a promising challenger; it is a compute tradeoff, not a calibrated sequential test. Batch size zero disables early stopping. The historical `both` mode preserves early promotion for existing runs.
+
+A 400-pair minimum still permits repeated uncalibrated promotion decisions. A calibrated sequential test would need a designed error budget and changes the decision rule. Always playing 1,000 pairs wastes work on clear failures. These alternatives were rejected for this change.
