@@ -32,7 +32,27 @@ class EvolutionServerTests(unittest.TestCase):
                     self.assertEqual(json.load(response), [{'generation': 2}])
                 with urlopen(base + '/evolucion/phase1/reference') as response:
                     self.assertEqual(json.load(response), [])
+                reference = live / 'reference_evaluation.jsonl'
+                reference.write_text('{"generation": 2, "win_rate": 0.6}\n', encoding='utf8')
+                with urlopen(base + '/evolucion/phase1/reference') as response:
+                    self.assertEqual(json.load(response)[0]['win_rate'], 0.6)
+                with reference.open('a', encoding='utf8') as stream:
+                    stream.write('{"generation": 3, "win_rate": 0.7}\n')
+                with urlopen(base + '/evolucion/phase1/reference') as response:
+                    self.assertEqual(len(json.load(response)), 2)
+                with urlopen(base + '/truco/estado') as response:
+                    self.assertIsInstance(json.load(response), dict)
             finally:
                 server.shutdown()
                 thread.join()
                 server.server_close()
+
+    def test_server_can_open_evolution_page_without_robot(self):
+        from unittest.mock import patch
+        from servidor_truco import main
+        with patch('sys.argv', ['servidor_truco.py', '--sin-robot', '--abrir-evolucion', '--puerto=0']), \
+             patch('webbrowser.open') as browser, \
+             patch('servidor_truco.ServidorTruco.serve_forever'):
+            main()
+        browser.assert_called_once()
+        self.assertTrue(browser.call_args.args[0].endswith('/evolucion'))

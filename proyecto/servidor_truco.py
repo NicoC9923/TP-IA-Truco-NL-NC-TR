@@ -289,7 +289,8 @@ def crear_servidor(partida, puerto=PUERTO_DEFAULT, sin_robot=False, evolution_ro
 
 def main() -> None:
     sin_robot_flag = "--sin-robot" in sys.argv
-    abrir_nav = "--abrir" in sys.argv
+    abrir_evolution = "--abrir-evolucion" in sys.argv
+    abrir_nav = "--abrir" in sys.argv or abrir_evolution
     puerto = PUERTO_DEFAULT
     for arg in sys.argv:
         if arg.startswith("--puerto="):
@@ -307,7 +308,9 @@ def main() -> None:
         from generar_baraja import generar_baraja_40
         generar_baraja_40(str(DIR_CARTAS / "template_naipes.jpg"), str(DIR_CARTAS))
 
-    url = f"http://127.0.0.1:{puerto}"
+    url = f"http://127.0.0.1:{server.server_port}"
+    if abrir_evolution:
+        url += "/evolucion"
     print("\n  =========================================================")
     print("  [OK] TRUCO & VOZ CON OTTOMAN (Unitree G1) LISTO")
     print(f"  [WEB] Abri en Chrome o Edge: {url}")
