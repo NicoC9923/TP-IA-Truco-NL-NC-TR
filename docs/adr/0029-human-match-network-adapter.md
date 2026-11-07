@@ -13,3 +13,5 @@ The phase 2 mode remains unavailable until its policy implementation and champio
 ## Field practice
 
 Adapters translate a legacy application's state into a shared domain interface while keeping policy inference separate from presentation and device effects. Persisting sufficient statistics preserves online estimates without keeping a full event history; atomic file replacement prevents an interrupted write from leaving a partially written profile.
+
+A request to select a recognized but unavailable agent mode returns HTTP 409 and leaves the active mode unchanged. Unknown mode codes return HTTP 400.
