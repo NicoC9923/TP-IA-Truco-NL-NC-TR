@@ -8,10 +8,13 @@ ACTIONS = ('card_0', 'card_1', 'card_2', 'envido', 'real_envido', 'falta_envido'
 INPUTS, HIDDEN = 64, 24
 GENOME_SIZE = INPUTS * HIDDEN + HIDDEN + HIDDEN * len(ACTIONS) + len(ACTIONS)
 
-def encode_observation(obs, profile, inference=None):
+def encode_observation(obs, profile, inference=None, encoder='v1'):
+    if encoder not in ('v1', 'v2'):
+        raise ValueError('Unknown encoder')
     values = []
     for i, (value, suit) in enumerate(obs['hand']):
-        values.extend((value / 12, rules.PALOS.index(suit) / 3, float(i in obs['available']), min(value, 10) % 10 / 7))
+        strength = value / 12 if encoder == 'v1' else rules.valor_carta_truco(value, suit) / 13
+        values.extend((strength, rules.PALOS.index(suit) / 3, float(i in obs['available']), min(value, 10) % 10 / 7))
     for i in range(6):
         if i < len(obs['table']):
             player, (value, suit) = obs['table'][i]
@@ -42,7 +45,10 @@ def encode_observation(obs, profile, inference=None):
     return np.asarray(values, dtype=np.float64)
 
 class NetworkPolicy:
-    def __init__(self, genome, seed=0, bias=None, profile=None, style=None, style_strength=1.0, explain=False):
+    def __init__(self, genome, seed=0, bias=None, profile=None, style=None, style_strength=1.0, explain=False, encoder='v1'):
+        if encoder not in ('v1', 'v2'):
+            raise ValueError('Unknown encoder')
+        self.encoder = encoder
         self.genome = np.asarray(genome, dtype=np.float64).copy()
         if self.genome.shape != (GENOME_SIZE,):
             raise ValueError('Invalid genome shape')
@@ -55,7 +61,7 @@ class NetworkPolicy:
         self.inference = IncrementalInference()
 
     def __call__(self, observation, legal_actions):
-        x = encode_observation(observation, self.profile, self.inference)
+        x = encode_observation(observation, self.profile, self.inference, encoder=self.encoder)
         a = INPUTS * HIDDEN
         b = a + HIDDEN
         c = b + HIDDEN * len(ACTIONS)
