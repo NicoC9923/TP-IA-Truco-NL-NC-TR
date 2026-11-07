@@ -1,0 +1,95 @@
+
+=== 1/4 training === 01:26:49
+$ C:\Users\nicof\AppData\Local\Programs\Python\Python312\python.exe -u E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\phase1-seeds\proyecto\phase1_trainer.py --output training_output/phase1 --generations 1000 --population 64 --pairs 16 --workers 12 --seed 1 --validation-pairs 1000 --check-batch 200 --promotion-threshold 0.55 --patience 50 --finalists 8 --finalist-pairs-multiplier 4 --output-init-sigma 0.3 --fitness-mode classic --points-weight 0.1 --style-strength 0.5 --styles-after-first-promotion
+gen 1 | best 0.742 | avg 0.530 | first champion | 85.73 s | league 58.85 s | check 0.00 s
+gen 2 | best 0.780 | avg 0.497 | not promoted 49% +/-5 (200/1000 pairs) | 104.18 s | league 59.39 s | check 12.75 s
+gen 3 | best 0.710 | avg 0.459 | not promoted 47% +/-5 (200/1000 pairs) | 102.37 s | league 64.63 s | check 12.04 s
+gen 4 | best 0.744 | avg 0.507 | not promoted 52% +/-2 (800/1000 pairs) | 118.99 s | league 57.21 s | check 38.02 s
+gen 5 | best 0.749 | avg 0.470 | not promoted 52% +/-2 (800/1000 pairs) | 126.05 s | league 59.29 s | check 42.46 s
+gen 6 | best 0.678 | avg 0.451 | not promoted 49% +/-4 (200/1000 pairs) | 95.65 s | league 51.35 s | check 15.65 s
+gen 7 | best 0.627 | avg 0.474 | not promoted 55% +/-2 (1000/1000 pairs) | 118.62 s | league 46.05 s | check 46.08 s
+gen 8 | best 0.713 | avg 0.483 | not promoted 53% +/-2 (1000/1000 pairs) | 134.39 s | league 49.64 s | check 58.72 s
+gen 9 | best 0.606 | avg 0.371 | promoted 55% +/-2 (1000/1000 pairs) | 124.03 s | league 51.74 s | check 48.70 s
+gen 10 | best 0.465 | avg 0.305 | not promoted 49% +/-5 (200/1000 pairs) | 74.53 s | league 44.73 s | check 8.88 s
+gen 11 | best 0.638 | avg 0.429 | not promoted 49% +/-5 (200/1000 pairs) | 71.40 s | league 41.85 s | check 8.32 s
+gen 12 | best 0.851 | avg 0.624 | not promoted 49% +/-5 (200/1000 pairs) | 65.01 s | league 36.63 s | check 8.24 s
+gen 13 | best 0.643 | avg 0.461 | not promoted 48% +/-5 (200/1000 pairs) | 72.68 s | league 43.70 s | check 8.40 s
+gen 14 | best 0.645 | avg 0.449 | not promoted 51% +/-4 (200/1000 pairs) | 70.04 s | league 42.21 s | check 7.45 s
+gen 15 | best 0.716 | avg 0.551 | not promoted 52% +/-2 (800/1000 pairs) | 92.01 s | league 43.10 s | check 29.50 s
+gen 16 | best 0.671 | avg 0.485 | not promoted 51% +/-3 (600/1000 pairs) | 87.96 s | league 39.50 s | check 27.31 s
+gen 17 | best 0.599 | avg 0.403 | not promoted 51% +/-3 (600/1000 pairs) | 79.35 s | league 38.04 s | check 21.47 s
+gen 18 | best 0.601 | avg 0.362 | not promoted 54% +/-2 (1000/1000 pairs) | 101.17 s | league 40.44 s | check 42.22 s
+gen 19 | best 0.717 | avg 0.411 | not promoted 52% +/-3 (600/1000 pairs) | 84.70 s | league 38.53 s | check 25.60 s
+gen 20 | best 0.742 | avg 0.549 | not promoted 50% +/-4 (200/1000 pairs) | 66.05 s | league 41.48 s | check 7.07 s
+gen 21 | best 0.646 | avg 0.463 | not promoted 52% +/-3 (600/1000 pairs) | 78.91 s | league 34.13 s | check 28.01 s
+gen 22 | best 0.822 | avg 0.581 | not promoted 53% +/-2 (800/1000 pairs) | 77.52 s | league 36.94 s | check 24.55 s
+gen 23 | best 0.711 | avg 0.491 | promoted 57% +/-2 (1000/1000 pairs) | 100.81 s | league 34.86 s | check 50.33 s
+gen 24 | best 0.608 | avg 0.451 | not promoted 49% +/-4 (200/1000 pairs) | 58.43 s | league 35.48 s | check 6.39 s
+gen 25 | best 0.721 | avg 0.565 | not promoted 48% +/-4 (200/1000 pairs) | 50.48 s | league 29.49 s | check 5.87 s
+gen 26 | best 0.683 | avg 0.531 | not promoted 45% +/-5 (200/1000 pairs) | 52.52 s | league 29.00 s | check 8.57 s
+gen 27 | best 0.644 | avg 0.466 | not promoted 45% +/-5 (200/1000 pairs) | 53.80 s | league 29.91 s | check 9.18 s
+gen 28 | best 0.713 | avg 0.515 | not promoted 46% +/-5 (200/1000 pairs) | 55.72 s | league 33.62 s | check 8.51 s
+gen 29 | best 0.719 | avg 0.519 | not promoted 48% +/-4 (200/1000 pairs) | 59.73 s | league 34.25 s | check 9.55 s
+gen 30 | best 0.705 | avg 0.551 | not promoted 48% +/-5 (200/1000 pairs) | 61.91 s | league 33.01 s | check 11.01 s
+gen 31 | best 0.749 | avg 0.507 | not promoted 50% +/-3 (400/1000 pairs) | 64.40 s | league 31.85 s | check 17.76 s
+gen 32 | best 0.711 | avg 0.472 | not promoted 50% +/-3 (400/1000 pairs) | 67.62 s | league 34.50 s | check 16.56 s
+gen 33 | best 0.672 | avg 0.466 | not promoted 51% +/-3 (600/1000 pairs) | 72.37 s | league 31.85 s | check 25.05 s
+gen 34 | best 0.675 | avg 0.510 | not promoted 51% +/-3 (600/1000 pairs) | 73.48 s | league 28.97 s | check 27.02 s
+gen 35 | best 0.675 | avg 0.486 | not promoted 49% +/-4 (200/1000 pairs) | 52.68 s | league 30.00 s | check 7.19 s
+gen 36 | best 0.707 | avg 0.466 | not promoted 52% +/-3 (600/1000 pairs) | 84.51 s | league 37.25 s | check 31.46 s
+gen 37 | best 0.607 | avg 0.441 | not promoted 50% +/-3 (400/1000 pairs) | 68.94 s | league 36.64 s | check 17.16 s
+gen 38 | best 0.601 | avg 0.406 | not promoted 47% +/-4 (200/1000 pairs) | 51.80 s | league 28.02 s | check 7.75 s
+gen 39 | best 0.573 | avg 0.436 | not promoted 46% +/-4 (200/1000 pairs) | 56.35 s | league 31.46 s | check 9.46 s
+gen 40 | best 0.644 | avg 0.428 | not promoted 52% +/-2 (800/1000 pairs) | 83.05 s | league 34.35 s | check 32.95 s
+gen 41 | best 0.712 | avg 0.529 | not promoted 52% +/-2 (600/1000 pairs) | 71.34 s | league 35.43 s | check 19.93 s
+gen 42 | best 0.611 | avg 0.447 | not promoted 46% +/-4 (200/1000 pairs) | 50.09 s | league 28.88 s | check 7.00 s
+gen 43 | best 0.778 | avg 0.555 | not promoted 50% +/-5 (200/1000 pairs) | 56.61 s | league 31.57 s | check 9.13 s
+gen 44 | best 0.673 | avg 0.523 | not promoted 50% +/-4 (200/1000 pairs) | 53.08 s | league 27.94 s | check 8.76 s
+gen 45 | best 0.684 | avg 0.516 | not promoted 52% +/-2 (600/1000 pairs) | 84.01 s | league 36.77 s | check 30.73 s
+gen 46 | best 0.791 | avg 0.560 | not promoted 50% +/-3 (400/1000 pairs) | 70.81 s | league 36.53 s | check 17.18 s
+gen 47 | best 0.606 | avg 0.425 | not promoted 50% +/-3 (400/1000 pairs) | 69.28 s | league 33.16 s | check 19.29 s
+gen 48 | best 0.675 | avg 0.515 | not promoted 51% +/-3 (400/1000 pairs) | 68.28 s | league 35.64 s | check 13.97 s
+gen 49 | best 0.673 | avg 0.453 | not promoted 51% +/-3 (600/1000 pairs) | 78.07 s | league 35.98 s | check 24.20 s
+gen 50 | best 0.674 | avg 0.491 | not promoted 51% +/-3 (400/1000 pairs) | 75.15 s | league 33.65 s | check 23.95 s
+gen 51 | best 0.746 | avg 0.565 | not promoted 53% +/-2 (800/1000 pairs) | 98.86 s | league 37.89 s | check 40.48 s
+gen 52 | best 0.602 | avg 0.471 | not promoted 53% +/-2 (800/1000 pairs) | 69.68 s | league 26.15 s | check 27.87 s
+gen 53 | best 0.646 | avg 0.423 | not promoted 51% +/-2 (800/1000 pairs) | 83.60 s | league 37.08 s | check 30.30 s
+gen 54 | best 0.751 | avg 0.603 | not promoted 52% +/-2 (800/1000 pairs) | 87.82 s | league 36.89 s | check 34.93 s
+gen 55 | best 0.779 | avg 0.519 | not promoted 50% +/-4 (200/1000 pairs) | 62.97 s | league 35.98 s | check 9.30 s
+gen 56 | best 0.788 | avg 0.569 | not promoted 50% +/-5 (200/1000 pairs) | 63.03 s | league 33.91 s | check 10.38 s
+gen 57 | best 0.604 | avg 0.468 | not promoted 52% +/-3 (400/1000 pairs) | 73.11 s | league 34.86 s | check 20.10 s
+gen 58 | best 0.675 | avg 0.490 | not promoted 48% +/-4 (200/1000 pairs) | 64.20 s | league 36.39 s | check 9.19 s
+gen 59 | best 0.545 | avg 0.413 | not promoted 48% +/-5 (200/1000 pairs) | 64.46 s | league 37.96 s | check 8.39 s
+gen 60 | best 0.716 | avg 0.542 | not promoted 52% +/-3 (600/1000 pairs) | 81.82 s | league 36.18 s | check 28.27 s
+gen 61 | best 0.601 | avg 0.446 | not promoted 52% +/-3 (400/1000 pairs) | 72.38 s | league 35.80 s | check 19.29 s
+gen 62 | best 0.634 | avg 0.454 | not promoted 50% +/-3 (400/1000 pairs) | 68.58 s | league 32.78 s | check 19.58 s
+gen 63 | best 0.718 | avg 0.552 | not promoted 52% +/-3 (600/1000 pairs) | 82.29 s | league 36.26 s | check 27.78 s
+gen 64 | best 0.535 | avg 0.436 | not promoted 49% +/-4 (200/1000 pairs) | 61.22 s | league 34.83 s | check 8.62 s
+gen 65 | best 0.749 | avg 0.578 | not promoted 54% +/-2 (1000/1000 pairs) | 89.55 s | league 29.30 s | check 44.18 s
+gen 66 | best 0.543 | avg 0.394 | not promoted 55% +/-2 (1000/1000 pairs) | 97.74 s | league 32.38 s | check 49.13 s
+gen 67 | best 0.604 | avg 0.448 | not promoted 54% +/-2 (1000/1000 pairs) | 92.10 s | league 30.55 s | check 43.57 s
+gen 68 | best 0.713 | avg 0.484 | not promoted 49% +/-3 (400/1000 pairs) | 76.12 s | league 40.82 s | check 18.75 s
+gen 69 | best 0.672 | avg 0.511 | not promoted 54% +/-2 (1000/1000 pairs) | 89.03 s | league 30.86 s | check 41.73 s
+gen 70 | best 0.602 | avg 0.446 | not promoted 52% +/-2 (600/1000 pairs) | 75.64 s | league 33.45 s | check 25.92 s
+gen 71 | best 0.607 | avg 0.474 | not promoted 54% +/-2 (1000/1000 pairs) | 92.71 s | league 30.18 s | check 47.57 s
+gen 72 | best 0.569 | avg 0.387 | not promoted 48% +/-4 (200/1000 pairs) | 56.05 s | league 30.28 s | check 9.27 s
+gen 73 | best 0.749 | avg 0.519 | not promoted 50% +/-4 (200/1000 pairs) | 54.79 s | league 28.21 s | check 10.20 s
+=== 1/4 training done in 93.9 min ===
+
+=== 2/4 reference evaluation === 03:00:44
+$ C:\Users\nicof\AppData\Local\Programs\Python\Python312\python.exe -u E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\phase1-seeds\proyecto\reference_evaluation.py --directory training_output/phase1 --promoted-only --pairs 1000 --workers 12
+generation 1 | reactive | 62.54 s
+generation 1 | adaptive_utility | 63.93 s
+generation 9 | reactive | 74.81 s
+generation 9 | adaptive_utility | 64.23 s
+generation 23 | reactive | 75.42 s
+generation 23 | adaptive_utility | 64.02 s
+generation 73 | reactive | 72.07 s
+generation 73 | adaptive_utility | 60.32 s
+=== 2/4 reference evaluation done in 9.0 min ===
+
+=== 3/4 publish === 03:09:41
+$ C:\Users\nicof\AppData\Local\Programs\Python\Python312\python.exe -u E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\phase1-seeds\proyecto\phase1_trainer.py --output training_output/phase1 --publish
+=== 3/4 publish done in 0.0 min ===
+
+Pipeline finished. Champion and logs are in champions/phase1/.
