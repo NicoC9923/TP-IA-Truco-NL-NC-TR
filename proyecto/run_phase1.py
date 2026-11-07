@@ -31,7 +31,10 @@ def run(step, command, log):
         log.write(line)
         log.flush()
     if process.wait() != 0:
-        raise SystemExit(f'{step} failed with exit code {process.returncode}')
+        message = f'{step} failed with exit code {process.returncode}'
+        log.write(message + '\n')
+        log.flush()
+        raise SystemExit(message)
     done = f'=== {step} done in {(time.perf_counter() - start) / 60:.1f} min ===\n'
     print(done, end='', flush=True)
     log.write(done)
@@ -91,7 +94,9 @@ def main():
         else:
             run('4/4 commit', ['git', 'add', 'champions/phase1'], log)
             run('4/4 commit', ['git', 'commit', '-m', f'Add phase 1 reigning champion and logs (seed {args.seed})'], log)
-    print('\nPipeline finished. Champion and logs are in champions/phase1/.', flush=True)
+        message = '\nPipeline finished. Champion and logs are in champions/phase1/.'
+        print(message, flush=True)
+        log.write(message + '\n')
 
 
 if __name__ == '__main__':

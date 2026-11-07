@@ -6,3 +6,7 @@ The minimal trainer evaluates each genome against peers in the same generation, 
 
 This follows common fixed-topology neuroevolution practice: a stochastic masked policy, tournament selection, elitism, and process-parallel rollout evaluation. A thread pool was rejected because the measured engine throughput did not improve with threads. Deterministic argmax was rejected because mixed strategies are needed; using existing agents was rejected by ADR 0021. Minimal defaults favor quick demonstrations over statistical strength; the fuller league, promotion, and checkpoints are separate work.
 
+
+## Phase 1 learning review amendment
+
+The output weights and biases initialize independently with sigma 0.3 by default (`--output-init-sigma`); the hidden layer stays at 0.1. The genome shape is unchanged, so existing champions remain loadable. The Sonnet learning review (F3) found early behavior consistent with nearly uniform policies and estimated that output logits were too small for decisive choices; increasing only the output scale avoids a new temperature gene and its compatibility cost. This is a proposed improvement, not proof of better learning.

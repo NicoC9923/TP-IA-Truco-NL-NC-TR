@@ -29,3 +29,7 @@ Expected duration: ~75 s per generation (up to ~130 s when a check is close), 40
 - **Lowering the promotion threshold to get more promotions:** with a ±2.5% margin, a threshold near 52% would promote card luck and fill the hall of fame with noise.
 - **Running the reference evaluation live with `--watch`:** useful for a live demo, but competes with the trainer for CPU. Left as an option, not the default.
 - **Training in the main checkout:** the main checkout is on `main`, which doesn't have the trainer, and switching it would disturb the current demo.
+
+## Changes after the first run
+
+The table above records the historical first run, not the current defaults. The default patience is now 50 failed promotion checks; the Sonnet learning review F6 observed that 30 could cut off slow progress, while the empirical review subsequently found promotions at generations 22 and 48 and stopping at 78. Selection now uses the shared league and finalist re-test in ADR 0027, output initialization in ADR 0026, and the configurable fitness in ADR 0007. Phase 1 styles default to ±1.5 after the first promotion, a user-approved deviation from story 17's 50/50-from-the-start requirement; see ADR 0013 for the reasoning and evidence limits. Every new setting is forwarded by the pipeline and recorded in checkpoint configuration so resume detects mismatches.
