@@ -23,8 +23,11 @@ class NetworkModesServerTests(unittest.TestCase):
                 self.assertTrue(modes['neuroevolucion']['disponible'])
                 self.assertFalse(modes['refuerzo']['disponible'])
                 connection.request('POST', '/truco/modo_ia', json.dumps({'modo': 'refuerzo'}))
-                self.assertEqual(connection.getresponse().status, 409)
+                response = connection.getresponse(); self.assertEqual(response.status, 409); response.read()
                 self.assertEqual(match.ia.modo_agente, 'utilidad_adaptativa')
+                connection.request('POST', '/truco/modo_ia', json.dumps({'modo': ' NEUROEVOLUCION '}))
+                response = connection.getresponse(); self.assertEqual(response.status, 200); response.read()
+                self.assertEqual(match.ia.modo_agente, 'neuroevolucion')
                 connection.close()
             finally:
                 server.shutdown(); thread.join(); server.server_close()

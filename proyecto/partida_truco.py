@@ -159,6 +159,7 @@ class PartidaTruco:
     # ---------- ciclo de partida y mano ----------
     def cambiar_modo_ia(self, modo: str) -> Dict:
         """Change the active agent mode."""
+        modo = modo.strip().lower()
         if not self.ia.mode_available(modo):
             return self.estado_publico()
         if modo == 'neuroevolucion':
