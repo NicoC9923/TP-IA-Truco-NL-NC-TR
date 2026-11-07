@@ -28,6 +28,8 @@ def diagnose(checkpoint, k=32, pairs=32, workers=12):
     with np.load(checkpoint, allow_pickle=False) as data:
         population, hall, reigning = data['population'], list(data['hall']), data['reigning']
         state = json.loads(str(data['state']))
+    if state.get('encoder', 'v1') != 'v1':
+        raise ValueError('This diagnostic is v1-only')
     if len(population) < 6 or k < 2 or pairs < 2 or workers < 1:
         raise ValueError('population must have at least six members, k and pairs at least two, workers positive')
     rng = np.random.default_rng(720394)

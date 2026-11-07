@@ -60,6 +60,8 @@ def diagnose(checkpoint, pairs=(16, 32), splits=3, reference_pairs=64, workers=1
     with np.load(checkpoint, allow_pickle=False) as data:
         population, hall, reigning = data['population'], list(data['hall']), data['reigning']
         state = json.loads(str(data['state']))
+    if state.get('encoder', 'v1') != 'v1':
+        raise ValueError('This diagnostic is v1-only')
     config = state['config']
     stream = 0
     def measure(n):

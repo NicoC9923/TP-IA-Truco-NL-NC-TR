@@ -36,7 +36,11 @@ def diversity(items):
 
 def diagnose(checkpoint, observations=2000, k=32, workers=12):
     start = perf_counter()
-    with np.load(checkpoint, allow_pickle=False) as data: population = data['population']
+    with np.load(checkpoint, allow_pickle=False) as data:
+        population = data['population']
+        state = json.loads(str(data['state']))
+    if state.get('encoder', 'v1') != 'v1':
+        raise ValueError('This diagnostic is v1-only')
     if len(population)<6 or min(observations, k, workers)<1: raise ValueError('invalid counts')
     rng = np.random.default_rng(770183)
     bank = []
