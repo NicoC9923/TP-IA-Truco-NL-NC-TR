@@ -55,3 +55,19 @@ class ArtifactTests(unittest.TestCase):
             np.savez(checkpoint, population=np.zeros((2, GENOME_SIZE)), reigning=np.zeros(GENOME_SIZE), hall=np.empty((0, GENOME_SIZE)), state=json.dumps(state))
             with self.assertRaisesRegex(ValueError, 'encoder'):
                 train(directory, population_size=2, target=1, workers=1, validation_pairs=1, finalists=0, resume=checkpoint)
+
+class TrainerEncoderTests(unittest.TestCase):
+    def test_tiny_v2_run_uses_v2_for_all_matches(self):
+        import tempfile
+        from unittest.mock import patch
+        from phase1_trainer import train
+        import phase1_network
+        seen = []
+        original = phase1_network.encode_observation
+        def record(*args, **kwargs):
+            seen.append(kwargs.get('encoder'))
+            return original(*args, **kwargs)
+        with tempfile.TemporaryDirectory() as directory, patch('phase1_network.encode_observation', side_effect=record):
+            train(directory, population_size=2, generations=2, pairs=1, workers=1, target=1, validation_pairs=1, finalists=1, finalist_pairs_multiplier=1, encoder='v2')
+        self.assertTrue(seen)
+        self.assertEqual(set(seen), {'v2'})

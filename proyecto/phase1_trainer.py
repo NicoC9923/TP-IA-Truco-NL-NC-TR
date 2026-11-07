@@ -19,8 +19,9 @@ def fitness(results, mode='classic', points_weight=.1):
 def _evaluate(job):
     genome, opponent, seed, target, starting_score, style = job[:6]
     strength = job[6] if len(job) > 6 else 1.0
-    a = NetworkPolicy(genome, seed=seed * 2)
-    b = NetworkPolicy(opponent, seed=seed * 2 + 1, style=style, style_strength=strength)
+    encoder_a, encoder_b = job[7:9] if len(job) >= 9 else ('v1', 'v1')
+    a = NetworkPolicy(genome, seed=seed * 2, encoder=encoder_a)
+    b = NetworkPolicy(opponent, seed=seed * 2 + 1, style=style, style_strength=strength, encoder=encoder_b)
     first = play_match(a, b, seed=seed, target=target, starting_score=starting_score, deal_partition=seed % 2)
     second = play_match(b, a, seed=seed, target=target, starting_score=starting_score[::-1], deal_partition=seed % 2)
     return [(first, 0), (second, 1)]
@@ -53,7 +54,7 @@ def league_schedule(rng, generation, population_size, pairs, seed, target, hall,
                              seed=deal_seed, target=match_target, starting_score=starting_score))
     return schedule
 
-def league_scores(population, schedule, hall, reigning, workers, style_strength, fitness_mode, points_weight):
+def league_scores(population, schedule, hall, reigning, workers, style_strength, fitness_mode, points_weight, encoder='v1'):
     population_size = len(population)
     pairs = len(schedule)
     jobs = []
@@ -66,7 +67,7 @@ def league_scores(population, schedule, hall, reigning, workers, style_strength,
             else:
                 index = item['index']
                 opponent = population[(index + 1) % population_size if index == i else index]
-            jobs.append((population[i], opponent, item['seed'], item['target'], item['starting_score'], item['style'], style_strength))
+            jobs.append((population[i], opponent, item['seed'], item['target'], item['starting_score'], item['style'], style_strength, encoder, encoder))
     if workers == 1:
         evaluated = list(map(_evaluate, jobs))
     else:
@@ -131,7 +132,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             start = perf_counter()
             schedule = league_schedule(rng, generation, population_size, pairs, seed, target, hall, reigning, styles_after_first_promotion)
             styles = [item['style'] or 'unbiased' for i in range(population_size) for item in schedule]
-            scores, results = league_scores(population, schedule, hall, reigning, workers, style_strength, fitness_mode, points_weight)
+            scores, results = league_scores(population, schedule, hall, reigning, workers, style_strength, fitness_mode, points_weight, encoder)
             league_seconds = perf_counter() - start
             champion = int(np.argmax(scores))
             finalist_scores = []
@@ -155,7 +156,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
                         else:
                             index = item['index']
                             opponent = population[(index + 1) % population_size if index == i else index]
-                        retest_jobs.append((population[i], opponent, item['seed'], item['target'], item['starting_score'], item['style'], style_strength))
+                        retest_jobs.append((population[i], opponent, item['seed'], item['target'], item['starting_score'], item['style'], style_strength, encoder, encoder))
                 if workers == 1:
                     retested = list(map(_evaluate, retest_jobs))
                 else:
@@ -172,7 +173,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
                 reigning, reigning_generation = genome.copy(), generation
             else:
                 check_start = perf_counter()
-                jobs = [(genome, reigning, deal_seed, match_target, (0, 0), None) for deal_seed, match_target in validation_schedule(seed, target, validation_pairs)]
+                jobs = [(genome, reigning, deal_seed, match_target, (0, 0), None, 1.0, encoder, encoder) for deal_seed, match_target in validation_schedule(seed, target, validation_pairs)]
                 pair_rates = []
                 batch_size = check_batch or validation_pairs
                 pool = ProcessPoolExecutor(max_workers=workers) if workers != 1 else None
@@ -231,6 +232,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', default='training_output/phase1')
+    parser.add_argument('--encoder', choices=('v1', 'v2'), default='v1')
     parser.add_argument('--population', type=int, default=64)
     parser.add_argument('--generations', type=int, default=1)
     parser.add_argument('--pairs', type=int, default=8)
@@ -262,8 +264,14 @@ def main():
             source = Path(args.output) / name
             if name != 'reference_evaluation.jsonl' or source.exists():
                 shutil.copy2(source, destination / name)
+        metadata = Path(args.output) / 'reigning_champion.encoder.json'
+        target_metadata = destination / metadata.name
+        if metadata.exists():
+            shutil.copy2(metadata, target_metadata)
+        else:
+            target_metadata.unlink(missing_ok=True)
     else:
-        train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed, args.validation_pairs, args.promotion_threshold, args.patience, args.resume, args.check_batch, args.finalists, args.finalist_pairs_multiplier, args.output_init_sigma, args.fitness_mode, args.points_weight, args.style_strength, args.styles_after_first_promotion, args.early_stop, args.extend_patience)
+        train(args.output, args.population, args.generations, args.pairs, args.workers, args.target, args.seed, args.validation_pairs, args.promotion_threshold, args.patience, args.resume, args.check_batch, args.finalists, args.finalist_pairs_multiplier, args.output_init_sigma, args.fitness_mode, args.points_weight, args.style_strength, args.styles_after_first_promotion, args.early_stop, args.extend_patience, args.encoder)
 
 if __name__ == '__main__':
     main()

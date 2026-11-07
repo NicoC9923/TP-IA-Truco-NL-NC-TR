@@ -43,6 +43,7 @@ def run(step, command, log):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', default='training_output/phase1')
+    parser.add_argument('--encoder', choices=('v1', 'v2'), default='v1')
     parser.add_argument('--generations', type=int, default=1000)
     parser.add_argument('--population', type=int, default=64)
     parser.add_argument('--pairs', type=int, default=16)
@@ -78,7 +79,7 @@ def main():
                  '--promotion-threshold', str(args.promotion_threshold), '--patience', str(args.patience),
                  '--finalists', str(args.finalists), '--finalist-pairs-multiplier', str(args.finalist_pairs_multiplier), '--output-init-sigma', str(args.output_init_sigma),
                  '--fitness-mode', args.fitness_mode, '--points-weight', str(args.points_weight),
-                 '--style-strength', str(args.style_strength),
+                 '--style-strength', str(args.style_strength), '--encoder', args.encoder,
                  '--styles-after-first-promotion' if args.styles_after_first_promotion else '--no-styles-after-first-promotion']
         if args.early_stop is not None:
             train += ['--early-stop', args.early_stop]
@@ -95,7 +96,7 @@ def main():
         (output / 'reference_evaluation.jsonl').unlink(missing_ok=True)
         run('2/4 reference evaluation', [python, '-u', str(HERE / 'reference_evaluation.py'), '--directory', args.output,
                                          '--promoted-only', '--pairs', str(args.eval_pairs),
-                                         '--workers', str(args.eval_workers)], log)
+                                         '--workers', str(args.eval_workers), '--encoder', args.encoder], log)
         run('3/4 publish', [python, '-u', str(HERE / 'phase1_trainer.py'), '--output', args.output, '--publish'], log)
         if args.no_commit:
             print('=== 4/4 commit skipped (--no-commit) ===', flush=True)
