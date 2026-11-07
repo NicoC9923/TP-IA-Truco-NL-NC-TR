@@ -41,3 +41,11 @@ class Phase1DefaultsTests(unittest.TestCase):
             champion = np.load(Path(directory) / 'champion_0001.npy')
             self.assertTrue(np.all(champion[INPUTS * HIDDEN + HIDDEN:] == 0))
             self.assertTrue(np.any(champion[:INPUTS * HIDDEN + HIDDEN] != 0))
+    def test_finalist_retest_can_be_disabled(self):
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            train(directory, population_size=2, generations=1, pairs=1, workers=1,
+                  target=1, finalists=0)
+            entry = json.loads((Path(directory) / 'generations.jsonl').read_text())
+            self.assertEqual(entry['finalists'], [])
+            self.assertEqual(entry['finalist_pairs'], 0)

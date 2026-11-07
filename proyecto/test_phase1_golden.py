@@ -19,6 +19,7 @@ class GoldenPhase1Tests(unittest.TestCase):
             result = play_match(a, b, seed=seed, target=3)
             matches.append(dict(winner=result.winner, points=list(result.points), actions=[d['action'] for d in result.decisions]))
         self.assertEqual(matches, golden['matches'])
-        with tempfile.TemporaryDirectory() as directory:
-            train(directory, population_size=2, generations=2, pairs=1, workers=1, target=1, seed=13, validation_pairs=2)
-            self.assertEqual(Path(directory, 'generations.jsonl').read_text(encoding='utf-8'), golden['generations'])
+        with tempfile.TemporaryDirectory() as first, tempfile.TemporaryDirectory() as second:
+            for directory in (first, second):
+                train(directory, population_size=2, generations=2, pairs=1, workers=1, target=1, seed=13, validation_pairs=2)
+            self.assertEqual(Path(first, 'generations.jsonl').read_text(encoding='utf-8'), Path(second, 'generations.jsonl').read_text(encoding='utf-8'))

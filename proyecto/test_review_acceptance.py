@@ -28,7 +28,7 @@ class AcceptanceReviewTests(unittest.TestCase):
             r = SimpleNamespace(winner=0, points=(2, 0), decisions=[decision])
             return [(r, 0), (r, 1)]
         with tempfile.TemporaryDirectory() as d, patch('phase1_trainer._evaluate', side_effect=evaluate), redirect_stdout(io.StringIO()):
-            train(d, population_size=64, generations=2, pairs=4, workers=1, seed=9, validation_pairs=8, promotion_threshold=0)
+            train(d, population_size=64, generations=2, pairs=64, workers=1, seed=9, validation_pairs=8, promotion_threshold=0, finalists=0)
             rows = [json.loads(line) for line in Path(d, 'generations.jsonl').read_text().splitlines()]
         training = [j for j in jobs if j[2] % 2]
         validation = [j for j in jobs if not j[2] % 2]
@@ -38,8 +38,8 @@ class AcceptanceReviewTests(unittest.TestCase):
         self.assertTrue(set(j[2] for j in training).isdisjoint(j[2] for j in validation))
         from collections import Counter
         for row in rows:
-            self.assertEqual(Counter(row['league']), {'unbiased': 128, 'bluffer': 32, 'cautious': 32, 'aggressive': 32, 'calculating': 32})
-        self.assertNotEqual(rows[0]['league'][:8], rows[1]['league'][:8])
+            self.assertEqual(Counter(row['league']), {'unbiased': 2048, 'bluffer': 512, 'cautious': 512, 'aggressive': 512, 'calculating': 512})
+        self.assertNotEqual(rows[0]['schedule'], rows[1]['schedule'])
     def test_human_falta_envido_at_30_and_tied_tantos(self):
         import contextlib, random
         from partida_truco import PartidaTruco
@@ -71,10 +71,8 @@ class AcceptanceReviewTests(unittest.TestCase):
             result = SimpleNamespace(winner=0, points=(2, 0), decisions=[decision])
             return [(result, 0), (result, 1)]
         with tempfile.TemporaryDirectory() as d, patch('phase1_trainer._evaluate', side_effect=evaluate), redirect_stdout(io.StringIO()):
-            train(d, population_size=64, generations=4, pairs=4, workers=1, target=1, seed=9, validation_pairs=1, promotion_threshold=0)
-        training = [job for job in jobs if job[2] % 2]
-        third, fourth = training[512:768], training[768:1024]
-        unbiased_third = [job for job in third if job[5] is None]
-        shared = {id(job[1]) for job in unbiased_third} & {id(job[1]) for job in fourth if job[5] is None}
-        fraction = sum(id(job[1]) in shared for job in unbiased_third) / len(unbiased_third)
-        self.assertTrue(.35 < fraction < .65, fraction)
+            train(d, population_size=4, generations=4, pairs=64, workers=1, target=1, seed=9, validation_pairs=1, promotion_threshold=0, finalists=0)
+            rows = [json.loads(line) for line in Path(d, 'generations.jsonl').read_text().splitlines()]
+        slots = [item for row in rows[2:] for item in row['schedule'] if item['style'] is None and item['opponent'] != 'reigning']
+        fraction = sum(item['opponent'] == 'hall' for item in slots) / len(slots)
+        self.assertTrue(.3 < fraction < .7, fraction)

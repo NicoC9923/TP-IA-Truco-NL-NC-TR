@@ -61,7 +61,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
             jobs = []
             schedule = []
             for p in range(pairs):
-                style = (None, None, None, None, 'bluffer', 'cautious', 'aggressive', 'calculating')[p % 8]
+                style = None if p % 2 == 0 else ('bluffer', 'cautious', 'aggressive', 'calculating')[(p // 2 + 2 * (generation - 1)) % 4]
                 opponent_index = int(rng.integers(population_size))
                 opponent_kind = 'population'
                 if p == 0 and reigning is not None:
