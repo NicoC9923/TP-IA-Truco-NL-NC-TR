@@ -1,0 +1,109 @@
+         98437665 function calls (98405430 primitive calls) in 39.242 seconds
+
+   Ordered by: cumulative time
+   List reduced from 361 to 55 due to restriction <55>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        2    0.345    0.173   39.242   19.621 phase2_card_metrics.py:78(validation_predictions)
+     5748    8.339    0.001   18.017    0.003 opponent_inference.py:45(seen_cards)
+        1    0.004    0.004   16.907   16.907 phase2_card_metrics.py:50(_validation_situations)
+       56    0.023    0.000   16.892    0.302 symmetric_engine.py:36(play_match)
+     1674    0.005    0.000   16.722    0.010 phase2_card_metrics.py:41(__call__)
+     1674    0.080    0.000   16.713    0.010 phase2_torch.py:80(__call__)
+     1674    0.002    0.000   16.368    0.010 phase2_torch.py:74(encode)
+     1674    0.036    0.000   16.366    0.010 phase2_network.py:42(encode_observation)
+     3348    0.016    0.000   11.568    0.003 opponent_inference.py:175(update)
+     3348    0.084    0.000   10.471    0.003 phase1_network.py:13(encode_observation)
+     2400    0.011    0.000   10.258    0.004 opponent_inference.py:138(exact_inference_from_observation)
+     2400    7.544    0.003    7.591    0.003 phase2_card_metrics.py:8(prediction_metrics)
+      800    1.729    0.002    6.568    0.008 phase2_torch.py:39(card_distribution)
+ 40297084    4.872    0.000    4.872    0.000 {method 'intersection' of 'set' objects}
+ 40297084    4.803    0.000    4.803    0.000 {method 'issubset' of 'set' objects}
+     3348    0.361    0.000    4.579    0.001 opponent_inference.py:57(v3_summaries)
+     3348    0.372    0.000    3.643    0.001 opponent_inference.py:68(_summary_arrays)
+      800    0.002    0.000    3.492    0.004 opponent_inference.py:153(inference_from_observation)
+     6696    1.320    0.000    2.922    0.000 {built-in method numpy.fromiter}
+     4134    2.866    0.001    2.881    0.001 opponent_inference.py:29(__init__)
+ 16108526    1.602    0.000    1.602    0.000 opponent_inference.py:70(<genexpr>)
+     1040    1.278    0.001    1.278    0.001 {built-in method torch.tensor}
+      554    0.615    0.001    0.646    0.001 opponent_inference.py:50(truco_call)
+     1600    0.541    0.000    0.579    0.000 opponent_inference.py:34(distribution)
+    16878    0.496    0.000    0.496    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+    11856    0.008    0.000    0.379    0.000 {method 'sum' of 'numpy.ndarray' objects}
+    11856    0.004    0.000    0.371    0.000 _methods.py:47(_sum)
+18918/3274    0.015    0.000    0.313    0.000 module.py:1783(_wrapped_call_impl)
+18918/3274    0.021    0.000    0.309    0.000 module.py:1791(_call_impl)
+     3274    0.013    0.000    0.293    0.000 container.py:254(forward)
+    13530    0.022    0.000    0.262    0.000 opponent_inference.py:23(_ordered_sum)
+      318    0.202    0.001    0.257    0.001 opponent_inference.py:38(declared_tantos)
+    13530    0.009    0.000    0.237    0.000 fromnumeric.py:2838(cumsum)
+    13530    0.008    0.000    0.229    0.000 fromnumeric.py:48(_wrapfunc)
+    13530    0.218    0.000    0.218    0.000 {method 'cumsum' of 'numpy.ndarray' objects}
+     8222    0.006    0.000    0.215    0.000 linear.py:130(forward)
+     8222    0.205    0.000    0.205    0.000 {built-in method torch._C._nn.linear}
+     1674    0.002    0.000    0.184    0.000 phase2_torch.py:23(forward)
+      800    0.003    0.000    0.153    0.000 phase2_torch.py:26(card_logits)
+       98    0.126    0.001    0.127    0.001 opponent_inference.py:41(son_buenas)
+    34171    0.119    0.000    0.127    0.000 {built-in method builtins.sum}
+     3348    0.002    0.000    0.126    0.000 {method 'any' of 'numpy.ndarray' objects}
+     3348    0.002    0.000    0.123    0.000 _methods.py:55(_any)
+      924    0.001    0.000    0.106    0.000 phase2_torch.py:106(observe_hand)
+     2072    0.094    0.000    0.094    0.000 opponent_inference.py:168(reset)
+      800    0.082    0.000    0.082    0.000 {method 'sum' of 'torch._C.TensorBase' objects}
+    10414    0.029    0.000    0.057    0.000 truco_reglas.py:73(calcular_envido)
+     9880    0.005    0.000    0.057    0.000 opponent_inference.py:98(_tantos)
+     6890    0.049    0.000    0.049    0.000 {method 'astype' of 'numpy.ndarray' objects}
+      800    0.046    0.000    0.046    0.000 {built-in method torch.softmax}
+23453/22529    0.028    0.000    0.040    0.000 {built-in method builtins.sorted}
+      800    0.038    0.000    0.038    0.000 {method 'tolist' of 'torch._C.TensorBase' objects}
+    53077    0.027    0.000    0.037    0.000 truco_reglas.py:23(valor_carta_truco)
+      800    0.036    0.000    0.036    0.000 {method 'repeat_interleave' of 'torch._C.TensorBase' objects}
+     5748    0.003    0.000    0.033    0.000 activation.py:139(forward)
+
+
+         98437665 function calls (98405430 primitive calls) in 39.242 seconds
+
+   Ordered by: internal time
+   List reduced from 361 to 35 due to restriction <35>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+     5748    8.339    0.001   18.017    0.003 opponent_inference.py:45(seen_cards)
+     2400    7.544    0.003    7.591    0.003 phase2_card_metrics.py:8(prediction_metrics)
+ 40297084    4.872    0.000    4.872    0.000 {method 'intersection' of 'set' objects}
+ 40297084    4.803    0.000    4.803    0.000 {method 'issubset' of 'set' objects}
+     4134    2.866    0.001    2.881    0.001 opponent_inference.py:29(__init__)
+      800    1.729    0.002    6.568    0.008 phase2_torch.py:39(card_distribution)
+ 16108526    1.602    0.000    1.602    0.000 opponent_inference.py:70(<genexpr>)
+     6696    1.320    0.000    2.922    0.000 {built-in method numpy.fromiter}
+     1040    1.278    0.001    1.278    0.001 {built-in method torch.tensor}
+      554    0.615    0.001    0.646    0.001 opponent_inference.py:50(truco_call)
+     1600    0.541    0.000    0.579    0.000 opponent_inference.py:34(distribution)
+    16878    0.496    0.000    0.496    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+     3348    0.372    0.000    3.643    0.001 opponent_inference.py:68(_summary_arrays)
+     3348    0.361    0.000    4.579    0.001 opponent_inference.py:57(v3_summaries)
+        2    0.345    0.173   39.242   19.621 phase2_card_metrics.py:78(validation_predictions)
+    13530    0.218    0.000    0.218    0.000 {method 'cumsum' of 'numpy.ndarray' objects}
+     8222    0.205    0.000    0.205    0.000 {built-in method torch._C._nn.linear}
+      318    0.202    0.001    0.257    0.001 opponent_inference.py:38(declared_tantos)
+       98    0.126    0.001    0.127    0.001 opponent_inference.py:41(son_buenas)
+    34171    0.119    0.000    0.127    0.000 {built-in method builtins.sum}
+     2072    0.094    0.000    0.094    0.000 opponent_inference.py:168(reset)
+     3348    0.084    0.000   10.471    0.003 phase1_network.py:13(encode_observation)
+      800    0.082    0.000    0.082    0.000 {method 'sum' of 'torch._C.TensorBase' objects}
+     1674    0.080    0.000   16.713    0.010 phase2_torch.py:80(__call__)
+     6890    0.049    0.000    0.049    0.000 {method 'astype' of 'numpy.ndarray' objects}
+      800    0.046    0.000    0.046    0.000 {built-in method torch.softmax}
+      800    0.038    0.000    0.038    0.000 {method 'tolist' of 'torch._C.TensorBase' objects}
+     1674    0.036    0.000   16.366    0.010 phase2_network.py:42(encode_observation)
+      800    0.036    0.000    0.036    0.000 {method 'repeat_interleave' of 'torch._C.TensorBase' objects}
+    10414    0.029    0.000    0.057    0.000 truco_reglas.py:73(calcular_envido)
+23453/22529    0.028    0.000    0.040    0.000 {built-in method builtins.sorted}
+    53077    0.027    0.000    0.037    0.000 truco_reglas.py:23(valor_carta_truco)
+     5748    0.025    0.000    0.025    0.000 {built-in method torch.relu}
+       56    0.023    0.000   16.892    0.302 symmetric_engine.py:36(play_match)
+     2474    0.022    0.000    0.022    0.000 {built-in method torch.from_numpy}
+
+
+Sun Nov  8 19:55:34 2026    docs\perf\phase2-baseline\validation.json.pstats
+
+         98437665 function calls (98405430 primitive calls) in 39.242 seconds

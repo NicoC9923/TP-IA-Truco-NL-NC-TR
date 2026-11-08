@@ -1,0 +1,107 @@
+{
+  "configuration": {
+    "generations": 2,
+    "matches_per_generation": 96,
+    "matches_per_round": 96,
+    "block_size": 4,
+    "workers": 12,
+    "seed": 35,
+    "target": "mixed",
+    "minibatch": 512,
+    "panel_path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-perf-35\\experiments\\phase2-selection-panel\\panel-v0-measuring.json",
+    "panel_pairs": 100,
+    "head_to_head_pairs": 200,
+    "auxiliary": false,
+    "card_prediction_situations": 400,
+    "progress": true,
+    "champions_dir": null
+  },
+  "wall": 29.212271500000497,
+  "matches": 192,
+  "samples": 3861,
+  "updates": 8,
+  "matches_per_s": 6.572580293867142,
+  "samples_per_s": 132.17048184698456,
+  "actor_matches_per_s": 30.35488368813417,
+  "learner_seconds_per_update": 0.010637025000050926,
+  "rounds": [
+    {
+      "setup": 0.0012459999998100102,
+      "actors": 4.4128888999985065,
+      "merge": 0.0005057999987911899,
+      "learner": 0.044384400000126334,
+      "boundary": 0.020487400001002243,
+      "progress": 0.0011244000015722122
+    },
+    {
+      "setup": 0.0006829999983892776,
+      "actors": 1.969566700001451,
+      "merge": 0.0019672999987960793,
+      "learner": 0.04071180000028107,
+      "boundary": 21.086161700000957,
+      "progress": 0.023622099997737678
+    }
+  ],
+  "maps": [
+    {
+      "kind": "_league_chunk",
+      "wall": 4.383485400001518,
+      "actor_sum": 19.579260100010288,
+      "actor_max": 2.2513132999993104,
+      "wait_residual": 2.132172100002208,
+      "job_bytes": 21713974,
+      "result_bytes": 12757814,
+      "pickle_dump": 0.013662299999850802,
+      "pickle_load": 0.014984600002208026
+    },
+    {
+      "kind": "_league_chunk",
+      "wall": 1.9416912000015145,
+      "actor_sum": 17.59353679999549,
+      "actor_max": 1.9385788999970828,
+      "wait_residual": 0.003112300004431745,
+      "job_bytes": 21717492,
+      "result_bytes": 12554628,
+      "pickle_dump": 0.014195900002960116,
+      "pickle_load": 0.012861300001532072
+    },
+    {
+      "kind": "_check_chunk",
+      "wall": 20.892215800002305,
+      "actor_sum": 230.28197479998562,
+      "actor_max": 9.237584200000128,
+      "wait_residual": 11.654631600002176,
+      "job_bytes": 174657628,
+      "result_bytes": 8544,
+      "pickle_dump": 0.07752160000018193,
+      "pickle_load": 0.08596739999848069
+    }
+  ],
+  "validation_seconds": [],
+  "check_seconds": [
+    21.06383669999923
+  ],
+  "hashes": {
+    "model": "a07c9472fe3c1029dba78d55687f8fd0d1b25894440c697e3639286556b941ff",
+    "optimizer": "7794aff711679f622f3d089f0f3332d28c5a7dfb570565c82e962ce6d2244b08",
+    "log": "dc44ed9f3949269663833b00e84b78dcfe921e2c29c0465c3d615ceea1123ecf",
+    "samples": 3861,
+    "updates": 8,
+    "checkpoints": {
+      "checkpoint_000001.pt": "c258ebdf31ef4905bf6f3174e79f999e4fce682dffd88824951f71e6dddd41f1",
+      "checkpoint_000002.pt": "7f869751eac4726dfcfa91f039f94c80dc0d905feacce1353eccb000c674d504"
+    },
+    "snapshots": {
+      "generation_000001.pt": "89fa09dbd6a4f1bb30f0f7976d8e4610845d8e06458635e391d5563287db14c4",
+      "generation_000002.pt": "e161808ebe4c8d9989c379e793537dc03f7d559b906612ebe958836e9615786b"
+    }
+  },
+  "environment": {
+    "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "torch": "2.15.0+cpu",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "cpu": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
+    "logical_cpus": 16,
+    "revision": "7ed6b76078e7cb8c1527200ed0c9a7f3b732cda5"
+  }
+}
