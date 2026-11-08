@@ -44,7 +44,42 @@ def draw_opponent(seed, block_id, shares=None, pool=(), phase1=(), exclusions=()
             break
     style = category if category in STYLES else None
     candidates = pool if category == 'snapshot' or style else phase1 if category == 'phase1' else ()
-    opponent = identity(rng.choice(candidates)) if candidates else None
+    opponent = identity(rng.choice(candidates)) if candidates else 'current'
     offset = target_offset * min(1, matches_so_far / ramp_matches) if ramp_matches else target_offset
     return {'category': 'styled' if style else category, 'identity': opponent, 'style': style,
             'offset': offset if style else 0.0, 'neutral_profile': rng.random() < neutral_rate}
+
+
+
+def retain_snapshots(snapshots, recent=8, diverse=4, exclusions=()):
+    """Keep recent snapshots and older ones farthest from their nearest recent vector.
+
+    Only identical, nonempty panel score dimensions are comparable. Missing or
+    incompatible scores receive distance zero; hashes break ties ascending.
+    """
+    if recent < 0 or diverse < 0:
+        raise ValueError('Pool limits must be nonnegative')
+    eligible = sorted((s for s in snapshots if s['sha256'] not in exclusions),
+                      key=lambda s: (s['generation'], s['sha256']))
+    newest = eligible[-recent:] if recent else []
+    older = eligible[:-recent] if recent else eligible
+    def distance(candidate):
+        scores = candidate.get('scores', {})
+        distances = [sum(abs(scores[k] - other['scores'][k]) for k in scores)
+                     for other in newest if scores and scores.keys() == other.get('scores', {}).keys()]
+        return min(distances) if distances else 0
+    return newest + sorted(older, key=lambda s: (-distance(s), s['sha256']))[:diverse]
+
+
+def panel_exclusions(panel, history=()):
+    """Collect all hashes ever reserved by a selection panel."""
+    result = set()
+    for item in [panel, *history]:
+        if not item:
+            continue
+        result.update(member['sha256'] for member in item.get('members', []) if member.get('sha256'))
+        result.update(item.get('reserved', []))
+        pending = item.get('pending_member')
+        if isinstance(pending, dict) and pending.get('sha256'):
+            result.add(pending['sha256'])
+    return result

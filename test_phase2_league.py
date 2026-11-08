@@ -20,7 +20,7 @@ class LeagueTest(unittest.TestCase):
         draws = [draw_opponent(4, i, pool=['reserved'], phase1=['reserved', 'allowed'], exclusions={'reserved'}) for i in range(5000)]
         self.assertFalse(any(d['identity'] == 'reserved' or d['category'] == 'snapshot' for d in draws))
         self.assertAlmostEqual(sum(d['category'] == 'self' for d in draws) / len(draws), .7, delta=.025)
-        self.assertTrue(all(d['identity'] is None for d in draws if d['category'] == 'styled'))
+        self.assertTrue(all(d['identity'] == 'current' for d in draws if d['category'] in ('styled', 'self')))
 
     def test_ramp(self):
         shares = dict.fromkeys(('self', 'phase1', 'snapshot', 'bluffer', 'cautious', 'aggressive', 'calculating'), 0)
@@ -37,3 +37,19 @@ class LeagueTest(unittest.TestCase):
             (path / 'manifest.json').write_text(json.dumps({'members': [{'name': 'x', 'path': 'weights', 'sha256': 'bad'}]}))
             with self.assertRaises(ValueError):
                 load_phase1_manifest(path / 'manifest.json')
+
+
+class SnapshotPoolTest(unittest.TestCase):
+    def test_recent_diverse_excluded_and_ordered(self):
+        from proyecto.phase2_league import retain_snapshots
+        snapshots = [dict(generation=i, sha256=str(i), scores={'a': score}) for i, score in enumerate([0, .8, .2, .4, .5], 1)]
+        kept = retain_snapshots(snapshots, recent=2, diverse=1, exclusions={'2'})
+        self.assertEqual([s['sha256'] for s in kept], ['4', '5', '1'])
+        self.assertEqual(kept, retain_snapshots(list(reversed(snapshots)), recent=2, diverse=1, exclusions={'2'}))
+
+class PanelExclusionsTest(unittest.TestCase):
+    def test_all_panel_reservations(self):
+        from proyecto.phase2_league import panel_exclusions
+        current = {'members': [{'sha256': 'current'}], 'pending_member': {'sha256': 'pending'}}
+        history = [{'members': [{'sha256': 'old'}], 'reserved': ['retired']}]
+        self.assertEqual(panel_exclusions(current, history), {'current', 'pending', 'old', 'retired'})

@@ -172,5 +172,24 @@ class Phase2TrainerTest(unittest.TestCase):
             self.assertEqual({p.name for p in Path(directory).glob('checkpoint_*.pt')},
                              {'checkpoint_000002.pt', 'checkpoint_000003.pt'})
 
+
+
+class LeaguePoolCheckpointTest(unittest.TestCase):
+    def test_pool_survives_resume(self):
+        import tempfile
+        from pathlib import Path
+        from phase2_trainer import train
+        with tempfile.TemporaryDirectory() as directory:
+            options = dict(generations=3, matches_per_generation=1, matches_per_round=1,
+                           workers=1, target=1, panel_path=None, seed=8)
+            train(directory, stop_after_round=2, **options)
+            checkpoint = Path(directory) / 'checkpoint_000002.pt'
+            before = torch.load(checkpoint, weights_only=False)['league_pool']
+            self.assertEqual([s['generation'] for s in before], [1, 2])
+            train(directory, resume=checkpoint, **options)
+            after = torch.load(Path(directory) / 'checkpoint_000003.pt', weights_only=False)['league_pool']
+            self.assertEqual(before, after[:2])
+            self.assertEqual([s['generation'] for s in after], [1, 2, 3])
+
 if __name__ == '__main__':
     unittest.main()

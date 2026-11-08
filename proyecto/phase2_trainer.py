@@ -20,6 +20,7 @@ from phase1_network import ACTIONS, NetworkPolicy
 from phase2_torch import Phase2Network, Phase2Policy
 from symmetric_engine import play_match, play_mirror_pair
 from validation_schedule import validation_schedule
+from phase2_league import retain_snapshots, panel_exclusions
 from phase2_promotion import load_panel, check_seed, promotion_decision, saturated, build_panel, RESERVED_SEEDS
 
 def _configure_threads():
@@ -157,8 +158,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                random_start_share=.3, checkpoint_dir=None, config=None, resume_state=None,
                stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
                check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
-               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7):
-    if (min(rounds, matches_per_round, workers, minibatch) < 1 or seed < 0
+               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4):
+    if (min(rounds, matches_per_round, workers, minibatch) < 1 or min(pool_recent, pool_diverse) < 0 or seed < 0
             or (target != 'mixed' and (not isinstance(target, int) or target < 1))
             or not 0 <= random_start_share <= 1 or not math.isfinite(lr) or lr <= 0):
         raise ValueError('Invalid training configuration')
@@ -182,6 +183,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
     history = []
     snapshots = []
     panel_history = []
+    league_pool = []
     first_round = 0
     champion = None
     champion_generation = None
@@ -191,6 +193,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
         history = resume_state.get('saturation_history', [])
         snapshots = resume_state.get('panel_snapshots', [])
         panel_history = resume_state.get('panel_history', [])
+        league_pool = resume_state.get('league_pool', [])
         panel = resume_state.get('panel', panel)
         if panel is not None:
             _resolve_panel(panel, checkpoint_dir)
@@ -266,7 +269,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                                 panel = new_panel
                                 for member in panel['members']:
                                     member['path'] = os.path.relpath(member['resolved_path'], checkpoint_dir)
-                                panel_history.append(panel)
+                                panel_history.append(old_panel)
                                 path = Path(checkpoint_dir) / f"panel-v{panel['version']}.json"
                                 path.write_text(json.dumps(_portable(panel), indent=2) + '\n', encoding='utf-8')
                                 seed_for_overlap = check_seed(check_seed_base, generation - 2)
@@ -291,6 +294,10 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                             history = []
                     else:
                         changed = False
+                    league_pool.append({'generation': generation, 'path': snapshot.name,
+                                        'sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(),
+                                        'scores': {k: statistics.mean(v['challenger']) for k, v in result['members'].items()} if entry['check'] else {}})
+                    league_pool = retain_snapshots(league_pool, pool_recent, pool_diverse, panel_exclusions(panel, panel_history))
                     entry['champion'] = champion_generation
                     now = clock()
                     elapsed += now - run_tick
@@ -320,7 +327,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                              round=round_id + 1, generation=(round_id + 1) // generation_rounds,
                              matches=(round_id + 1) * matches_per_round, samples=total, updates=updates,
                              generation_samples=generation_samples, generation_updates=generation_updates,
-                             losses=losses, config=config, phase_ended=entry['phase_ended'] if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else False, stop_reason=entry.get('stop_reason') if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else None, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots), panel_history=_portable(panel_history), panel=_portable(panel), champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
+                             losses=losses, config=config, phase_ended=entry['phase_ended'] if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else False, stop_reason=entry.get('stop_reason') if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else None, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots), league_pool=_portable(league_pool), panel_history=_portable(panel_history), panel=_portable(panel), champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
                              numpy_rng=np.random.get_state(), torch_rng=torch.get_rng_state(),
                              shuffle_rng=rng.bit_generator.state)
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
@@ -346,7 +353,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
           random_start_share=.3, resume=None, stop_after_round=None, panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json',
           champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
           check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
-          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7):
+          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4):
     """Round each generation up to a whole number of rounds."""
     if min(generations, matches_per_generation, matches_per_round) < 1:
         raise ValueError('Generation and match counts must be positive')
@@ -359,7 +366,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         for member in panel['members']:
             member['resolved_path'] = str((Path(panel_path).resolve().parent / member['path']).resolve())
             member['path'] = os.path.relpath(member['resolved_path'], Path(directory).resolve())
-    config = dict(patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=str(Path(panel_path).resolve()) if panel_path else None,
+    config = dict(pool_recent=pool_recent, pool_diverse=pool_diverse, patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=str(Path(panel_path).resolve()) if panel_path else None,
                   panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs,
                   check_seed_base=check_seed_base, temperature=temperature, min_gain=min_gain, min_direct=min_direct,
                   matches_per_generation=matches_per_generation,
@@ -392,7 +399,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
                       resume_state=state, stop_after_round=stop_after_round, panel=panel, champions_dir=champions_dir,
                       panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs, check_seed_base=check_seed_base,
-                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold)
+                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
