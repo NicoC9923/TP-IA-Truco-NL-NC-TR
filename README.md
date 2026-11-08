@@ -67,3 +67,9 @@ de cada articulacion del modelo.
 
 Flags: `--sin-ventana` (modo consola), `--dds` (SDK real de Unitree, solo
 Linux + Python 3.10), `--puerto`, `--solo-revisar`.
+
+## Phase 2 network dependency
+
+The phase 2 network and policy require PyTorch on CPU. Install it separately with
+`python -m pip install torch --index-url https://download.pytorch.org/whl/cpu`.
+The game, phase 1, and the phase 2 observation encoder do not require PyTorch.

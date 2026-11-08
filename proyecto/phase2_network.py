@@ -39,16 +39,18 @@ class _FixedInference:
     def update(self, obs, bluff_rate):
         return self.belief
 
-def encode_observation(obs, profile, legal_actions, *, weighted_beliefs=True):
+def encode_observation(obs, profile, legal_actions, *, weighted_beliefs=True,
+                       exact_inference=None, weighted_inference=None):
     if len(obs['history']) > MAX_EVENTS:
         raise ValueError('Current hand event capacity exceeded')
-    exact = inference_from_observation(obs, 1.0)
+    exact = (exact_inference.update(obs, 1.0) if exact_inference is not None
+             else inference_from_observation(obs, 1.0))
     summary = encode_v3(obs, profile, _FixedInference(exact), encoder='v3')
     result = np.zeros(INPUT_SIZE, dtype=np.float32)
     result[INDEX['summary']] = summary
     result[INDEX['exact_belief']] = summary[50:55]
     if weighted_beliefs:
-        weighted = encode_v3(obs, profile, encoder='v3')
+        weighted = encode_v3(obs, profile, weighted_inference, encoder='v3')
         result[INDEX['weighted_belief']] = weighted[50:55]
     result[INDEX['confidence']] = list(profile.confidence().values())
     player = obs['player']
