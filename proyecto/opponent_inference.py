@@ -31,15 +31,18 @@ class Inference:
         deck = [(v, p) for p in rules.PALOS for v in rules.VALORES]
         self.played = set()
         self.weights = {hand: 1.0 for hand in combinations((c for c in deck if c not in own_cards), 3)}
+        self._summary_cache = None
 
     def distribution(self):
         total = sum(self.weights.values())
         return {hand: weight / total for hand, weight in self.weights.items()}
 
     def declared_tantos(self, value):
+        self._summary_cache = None
         self.weights = {h: w for h, w in self.weights.items() if _tantos(h) == value}
 
     def son_buenas(self, own_tantos, opponent_is_mano):
+        self._summary_cache = None
         self.weights = {h: w for h, w in self.weights.items()
                         if _tantos(h) < own_tantos or (not opponent_is_mano and _tantos(h) == own_tantos)}
 
@@ -49,12 +52,14 @@ class Inference:
         # only remove hands or change weights, never restore excluded hands.
         if not excluded and played.issubset(self.played):
             return
+        self._summary_cache = None
         self.played.update(played)
         self.weights = {h: w for h, w in self.weights.items() if not excluded.intersection(h) and played.issubset(h)}
 
     def truco_call(self, bluff_rate):
         if not 0 <= bluff_rate <= 1:
             raise ValueError('Bluff rate must be between zero and one')
+        self._summary_cache = None
         for hand in self.weights:
             strength = _strength(hand) / 24.7
             self.weights[hand] *= bluff_rate + (1 - bluff_rate) * (0.1 + strength)
@@ -71,6 +76,9 @@ class Inference:
         return _ordered_sum(weights * brava), _ordered_sum(weights * strength), outcomes
 
     def _summary_arrays(self):
+        # All evidence and weight mutators invalidate this derived state.
+        if self._summary_cache is not None:
+            return self._summary_cache
         # Dict iteration preserves the original posterior order, including after filters.
         ids = np.fromiter((_HAND_IDS[h] for h in self.weights), dtype=np.int64)
         weights = np.fromiter(self.weights.values(), dtype=np.float64)
@@ -83,7 +91,8 @@ class Inference:
         counts = np.maximum(remaining.sum(axis=1), 1)
         brava = (_BRAVAS[cards] & remaining).any(axis=1)
         strength = _strength_table()[tuple((ranks + 1).T)]
-        return weights, ranks, counts, brava, strength
+        self._summary_cache = weights, ranks, counts, brava, strength
+        return self._summary_cache
 
     def summaries(self, card, *, ties_win=False):
         weights, ranks, counts, brava, strength = self._summary_arrays()
