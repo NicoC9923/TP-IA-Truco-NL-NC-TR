@@ -61,3 +61,18 @@ class Phase2EncoderTests(unittest.TestCase):
         self.assertTrue(np.any(enabled[INDEX['weighted_belief']] != 0))
         self.assertTrue(np.all(disabled[INDEX['weighted_belief']] == 0))
         np.testing.assert_array_equal(enabled[INDEX['exact_belief']], disabled[INDEX['exact_belief']])
+
+    def test_confidence_is_normalized_by_prior(self):
+        self.profile.counts['fold'] = [2, 20]
+        x = self.encode(self.obs)
+        self.assertAlmostEqual(x[INDEX['confidence']][1], .5)
+
+    def test_weighted_belief_equals_exact_at_bluff_one(self):
+        class CertainProfile(OpponentProfile):
+            def rates(self, adapt=True):
+                rates = super().rates(adapt)
+                rates['bluff'] = 1.0
+                return rates
+        obs = dict(self.obs, history=((1, 'truco'),))
+        x = encode_observation(obs, CertainProfile(), ('card_0',))
+        np.testing.assert_array_equal(x[INDEX['exact_belief']], x[INDEX['weighted_belief']])

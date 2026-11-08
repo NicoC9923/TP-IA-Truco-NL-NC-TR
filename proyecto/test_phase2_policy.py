@@ -1,14 +1,17 @@
 import os
-import subprocess
-import sys
 import tempfile
 import unittest
 import numpy as np
-import torch
+try:
+    import torch
+except ImportError:
+    torch = None
 from phase1_network import NetworkPolicy, GENOME_SIZE
-from phase2_torch import Phase2Network, Phase2Policy
+if torch is not None:
+    from phase2_torch import Phase2Network, Phase2Policy
 from symmetric_engine import play_match, play_mirror_pair
 
+@unittest.skipUnless(torch is not None, 'PyTorch is optional')
 class Phase2PolicyTests(unittest.TestCase):
     def test_random_policies_play_mirror_matches(self):
         for opponent in (Phase2Policy(seed=2), NetworkPolicy(np.zeros(GENOME_SIZE), encoder='v1'), NetworkPolicy(np.zeros(GENOME_SIZE), encoder='v3')):
@@ -42,23 +45,47 @@ class Phase2PolicyTests(unittest.TestCase):
 
     def test_incremental_matches_fresh_encoding(self):
         from phase2_network import encode_observation
-        for weighted in (True, False):
-            policy = Phase2Policy(seed=3, weighted_beliefs=weighted)
-            checked_hands = set()
-            class CheckingPolicy:
-                def __call__(self, obs, legal):
-                    expected = encode_observation(obs, policy.profile, legal, weighted_beliefs=weighted)
-                    actual = policy.encode(obs, legal)
-                    np.testing.assert_array_equal(actual, expected)
-                    checked_hands.add(obs['hand'])
-                    return policy(obs, legal)
-                def observe_hand(self, decisions, opponent):
-                    policy.observe_hand(decisions, opponent)
-            for seed in (15, 28, 43):
-                play_match(CheckingPolicy(), Phase2Policy(seed=8), seed=seed, target=5)
-            self.assertGreaterEqual(len(checked_hands), 3)
+        for target in (15, 30):
+            for weighted in (True, False):
+                policy = Phase2Policy(seed=3, weighted_beliefs=weighted)
+                cases = set()
+                checked_hands = set()
+                class CheckingPolicy:
+                    def __call__(self, obs, legal):
+                        expected = encode_observation(obs, policy.profile, legal, weighted_beliefs=weighted)
+                        actual = policy.encode(obs, legal)
+                        np.testing.assert_array_equal(actual, expected)
+                        checked_hands.add(obs['hand'])
+                        if obs['envido_reveal']:
+                            cases.add('reveal')
+                            if any(value == 'son buenas' for _, value in obs['envido_reveal']['declarations']):
+                                cases.add('son buenas')
+                        return policy(obs, legal)
+                    def observe_hand(self, decisions, opponent):
+                        if any(d['action'] == 'fold' for d in decisions):
+                            cases.add('fold')
+                        policy.observe_hand(decisions, opponent)
+                for seed in range(12):
+                    play_match(CheckingPolicy(), Phase2Policy(seed=seed + 50), seed=seed, target=target)
+                    if len(checked_hands) >= 3 and cases == {'reveal', 'son buenas', 'fold'}:
+                        break
+                self.assertGreaterEqual(len(checked_hands), 3)
+                self.assertEqual(cases, {'reveal', 'son buenas', 'fold'})
 
-    def test_torch_optional(self):
-        script = "import sys; sys.modules['torch']=None; import symmetric_engine, phase1_network, phase1_trainer, phase2_network, partida_truco"
-        result = subprocess.run([sys.executable, '-c', script], cwd=os.path.dirname(__file__), capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
+    def test_same_seed_initializes_same_weights_and_actions(self):
+        first, second = Phase2Policy(seed=123), Phase2Policy(seed=123)
+        for a, b in zip(first.model.parameters(), second.model.parameters()):
+            self.assertTrue(torch.equal(a, b))
+        obs = {'player': 0, 'hand': ((1, 'Espada'), (2, 'Oro'), (3, 'Copa')), 'available': (0, 1, 2), 'score': (0, 0), 'target': 15, 'mano': 0, 'table': (), 'tricks': (), 'truco': 1, 'pending': None, 'history': (), 'envido_done': False, 'envido_reveal': None, 'raise_owner': None}
+        for _ in range(10):
+            self.assertEqual(first(obs, ('card_0', 'card_1')), second(obs, ('card_0', 'card_1')))
+
+    def test_style_offset_and_legal_mask(self):
+        model = Phase2Network()
+        with torch.no_grad():
+            for p in model.parameters(): p.zero_()
+        obs = {'player': 0, 'hand': ((1, 'Espada'), (2, 'Oro'), (3, 'Copa')), 'available': (0, 1, 2), 'score': (0, 0), 'target': 15, 'mano': 0, 'table': (), 'tricks': (), 'truco': 1, 'pending': None, 'history': (), 'envido_done': False, 'envido_reveal': None, 'raise_owner': None}
+        policy = Phase2Policy(model=model, style='aggressive', style_strength=.1, temperature=.1)
+        policy(obs, ('card_0', 'real_envido'))
+        self.assertAlmostEqual(policy.last_probabilities['real_envido'] / policy.last_probabilities['card_0'], np.e, places=6)
+        self.assertNotIn('card_1', policy.last_probabilities)

@@ -45,8 +45,12 @@ class OpponentProfile:
                     if pending and pending['kind'] == 'truco' and action in TRUCO_RESOLUTION_ACTIONS:
                         self._record('fold', action == 'fold')
                 envido_actions = ('envido', 'real_envido', 'falta_envido')
-                if any(any(a in d['legal_actions'] for a in envido_actions) for d in hand):
-                    self._record('envido_called', any(a in envido_actions for a in actions))
+                opening_decisions = [d for d in hand
+                                     if (not d['observation'].get('pending') or
+                                         d['observation']['pending']['kind'] != 'envido')
+                                     and any(a in d['legal_actions'] for a in envido_actions)]
+                if opening_decisions:
+                    self._record('envido_called', any(d['action'] in envido_actions for d in opening_decisions))
             else:
                 self._record('fold', 'fold' in actions)
                 self._record('envido_called', any(a in ('envido', 'real_envido', 'falta_envido') for a in actions))

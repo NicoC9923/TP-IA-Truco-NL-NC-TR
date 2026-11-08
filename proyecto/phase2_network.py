@@ -2,7 +2,7 @@
 
 INDEX maps all zero-based input ranges: summary 0:64 (phase 1 v3 map,
 with exact rather than weighted beliefs at 50:55); confidence 64:68
-(bluff, fold, accept, envido counts); buenas 68:70 (self, opponent);
+(bluff, fold, accept, envido; n / (n + prior strength)); buenas 68:70 (self, opponent);
 own_cards 70:190 (three 40-way slots, suit then rules.VALORES);
 legal_actions 190:202 (phase1_network.ACTIONS order); events 202:1618
 (24 rows of 59); exact_belief 1618:1623 and weighted_belief 1623:1628
@@ -52,7 +52,8 @@ def encode_observation(obs, profile, legal_actions, *, weighted_beliefs=True,
     if weighted_beliefs:
         weighted = encode_v3(obs, profile, weighted_inference, encoder='v3')
         result[INDEX['weighted_belief']] = weighted[50:55]
-    result[INDEX['confidence']] = list(profile.confidence().values())
+    result[INDEX['confidence']] = [n / (n + profile.prior_strength)
+                                    for n in profile.confidence().values()]
     player = obs['player']
     result[INDEX['buenas']] = [obs['target'] != 30 or obs['score'][player] >= 15,
                                obs['target'] != 30 or obs['score'][1-player] >= 15]

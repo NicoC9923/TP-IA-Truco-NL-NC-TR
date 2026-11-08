@@ -9,12 +9,14 @@ from phase2_network import INPUT_SIZE, encode_observation
 from symmetric_engine import bluff
 
 class Phase2Network(nn.Module):
-    def __init__(self):
+    def __init__(self, seed=0):
         super().__init__()
-        self.layers = nn.Sequential(nn.Linear(INPUT_SIZE, 256), nn.ReLU(),
+        with torch.random.fork_rng():
+            torch.manual_seed(seed)
+            self.layers = nn.Sequential(nn.Linear(INPUT_SIZE, 256), nn.ReLU(),
                                     nn.Linear(256, 128), nn.ReLU(), nn.Linear(128, len(ACTIONS)))
-        nn.init.uniform_(self.layers[-1].weight, -0.001, 0.001)
-        nn.init.zeros_(self.layers[-1].bias)
+            nn.init.uniform_(self.layers[-1].weight, -0.001, 0.001)
+            nn.init.zeros_(self.layers[-1].bias)
 
     def forward(self, inputs):
         return self.layers(inputs)
@@ -29,13 +31,14 @@ class Phase2Network(nn.Module):
         return model
 
 class Phase2Policy:
+    """Sample with a seeded RNG that continues across matches."""
     def __init__(self, model=None, *, seed=0, temperature=0.1, profile=None,
                  weighted_beliefs=True, style=None, style_strength=0.1):
         if not np.isfinite(temperature) or temperature <= 0:
             raise ValueError('temperature must be positive and finite')
         if style not in (None, 'bluffer', 'calculating', 'cautious', 'aggressive'):
             raise ValueError('Unknown style')
-        self.model = model if model is not None else Phase2Network()
+        self.model = model if model is not None else Phase2Network(seed=seed)
         self.profile = profile if profile is not None else OpponentProfile()
         self.rng = np.random.default_rng(seed)
         self.temperature = temperature

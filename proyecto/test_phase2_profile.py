@@ -28,4 +28,27 @@ class Phase2ProfileTests(unittest.TestCase):
         profile.observe([decision], 1, semantics='phase2')
         self.assertEqual(profile.confidence()['fold'], 2)
 
+    def test_response_to_envido_is_not_opening_opportunity(self):
+        profile = OpponentProfile()
+        response = {'player': 1, 'action': 'real_envido', 'hand_index': 0,
+                    'observation': {'pending': {'kind': 'envido'}},
+                    'legal_actions': ['quiero', 'real_envido']}
+        profile.observe([response], 1, semantics='phase2')
+        self.assertEqual(profile.confidence()['envido_called'], 0)
+        opening = dict(response, hand_index=1, observation={'pending': None})
+        profile.observe([opening], 1, semantics='phase2')
+        self.assertEqual(profile.confidence()['envido_called'], 1)
+        self.assertAlmostEqual(profile.rates()['envido_called'], 11/21)
+
+    def test_no_quiero_is_non_acceptance_but_not_mazo(self):
+        profile = OpponentProfile(prior_strength=2)
+        response = {'player': 1, 'action': 'no_quiero', 'observation': {'pending': {'kind': 'truco'}}, 'legal_actions': ['quiero', 'no_quiero', 'fold']}
+        profile.observe([response], 1, semantics='phase2')
+        self.assertAlmostEqual(profile.rates()['fold'], 1/3)
+        self.assertAlmostEqual(profile.rates()['truco_accepted'], 1/3)
+        response['action'] = 'fold'
+        profile.observe([response], 1, semantics='phase2')
+        self.assertAlmostEqual(profile.rates()['fold'], 1/2)
+        self.assertAlmostEqual(profile.rates()['truco_accepted'], 1/4)
+
 if __name__ == '__main__': unittest.main()
