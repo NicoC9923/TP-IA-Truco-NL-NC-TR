@@ -10,6 +10,16 @@ from phase1_network import ACTIONS
 from phase2_torch import Phase2Network, Phase2Policy
 from symmetric_engine import play_match
 
+def _configure_threads():
+    torch.set_num_threads(1)
+    # PyTorch allows setting inter-op threads only once, before parallel work.
+    # Repeated calls are safe when this process is already configured.
+    if torch.get_num_interop_threads() != 1:
+        try:
+            torch.set_num_interop_threads(1)
+        except RuntimeError as exc:
+            raise RuntimeError('Phase 2 requires one inter-op thread before parallel work') from exc
+
 class RecordingPolicy(Phase2Policy):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -29,7 +39,7 @@ class RecordingPolicy(Phase2Policy):
 
 def _match(args):
     weights, seed, match_id, target = args
-    torch.set_num_threads(1)
+    _configure_threads()
     model = Phase2Network()
     model.load_state_dict(weights)
     seeds = np.random.SeedSequence([seed, match_id]).generate_state(3)
@@ -48,7 +58,7 @@ class RoundResult:
     last_samples: list
 
 def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target=15, lr=3e-4, minibatch=512):
-    torch.set_num_threads(1)
+    _configure_threads()
     torch.use_deterministic_algorithms(True)
     model = Phase2Network(seed=seed)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
