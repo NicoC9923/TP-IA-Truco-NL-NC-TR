@@ -2,14 +2,14 @@
 import numpy as np
 import torch
 from torch import nn
-from opponent_inference import IncrementalInference
+from opponent_inference import IncrementalInference, Inference, _CARD_IDS
 from opponent_profile import OpponentProfile
 from phase1_network import ACTIONS
 from phase2_network import INPUT_SIZE, encode_observation
 from symmetric_engine import bluff
 
 class Phase2Network(nn.Module):
-    def __init__(self, seed=0):
+    def __init__(self, seed=0, auxiliary=False):
         super().__init__()
         with torch.random.fork_rng():
             torch.manual_seed(seed)
@@ -17,9 +17,14 @@ class Phase2Network(nn.Module):
                                     nn.Linear(256, 128), nn.ReLU(), nn.Linear(128, len(ACTIONS)))
             nn.init.uniform_(self.layers[-1].weight, -0.001, 0.001)
             nn.init.zeros_(self.layers[-1].bias)
+            if auxiliary:
+                self.card_head = nn.Sequential(nn.Linear(128, 64), nn.ReLU(), nn.Linear(64, 40))
 
     def forward(self, inputs):
         return self.layers(inputs)
+
+    def card_logits(self, inputs):
+        return self.card_head(self.layers[:4](inputs))
 
     def save(self, path):
         torch.save(self.state_dict(), path)
@@ -29,6 +34,31 @@ class Phase2Network(nn.Module):
         model = cls()
         model.load_state_dict(torch.load(path, map_location='cpu', weights_only=True))
         return model
+
+def card_distribution(logits, observation):
+    """Return compatible original hands, their probabilities and hidden-card marginals."""
+    belief = Inference(observation['hand'])
+    opponent = 1 - observation['player']
+    played = [card for player, card in observation['table'] if player == opponent]
+    belief.seen_cards(opponent_played=played)
+    reveal = observation.get('envido_reveal')
+    if reveal:
+        declarations = dict(reveal['declarations'])
+        value = declarations[opponent]
+        if value == 'son buenas':
+            belief.son_buenas(declarations[observation['player']], opponent == observation['mano'])
+        else:
+            belief.declared_tantos(value)
+    hands = tuple(belief.weights)
+    if not hands:
+        raise ValueError('No hands compatible with observation')
+    ids = torch.tensor([[_CARD_IDS[c] for c in hand] for hand in hands], device=logits.device)
+    probabilities = torch.softmax(logits[ids].sum(dim=1), dim=0)
+    marginals = torch.zeros(40, dtype=logits.dtype, device=logits.device)
+    marginals = marginals.scatter_add(0, ids.flatten(), probabilities.repeat_interleave(3))
+    if played:
+        marginals = marginals.scatter(0, torch.tensor([_CARD_IDS[c] for c in played], device=logits.device), 0.0)
+    return hands, probabilities, marginals
 
 class Phase2Policy:
     """Sample with a seeded RNG that continues across matches."""
