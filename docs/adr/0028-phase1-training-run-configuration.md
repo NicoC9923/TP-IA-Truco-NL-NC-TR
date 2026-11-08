@@ -51,3 +51,7 @@ The [encoder v3 seed 1 experiment](../../experiments/phase1-encoder-v3-seed1/REA
 The [matched encoder seed 2 record](../../experiments/phase1-seed2-matched/README.md) documents the subsequent comparison and decision.
 
 ADR 0038 provisionally adopts v2 for future phase 1 experiments while retaining the v1 CLI default.
+
+The [champion round robin](../../experiments/phase1-champion-round-robin/README.md) describes frozen-network comparisons without selecting a replacement.
+
+The [matched encoder seed 3 record](../../experiments/phase1-seed3-matched/README.md) documents the third-seed comparison.

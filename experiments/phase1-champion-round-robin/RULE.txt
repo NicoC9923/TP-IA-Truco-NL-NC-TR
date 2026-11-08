@@ -1,0 +1,8 @@
+Pre-registered (2026-11-08, before running): network-only round robin of 8 frozen champions, to describe opponent-dependent strength.
+Networks (frozen by SHA-256, recorded in results.json; encoder from sidecar, else v1):
+  run1-g48 (shipped, v1), v1s1-g23 (v1), v1s2-g2 (v1), gate53-g26 (v1),
+  v2s1-g46 (v2), v2s2-g25 (v2), v3s1-g55 (v3), v3s2-g50 (v3).
+Each of the 28 pairs plays 1000 mirror pairs on its own fresh validation-partition schedule seed 9301..9328 (pair index order as listed), never used before.
+Report per pair: win rate of the first network and paired 95% margin. A pair counts as a clear win when the lower bound > 50%.
+Non-transitivity: list every 3-cycle A>B>C>A where all three edges are clear wins. Also report each network's mean win rate over its 7 opponents.
+Descriptive only: no champion is replaced and nothing is selected from this; reference opponents are not used. One run, no retries.
