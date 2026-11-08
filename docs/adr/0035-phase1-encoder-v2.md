@@ -16,3 +16,5 @@ The input audit is v1-only: its face-value probe is hardcoded and must be update
 The [encoder v2 seed 1 experiment](../../experiments/phase1-encoder-v2-seed1/README.md) records the result and shipping decision.
 
 ADR 0036 defines the later v3-core experiment; this v2 interpretation and its existing artifacts remain unchanged.
+
+The [matched encoder seed 2 record](../../experiments/phase1-seed2-matched/README.md) documents the subsequent comparison and decision.

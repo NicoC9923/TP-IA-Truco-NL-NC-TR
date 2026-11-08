@@ -1,0 +1,101 @@
+{
+  "candidate": {
+    "path": "training_output\\phase1_encoder_v2_seed2\\reigning_champion.npy",
+    "sha256": "3f25fb0b59b5c7a10c4666bb2450717f822ad6d13c8283a217069645a7f68a06",
+    "encoder": "v2"
+  },
+  "baseline": {
+    "path": "experiments\\phase1-seed2\\reigning_champion.npy",
+    "sha256": "5f00bfbaa27d7ee9fcedd7610ca36b092c71b8e935218a8f337a7cc1e25a3e79",
+    "encoder": "v1"
+  },
+  "schedule_seeds": {
+    "baseline": 9211,
+    "panel": 9212
+  },
+  "candidate_vs_baseline": {
+    "win_rate": 0.546875,
+    "margin_of_error": 0.009206905716470001,
+    "pairs": 4000
+  },
+  "panel": [
+    {
+      "name": "run1-gen22",
+      "sha256": "24d716b552d0ce9b14adde6c5943c89fd55fcb4013a07114d8af6306b8764e6b",
+      "candidate": {
+        "win_rate": 0.5565,
+        "margin_of_error": 0.019269342489040976,
+        "pairs": 1000
+      },
+      "baseline": {
+        "win_rate": 0.5325,
+        "margin_of_error": 0.02001677749742404,
+        "pairs": 1000
+      }
+    },
+    {
+      "name": "run1-gen48",
+      "sha256": "0b3e04fad09334f60d2d416b9c6848c7b3aabcfa6bb0d6593ac825feb32e47f7",
+      "candidate": {
+        "win_rate": 0.5045,
+        "margin_of_error": 0.018314945941630426,
+        "pairs": 1000
+      },
+      "baseline": {
+        "win_rate": 0.489,
+        "margin_of_error": 0.0200345638871963,
+        "pairs": 1000
+      }
+    },
+    {
+      "name": "run2-gen12",
+      "sha256": "1c2b8378a0b7056d2d8c049f36aceb1a64e6a3e01c1ad89eb851e598d2c8db8d",
+      "candidate": {
+        "win_rate": 0.5215,
+        "margin_of_error": 0.01784252718020001,
+        "pairs": 1000
+      },
+      "baseline": {
+        "win_rate": 0.47,
+        "margin_of_error": 0.019668548797809455,
+        "pairs": 1000
+      }
+    },
+    {
+      "name": "seed1-gen9",
+      "sha256": "7aeea8e634424b51913c8f5686b26f13ee7162e647d5f1f2de052e2f754ae2e4",
+      "candidate": {
+        "win_rate": 0.537,
+        "margin_of_error": 0.019076119834702965,
+        "pairs": 1000
+      },
+      "baseline": {
+        "win_rate": 0.494,
+        "margin_of_error": 0.019752829586585224,
+        "pairs": 1000
+      }
+    },
+    {
+      "name": "seed1-gen23",
+      "sha256": "413542520b893418371fa0ff29b4b693d0675ef60cd4be55f8e782dd544db31c",
+      "candidate": {
+        "win_rate": 0.5235,
+        "margin_of_error": 0.01893110834745983,
+        "pairs": 1000
+      },
+      "baseline": {
+        "win_rate": 0.447,
+        "margin_of_error": 0.02081699048115968,
+        "pairs": 1000
+      }
+    },
+    {
+      "name": "seed2-gen2",
+      "sha256": "5f00bfbaa27d7ee9fcedd7610ca36b092c71b8e935218a8f337a7cc1e25a3e79",
+      "skipped": "baseline is panel member"
+    }
+  ],
+  "candidate_panel_mean": 0.5286,
+  "baseline_panel_mean": 0.48650000000000004,
+  "decision": "promising"
+}

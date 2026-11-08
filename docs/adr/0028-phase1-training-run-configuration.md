@@ -47,3 +47,5 @@ The [53% gate seed 1 experiment](../../experiments/phase1-gate53-seed1/README.md
 The [encoder v2 seed 1 experiment](../../experiments/phase1-encoder-v2-seed1/README.md) records training and the frozen panel decision.
 
 The [encoder v3 seed 1 experiment](../../experiments/phase1-encoder-v3-seed1/README.md) records training and the frozen panel decision.
+
+The [matched encoder seed 2 record](../../experiments/phase1-seed2-matched/README.md) documents the subsequent comparison and decision.

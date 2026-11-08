@@ -88,3 +88,5 @@ Bare genomes and checkpoints without encoder metadata remain v1. V3 genomes have
 The leak contract is that an encoding is determined only by the player's own cards and public observation, including public plays, calls, scores and declarations. The posterior never reads actual hidden opponent cards. Its expectation remains a model under uniform remaining-card play, not a claim about the opponent's strategic choice.
 
 The [encoder v3 seed 1 experiment](../../experiments/phase1-encoder-v3-seed1/README.md) records training and the frozen panel decision.
+
+The [matched encoder seed 2 record](../../experiments/phase1-seed2-matched/README.md) documents the subsequent comparison and decision.
