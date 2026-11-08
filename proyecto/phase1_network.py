@@ -160,7 +160,7 @@ class NetworkPolicy:
         if path.suffix != '.npy':
             path = Path(str(path) + '.npy')
         metadata = path.with_suffix('.encoder.json')
-        if self.encoder == 'v2':
+        if self.encoder in ('v2', 'v3'):
             metadata.write_text(json.dumps({'encoder': self.encoder}), encoding='utf-8')
         elif metadata.exists():
             metadata.unlink()

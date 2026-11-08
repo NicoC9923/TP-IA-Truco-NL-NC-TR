@@ -14,6 +14,7 @@ from validation_schedule import validation_schedule
 PANEL = Path(__file__).resolve().parent.parent / 'experiments/panel-v1'
 BASELINE_SEED = 9001
 PANEL_SEED = 9002
+RESERVED_SEEDS = frozenset((9001, 9002, 9101))
 
 
 def digest(path):
@@ -42,9 +43,11 @@ def decision(direct, candidate_rates, baseline_rates):
     return 'no demonstrated benefit'
 
 
-def evaluate(candidate, baseline, *, panel_dir=PANEL, baseline_pairs=4000, panel_pairs=1000, workers=12, candidate_encoder=None, baseline_encoder=None):
+def evaluate(candidate, baseline, *, panel_dir=PANEL, baseline_pairs=4000, panel_pairs=1000, workers=12, candidate_encoder=None, baseline_encoder=None, baseline_seed=BASELINE_SEED, panel_seed=PANEL_SEED, allow_reused_seeds=False):
     if min(baseline_pairs, panel_pairs) < 2 or workers < 1:
         raise ValueError('pairs must be at least 2 and workers positive')
+    if not allow_reused_seeds and ({baseline_seed, panel_seed} & RESERVED_SEEDS):
+        raise ValueError('reserved schedule seed requires allow_reused_seeds')
     candidate, baseline, panel_dir = Path(candidate), Path(baseline), Path(panel_dir)
     chash, bhash = digest(candidate), digest(baseline)
     a_policy = NetworkPolicy.load(candidate, **({'encoder': candidate_encoder} if candidate_encoder else {}))
@@ -57,7 +60,7 @@ def evaluate(candidate, baseline, *, panel_dir=PANEL, baseline_pairs=4000, panel
     for member in members:
         if digest(panel_dir / member['file']) != member['sha256']:
             raise ValueError('panel hash mismatch: ' + member['name'])
-    direct = _measure(a, b, baseline_pairs, BASELINE_SEED, workers, candidate_encoder, baseline_encoder)
+    direct = _measure(a, b, baseline_pairs, baseline_seed, workers, candidate_encoder, baseline_encoder)
     rows = []
     for member in members:
         row = {'name': member['name'], 'sha256': member['sha256']}
@@ -71,15 +74,15 @@ def evaluate(candidate, baseline, *, panel_dir=PANEL, baseline_pairs=4000, panel
             row['skipped'] = 'baseline is panel member'
         else:
             opponent = policy.genome
-            row['candidate'] = _measure(a, opponent, panel_pairs, PANEL_SEED, workers, candidate_encoder, member_encoder)
-            row['baseline'] = _measure(b, opponent, panel_pairs, PANEL_SEED, workers, baseline_encoder, member_encoder)
+            row['candidate'] = _measure(a, opponent, panel_pairs, panel_seed, workers, candidate_encoder, member_encoder)
+            row['baseline'] = _measure(b, opponent, panel_pairs, panel_seed, workers, baseline_encoder, member_encoder)
         rows.append(row)
     compared = [r for r in rows if 'candidate' in r]
     candidate_rates = [r['candidate']['win_rate'] for r in compared]
     baseline_rates = [r['baseline']['win_rate'] for r in compared]
     return {'candidate': {'path': str(candidate), 'sha256': chash, 'encoder': candidate_encoder},
             'baseline': {'path': str(baseline), 'sha256': bhash, 'encoder': baseline_encoder},
-            'schedule_seeds': {'baseline': BASELINE_SEED, 'panel': PANEL_SEED},
+            'schedule_seeds': {'baseline': baseline_seed, 'panel': panel_seed},
             'candidate_vs_baseline': direct, 'panel': rows,
             'candidate_panel_mean': float(np.mean(candidate_rates)) if compared else None,
             'baseline_panel_mean': float(np.mean(baseline_rates)) if compared else None,
@@ -90,17 +93,22 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--candidate', required=True)
     parser.add_argument('--baseline', required=True)
-    parser.add_argument('--candidate-encoder', choices=('v1', 'v2'))
-    parser.add_argument('--baseline-encoder', choices=('v1', 'v2'))
+    parser.add_argument('--candidate-encoder', choices=('v1', 'v2', 'v3'))
+    parser.add_argument('--baseline-encoder', choices=('v1', 'v2', 'v3'))
     parser.add_argument('--output', required=True)
     parser.add_argument('--panel-dir', default=str(PANEL))
     parser.add_argument('--baseline-pairs', type=int, default=4000)
     parser.add_argument('--panel-pairs', type=int, default=1000)
     parser.add_argument('--workers', type=int, default=12)
+    parser.add_argument('--baseline-seed', type=int, default=BASELINE_SEED)
+    parser.add_argument('--panel-seed', type=int, default=PANEL_SEED)
+    parser.add_argument('--allow-reused-seeds', action='store_true')
     args = parser.parse_args()
     if min(args.baseline_pairs, args.panel_pairs) < 2 or args.workers < 1:
         parser.error('pairs must be at least 2 and workers positive')
-    report = evaluate(args.candidate, args.baseline, panel_dir=args.panel_dir, baseline_pairs=args.baseline_pairs, panel_pairs=args.panel_pairs, workers=args.workers, candidate_encoder=args.candidate_encoder, baseline_encoder=args.baseline_encoder)
+    if not args.allow_reused_seeds and ({args.baseline_seed, args.panel_seed} & RESERVED_SEEDS):
+        parser.error('reserved schedule seed requires --allow-reused-seeds')
+    report = evaluate(args.candidate, args.baseline, panel_dir=args.panel_dir, baseline_pairs=args.baseline_pairs, panel_pairs=args.panel_pairs, workers=args.workers, candidate_encoder=args.candidate_encoder, baseline_encoder=args.baseline_encoder, baseline_seed=args.baseline_seed, panel_seed=args.panel_seed, allow_reused_seeds=args.allow_reused_seeds)
     Path(args.output).write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(report, indent=2))
 

@@ -84,7 +84,7 @@ def evaluate(directory, *, pairs=1000, seed=None, target=None, only_new=False, w
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', default='training_output/phase1')
-    parser.add_argument('--encoder', choices=('v1', 'v2'))
+    parser.add_argument('--encoder', choices=('v1', 'v2', 'v3'))
     parser.add_argument('--pairs', type=int, default=1000)
     parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--target', type=int, default=None)

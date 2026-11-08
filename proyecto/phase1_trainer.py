@@ -20,6 +20,7 @@ def _evaluate(job):
     genome, opponent, seed, target, starting_score, style = job[:6]
     strength = job[6] if len(job) > 6 else 1.0
     # Legacy short jobs represent v1 policies on both sides.
+    # Profile counting semantics are fixed by each policy's encoder version.
     encoder_a, encoder_b = job[7:9] if len(job) >= 9 else ('v1', 'v1')
     a = NetworkPolicy(genome, seed=seed * 2, encoder=encoder_a)
     b = NetworkPolicy(opponent, seed=seed * 2 + 1, style=style, style_strength=strength, encoder=encoder_b)
@@ -79,7 +80,7 @@ def league_scores(population, schedule, hall, reigning, workers, style_strength,
     return scores, results
 
 def train(directory, population_size=64, generations=1, pairs=1, workers=16, target=None, seed=0, validation_pairs=1000, promotion_threshold=.55, patience=50, resume=None, check_batch=200, finalists=8, finalist_pairs_multiplier=4, output_init_sigma=.3, fitness_mode="classic", points_weight=.1, style_strength=.5, styles_after_first_promotion=True, early_stop=None, extend_patience=None, encoder='v1'):
-    if encoder not in ('v1', 'v2'):
+    if encoder not in ('v1', 'v2', 'v3'):
         raise ValueError('Unknown encoder')
     if extend_patience is not None and not resume:
         raise ValueError("--extend-patience requires --resume")
@@ -234,7 +235,7 @@ def train(directory, population_size=64, generations=1, pairs=1, workers=16, tar
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', default='training_output/phase1')
-    parser.add_argument('--encoder', choices=('v1', 'v2'), default='v1')
+    parser.add_argument('--encoder', choices=('v1', 'v2', 'v3'), default='v1')
     parser.add_argument('--population', type=int, default=64)
     parser.add_argument('--generations', type=int, default=1)
     parser.add_argument('--pairs', type=int, default=8)

@@ -45,7 +45,7 @@ class PanelTests(unittest.TestCase):
                 winner = 0 if a[0] == 1 else 1
                 return [(SimpleNamespace(winner=winner), 0), (SimpleNamespace(winner=1-winner), 1)]
             with patch.object(panel, '_evaluate', side_effect=fake):
-                report = panel.evaluate(root / 'candidate.npy', root / 'baseline.npy', panel_dir=root, baseline_pairs=2, panel_pairs=2, workers=1)
+                report = panel.evaluate(root / 'candidate.npy', root / 'baseline.npy', panel_dir=root, baseline_pairs=2, panel_pairs=2, workers=1, allow_reused_seeds=True)
             self.assertEqual(report['candidate_vs_baseline']['win_rate'], 1)
             self.assertEqual(report['panel'][0]['skipped'], 'candidate is panel member')
             self.assertEqual(report['candidate_panel_mean'], 1)
@@ -66,7 +66,7 @@ class PanelTests(unittest.TestCase):
                 winner = 0 if a[0] == 1 else 1
                 return [(SimpleNamespace(winner=winner), 0), (SimpleNamespace(winner=1-winner), 1)]
             with patch.object(panel, '_evaluate', side_effect=fake):
-                report = panel.evaluate(root / 'candidate.npy', root / 'baseline.npy', panel_dir=root, baseline_pairs=2, panel_pairs=2, workers=1)
+                report = panel.evaluate(root / 'candidate.npy', root / 'baseline.npy', panel_dir=root, baseline_pairs=2, panel_pairs=2, workers=1, allow_reused_seeds=True)
             self.assertEqual(report['panel'][0]['skipped'], 'baseline is panel member')
             self.assertNotIn('candidate', report['panel'][0])
             self.assertEqual([r['name'] for r in report['panel'] if 'candidate' in r], ['other'])

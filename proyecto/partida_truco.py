@@ -33,6 +33,8 @@ class PartidaTruco:
         self.ia = AgenteTrucoIA(historial_path=historial_path, rng=self.rng, champions_dir=champions_dir)
         profile_path = Path(historial_path).with_name('opponent_profile.json') if historial_path else Path(__file__).with_name('opponent_profile.json')
         self.opponent_profile = OpponentProfile(profile_path)
+        # Legacy aggregates include interruptions and cannot be converted reliably.
+        # Preserve them and accumulate v3 semantics independently from neutral.
         self.opponent_profile_v3 = OpponentProfile(profile_path.with_name('opponent_profile_v3.json'))
         self.adapt_to_opponent = True
         self.network = None

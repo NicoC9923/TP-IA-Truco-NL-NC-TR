@@ -133,6 +133,11 @@ class EngineTests(unittest.TestCase):
                 result = play_match(policy, policy, seed=seed, target=1)
                 score = human.estado_publico()['tanteador']
                 self.assertEqual(result.points, (score['humano'], score['robot']))
+                if fold:
+                    self.assertEqual(result.decisions[0]['action'], 'fold')
+                else:
+                    self.assertIn(None, result.decisions[2]['observation']['tricks'])
+                    self.assertEqual(human.ganadores_ronda[0], 'parda')
 
     def test_human_match_equivalence_when_envido_interrupts_truco(self):
         import contextlib
@@ -157,6 +162,9 @@ class EngineTests(unittest.TestCase):
             result = play_match(a, b, seed=3, target=3)
             score = human.estado_publico()['tanteador']
             self.assertEqual(result.points, (score['humano'], score['robot']))
+            self.assertEqual([d['action'] for d in result.decisions[:4]], ['truco', 'envido', 'quiero', 'no_quiero'])
+            self.assertEqual([d['action'] for d in human._human_decisions[:1]], ['truco'])
+            self.assertEqual(human._human_decisions[1]['observation']['pending']['kind'], 'envido')
 
     def test_fold_during_envido_awards_declined_envido_and_hand(self):
         def caller(obs, actions):
