@@ -32,6 +32,26 @@ class Inference:
             strength = _strength(hand) / 24.7
             self.weights[hand] *= bluff_rate + (1 - bluff_rate) * (0.1 + strength)
 
+    def v3_summaries(self, cards, available, *, estimate_outcomes):
+        """Compute v3 public summaries and slot outcomes in one posterior pass."""
+        distribution = self.distribution()
+        bravas = {(1, 'Espada'), (1, 'Basto'), (7, 'Espada'), (7, 'Oro')}
+        ranks = [rules.valor_carta_truco(*card) for card in cards]
+        brava_probability = 0.0
+        expected_strength = 0.0
+        outcomes = [0.0, 0.0, 0.0]
+        for hand, weight in distribution.items():
+            remaining = [c for c in hand if c not in self.played]
+            brava_probability += weight * bool(bravas.intersection(remaining))
+            expected_strength += weight * _strength(tuple(remaining))
+            if estimate_outcomes and remaining:
+                other_ranks = [rules.valor_carta_truco(*c) for c in remaining]
+                for i in available:
+                    rank = ranks[i]
+                    outcomes[i] += weight * sum((rank > other) - (rank < other)
+                                                for other in other_ranks) / len(remaining)
+        return brava_probability, expected_strength, outcomes
+
     def summaries(self, card, *, ties_win=False):
         distribution = self.distribution()
         rank = rules.valor_carta_truco(*card)

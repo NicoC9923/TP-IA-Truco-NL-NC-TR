@@ -66,30 +66,18 @@ def encode_observation(obs, profile, inference=None, encoder='v1'):
     rates = profile.rates()
     belief = (inference.update(obs, rates['bluff']) if inference is not None
               else inference_from_observation(obs, rates['bluff']))
-    card = obs['hand'][obs['available'][0]] if obs['available'] else obs['hand'][0]
-    summaries = belief.summaries(card, ties_win=obs['mano'] == player)
     if encoder == 'v3':
-        values.extend((summaries['brava_probability'], summaries['expected_strength'] / 24.7))
         current = obs['table'][2 * len(obs['tricks']):]
         opposing = next((card for actor, card in current if actor != player), None)
-        distribution = belief.distribution() if opposing is None else None
-        for i, card in enumerate(obs['hand']):
-            if i not in obs['available']:
-                values.append(0)
-            elif opposing is not None:
-                own_rank = rules.valor_carta_truco(*card)
-                other_rank = rules.valor_carta_truco(*opposing)
-                values.append((own_rank > other_rank) - (own_rank < other_rank))
-            else:
-                own_rank = rules.valor_carta_truco(*card)
-                expectation = 0.0
-                for hand, weight in distribution.items():
-                    remaining = [c for c in hand if c not in belief.played]
-                    if remaining:
-                        expectation += weight * sum((own_rank > rules.valor_carta_truco(*c)) -
-                                                    (own_rank < rules.valor_carta_truco(*c))
-                                                    for c in remaining) / len(remaining)
-                values.append(expectation)
+        brava, strength, outcomes = belief.v3_summaries(
+            obs['hand'], obs['available'], estimate_outcomes=opposing is None)
+        values.extend((brava, strength / 24.7))
+        if opposing is not None:
+            other_rank = rules.valor_carta_truco(*opposing)
+            for i in obs['available']:
+                rank = rules.valor_carta_truco(*obs['hand'][i])
+                outcomes[i] = (rank > other_rank) - (rank < other_rank)
+        values.extend(outcomes)
         values.extend(rates.values())
         values.append(len(obs['tricks']) / 2)
         if pending and pending['kind'] == 'envido':
@@ -102,6 +90,8 @@ def encode_observation(obs, profile, inference=None, encoder='v1'):
         else:
             values.extend((0, 0, 0))
     else:
+        card = obs['hand'][obs['available'][0]] if obs['available'] else obs['hand'][0]
+        summaries = belief.summaries(card, ties_win=obs['mano'] == player)
         values.extend((summaries['brava_probability'], summaries['expected_strength'] / 24.7, summaries['next_trick_win_probability']))
         values.extend(rates.values())
     values.extend([0] * (INPUTS - len(values)))
