@@ -1,0 +1,6 @@
+{"members": [
+  {"name":"gate53-g26", "path":"../phase1-gate53-seed1/reigning_champion.npy", "kind":"phase1", "encoder":"v1", "sha256":"b00e64118ce54e8063b7eb61c8085ec6093f732c00112d61a26a608ee666f5fd"},
+  {"name":"v3s1-g55", "path":"../phase1-encoder-v3-seed1/reigning_champion.npy", "kind":"phase1", "encoder":"v3", "sha256":"24773046ba6753f1f13614fda74d15a31b1756c2976a76cc6eb384504a311763"},
+  {"name":"v3s2-g50", "path":"../phase1-seed2-matched/v3/reigning_champion.npy", "kind":"phase1", "encoder":"v3", "sha256":"6664e68379ef90db275ab6432b2a2b3df3562104bfe24a239e671452d77bae38"},
+  {"name":"v2s3-g23", "path":"../phase1-seed3-matched/v2/reigning_champion.npy", "kind":"phase1", "encoder":"v2", "sha256":"8777c3302d504dd8ac4375013098b78a58a4ac0dfd38b57ecb87431fd7c0d7de"}
+]}
