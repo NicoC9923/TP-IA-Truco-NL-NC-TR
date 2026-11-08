@@ -71,7 +71,13 @@ class Phase2Policy:
         weights = np.exp(logits - logits.max())
         probabilities = weights / weights.sum()
         self.last_probabilities = dict(zip(legal_actions, map(float, probabilities)))
-        return legal_actions[self.rng.choice(len(legal_actions), p=probabilities)]
+        action = legal_actions[self.rng.choice(len(legal_actions), p=probabilities)]
+        self.record_decision(inputs, action)
+        return action
+
+    def record_decision(self, inputs, action):
+        """Hook for consumers that collect decisions during training."""
+        pass
 
     def observe_hand(self, decisions, opponent):
         self.profile.observe(decisions, opponent, semantics='phase2')
