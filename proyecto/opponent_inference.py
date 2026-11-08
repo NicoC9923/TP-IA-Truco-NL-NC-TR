@@ -100,11 +100,45 @@ def _tantos(hand):
     return rules.calcular_envido([{'valor': v, 'palo': p} for v, p in hand])
 
 
-def inference_from_observation(obs, bluff_rate):
+def compact_evidence(obs):
+    opponent = 1 - obs['player']
+    own = tuple(_CARD_IDS[c] for c in obs['hand'])
+    played = tuple(_CARD_IDS[c] for player, c in obs['table'] if player == opponent)
+    reveal = obs.get('envido_reveal')
+    declared, upper = -1, 34
+    if reveal:
+        declarations = dict(reveal['declarations'])
+        value = declarations[opponent]
+        if value == 'son buenas':
+            upper = declarations[obs['player']] - int(opponent == obs['mano'])
+        else:
+            declared = value
+    return own, played, declared, upper
+
+
+@lru_cache(maxsize=1)
+def _hand_tantos():
+    return np.array([_tantos(hand) for hand in _HANDS])
+
+
+def compatible_mask(evidence):
+    masks = np.ones((len(evidence), len(_HANDS)), dtype=bool)
+    tantos = _hand_tantos()
+    for row, (own, played, declared, upper) in zip(masks, evidence):
+        for card in own:
+            row &= ~(_IDS == card).any(axis=1)
+        for card in played:
+            row &= (_IDS == card).any(axis=1)
+        if declared >= 0:
+            row &= tantos == declared
+        row &= tantos <= upper
+    return masks
+
+
+def exact_inference_from_observation(obs):
     belief = Inference(obs['hand'])
     opponent = 1 - obs['player']
-    played = [card for player, card in obs['table'] if player == opponent]
-    belief.seen_cards(opponent_played=played)
+    belief.seen_cards(opponent_played=[card for player, card in obs['table'] if player == opponent])
     reveal = obs.get('envido_reveal')
     if reveal:
         declarations = dict(reveal['declarations'])
@@ -113,6 +147,12 @@ def inference_from_observation(obs, bluff_rate):
             belief.son_buenas(declarations[obs['player']], opponent == obs['mano'])
         else:
             belief.declared_tantos(value)
+    return belief
+
+
+def inference_from_observation(obs, bluff_rate):
+    belief = exact_inference_from_observation(obs)
+    opponent = 1 - obs['player']
     for player, action in obs['history']:
         if player == opponent and action in ('truco', 'retruco', 'vale_cuatro'):
             belief.truco_call(bluff_rate)

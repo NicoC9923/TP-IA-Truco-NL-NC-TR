@@ -2,7 +2,7 @@
 import numpy as np
 import torch
 from torch import nn
-from opponent_inference import IncrementalInference, Inference, _CARD_IDS
+from opponent_inference import IncrementalInference, exact_inference_from_observation, _CARD_IDS
 from opponent_profile import OpponentProfile
 from phase1_network import ACTIONS
 from phase2_network import INPUT_SIZE, encode_observation
@@ -31,24 +31,16 @@ class Phase2Network(nn.Module):
 
     @classmethod
     def load(cls, path):
-        model = cls()
-        model.load_state_dict(torch.load(path, map_location='cpu', weights_only=True))
+        weights = torch.load(path, map_location='cpu', weights_only=True)
+        model = cls(auxiliary='card_head.0.weight' in weights)
+        model.load_state_dict(weights)
         return model
 
 def card_distribution(logits, observation):
     """Return compatible original hands, their probabilities and hidden-card marginals."""
-    belief = Inference(observation['hand'])
+    belief = exact_inference_from_observation(observation)
     opponent = 1 - observation['player']
     played = [card for player, card in observation['table'] if player == opponent]
-    belief.seen_cards(opponent_played=played)
-    reveal = observation.get('envido_reveal')
-    if reveal:
-        declarations = dict(reveal['declarations'])
-        value = declarations[opponent]
-        if value == 'son buenas':
-            belief.son_buenas(declarations[observation['player']], opponent == observation['mano'])
-        else:
-            belief.declared_tantos(value)
     hands = tuple(belief.weights)
     if not hands:
         raise ValueError('No hands compatible with observation')

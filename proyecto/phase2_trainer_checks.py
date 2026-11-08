@@ -10,6 +10,62 @@ class Phase2TrainerTest(unittest.TestCase):
         b = run_rounds(seed=7, rounds=2, matches_per_round=2, workers=2, target=1)
         self.assertTrue(all(torch.equal(a.model.state_dict()[k], v) for k, v in b.model.state_dict().items()))
         self.assertGreater(a.samples, 0)
+    def test_auxiliary_workers_and_resume(self):
+        import tempfile
+        from pathlib import Path
+        from phase2_trainer import train
+        config = dict(generations=1, matches_per_generation=2, matches_per_round=1,
+                      block_size=1, seed=9, target=1, minibatch=8, panel_path=None,
+                      auxiliary=True, progress=False)
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            one = train(root / 'one', workers=1, **config)
+            two = train(root / 'two', workers=2, **config)
+            train(root / 'resume', workers=1, stop_after_round=1, **config)
+            checkpoint = root / 'resume' / 'checkpoint_000001.pt'
+            with self.assertRaisesRegex(ValueError, 'configuration'):
+                train(root / 'resume', workers=1, resume=checkpoint, **{**config, 'auxiliary': False})
+            resumed = train(root / 'resume', workers=1, resume=checkpoint, **config)
+            for key, tensor in one.model.state_dict().items():
+                self.assertTrue(torch.equal(tensor, two.model.state_dict()[key]), key)
+                self.assertTrue(torch.equal(tensor, resumed.model.state_dict()[key]), key)
+            for key, state in one.optimizer.state_dict()['state'].items():
+                for name, value in state.items():
+                    self.assertTrue(torch.equal(value, resumed.optimizer.state_dict()['state'][key][name]))
+
+    def test_head_off_prechange_golden(self):
+        import hashlib, json, tempfile
+        from pathlib import Path
+        from phase2_trainer import train
+        with tempfile.TemporaryDirectory() as directory:
+            result = train(directory, generations=1, matches_per_generation=1,
+                           matches_per_round=1, block_size=1, seed=19, target=1,
+                           panel_path=None, progress=False)
+            digest = hashlib.sha256()
+            def update(value):
+                if torch.is_tensor(value):
+                    digest.update(value.detach().numpy().tobytes())
+                elif isinstance(value, dict):
+                    for key in sorted(value, key=str):
+                        digest.update(str(key).encode())
+                        update(value[key])
+                elif isinstance(value, (list, tuple)):
+                    for item in value:
+                        update(item)
+                else:
+                    digest.update(repr(value).encode())
+            update(result.model.state_dict())
+            update(result.optimizer.state_dict())
+            self.assertEqual(digest.hexdigest(), '3e22bbd092f4e3a8e54196fcecbb603ee7f5e7713d8dbdbb3a4f385c42af8215')
+            entry = json.loads((Path(directory) / 'generations.jsonl').read_text())
+            entry.pop('elapsed_seconds')
+            self.assertEqual(entry, {'behavior': None, 'champion': 1, 'check': None,
+                'diversity': None, 'example_hand': None, 'fitness': None, 'generation': 1,
+                'league_mix': {'phase1': 1}, 'learner_samples': 1, 'matches': 1,
+                'mean_loss': 0.9995097517967224, 'measuring_only': False, 'neutral_blocks': 0,
+                'phase': 2, 'phase1_opponents': {'v3s1-g55': 1}, 'phase_ended': False,
+                'promoted': False, 'stop_reason': None, 'style_offset_round_end': 5e-06, 'updates': 1})
+
     def test_updates_and_seed(self):
         from phase2_torch import Phase2Network
         a = run_rounds(seed=11, rounds=1, matches_per_round=1, target=1)

@@ -23,6 +23,41 @@ class AuxiliaryTest(unittest.TestCase):
         self.assertAlmostEqual(float(probabilities.sum()), 1.0, places=6)
         self.assertAlmostEqual(float(marginals.sum()), 3.0, places=4)
 
+    def test_vectorized_filter_matches_distribution(self):
+        from opponent_inference import compact_evidence, compatible_mask, _HANDS
+        obs = dict(hand=((1, 'Espada'), (2, 'Oro'), (3, 'Basto')), player=0, mano=0,
+                   table=[(1, (7, 'Copa'))], history=[],
+                   envido_reveal={'declarations': [(0, 30), (1, 33)]})
+        hands, _, _ = card_distribution(torch.zeros(40), obs)
+        mask = compatible_mask([compact_evidence(obs)])[0]
+        self.assertEqual(set(hands), {hand for hand, included in zip(_HANDS, mask) if included})
+        obs['envido_reveal'] = {'declarations': [(0, 30), (1, 'son buenas')]}
+        hands, _, _ = card_distribution(torch.zeros(40), obs)
+        mask = compatible_mask([compact_evidence(obs)])[0]
+        self.assertEqual(set(hands), {hand for hand, included in zip(_HANDS, mask) if included})
+
+    def test_auxiliary_training_samples_have_labels(self):
+        from phase2_trainer import run_rounds
+        result = run_rounds(seed=3, rounds=1, matches_per_round=4, auxiliary=True)
+        self.assertTrue(result.last_samples)
+        self.assertEqual(len(result.last_samples[0]), 6)
+
+    def test_nll_decreases_on_fixed_hand(self):
+        obs = dict(hand=((1, 'Espada'), (2, 'Oro'), (3, 'Basto')), player=0, mano=0,
+                   table=[], history=[])
+        logits = torch.nn.Parameter(torch.zeros(40))
+        optimizer = torch.optim.SGD([logits], lr=1.0)
+        losses = []
+        for _ in range(4):
+            hands, probabilities, _ = card_distribution(logits, obs)
+            label = hands.index(((3, 'Espada'), (1, 'Basto'), (2, 'Basto')))
+            loss = -probabilities[label].log()
+            losses.append(float(loss.detach()))
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        self.assertLess(losses[-1], losses[0])
+
     def test_head_off_preserves_output(self):
         model = Phase2Network(seed=4)
         self.assertEqual(sum(p.numel() for p in model.parameters()), 451468)

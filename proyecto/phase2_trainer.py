@@ -20,6 +20,7 @@ import numpy as np
 import torch
 from phase1_network import ACTIONS, NetworkPolicy
 from phase2_torch import Phase2Network, Phase2Policy
+from opponent_inference import compact_evidence, compatible_mask, _IDS, _CARD_IDS, _HAND_IDS, _DECK
 from symmetric_engine import play_match, play_mirror_pair
 from validation_schedule import validation_schedule
 from phase2_league import retain_snapshots, panel_exclusions, draw_opponent, load_phase1_manifest, validate_shares, DEFAULT_SHARES
@@ -58,7 +59,7 @@ def match_settings(seed, match_id, target='mixed', random_start_share=.3):
 
 def _matches(args):
     weights, seed, ids, target, random_start_share = args
-    model = Phase2Network()
+    model = Phase2Network(auxiliary='card_head.0.weight' in weights)
     model.load_state_dict(weights)
     results = []
     for match_id in ids:
@@ -68,6 +69,18 @@ def _matches(args):
         result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score)
         samples = [(x, action, 1.0 if seat == result.winner else -1.0, seat)
                    for seat, policy in enumerate(policies) for x, action in policy.samples]
+        if hasattr(model, 'card_head'):
+            decisions = [[d for d in result.decisions if d['player'] == seat] for seat in range(2)]
+            offsets = [0, 0]
+            enriched = []
+            for sample in samples:
+                seat = sample[3]
+                decision = decisions[seat][offsets[seat]]
+                offsets[seat] += 1
+                hand = result.deals[decision['hand_index']][1 - seat]
+                ordered = tuple(sorted(hand, key=_CARD_IDS.__getitem__))
+                enriched.append((*sample, compact_evidence(decision['observation']), _HAND_IDS[ordered]))
+            samples = enriched
         results.append((match_id, samples))
     return results
 
@@ -90,7 +103,7 @@ def _load_league_opponent(identity, member, category):
 
 def _league_block(args):
     weights, seed, ids, target, random_start_share, spec, opponents, temperature = args
-    model = Phase2Network()
+    model = Phase2Network(auxiliary='card_head.0.weight' in weights)
     model.load_state_dict(weights)
     identity = spec['identity']
     opponent_model = model
@@ -118,6 +131,18 @@ def _league_block(args):
         samples = [(x, action, 1.0 if seat == result.winner else -1.0, seat)
                    for seat, policy in enumerate(policies) if isinstance(policy, RecordingPolicy)
                    for x, action in policy.samples]
+        if hasattr(model, 'card_head'):
+            decisions = [[d for d in result.decisions if d['player'] == seat] for seat in range(2)]
+            offsets = [0, 0]
+            enriched = []
+            for sample in samples:
+                seat = sample[3]
+                decision = decisions[seat][offsets[seat]]
+                offsets[seat] += 1
+                hand = result.deals[decision['hand_index']][1 - seat]
+                ordered = tuple(sorted(hand, key=_CARD_IDS.__getitem__))
+                enriched.append((*sample, compact_evidence(decision['observation']), _HAND_IDS[ordered]))
+            samples = enriched
         results.append((match_id, samples))
     return results
 
@@ -132,7 +157,7 @@ def _check_pair(job):
     challenger, opponent, deal_seed, target, action_seed, temperature = job
     def policy(spec, seed):
         if spec['kind'] == 'phase2':
-            model = Phase2Network()
+            model = Phase2Network(auxiliary='card_head.0.weight' in spec['weights'])
             model.load_state_dict(spec['weights'])
             return Phase2Policy(model, seed=seed, temperature=temperature)
         return NetworkPolicy(spec['weights'], seed=seed, encoder=spec['encoder'])
@@ -218,7 +243,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                random_start_share=.3, checkpoint_dir=None, config=None, resume_state=None,
                stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
                check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
-               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress_path=None, console=None):
+               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress_path=None, console=None, auxiliary=False, auxiliary_weight=.1):
+    if not math.isfinite(auxiliary_weight) or auxiliary_weight < 0:
+        raise ValueError('Invalid auxiliary loss weight')
     if (min(rounds, matches_per_round, workers, minibatch) < 1 or min(pool_recent, pool_diverse) < 0 or seed < 0
             or (target != 'mixed' and (not isinstance(target, int) or target < 1))
             or not 0 <= random_start_share <= 1 or not math.isfinite(lr) or lr <= 0):
@@ -237,7 +264,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
     shares = validate_shares(league_shares)
     _configure_threads()
     torch.use_deterministic_algorithms(True)
-    model = Phase2Network(seed=seed)
+    model = Phase2Network(seed=seed, auxiliary=auxiliary)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     rng = np.random.default_rng(seed)
     total = updates = 0
@@ -328,6 +355,15 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 actions = torch.tensor([last[i][1] for i in indices])
                 targets = torch.tensor([last[i][2] for i in indices])
                 loss = torch.nn.functional.mse_loss(model(x).gather(1, actions[:, None]).squeeze(1), targets)
+                if auxiliary:
+                    masks = torch.from_numpy(compatible_mask([last[i][4] for i in indices]))
+                    hand_ids = torch.from_numpy(_IDS)
+                    scores = model.card_logits(x)[:, hand_ids].sum(dim=2)
+                    labels = torch.tensor([last[i][5] for i in indices])
+                    if not masks[torch.arange(len(indices)), labels].all():
+                        raise ValueError('True hand excluded by exact evidence')
+                    scores = scores.masked_fill(~masks, float('-inf'))
+                    loss = loss + auxiliary_weight * torch.nn.functional.cross_entropy(scores, labels)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -470,7 +506,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
           random_start_share=.3, resume=None, stop_after_round=None, panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json',
           champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
           check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
-          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None):
+          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None, auxiliary=False, auxiliary_weight=.1):
     """Round match counts up to complete blocks and generations to complete rounds."""
     if min(generations, matches_per_generation, matches_per_round, block_size) < 1:
         raise ValueError('Generation and match counts must be positive')
@@ -491,6 +527,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                   matches_per_generation=matches_per_generation,
                   matches_per_round=matches_per_round, seed=seed, target=target,
                   lr=lr, minibatch=minibatch, random_start_share=random_start_share)
+    config.update(auxiliary=auxiliary, auxiliary_weight=auxiliary_weight)
     generation_rounds = (matches_per_generation + matches_per_round - 1) // matches_per_round
     output = Path(directory).resolve()
     if resume and Path(resume).resolve().parent != output:
@@ -500,10 +537,12 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
     if old_config is not None:
         old_config.pop('workers', None)
         old_config.pop('generations', None)
+        old_config.setdefault('auxiliary', False)
+        old_config.setdefault('auxiliary_weight', .1)
     if state is not None and old_config != config:
         raise ValueError('Checkpoint configuration does not match')
     if state is not None and state.get('phase_ended'):
-        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console)
+        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight)
     output.mkdir(parents=True, exist_ok=True)
     log_path = output / 'generations.jsonl'
     if state is None:
@@ -518,7 +557,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
                       resume_state=state, stop_after_round=stop_after_round, panel=panel, champions_dir=champions_dir,
                       panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs, check_seed_base=check_seed_base,
-                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console)
+                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -553,6 +592,8 @@ def main():
     parser.add_argument('--neutral-rate', type=float, default=.05)
     parser.add_argument('--phase1-manifest')
     parser.add_argument('--no-progress', action='store_true', help='skip progress.json and the terminal lines')
+    parser.add_argument('--auxiliary', action='store_true')
+    parser.add_argument('--auxiliary-weight', type=float, default=.1)
     parser.add_argument('--resume')
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--minibatch', type=int, default=512)
