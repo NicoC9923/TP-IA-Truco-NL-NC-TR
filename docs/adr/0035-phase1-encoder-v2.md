@@ -12,3 +12,5 @@ Bare `.npy` genomes and checkpoints without encoder metadata mean v1. A v2 genom
 
 The input audit is v1-only: its face-value probe is hardcoded and must be updated before auditing v2. This experiment does not alter fitness, promotion gates, or shipped artifacts; a separate evaluation is required before considering adoption.
 
+
+The [encoder v2 seed 1 experiment](../../experiments/phase1-encoder-v2-seed1/README.md) records the result and shipping decision.

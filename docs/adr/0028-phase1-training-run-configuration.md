@@ -43,3 +43,5 @@ Extra [seed 1](../../experiments/phase1-seed1/README.md) and [seed 2](../../expe
 The [fresh-deal diagnostic](../../experiments/phase1-fresh-deal-diagnostic/README.md) records the pre-registered near-miss comparisons.
 
 The [53% gate seed 1 experiment](../../experiments/phase1-gate53-seed1/README.md) records training and the frozen panel decision.
+
+The [encoder v2 seed 1 experiment](../../experiments/phase1-encoder-v2-seed1/README.md) records training and the frozen panel decision.
