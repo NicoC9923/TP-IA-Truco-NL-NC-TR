@@ -87,6 +87,22 @@ class Phase2RoutesTest(unittest.TestCase):
                 self.assertEqual(get('reference'), [])
 
 
+class Phase1SourceTest(unittest.TestCase):
+    def test_source_tells_live_committed_or_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with running(root, 'phase1') as get:
+                self.assertEqual(get('source'), {'source': 'empty'})
+                folder = root / 'champions' / 'phase1'
+                folder.mkdir(parents=True)
+                (folder / 'generations.jsonl').write_text('{"generation": 1}')
+                self.assertEqual(get('source'), {'source': 'committed'})
+                live = root / 'training_output' / 'phase1'
+                live.mkdir(parents=True)
+                (live / 'generations.jsonl').write_text('{"generation": 2}')
+                self.assertEqual(get('source'), {'source': 'live'})
+
+
 class ExampleHandTest(unittest.TestCase):
     def setUp(self):
         try:
@@ -120,17 +136,49 @@ class ExampleHandTest(unittest.TestCase):
             self.assertTrue(all(0 <= p <= 100 for p in pcts))
         self.assertTrue(all('top' not in s for s in first['steps'] if s['by'] == 'rival'))
 
-    def test_uses_recorded_temperature_with_default_fallback(self):
+    def test_temperature_comes_from_the_same_run_as_the_champion(self):
+        from phase2_example_hand import find_run
         with tempfile.TemporaryDirectory() as tmp:
             root = self.make_root(tmp)
-            with running(root) as get:
-                self.assertEqual(get('example-hand')['temperature'], 0.1)
-                put(root, 'champions', 'progress.json', '{"temperature": 0.3}')
-                self.assertEqual(get('example-hand')['temperature'], 0.3)
-                put(root, 'training_output', 'progress.json', '{"temperature": 0.5}')
-                self.assertEqual(get('example-hand')['temperature'], 0.5)
-                put(root, 'training_output', 'progress.json', '{"temperature": -1}')
-                self.assertEqual(get('example-hand')['temperature'], 0.3)
+            committed, live = root / 'champions/phase2', root / 'training_output/phase2'
+            self.assertEqual(find_run(root)[1], 0.1)
+            (committed / 'progress.json').write_text('{"temperature": 0.4}')
+            self.assertEqual(find_run(root)[1], 0.4)
+            (committed / 'reigning_champion.json').write_text('{"temperature": 0.3}')
+            self.assertEqual(find_run(root)[1], 0.3)
+            # a live progress file without a live champion must not leak into the committed champion
+            put(root, 'training_output', 'progress.json', '{"temperature": 0.9}')
+            self.assertEqual(find_run(root), (committed / 'reigning_champion.pt', 0.3))
+            # a live champion with no recorded temperature does not borrow the committed one
+            (live / 'reigning_champion.pt').write_bytes(b'x')
+            self.assertEqual(find_run(root), (live / 'reigning_champion.pt', 0.9))
+            (live / 'progress.json').unlink()
+            self.assertEqual(find_run(root), (live / 'reigning_champion.pt', 0.1))
+            (live / 'reigning_champion.json').write_text('{"temperature": -2}')
+            self.assertEqual(find_run(root)[1], 0.1)
+
+    def test_payload_reports_temperature_and_is_cached_by_identity(self):
+        from unittest.mock import patch
+        import symmetric_engine
+        from phase2_example_hand import example_hand_payload
+        real = symmetric_engine.play_match
+        calls = []
+        def counting(*a, **k):
+            calls.append(1)
+            return real(*a, **k)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            (root / 'champions/phase2/reigning_champion.json').write_text('{"temperature": 0.3}')
+            with patch('symmetric_engine.play_match', counting):
+                first = example_hand_payload(root)
+                second = example_hand_payload(root)
+                self.assertEqual((first, len(calls)), (second, 1))
+                self.assertEqual(first['temperature'], 0.3)
+                (root / 'champions/phase2/reigning_champion.json').write_text('{"temperature": 0.5}')
+                self.assertEqual(example_hand_payload(root)['temperature'], 0.5)
+                self.assertEqual(len(calls), 2)
+                (root / 'champions/phase2/reigning_champion.pt').write_bytes(b'broken')
+                self.assertEqual(example_hand_payload(root), {'available': False, 'reason': 'unreadable_champion'})
 
     def test_live_champion_wins_over_committed(self):
         from phase2_example_hand import find_champion

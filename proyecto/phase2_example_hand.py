@@ -3,13 +3,18 @@
 Torch is optional, so everything torch-related is imported lazily and a missing
 torch (or a missing champion) yields an "unavailable" payload instead of an error.
 """
+import hashlib
 import json
+import threading
 import math
 from pathlib import Path
 
 SEED = 7
 DEFAULT_TEMPERATURE = 0.1
 CHAMPION_FILE = 'reigning_champion.pt'
+SIDECAR_FILE = 'reigning_champion.json'
+_cache = {}
+_cache_lock = threading.Lock()
 OPPONENT_FILE = Path('champions') / 'phase1' / 'reigning_champion.npy'
 OPPONENT_NAME = 'Campeona de la fase 1'
 
@@ -18,25 +23,39 @@ def _card(card):
     return {'valor': card[0], 'palo': card[1]}
 
 
-def find_champion(root):
-    root = Path(root)
-    for directory in (root / 'training_output' / 'phase2', root / 'champions' / 'phase2'):
-        if (directory / CHAMPION_FILE).is_file():
-            return directory / CHAMPION_FILE
-    return None
+def _valid_temperature(value):
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value > 0
 
 
-def recorded_temperature(root):
-    """Temperature the run recorded in its progress file (live run first), else the default."""
+def find_run(root):
+    """The champion file and its temperature, both taken from the same directory.
+
+    The live run directory is one unit and the committed copies are another; a
+    champion is never sampled at a temperature recorded by a different run."""
     root = Path(root)
     for directory in (root / 'training_output' / 'phase2', root / 'champions' / 'phase2'):
-        try:
-            value = json.loads((directory / 'progress.json').read_text(encoding='utf-8')).get('temperature')
-        except (OSError, ValueError, AttributeError):
+        champion = directory / CHAMPION_FILE
+        if not champion.is_file():
             continue
-        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value > 0:
-            return float(value)
-    return DEFAULT_TEMPERATURE
+        temperature = DEFAULT_TEMPERATURE
+        for name in (SIDECAR_FILE, 'progress.json'):
+            try:
+                value = json.loads((directory / name).read_text(encoding='utf-8')).get('temperature')
+            except (OSError, ValueError, AttributeError):
+                continue
+            if _valid_temperature(value):
+                temperature = float(value)
+                break
+        return champion, temperature
+    return None, DEFAULT_TEMPERATURE
+
+
+def find_champion(root):
+    return find_run(root)[0]
+
+
+def _digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def unavailable(reason):
@@ -44,12 +63,16 @@ def unavailable(reason):
 
 
 def example_hand_payload(root, seed=SEED):
-    champion_path = find_champion(root)
+    champion_path, temperature = find_run(root)
     if champion_path is None:
         return unavailable('no_champion')
     opponent_path = Path(root) / OPPONENT_FILE
     if not opponent_path.is_file():
         return unavailable('no_opponent')
+    key = (_digest(champion_path), _digest(opponent_path), temperature, seed)
+    with _cache_lock:
+        if key in _cache:
+            return _cache[key]
     try:
         import numpy as np
         import torch
@@ -58,9 +81,11 @@ def example_hand_payload(root, seed=SEED):
         from symmetric_engine import play_match
     except ImportError:
         return unavailable('torch')
-    temperature = recorded_temperature(root)
     model = Phase2Network()
-    model.load_state_dict(torch.load(champion_path, map_location='cpu', weights_only=True))
+    try:
+        model.load_state_dict(torch.load(champion_path, map_location='cpu', weights_only=True))
+    except Exception:
+        return unavailable('unreadable_champion')
     model.eval()
     policy = Phase2Policy(model, seed=seed, temperature=temperature)
     top = []
@@ -82,6 +107,10 @@ def example_hand_payload(root, seed=SEED):
             step['top'] = next(own)
         steps.append(step)
     deal = result.deals[0]
-    return {'available': True, 'seed': seed, 'temperature': temperature, 'opponent': OPPONENT_NAME,
+    payload = {'available': True, 'seed': seed, 'temperature': temperature, 'opponent': OPPONENT_NAME,
             'champion_hand': [_card(c) for c in deal[0]], 'opponent_hand': [_card(c) for c in deal[1]],
             'steps': steps}
+    with _cache_lock:
+        _cache.clear()
+        _cache[key] = payload
+    return payload

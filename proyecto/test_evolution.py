@@ -137,3 +137,12 @@ class EvolutionPageContentTests(unittest.TestCase):
         self.assertIn('Disponible cuando la fase 2 tenga campeona evaluada', self.page)
         self.assertIn('ArrowRight', self.page)
         self.assertIn('tabIndex', self.page)
+
+    def test_review_fixes_are_present(self):
+        self.assertIn('Panel de medición (provisorio)', self.page)
+        self.assertIn('/evolucion/phase1/source', self.page)
+        self.assertIn('phase1Training()', self.page)
+        self.assertIn('trainingNow()', self.page)
+        self.assertNotIn('state.failed) pollTimer', self.page)
+        self.assertNotIn('.reverse().find(', self.page)
+        self.assertIn('No hay una mano de ejemplo registrada para la campeona vigente.', self.page)

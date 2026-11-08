@@ -93,6 +93,10 @@ class Handler(BaseHTTPRequestHandler):
         elif ruta_limpia in ("/evolucion/phase1/generations", "/evolucion/phase1/reference"):
             filename = "generations.jsonl" if ruta_limpia.endswith("generations") else "reference_evaluation.jsonl"
             self._responder(200, _leer_jsonl(self._origen_evolucion("phase1") / filename))
+        elif ruta_limpia == "/evolucion/phase1/source":
+            origen = self._origen_evolucion("phase1")
+            vivo = origen.parent.name == "training_output"
+            self._responder(200, {"source": "live" if vivo else ("committed" if (origen / "generations.jsonl").is_file() else "empty")})
         elif ruta_limpia in ("/evolucion/phase2/generations", "/evolucion/phase2/reference"):
             filename = "generations.jsonl" if ruta_limpia.endswith("generations") else "reference_evaluation.jsonl"
             self._responder(200, _leer_jsonl(self._origen_evolucion("phase2") / filename))

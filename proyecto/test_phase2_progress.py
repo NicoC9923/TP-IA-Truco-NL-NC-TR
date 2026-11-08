@@ -89,6 +89,14 @@ class ProgressFileTest(unittest.TestCase):
         self.assertEqual(len(lines), 2)
         self.assertIn('gen 2 · mejora +10.0 pts (±5.0) · asciende', lines[1])
 
+    def test_exported_champion_records_its_temperature(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            train(root / 'run', temperature=.3, **make_config(root))
+            sidecar = json.loads((root / 'champ/reigning_champion.json').read_text(encoding='utf-8'))
+        self.assertEqual(sidecar['temperature'], .3)
+        self.assertEqual(sidecar['generation'], 1)
+
     def test_interrupted_run_stays_training(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -136,6 +144,33 @@ class AtomicWriteTest(unittest.TestCase):
             with patch('phase2_progress.os.replace', side_effect=PermissionError), patch('phase2_progress.time.sleep'):
                 self.assertFalse(write_json_atomic(target, {'new': True}))
             self.assertEqual(json.loads(target.read_text()), {'old': True})
+
+
+class BestEffortTest(unittest.TestCase):
+    def test_unwritable_progress_dir_never_aborts_and_warns_once(self):
+        err = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            reporter = ProgressReporter(Path(directory) / 'gone' / 'progress.json', None)
+            with patch('phase2_progress.sys.stderr', err):
+                for r in (1, 2, 3):
+                    reporter.round_done(elapsed=r, generation=0, round=r, matches=r, samples=r, updates=r, recent_loss=None,
+                                        league_mix={}, champion_generation=None, panel_version=None)
+        self.assertEqual(err.getvalue().count('aviso'), 1)
+
+    def test_training_survives_a_deleted_output_dir_for_progress(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch('phase2_progress.write_json_atomic', return_value=False), patch('phase2_progress.sys.stderr', io.StringIO()):
+                train(root / 'run', **make_config(root))
+            self.assertEqual(len((root / 'run/generations.jsonl').read_text().splitlines()), 2)
+
+    def test_atomic_write_returns_false_on_os_errors(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'p.json'
+            for name in ('fsync', 'replace'):
+                with patch(f'phase2_progress.os.{name}', side_effect=OSError('disk full')):
+                    self.assertFalse(write_json_atomic(target, {'a': 1}))
+            self.assertFalse(write_json_atomic(Path(directory) / 'missing' / 'p.json', {'a': 1}))
 
 
 class TerminalTest(unittest.TestCase):

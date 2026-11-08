@@ -5,6 +5,7 @@ random stream, so training stays deterministic with progress on or off.
 """
 import json
 import os
+import sys
 import time
 from collections import deque
 from pathlib import Path
@@ -36,17 +37,20 @@ def write_json_atomic(path, payload, attempts=5):
     file open on Windows must never crash training."""
     path = Path(path)
     temporary = path.with_name(path.name + '.tmp')
-    data = json.dumps(payload, indent=2)
-    with temporary.open('w', encoding='utf-8') as stream:
-        stream.write(data)
-        stream.flush()
-        os.fsync(stream.fileno())
-    for attempt in range(attempts):
-        try:
-            os.replace(temporary, path)
-            return True
-        except PermissionError:
-            time.sleep(0.02 * (attempt + 1))
+    try:
+        data = json.dumps(payload, indent=2)
+        with temporary.open('w', encoding='utf-8') as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        for attempt in range(attempts):
+            try:
+                os.replace(temporary, path)
+                return True
+            except PermissionError:
+                time.sleep(0.02 * (attempt + 1))
+    except OSError:
+        pass
     return False
 
 
@@ -60,6 +64,7 @@ class ProgressReporter:
         self.wall = wall
         self.window = deque(maxlen=RATE_WINDOW + 1)
         self.line_width = 0
+        self.warned = False
 
     def round_done(self, *, elapsed, generation, round, matches, samples, updates, recent_loss,
                    league_mix, champion_generation, panel_version, ended=False, stop_reason=None):
@@ -72,13 +77,16 @@ class ProgressReporter:
         seen = sum(league_mix.values())
         mix = {k: v / seen for k, v in league_mix.items()} if seen else {}
         if self.path is not None:
-            write_json_atomic(self.path, dict(
+            ok = write_json_atomic(self.path, dict(
                 elapsed=elapsed, time_cap=self.time_cap, generation=generation, round=round,
                 matches=matches, samples=samples, updates=updates,
                 matches_per_s=matches_per_s, samples_per_s=samples_per_s, recent_loss=recent_loss,
                 league_mix=mix, temperature=self.temperature, champion_generation=champion_generation,
                 promotions=self.promotions, panel_version=panel_version,
                 status='ended' if ended else 'training', stop_reason=stop_reason))
+            if not ok and not self.warned:
+                self.warned = True
+                print(f'aviso: no se pudo escribir {self.path}; el entrenamiento sigue sin archivo de progreso', file=sys.stderr)
         if self.console is not None:
             rate = f' · {matches_per_s:.1f} part/s' if matches_per_s else ''
             shown = generation if ended else generation + 1
@@ -95,5 +103,8 @@ class ProgressReporter:
             self.line_width = 0
 
     def _write(self, text):
-        self.console.write(text)
-        self.console.flush()
+        try:
+            self.console.write(text)
+            self.console.flush()
+        except (OSError, ValueError):
+            self.console = None

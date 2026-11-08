@@ -106,7 +106,7 @@ const SUITS = { Espada: 'espadas', Oro: 'oros', Copa: 'copas', Basto: 'bastos' }
 
 const state = {
   tab: 'p2',
-  p1: { gens: [], ref: [] },
+  p1: { gens: [], ref: [], source: 'empty' },
   p2: { gens: [], ref: [], progress: { status: 'empty' } },
   open: { p1: false, p2: false },
   hand: { p2: null },
@@ -177,6 +177,13 @@ function niceTicks(min, max, base) {
   return { ticks: out.sort((a, b) => a - b), lo: out[0], hi: out[out.length - 1] };
 }
 
+/* Phase 1 is training only when its log is the live run and the last generation did not end the phase. */
+function phase1Training() {
+  const last = state.p1.gens[state.p1.gens.length - 1];
+  return state.p1.source === 'live' && !!last && !last.phase_ended;
+}
+const trainingNow = () => phase1Training() || state.p2.progress.status === 'training';
+
 function summary(phase, gens, progress) {
   const last = gens[gens.length - 1];
   const promos = gens.filter((g) => g.promoted).length;
@@ -210,12 +217,15 @@ function chart(phase, rows) {
   const isP2 = phase === 'p2';
   const base = isP2 ? 0 : 50;
   const title = isP2 ? 'Mejora sobre la campeona contra el panel fijo' : 'Resultado del control contra la campeona';
+  const rule = 'Asciende con +1 punto o más, margen por encima de cero y al menos 47,5 % de partidas ganadas cara a cara.';
   const note = isP2
-    ? 'Puntos porcentuales por encima de la campeona vigente, con su margen. Asciende con +1 punto o más, margen por encima de cero y al menos 47,5 % de partidas ganadas cara a cara.'
+    ? 'Puntos porcentuales por encima de la campeona vigente, con su margen. ' + (state.p2.gens.some((g) => g.measuring_only) ? 'Panel de medición provisorio: no cambia durante la corrida y sirve para medir, no para elegir la campeona final. ' : '') + rule
     : 'Porcentaje de partidas ganadas a la campeona vigente, con su margen. Asciende con 55 % o más.';
   const legend = el('div', { class: 'legend' }, legendItem('sw-line', 'por generación'), legendItem('sw-band', 'margen'), legendItem('sw-dot', 'ascenso'));
   if (isP2 && rows.some((r) => r.boundary !== null)) legend.append(legendItem('sw-dash', 'cambio de panel'));
-  const box = el('section', { class: 'card', 'aria-label': title }, el('div', { class: 'head' }, el('h2', { text: title }), legend));
+  const measuring = isP2 && state.p2.gens.some((g) => g.measuring_only);
+  const heading = el('div', { style: 'display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px' }, el('h2', { text: title }), measuring ? el('span', { class: 'pill', text: 'Panel de medición (provisorio)' }) : null);
+  const box = el('section', { class: 'card', 'aria-label': title }, el('div', { class: 'head' }, heading, legend));
   if (!rows.length) {
     box.append(el('p', { class: 'empty', text: isP2 ? 'Todavía no hay controles de promoción. Aparecen desde la generación 2.' : 'Todavía no hay datos de entrenamiento.' }));
     box.append(el('p', { class: 'small', text: note }));
@@ -259,7 +269,7 @@ function statusBlock(phase) {
   const gens = p.gens;
   const { generation, champion, last } = summary(phase, gens, phase === 'p2' ? p.progress : {});
   const champText = champion === null ? 'sin campeona todavía' : `campeona: generación ${champion}`;
-  const prog = phase === 'p2' ? p.progress : { status: 'ended' };
+  const prog = phase === 'p2' ? p.progress : { status: phase1Training() ? 'training' : (gens.length ? 'ended' : 'empty') };
   const wrap = el('div', { class: 'stack', style: 'gap:28px' });
   const none = !gens.length && prog.status === 'empty';
   let label, text, running = false;
@@ -324,8 +334,8 @@ function handView(phase) {
   if (phase === 'p1') {
     const rows = state.p1.gens;
     const champion = summary('p1', rows, {}).champion;
-    const chosen = rows.find((g) => g.generation === champion && g.example_hand && g.example_hand.length) || [...rows].reverse().find((g) => g.example_hand && g.example_hand.length);
-    if (!chosen) body.append(el('p', { class: 'empty', text: 'Todavía no hay una mano de ejemplo.' }));
+    const chosen = rows.find((g) => g.generation === champion && g.example_hand && g.example_hand.length);
+    if (!chosen) body.append(el('p', { class: 'empty', text: 'No hay una mano de ejemplo registrada para la campeona vigente.' }));
     else {
       const hands = [0, 1].map((seat) => { const d = chosen.example_hand.find((x) => x.player === seat); return d && d.observation ? d.observation.hand : null; });
       body.append(el('p', { text: `Mano jugada por la campeona de la generación ${chosen.generation}.` }));
@@ -399,7 +409,7 @@ function render() {
   else { const v = phaseView(state.tab); running = v.running; view.replaceChildren(v.node); }
   if (focused) { const again = view.querySelector(`[aria-controls="${focused}"]`); if (again) again.focus(); }
   const src = document.getElementById('source');
-  src.textContent = state.failed ? 'No se pudieron actualizar los datos; reintentando.' : (state.p2.progress.status === 'training' ? 'Actualización automática cada 5 segundos.' : 'Datos guardados del entrenamiento.');
+  src.textContent = state.failed ? 'No se pudieron actualizar los datos; reintentando.' : (trainingNow() ? 'Actualización automática cada 5 segundos.' : 'Datos guardados del entrenamiento.');
 }
 
 async function getJson(url, fallback) {
@@ -426,10 +436,17 @@ async function refreshPhase2() {
   state.p2 = { gens, ref, progress };
 }
 
+async function refreshPhase1() {
+  const [gens, ref, src] = await Promise.all([
+    getJson('/evolucion/phase1/generations', state.p1.gens),
+    getJson('/evolucion/phase1/reference', state.p1.ref),
+    getJson('/evolucion/phase1/source', { source: state.p1.source })]);
+  state.p1 = { gens, ref, source: src.source };
+}
+
 async function refreshAll() {
   state.failed = false;
-  const [g1, r1] = await Promise.all([getJson('/evolucion/phase1/generations', state.p1.gens), getJson('/evolucion/phase1/reference', state.p1.ref)]);
-  state.p1 = { gens: g1, ref: r1 };
+  await refreshPhase1();
   await refreshPhase2();
   state.loaded = true;
   render();
@@ -439,11 +456,13 @@ async function refreshAll() {
 function schedule() {
   clearTimeout(pollTimer);
   pollTimer = null;
-  if (state.p2.progress.status === 'training' || state.failed) pollTimer = setTimeout(poll, POLL_MS);
+  if (trainingNow()) pollTimer = setTimeout(poll, POLL_MS);
 }
 
 async function poll() {
   const before = `${state.p2.progress.status}|${state.p2.progress.champion_generation}`;
+  state.failed = false;
+  if (phase1Training()) await refreshPhase1();
   await refreshPhase2();
   const after = `${state.p2.progress.status}|${state.p2.progress.champion_generation}`;
   if (state.open.p2 && before !== after) loadHand();

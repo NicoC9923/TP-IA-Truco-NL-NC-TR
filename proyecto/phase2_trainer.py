@@ -409,6 +409,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     if changed and panel is not None and champions_dir is not None:
                         Path(champions_dir).mkdir(parents=True, exist_ok=True)
                         torch.save(champion, Path(champions_dir) / 'reigning_champion.pt')
+                        (Path(champions_dir) / 'reigning_champion.json').write_text(json.dumps({'generation': champion_generation, 'temperature': temperature}) + chr(10), encoding='utf-8')
                 with Path(log_path).open('a', encoding='utf-8') as log:
                     log.write(json.dumps(entry) + '\n')
                 reporter.generation_done(entry, elapsed)
