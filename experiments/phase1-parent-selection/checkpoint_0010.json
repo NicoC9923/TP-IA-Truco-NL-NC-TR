@@ -1,0 +1,1051 @@
+{
+  "selection": {
+    "advantage": 0.024657800641500787,
+    "ci95": [
+      0.0064584751928114135,
+      0.04179073045921428
+    ],
+    "best_fraction": 0.46,
+    "advantage_over_spread": 0.4389774597029929
+  },
+  "random": {
+    "advantage": 0.0016422583221849519,
+    "ci95": [
+      -0.009270399727733344,
+      0.009154554443084512
+    ],
+    "best_fraction": 0.36,
+    "advantage_over_spread": 0.02923676758240557
+  },
+  "population_spread": 0.056170994880201754,
+  "tournaments": 200,
+  "bootstrap_replicates": 2000,
+  "bootstrap_method": "resample individuals with replacement, then redraw tournaments; percentile interval",
+  "best_tie_rule": "split credit among tied candidate slots",
+  "checkpoint": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/seeds-phase1-seeds/training_output/phase1_seed1/checkpoint_0010.npz",
+  "checkpoint_generation": 10,
+  "evaluated_generation": 11,
+  "population_size": 64,
+  "first_pass_pairs": 16,
+  "measurement_pairs": 64,
+  "first_pass_scores": [
+    0.4017891045026882,
+    0.3991270729561986,
+    0.3573301485412714,
+    0.2913474462365591,
+    0.45874946055371074,
+    0.39219286151960786,
+    0.5071400781414717,
+    0.3598682515681004,
+    0.39579273897058825,
+    0.5039559120018976,
+    0.3919405241935484,
+    0.35123809923835125,
+    0.2523552622200357,
+    0.39250869442641234,
+    0.3970014280913979,
+    0.32310105846774195,
+    0.3898697916666667,
+    0.3883984375,
+    0.49315691380718957,
+    0.5404048564990512,
+    0.2903094609819734,
+    0.39024976325757577,
+    0.542248700387413,
+    0.4222949198160447,
+    0.5701768560246679,
+    0.318898981887782,
+    0.43067099032305983,
+    0.3554276450163399,
+    0.49063927722953216,
+    0.20719985373181532,
+    0.3933762254901961,
+    0.28064894153225806,
+    0.38861979166666666,
+    0.39483072916666667,
+    0.5296849468954249,
+    0.31868719362745096,
+    0.3961189392591714,
+    0.3887353731815307,
+    0.49620516830724226,
+    0.5371987542496838,
+    0.4644546568627451,
+    0.4614744178921569,
+    0.3513419117647059,
+    0.5710884873102466,
+    0.32034076533839345,
+    0.4677633568548387,
+    0.35144375592979127,
+    0.32122099343769767,
+    0.45915573773192075,
+    0.39315512663398694,
+    0.3960417939475399,
+    0.498131768544642,
+    0.35373774509803924,
+    0.3585878696236559,
+    0.3881359206989247,
+    0.3994232536764706,
+    0.2860110294117647,
+    0.40195389093137257,
+    0.3466582414215686,
+    0.3564328105234029,
+    0.5685585171568628,
+    0.42870442708333334,
+    0.496338625672043,
+    0.389561887254902
+  ],
+  "independent_scores": [
+    0.5535503111905045,
+    0.44611507562954617,
+    0.5526632411827298,
+    0.44319579293209865,
+    0.5401592097482474,
+    0.4710433982480761,
+    0.4840461369206774,
+    0.4771089458014083,
+    0.37703417989339555,
+    0.5150294622465463,
+    0.5352225745656278,
+    0.4298847510064174,
+    0.5079712526601703,
+    0.4099227304959282,
+    0.4983375176920414,
+    0.47131679260360365,
+    0.3672924452325377,
+    0.39310600669886725,
+    0.3366181384447614,
+    0.4887836414578661,
+    0.4479014126155411,
+    0.44760911236596657,
+    0.48972553941594676,
+    0.5495734487223901,
+    0.49094250269985196,
+    0.519723331027354,
+    0.4573416446246143,
+    0.5154976114059535,
+    0.561319400293012,
+    0.39215913948171827,
+    0.4570526316351007,
+    0.4712504868493402,
+    0.4657147958088513,
+    0.4929063219136934,
+    0.5877653108034209,
+    0.47708266623181533,
+    0.5291488196421041,
+    0.48039120512719286,
+    0.3983583830514886,
+    0.5232459656829802,
+    0.5009730962487482,
+    0.4985052287731442,
+    0.4031290402318369,
+    0.5023676853553922,
+    0.5269267402365089,
+    0.5268803349403667,
+    0.46249805737567207,
+    0.49016692409223284,
+    0.5071399707950293,
+    0.46997652483589514,
+    0.35876369690601373,
+    0.5597291159838564,
+    0.40340227951059454,
+    0.4814841279253637,
+    0.43084440672004864,
+    0.5263116827116046,
+    0.41068331335772335,
+    0.4729459964849515,
+    0.35363021306893055,
+    0.42138580663280095,
+    0.5087532675620652,
+    0.5194451836093981,
+    0.4657153235748264,
+    0.4913406671262255
+  ],
+  "schedules": [
+    [
+      {
+        "opponent": "reigning",
+        "index": 55,
+        "style": null,
+        "seed": 200000000000000000000001,
+        "target": 30,
+        "starting_score": [
+          13,
+          11
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 25,
+        "style": "bluffer",
+        "seed": 200000000000000000000003,
+        "target": 15,
+        "starting_score": [
+          10,
+          10
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000000000005,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 57,
+        "style": "cautious",
+        "seed": 200000000000000000000007,
+        "target": 30,
+        "starting_score": [
+          8,
+          27
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 5,
+        "style": null,
+        "seed": 200000000000000000000009,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 25,
+        "style": "aggressive",
+        "seed": 200000000000000000000011,
+        "target": 30,
+        "starting_score": [
+          0,
+          23
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000000000013,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 58,
+        "style": "calculating",
+        "seed": 200000000000000000000015,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 15,
+        "style": null,
+        "seed": 200000000000000000000017,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 15,
+        "style": "bluffer",
+        "seed": 200000000000000000000019,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000000000021,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 57,
+        "style": "cautious",
+        "seed": 200000000000000000000023,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000000000025,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 29,
+        "style": "aggressive",
+        "seed": 200000000000000000000027,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000000000029,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 6,
+        "style": "calculating",
+        "seed": 200000000000000000000031,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      }
+    ],
+    [
+      {
+        "opponent": "reigning",
+        "index": 23,
+        "style": null,
+        "seed": 200000000000000002000001,
+        "target": 15,
+        "starting_score": [
+          1,
+          4
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 59,
+        "style": "bluffer",
+        "seed": 200000000000000002000003,
+        "target": 15,
+        "starting_score": [
+          4,
+          3
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000005,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 20,
+        "style": "cautious",
+        "seed": 200000000000000002000007,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000009,
+        "target": 15,
+        "starting_score": [
+          6,
+          10
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 37,
+        "style": "aggressive",
+        "seed": 200000000000000002000011,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000013,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 27,
+        "style": "calculating",
+        "seed": 200000000000000002000015,
+        "target": 15,
+        "starting_score": [
+          3,
+          5
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000017,
+        "target": 15,
+        "starting_score": [
+          7,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 48,
+        "style": "bluffer",
+        "seed": 200000000000000002000019,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 59,
+        "style": null,
+        "seed": 200000000000000002000021,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 56,
+        "style": "cautious",
+        "seed": 200000000000000002000023,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 36,
+        "style": null,
+        "seed": 200000000000000002000025,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 15,
+        "style": "aggressive",
+        "seed": 200000000000000002000027,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 50,
+        "style": null,
+        "seed": 200000000000000002000029,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 32,
+        "style": "calculating",
+        "seed": 200000000000000002000031,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000033,
+        "target": 30,
+        "starting_score": [
+          5,
+          24
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 34,
+        "style": "bluffer",
+        "seed": 200000000000000002000035,
+        "target": 30,
+        "starting_score": [
+          11,
+          10
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 27,
+        "style": null,
+        "seed": 200000000000000002000037,
+        "target": 15,
+        "starting_score": [
+          0,
+          10
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 58,
+        "style": "cautious",
+        "seed": 200000000000000002000039,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 25,
+        "style": null,
+        "seed": 200000000000000002000041,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 11,
+        "style": "aggressive",
+        "seed": 200000000000000002000043,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 27,
+        "style": null,
+        "seed": 200000000000000002000045,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 14,
+        "style": "calculating",
+        "seed": 200000000000000002000047,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000049,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 48,
+        "style": "bluffer",
+        "seed": 200000000000000002000051,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 42,
+        "style": null,
+        "seed": 200000000000000002000053,
+        "target": 30,
+        "starting_score": [
+          11,
+          10
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 38,
+        "style": "cautious",
+        "seed": 200000000000000002000055,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 32,
+        "style": null,
+        "seed": 200000000000000002000057,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 43,
+        "style": "aggressive",
+        "seed": 200000000000000002000059,
+        "target": 15,
+        "starting_score": [
+          0,
+          8
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000061,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 51,
+        "style": "calculating",
+        "seed": 200000000000000002000063,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 47,
+        "style": null,
+        "seed": 200000000000000002000065,
+        "target": 30,
+        "starting_score": [
+          26,
+          18
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 9,
+        "style": "bluffer",
+        "seed": 200000000000000002000067,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 3,
+        "style": null,
+        "seed": 200000000000000002000069,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 29,
+        "style": "cautious",
+        "seed": 200000000000000002000071,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000073,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 9,
+        "style": "aggressive",
+        "seed": 200000000000000002000075,
+        "target": 15,
+        "starting_score": [
+          5,
+          7
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000077,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 33,
+        "style": "calculating",
+        "seed": 200000000000000002000079,
+        "target": 15,
+        "starting_score": [
+          4,
+          11
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 11,
+        "style": null,
+        "seed": 200000000000000002000081,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 8,
+        "style": "bluffer",
+        "seed": 200000000000000002000083,
+        "target": 15,
+        "starting_score": [
+          5,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 61,
+        "style": null,
+        "seed": 200000000000000002000085,
+        "target": 15,
+        "starting_score": [
+          2,
+          8
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 44,
+        "style": "cautious",
+        "seed": 200000000000000002000087,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000089,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 36,
+        "style": "aggressive",
+        "seed": 200000000000000002000091,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 24,
+        "style": null,
+        "seed": 200000000000000002000093,
+        "target": 30,
+        "starting_score": [
+          20,
+          18
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 2,
+        "style": "calculating",
+        "seed": 200000000000000002000095,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 44,
+        "style": null,
+        "seed": 200000000000000002000097,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 31,
+        "style": "bluffer",
+        "seed": 200000000000000002000099,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 48,
+        "style": null,
+        "seed": 200000000000000002000101,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 5,
+        "style": "cautious",
+        "seed": 200000000000000002000103,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 27,
+        "style": null,
+        "seed": 200000000000000002000105,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 60,
+        "style": "aggressive",
+        "seed": 200000000000000002000107,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000109,
+        "target": 30,
+        "starting_score": [
+          4,
+          14
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 63,
+        "style": "calculating",
+        "seed": 200000000000000002000111,
+        "target": 15,
+        "starting_score": [
+          11,
+          9
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000113,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 12,
+        "style": "bluffer",
+        "seed": 200000000000000002000115,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 7,
+        "style": null,
+        "seed": 200000000000000002000117,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 6,
+        "style": "cautious",
+        "seed": 200000000000000002000119,
+        "target": 30,
+        "starting_score": [
+          22,
+          7
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000121,
+        "target": 15,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 54,
+        "style": "aggressive",
+        "seed": 200000000000000002000123,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      },
+      {
+        "opponent": "hall",
+        "index": 0,
+        "style": null,
+        "seed": 200000000000000002000125,
+        "target": 30,
+        "starting_score": [
+          11,
+          15
+        ]
+      },
+      {
+        "opponent": "population",
+        "index": 10,
+        "style": "calculating",
+        "seed": 200000000000000002000127,
+        "target": 30,
+        "starting_score": [
+          0,
+          0
+        ]
+      }
+    ]
+  ],
+  "seed_namespace": "odd 2*(10^23 + stream*1000000 + pair)+1",
+  "seconds": 222.6409724999976
+}
