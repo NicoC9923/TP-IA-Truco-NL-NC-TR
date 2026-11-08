@@ -78,6 +78,10 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
             or (target != 'mixed' and (not isinstance(target, int) or target < 1))
             or not 0 <= random_start_share <= 1 or not math.isfinite(lr) or lr <= 0):
         raise ValueError('Invalid training configuration')
+    if ((generation_rounds is None) != (log_path is None)
+            or (generation_rounds is not None and generation_rounds < 1)
+            or (checkpoint_dir is not None and generation_rounds is None)):
+        raise ValueError('generation_rounds and log_path must be supplied together for checkpoints')
     _configure_threads()
     torch.use_deterministic_algorithms(True)
     model = Phase2Network(seed=seed)
@@ -147,8 +151,18 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                              shuffle_rng=rng.bit_generator.state)
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
                 temporary = path.with_suffix('.tmp')
-                torch.save(state, temporary)
-                temporary.replace(path)
+                with temporary.open('wb') as stream:
+                    torch.save(state, stream)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, path)
+                for old in Path(checkpoint_dir).glob('checkpoint_*.pt'):
+                    suffix = old.stem.removeprefix('checkpoint_')
+                    if not suffix.isdigit():
+                        continue
+                    old_round = int(suffix)
+                    if old_round != round_id + 1 and (old_round > round_id + 1 or old_round % generation_rounds):
+                        old.unlink()
     return RoundResult(model, optimizer, total, updates, last)
 
 def train(directory, *, generations=1, matches_per_generation=120, matches_per_round=12,
@@ -157,14 +171,20 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
     """Round each generation up to a whole number of rounds."""
     if min(generations, matches_per_generation, matches_per_round) < 1:
         raise ValueError('Generation and match counts must be positive')
-    config = dict(generations=generations, matches_per_generation=matches_per_generation,
-                  matches_per_round=matches_per_round, workers=workers, seed=seed, target=target,
+    config = dict(matches_per_generation=matches_per_generation,
+                  matches_per_round=matches_per_round, seed=seed, target=target,
                   lr=lr, minibatch=minibatch, random_start_share=random_start_share)
     generation_rounds = (matches_per_generation + matches_per_round - 1) // matches_per_round
+    output = Path(directory).resolve()
+    if resume and Path(resume).resolve().parent != output:
+        raise ValueError('Resume checkpoint must be inside the output directory')
     state = torch.load(resume, map_location='cpu', weights_only=False) if resume else None
-    if state is not None and state['config'] != config:
+    old_config = dict(state['config']) if state is not None else None
+    if old_config is not None:
+        old_config.pop('workers', None)
+        old_config.pop('generations', None)
+    if state is not None and old_config != config:
         raise ValueError('Checkpoint configuration does not match')
-    output = Path(directory)
     output.mkdir(parents=True, exist_ok=True)
     log_path = output / 'generations.jsonl'
     if state is None:
