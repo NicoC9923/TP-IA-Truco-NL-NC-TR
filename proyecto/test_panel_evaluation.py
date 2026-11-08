@@ -33,6 +33,14 @@ class PanelTests(unittest.TestCase):
         for seed in (panel.BASELINE_SEED, panel.PANEL_SEED):
             self.assertTrue(all(s % 2 == 0 for s, _ in validation_schedule(seed, None, 4)))
 
+    def test_reserved_seed_message_guides_fresh_schedules(self):
+        with self.assertRaisesRegex(ValueError, r'9001, 9002, 9101.*--baseline-seed.*--panel-seed.*9201.*9202'):
+            panel.evaluate('unused', 'unused')
+        result = subprocess.run([sys.executable, str(Path(panel.__file__)), '--candidate', 'a', '--baseline', 'b', '--output', 'c'], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        for detail in ('9001, 9002, 9101', '--baseline-seed', '--panel-seed', '9201', '9202', '--allow-reused-seeds'):
+            self.assertIn(detail, result.stderr)
+
     def test_report_and_self_skip(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

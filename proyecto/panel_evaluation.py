@@ -15,6 +15,9 @@ PANEL = Path(__file__).resolve().parent.parent / 'experiments/panel-v1'
 BASELINE_SEED = 9001
 PANEL_SEED = 9002
 RESERVED_SEEDS = frozenset((9001, 9002, 9101))
+RESERVED_SEED_ERROR = ('reserved and already used seeds: 9001, 9002, 9101; use fresh '
+                       '--baseline-seed and --panel-seed, for example 9201 and 9202, '
+                       'or explicitly pass --allow-reused-seeds')
 
 
 def digest(path):
@@ -47,7 +50,7 @@ def evaluate(candidate, baseline, *, panel_dir=PANEL, baseline_pairs=4000, panel
     if min(baseline_pairs, panel_pairs) < 2 or workers < 1:
         raise ValueError('pairs must be at least 2 and workers positive')
     if not allow_reused_seeds and ({baseline_seed, panel_seed} & RESERVED_SEEDS):
-        raise ValueError('reserved schedule seed requires allow_reused_seeds')
+        raise ValueError(RESERVED_SEED_ERROR)
     candidate, baseline, panel_dir = Path(candidate), Path(baseline), Path(panel_dir)
     chash, bhash = digest(candidate), digest(baseline)
     a_policy = NetworkPolicy.load(candidate, **({'encoder': candidate_encoder} if candidate_encoder else {}))
@@ -107,7 +110,7 @@ def main():
     if min(args.baseline_pairs, args.panel_pairs) < 2 or args.workers < 1:
         parser.error('pairs must be at least 2 and workers positive')
     if not args.allow_reused_seeds and ({args.baseline_seed, args.panel_seed} & RESERVED_SEEDS):
-        parser.error('reserved schedule seed requires --allow-reused-seeds')
+        parser.error(RESERVED_SEED_ERROR)
     report = evaluate(args.candidate, args.baseline, panel_dir=args.panel_dir, baseline_pairs=args.baseline_pairs, panel_pairs=args.panel_pairs, workers=args.workers, candidate_encoder=args.candidate_encoder, baseline_encoder=args.baseline_encoder, baseline_seed=args.baseline_seed, panel_seed=args.panel_seed, allow_reused_seeds=args.allow_reused_seeds)
     Path(args.output).write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(report, indent=2))
