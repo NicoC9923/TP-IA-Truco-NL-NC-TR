@@ -190,3 +190,12 @@ Differences in action probability distributions between policies on a shared dec
 
 **Encoder version**:
 The agreed interpretation of a network's observation features; a trained network is evaluated with the version used during training.
+
+**Truco resolution**:
+A response that accepts, declines, folds against, or raises a pending truco call. An envido interruption postpones the response and is not a resolution.
+
+**Current-trick card outcome**:
+The signed result of playing an available card against the opposing card in the current trick, or its signed expectation when that opposing card has not yet been played. A parda has value zero.
+
+**Pending envido stakes**:
+The points payable if a pending envido is accepted or declined, including the winner-dependent falta envido amount.
