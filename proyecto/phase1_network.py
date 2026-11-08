@@ -11,7 +11,33 @@ INPUTS, HIDDEN = 64, 24
 GENOME_SIZE = INPUTS * HIDDEN + HIDDEN + HIDDEN * len(ACTIONS) + len(ACTIONS)
 
 def encode_observation(obs, profile, inference=None, encoder='v1'):
-    if encoder not in ('v1', 'v2'):
+    """Encode a public observation. V3 zero-based indexes:
+
+    0-3, 4-7, 8-11: each held slot's rank / 13, suit / 3,
+    availability, and tantos digit / 7, respectively.
+    12-14, 15-17, 18-20, 21-23, 24-26, 27-29: table slot rank
+    / 13, suit / 3, and owner (+1 self, -1 opponent, 0 absent).
+    30-32: completed trick winners (+1 self, -1 opponent, 0 tie or absent).
+    33: truco / 4; 34: envido done; 35: pending envido;
+    36: pending truco; 37: self is mano; 38: self owns raise.
+    39-40: points to target / 30 for self and opponent; 41: falta / 30.
+    42-47: signed call counts for envido, real envido, falta envido,
+    truco, retruco, vale cuatro; 48-49: self and opponent declarations.
+    50: brava probability; 51: expected opponent strength / 24.7;
+    52-54: slot-aligned signed trick outcomes; 55-58: bluff, fold,
+    truco accepted and envido called profile rates; 59: completed tricks / 2.
+    60, 61, 62, 63: reserved zeros. Unavailable card outcomes are zero;
+    ties are zero. The individual slot indexes are:
+    0 rank, 1 suit, 2 available, 3 tantos; 4 rank, 5 suit, 6 available,
+    7 tantos; 8 rank, 9 suit, 10 available, 11 tantos; 12 rank, 13 suit,
+    14 owner; 15 rank, 16 suit, 17 owner; 18 rank, 19 suit, 20 owner;
+    21 rank, 22 suit, 23 owner; 24 rank, 25 suit, 26 owner; 27 rank,
+    28 suit, 29 owner; 30, 31, 32 trick winners; 42 envido, 43 real
+    envido, 44 falta envido, 45 truco, 46 retruco, 47 vale cuatro;
+    48 self declaration, 49 opponent declaration; 52, 53, 54 card
+    outcomes; 55 bluff, 56 fold, 57 truco accepted, 58 envido called.
+    """
+    if encoder not in ('v1', 'v2', 'v3'):
         raise ValueError('Unknown encoder')
     values = []
     for i, (value, suit) in enumerate(obs['hand']):
@@ -20,7 +46,7 @@ def encode_observation(obs, profile, inference=None, encoder='v1'):
     for i in range(6):
         if i < len(obs['table']):
             player, (value, suit) = obs['table'][i]
-            values.extend((value / 12, rules.PALOS.index(suit) / 3, 1 if player == obs['player'] else -1))
+            values.extend(((rules.valor_carta_truco(value, suit) / 13 if encoder == 'v3' else value / 12), rules.PALOS.index(suit) / 3, 1 if player == obs['player'] else -1))
         else:
             values.extend((0, 0, 0))
     values.extend(0 if winner is None else (1 if winner == obs['player'] else -1) for winner in obs['tricks'])
@@ -41,14 +67,39 @@ def encode_observation(obs, profile, inference=None, encoder='v1'):
               else inference_from_observation(obs, rates['bluff']))
     card = obs['hand'][obs['available'][0]] if obs['available'] else obs['hand'][0]
     summaries = belief.summaries(card, ties_win=obs['mano'] == player)
-    values.extend((summaries['brava_probability'], summaries['expected_strength'] / 24.7, summaries['next_trick_win_probability']))
-    values.extend(rates.values())
+    if encoder == 'v3':
+        values.extend((summaries['brava_probability'], summaries['expected_strength'] / 24.7))
+        current = obs['table'][2 * len(obs['tricks']):]
+        opposing = next((card for actor, card in current if actor != player), None)
+        distribution = belief.distribution() if opposing is None else None
+        for i, card in enumerate(obs['hand']):
+            if i not in obs['available']:
+                values.append(0)
+            elif opposing is not None:
+                own_rank = rules.valor_carta_truco(*card)
+                other_rank = rules.valor_carta_truco(*opposing)
+                values.append((own_rank > other_rank) - (own_rank < other_rank))
+            else:
+                own_rank = rules.valor_carta_truco(*card)
+                expectation = 0.0
+                for hand, weight in distribution.items():
+                    remaining = [c for c in hand if c not in belief.played]
+                    if remaining:
+                        expectation += weight * sum((own_rank > rules.valor_carta_truco(*c)) -
+                                                    (own_rank < rules.valor_carta_truco(*c))
+                                                    for c in remaining) / len(remaining)
+                values.append(expectation)
+        values.extend(rates.values())
+        values.append(len(obs['tricks']) / 2)
+    else:
+        values.extend((summaries['brava_probability'], summaries['expected_strength'] / 24.7, summaries['next_trick_win_probability']))
+        values.extend(rates.values())
     values.extend([0] * (INPUTS - len(values)))
     return np.asarray(values, dtype=np.float64)
 
 class NetworkPolicy:
     def __init__(self, genome, seed=0, bias=None, profile=None, style=None, style_strength=1.0, explain=False, encoder='v1'):
-        if encoder not in ('v1', 'v2'):
+        if encoder not in ('v1', 'v2', 'v3'):
             raise ValueError('Unknown encoder')
         self.encoder = encoder
         self.genome = np.asarray(genome, dtype=np.float64).copy()

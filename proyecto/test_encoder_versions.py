@@ -29,9 +29,9 @@ class EncoderTests(unittest.TestCase):
 
     def test_unknown_encoder_rejected(self):
         with self.assertRaises(ValueError):
-            encode_observation(observation(), OpponentProfile(), encoder='v3')
+            encode_observation(observation(), OpponentProfile(), encoder='v4')
         with self.assertRaises(ValueError):
-            NetworkPolicy(np.zeros(GENOME_SIZE), encoder='v3')
+            NetworkPolicy(np.zeros(GENOME_SIZE), encoder='v4')
 
 class ArtifactTests(unittest.TestCase):
     def test_policy_sidecar_and_bare_genome(self):
