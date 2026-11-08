@@ -228,19 +228,24 @@ class LeagueRunTest(unittest.TestCase):
             self.assertTrue(all(torch.equal(v, b.model.state_dict()[k]) for k, v in a.model.state_dict().items()))
             log = json.loads((root / 'a' / 'generations.jsonl').read_text())
             self.assertEqual(sum(log['league_mix'].values()), 8)
-            self.assertAlmostEqual(log['style_offset'], .1 * 8 / 20000)
+            self.assertAlmostEqual(log['style_offset_round_end'], .1 * 8 / 20000)
 
 
 
 class LeagueStyleTest(unittest.TestCase):
     def test_styles_change_observed_behavior(self):
+        import tempfile
+        from pathlib import Path
         from phase2_torch import Phase2Network, Phase2Policy
         from symmetric_engine import play_match, bluff
-        model = Phase2Network(seed=4)
+        with tempfile.TemporaryDirectory() as directory:
+            snapshot = Path(directory) / 'generation_000001.pt'
+            Phase2Network(seed=4).save(snapshot)
+            model = Phase2Network.load(snapshot)
         def evaluate(style):
             counts = [0, 0, 0, 0]
-            for seed in range(120):
-                result = play_match(Phase2Policy(model, seed=seed, style=style, style_strength=.3),
+            for seed in range(300):
+                result = play_match(Phase2Policy(model, seed=seed, style=style, style_strength=.1),
                                     Phase2Policy(model, seed=seed + 1000), seed=seed, target=1)
                 for d in result.decisions:
                     if d['player'] != 0:
@@ -340,6 +345,121 @@ class OpponentCacheTest(unittest.TestCase):
                 trainer._league_block(args)
                 trainer._league_block(args)
                 self.assertEqual(load.call_count, 1)
+
+
+
+class LeagueConfigurationTest(unittest.TestCase):
+    def test_invalid_shares_rejected_before_workers_start(self):
+        from unittest.mock import patch
+        import phase2_trainer as trainer
+        with patch.object(trainer.mp, 'get_context', side_effect=AssertionError('workers started')):
+            with self.assertRaisesRegex(ValueError, 'League shares'):
+                trainer.run_rounds(workers=2, league_shares={'self': 1})
+
+
+
+class ManifestPortabilityTest(unittest.TestCase):
+    def test_resume_accepts_manifest_at_new_path(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from phase2_trainer import train
+        original = Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/league-phase1.json'
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            root = Path(directory)
+            data = json.loads(original.read_text())
+            for member in data['members']:
+                member['path'] = str((original.parent / member['path']).resolve())
+            relocated = root / 'manifest.json'
+            relocated.write_text(json.dumps(data))
+            panel1 = root / 'panel1.json'
+            panel2 = root / 'panel2.json'
+            panel_text = json.dumps({'version': 0, 'members': [data['members'][0]], 'measuring_only': True})
+            panel1.write_text(panel_text)
+            panel2.write_text(panel_text)
+            opts = dict(generations=2, matches_per_generation=4, matches_per_round=4,
+                        target=1, workers=1, champions_dir=None, panel_pairs=2, head_to_head_pairs=2)
+            train(root / 'run', panel_path=panel1, phase1_manifest=original, stop_after_round=1, **opts)
+            train(root / 'run', panel_path=panel2, phase1_manifest=relocated, resume=root / 'run/checkpoint_000001.pt', **opts)
+
+
+
+class LeagueLoggingTest(unittest.TestCase):
+    def test_phase1_and_neutral_counts(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from phase2_trainer import train
+        shares = {'self': 0, 'phase1': 1, 'snapshot': 0, 'bluffer': 0, 'cautious': 0, 'aggressive': 0, 'calculating': 0}
+        with tempfile.TemporaryDirectory() as directory:
+            train(directory, generations=1, matches_per_generation=8, matches_per_round=4,
+                  target=1, panel_path=None, champions_dir=None, league_shares=shares, neutral_rate=1)
+            log = json.loads((Path(directory) / 'generations.jsonl').read_text())
+        self.assertEqual(sum(log['phase1_opponents'].values()), 8)
+        self.assertEqual(log['neutral_blocks'], 2)
+        self.assertIn('style_offset_round_end', log)
+
+
+
+class LeagueBlockResumeTest(unittest.TestCase):
+    def test_resume_with_pool_and_two_workers(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from phase2_trainer import train
+        shares = {'self': 0, 'phase1': 0, 'snapshot': 1, 'bluffer': 0, 'cautious': 0, 'aggressive': 0, 'calculating': 0}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            opts = dict(generations=3, matches_per_generation=8, matches_per_round=8, block_size=4,
+                        workers=2, seed=31, target=1, panel_path=None, champions_dir=None, league_shares=shares)
+            full = train(root / 'full', **opts)
+            train(root / 'resume', stop_after_round=2, **opts)
+            checkpoint = root / 'resume/checkpoint_000002.pt'
+            state = torch.load(checkpoint, weights_only=False)
+            self.assertTrue(state['league_pool'])
+            resumed = train(root / 'resume', resume=checkpoint, **opts)
+            self.assertTrue(all(torch.equal(v, resumed.model.state_dict()[k]) for k, v in full.model.state_dict().items()))
+            for key, values in full.optimizer.state_dict()['state'].items():
+                for name, value in values.items():
+                    self.assertTrue(torch.equal(value, resumed.optimizer.state_dict()['state'][key][name]))
+            def logs(folder):
+                result = [json.loads(line) for line in (root / folder / 'generations.jsonl').read_text().splitlines()]
+                for entry in result:
+                    entry.pop('elapsed_seconds')
+                return result
+            self.assertEqual(logs('full'), logs('resume'))
+            self.assertEqual(logs('full')[1]['league_mix'], {'snapshot': 8})
+
+
+
+class OverlappingPanelTest(unittest.TestCase):
+    def test_panel_member_in_manifest_is_never_drawn(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import phase2_trainer as trainer
+        source = Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/league-phase1.json'
+        member = json.loads(source.read_text())['members'][0]
+        member['path'] = str((source.parent / member['path']).resolve())
+        seen = []
+        real_draw = trainer.draw_opponent
+        def capture(*args, **kwargs):
+            spec = real_draw(*args, **kwargs)
+            seen.append(spec['identity'])
+            return spec
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory:
+            root = Path(directory)
+            manifest = root / 'league.json'
+            panel = root / 'panel.json'
+            manifest.write_text(json.dumps({'members': [member]}))
+            panel.write_text(json.dumps({'version': 0, 'members': [member], 'measuring_only': True}))
+            with patch.object(trainer, 'draw_opponent', side_effect=capture):
+                trainer.train(root / 'run', generations=1, matches_per_generation=8, matches_per_round=4,
+                              target=1, workers=1, champions_dir=None, panel_path=panel, phase1_manifest=manifest,
+                              league_shares={'self': 0, 'phase1': 1, 'snapshot': 0,
+                                             'bluffer': 0, 'cautious': 0, 'aggressive': 0, 'calculating': 0})
+        self.assertEqual(seen, ['current', 'current'])
 
 if __name__ == '__main__':
     unittest.main()

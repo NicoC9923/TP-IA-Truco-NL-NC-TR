@@ -21,7 +21,7 @@ from phase1_network import ACTIONS, NetworkPolicy
 from phase2_torch import Phase2Network, Phase2Policy
 from symmetric_engine import play_match, play_mirror_pair
 from validation_schedule import validation_schedule
-from phase2_league import retain_snapshots, panel_exclusions, draw_opponent, load_phase1_manifest, DEFAULT_SHARES
+from phase2_league import retain_snapshots, panel_exclusions, draw_opponent, load_phase1_manifest, validate_shares, DEFAULT_SHARES
 from phase2_promotion import load_panel, check_seed, promotion_decision, saturated, build_panel, RESERVED_SEEDS
 
 def _configure_threads():
@@ -232,7 +232,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
     phase1 = load_phase1_manifest(phase1_manifest)
     for member in phase1:
         member['resolved_path'] = str((Path(phase1_manifest).resolve().parent / member['path']).resolve())
-    shares = dict(DEFAULT_SHARES if league_shares is None else league_shares)
+    shares = validate_shares(league_shares)
     _configure_threads()
     torch.use_deterministic_algorithms(True)
     model = Phase2Network(seed=seed)
@@ -242,6 +242,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
     last = []
     generation_samples = generation_updates = 0
     league_mix = {}
+    phase1_counts = {}
+    neutral_blocks = 0
     losses = []
     started = clock()
     run_tick = started
@@ -274,6 +276,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
         total, updates = resume_state['samples'], resume_state['updates']
         generation_samples, generation_updates = resume_state['generation_samples'], resume_state['generation_updates']
         league_mix = resume_state.get('league_mix', {})
+        phase1_counts = resume_state.get('phase1_counts', {})
+        neutral_blocks = resume_state.get('neutral_blocks', 0)
         losses = resume_state['losses']
         random.setstate(resume_state['python_rng'])
         np.random.set_state(resume_state['numpy_rng'])
@@ -301,6 +305,10 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 blocks.append((ids, spec))
                 category = spec['style'] or spec['category']
                 league_mix[category] = league_mix.get(category, 0) + len(ids)
+                if spec['category'] == 'phase1':
+                    name = opponents[spec['identity']]['name']
+                    phase1_counts[name] = phase1_counts.get(name, 0) + len(ids)
+                neutral_blocks += int(spec['neutral_profile'])
             chunks = [list(chunk) for chunk in np.array_split(np.arange(len(blocks)), min(workers, len(blocks)))]
             jobs = [(weights, seed, [blocks[int(i)] for i in chunk], target, random_start_share, opponents, temperature) for chunk in chunks]
             batches = pool.map(_league_chunk, jobs, chunksize=1) if pool else list(map(_league_chunk, jobs))
@@ -327,7 +335,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                              matches=generation_rounds * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
                              mean_loss=sum(losses) / len(losses), elapsed_seconds=clock() - started,
-                             league_mix=dict(league_mix), style_offset=style_target * min(1, ((round_id + 1) * matches_per_round) / style_ramp_matches) if style_ramp_matches else style_target,
+                             league_mix=dict(league_mix), phase1_opponents=dict(phase1_counts), neutral_blocks=neutral_blocks, style_offset_round_end=style_target * min(1, ((round_id + 1) * matches_per_round) / style_ramp_matches) if style_ramp_matches else style_target,
                              check=None, promoted=False,
                              phase_ended=False, stop_reason=None, measuring_only=bool(panel and panel.get('measuring_only')), fitness=None, behavior=None,
                              diversity=None, champion=None, example_hand=None)
@@ -394,6 +402,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     log.write(json.dumps(entry) + '\n')
                 generation_samples = generation_updates = 0
                 league_mix = {}
+                phase1_counts = {}
+                neutral_blocks = 0
                 losses = []
                 started = clock()
             if generation_rounds and (round_id + 1) % generation_rounds and elapsed >= time_cap_seconds:
@@ -401,7 +411,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                              matches=(round_id + 1) % generation_rounds * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
                              mean_loss=sum(losses) / len(losses), elapsed_seconds=clock() - started,
-                             league_mix=dict(league_mix), style_offset=style_target * min(1, ((round_id + 1) * matches_per_round) / style_ramp_matches) if style_ramp_matches else style_target,
+                             league_mix=dict(league_mix), phase1_opponents=dict(phase1_counts), neutral_blocks=neutral_blocks, style_offset_round_end=style_target * min(1, ((round_id + 1) * matches_per_round) / style_ramp_matches) if style_ramp_matches else style_target,
                              check=None, promoted=False, phase_ended=True,
                              stop_reason='time_cap', measuring_only=bool(panel and panel.get('measuring_only')), fitness=None, behavior=None, diversity=None,
                              champion=champion_generation, example_hand=None)
@@ -412,7 +422,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                              round=round_id + 1, generation=(round_id + 1) // generation_rounds,
                              matches=(round_id + 1) * matches_per_round, samples=total, updates=updates,
                              generation_samples=generation_samples, generation_updates=generation_updates,
-                             losses=losses, league_mix=league_mix, config=config, phase_ended=entry['phase_ended'] if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else False, stop_reason=entry.get('stop_reason') if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else None, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots), league_pool=_portable(league_pool), panel_history=_portable(panel_history), panel=_portable(panel), champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
+                             losses=losses, league_mix=league_mix, phase1_counts=phase1_counts, neutral_blocks=neutral_blocks, config=config, phase_ended=entry['phase_ended'] if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else False, stop_reason=entry.get('stop_reason') if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else None, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots), league_pool=_portable(league_pool), panel_history=_portable(panel_history), panel=_portable(panel), champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
                              numpy_rng=np.random.get_state(), torch_rng=torch.get_rng_state(),
                              shuffle_rng=rng.bit_generator.state)
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
@@ -453,7 +463,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
             member['path'] = os.path.relpath(member['resolved_path'], Path(directory).resolve())
     matches_per_round = ((matches_per_round + block_size - 1) // block_size) * block_size
     phase1_manifest = str(Path(phase1_manifest or (Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/league-phase1.json')).resolve())
-    config = dict(block_size=block_size, league_shares=dict(DEFAULT_SHARES if league_shares is None else league_shares), phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, pool_recent=pool_recent, pool_diverse=pool_diverse, patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=str(Path(panel_path).resolve()) if panel_path else None,
+    config = dict(block_size=block_size, league_shares=validate_shares(league_shares), phase1_manifest=[{k: m[k] for k in ('name', 'encoder', 'sha256')} for m in load_phase1_manifest(phase1_manifest)], style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, pool_recent=pool_recent, pool_diverse=pool_diverse, patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path={'version': panel['version'], 'measuring_only': bool(panel.get('measuring_only')), 'members': [{k: m[k] for k in ('name', 'kind', 'encoder', 'sha256')} for m in panel['members']]} if panel else None,
                   panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs,
                   check_seed_base=check_seed_base, temperature=temperature, min_gain=min_gain, min_direct=min_direct,
                   matches_per_generation=matches_per_generation,

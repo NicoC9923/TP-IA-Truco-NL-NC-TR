@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
-from proyecto.phase2_league import draw_opponent, load_phase1_manifest
+from phase2_league import draw_opponent, load_phase1_manifest
 
 class LeagueTest(unittest.TestCase):
     def test_deterministic(self):
@@ -41,7 +41,7 @@ class LeagueTest(unittest.TestCase):
 
 class SnapshotPoolTest(unittest.TestCase):
     def test_recent_diverse_excluded_and_ordered(self):
-        from proyecto.phase2_league import retain_snapshots
+        from phase2_league import retain_snapshots
         snapshots = [dict(generation=i, sha256=str(i), scores={'a': score}) for i, score in enumerate([0, .8, .2, .4, .5], 1)]
         kept = retain_snapshots(snapshots, recent=2, diverse=1, exclusions={'2'})
         self.assertEqual([s['sha256'] for s in kept], ['4', '5', '1'])
@@ -49,7 +49,8 @@ class SnapshotPoolTest(unittest.TestCase):
 
 class PanelExclusionsTest(unittest.TestCase):
     def test_all_panel_reservations(self):
-        from proyecto.phase2_league import panel_exclusions
+        from phase2_league import panel_exclusions
         current = {'members': [{'sha256': 'current'}], 'pending_member': {'sha256': 'pending'}}
         history = [{'members': [{'sha256': 'old'}], 'reserved': ['retired']}]
         self.assertEqual(panel_exclusions(current, history), {'current', 'pending', 'old', 'retired'})
+

@@ -1,6 +1,7 @@
 """Pure, reproducible phase 2 league draws and frozen phase 1 manifest."""
 import hashlib
 import json
+import math
 import random
 from pathlib import Path
 
@@ -18,10 +19,15 @@ def load_phase1_manifest(path):
     return members
 
 
-def draw_opponent(seed, block_id, shares=None, pool=(), phase1=(), exclusions=(), matches_so_far=0, target_offset=.1, ramp_matches=20000, neutral_rate=.05):
+def validate_shares(shares):
     shares = dict(DEFAULT_SHARES if shares is None else shares)
-    if set(shares) != set(DEFAULT_SHARES) or any(v < 0 for v in shares.values()) or abs(sum(shares.values()) - 1) > 1e-9:
+    if set(shares) != set(DEFAULT_SHARES) or any(not math.isfinite(v) or v < 0 for v in shares.values()) or abs(sum(shares.values()) - 1) > 1e-9:
         raise ValueError('League shares must be nonnegative and sum to one')
+    return shares
+
+
+def draw_opponent(seed, block_id, shares=None, pool=(), phase1=(), exclusions=(), matches_so_far=0, target_offset=.1, ramp_matches=20000, neutral_rate=.05):
+    shares = validate_shares(shares)
     if not 0 <= neutral_rate <= 1 or target_offset < 0 or ramp_matches < 0 or matches_so_far < 0:
         raise ValueError('Invalid league configuration')
     def identity(item):
