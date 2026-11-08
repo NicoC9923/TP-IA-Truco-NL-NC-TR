@@ -109,3 +109,7 @@ class Phase2TrainerTest(unittest.TestCase):
         self.assertEqual({target for target, score in settings}, {15, 30})
         self.assertTrue(any(score != (0, 0) for target, score in settings))
         self.assertTrue(all(0 <= x < target for target, score in settings for x in score))
+    def test_training_deal_seeds_are_unique_for_logical_matches(self):
+        from phase2_trainer import training_seed
+        seeds = {training_seed(7, i) for i in range(300000)}
+        self.assertEqual(len(seeds), 300000)

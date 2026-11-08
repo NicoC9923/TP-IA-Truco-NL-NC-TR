@@ -37,8 +37,9 @@ class RecordingPolicy(Phase2Policy):
 
 def training_seed(seed, match_id):
     """Odd training deal seeds cannot overlap the even validation schedule."""
-    value = int(np.random.SeedSequence([seed, match_id]).generate_state(1)[0])
-    return 2 * value + 1
+    # Cantor pairing is injective, unlike a truncated hash of the identifiers.
+    diagonal = seed + match_id
+    return 2 * (diagonal * (diagonal + 1) // 2 + match_id) + 1
 
 def match_settings(seed, match_id, target='mixed', random_start_share=.3):
     rng = np.random.default_rng(np.random.SeedSequence([seed, match_id, 2]))
