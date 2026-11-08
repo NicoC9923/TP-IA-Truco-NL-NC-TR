@@ -73,3 +73,39 @@ class Phase2TrainerTest(unittest.TestCase):
             self.assertGreater(entry['updates'], 0)
             self.assertGreaterEqual(entry['mean_loss'], 0)
             self.assertGreaterEqual(entry['elapsed_seconds'], 0)
+    def test_resume_round_boundary_and_config_mismatch(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from phase2_trainer import train
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            config = dict(generations=2, matches_per_generation=2, matches_per_round=1,
+                          workers=2, seed=9, target=1, minibatch=8)
+            full = train(root / 'full', **config)
+            train(root / 'resumed', stop_after_round=1, **config)
+            checkpoint = root / 'resumed' / 'checkpoint_000001.pt'
+            (root / 'resumed' / 'generations.jsonl').write_text('{"generation": 99}\n')
+            resumed = train(root / 'resumed', resume=checkpoint, **config)
+            for key, tensor in full.model.state_dict().items():
+                self.assertTrue(torch.equal(tensor, resumed.model.state_dict()[key]))
+            for key, state in full.optimizer.state_dict()['state'].items():
+                for name, value in state.items():
+                    self.assertTrue(torch.equal(value, resumed.optimizer.state_dict()['state'][key][name]))
+            logs = []
+            for directory in ('full', 'resumed'):
+                lines = [json.loads(line) for line in (root / directory / 'generations.jsonl').read_text().splitlines()]
+                for line in lines:
+                    line.pop('elapsed_seconds')
+                logs.append(lines)
+            self.assertEqual(logs[0], logs[1])
+            with self.assertRaisesRegex(ValueError, 'configuration'):
+                train(root / 'resumed', resume=checkpoint, **{**config, 'seed': 10})
+
+    def test_match_settings_are_deterministic_and_mixed(self):
+        from phase2_trainer import match_settings
+        settings = [match_settings(7, i, 'mixed', .3) for i in range(100)]
+        self.assertEqual(settings, [match_settings(7, i, 'mixed', .3) for i in range(100)])
+        self.assertEqual({target for target, score in settings}, {15, 30})
+        self.assertTrue(any(score != (0, 0) for target, score in settings))
+        self.assertTrue(all(0 <= x < target for target, score in settings for x in score))
