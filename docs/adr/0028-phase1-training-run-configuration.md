@@ -49,3 +49,5 @@ The [encoder v2 seed 1 experiment](../../experiments/phase1-encoder-v2-seed1/REA
 The [encoder v3 seed 1 experiment](../../experiments/phase1-encoder-v3-seed1/README.md) records training and the frozen panel decision.
 
 The [matched encoder seed 2 record](../../experiments/phase1-seed2-matched/README.md) documents the subsequent comparison and decision.
+
+ADR 0038 provisionally adopts v2 for future phase 1 experiments while retaining the v1 CLI default.
