@@ -81,7 +81,8 @@ class ProgressReporter:
                 status='ended' if ended else 'training', stop_reason=stop_reason))
         if self.console is not None:
             rate = f' · {matches_per_s:.1f} part/s' if matches_per_s else ''
-            text = f'gen {generation + 1} · ronda {round} · {matches} partidas{rate} · {format_duration(elapsed)}'
+            shown = generation if ended else generation + 1
+            text = f'gen {shown} · ronda {round} · {matches} partidas{rate} · {format_duration(elapsed)}'
             self._write('\r' + text.ljust(self.line_width))
             self.line_width = len(text)
 

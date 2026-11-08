@@ -131,3 +131,9 @@ class EvolutionPageContentTests(unittest.TestCase):
         self.assertIn('name="viewport"', self.page)
         self.assertIn('@media(max-width:640px)', self.page)
         self.assertGreaterEqual(self.page.count('min-height:44px'), 1)
+
+    def test_empty_states_and_keyboard_tabs(self):
+        self.assertIn('Todavía no hay una ejecución de la fase 2.', self.page)
+        self.assertIn('Disponible cuando la fase 2 tenga campeona evaluada', self.page)
+        self.assertIn('ArrowRight', self.page)
+        self.assertIn('tabIndex', self.page)

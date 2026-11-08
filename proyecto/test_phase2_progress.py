@@ -74,6 +74,21 @@ class ProgressFileTest(unittest.TestCase):
             self.assertNotIn('progress', read('on'))
             self.assertTrue((root / 'res/progress.json').exists())
 
+    def test_promotions_and_generation_lines_come_from_the_real_run(self):
+        decision = {'gain': .1, 'lower_bound': .05, 'upper_bound': .15, 'head_to_head': .5, 'promoted': True}
+        out = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory, patch('phase2_trainer.promotion_decision', return_value=decision):
+            root = Path(directory)
+            train(root / 'run', console=out, **make_config(root))
+            progress = json.loads((root / 'run/progress.json').read_text(encoding='utf-8'))
+            log = [json.loads(x) for x in (root / 'run/generations.jsonl').read_text(encoding='utf-8').splitlines()]
+        promoted = sum(bool(x['promoted']) for x in log)
+        self.assertEqual(promoted, 1)
+        self.assertEqual(progress['promotions'], promoted)
+        lines = [x for x in out.getvalue().splitlines() if 'ronda' not in x and x.strip()]
+        self.assertEqual(len(lines), 2)
+        self.assertIn('gen 2 · mejora +10.0 pts (±5.0) · asciende', lines[1])
+
     def test_interrupted_run_stays_training(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

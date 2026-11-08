@@ -222,8 +222,8 @@ function chart(phase, rows) {
     return box;
   }
   const narrow = window.innerWidth < 640;
-  const W = narrow ? 420 : 1000, H = narrow ? 300 : 320, L = narrow ? 50 : 64, R = W - (narrow ? 14 : 20), T = 20, B = H - 30;
-  const F = narrow ? 12 : 13;
+  const W = narrow ? 360 : 1000, H = narrow ? 280 : 320, L = narrow ? 58 : 64, R = W - (narrow ? 12 : 20), T = 20, B = H - 30;
+  const F = narrow ? 13 : 13;
   const lowest = Math.min(base, ...rows.map((r) => r.lo)), highest = Math.max(base, ...rows.map((r) => r.hi));
   const { ticks, lo, hi } = niceTicks(lowest, highest, base);
   const gmin = rows[0].gen, gmax = rows[rows.length - 1].gen;
@@ -233,11 +233,11 @@ function chart(phase, rows) {
   const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': `${title}, generaciones ${gmin} a ${gmax}` });
   for (const t of ticks) {
     s.append(svg('line', { x1: L, y1: Y(t), x2: R, y2: Y(t), stroke: t === base ? '#8A94A3' : '#EEF0F3', 'stroke-width': 1 }));
-    s.append(svg('text', { x: L - 8, y: Y(t) + 4, 'text-anchor': 'end', 'font-size': F, fill: '#5A626E' }, (isP2 && t > 0 ? '+' : '') + t + (narrow ? (isP2 ? '' : '%') : unit)));
+    s.append(svg('text', { x: L - 8, y: Y(t) + 4, 'text-anchor': 'end', 'font-size': F, fill: '#5A626E' }, (isP2 && t > 0 ? '+' : '') + t + unit));
   }
   for (const r of rows.filter((x) => x.boundary !== null)) {
     s.append(svg('line', { x1: X(r.gen), y1: T, x2: X(r.gen), y2: B, stroke: '#5A626E', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }));
-    s.append(svg('text', { x: X(r.gen) + 5, y: T + 12, 'font-size': 12, fill: '#3A414B' }, `panel v${r.boundary}`));
+    s.append(svg('text', { x: X(r.gen) + 5, y: T + 12, 'font-size': narrow ? 13 : 12, fill: '#3A414B' }, `panel v${r.boundary}`));
   }
   const up = rows.map((r) => `${X(r.gen).toFixed(1)},${Y(r.hi).toFixed(1)}`);
   const down = rows.map((r) => `${X(r.gen).toFixed(1)},${Y(r.lo).toFixed(1)}`).reverse();
@@ -389,7 +389,7 @@ function comparison() {
 
 /* ---------- render / data ---------- */
 function render() {
-  document.querySelectorAll('nav button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === state.tab)));
+  document.querySelectorAll('nav button').forEach((b) => { const on = b.dataset.tab === state.tab; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
   const view = document.getElementById('view');
   const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('main') ? document.activeElement.getAttribute('aria-controls') : null;
   view.setAttribute('aria-labelledby', 'tab-' + state.tab);
@@ -451,6 +451,16 @@ async function poll() {
   schedule();
 }
 
+document.querySelector('nav').addEventListener('keydown', (e) => {
+  const order = ['p1', 'p2', 'cmp'];
+  const step = { ArrowRight: 1, ArrowLeft: -1 }[e.key];
+  if (!step && e.key !== 'Home' && e.key !== 'End') return;
+  e.preventDefault();
+  const i = e.key === 'Home' ? 0 : e.key === 'End' ? order.length - 1 : (order.indexOf(state.tab) + step + order.length) % order.length;
+  state.tab = order[i];
+  render();
+  document.getElementById('tab-' + state.tab).focus();
+});
 let lastNarrow = window.innerWidth < 640;
 window.addEventListener('resize', () => { const n = window.innerWidth < 640; if (n !== lastNarrow) { lastNarrow = n; render(); } });
 document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => { state.tab = b.dataset.tab; render(); }));

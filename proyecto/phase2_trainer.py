@@ -411,6 +411,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                         torch.save(champion, Path(champions_dir) / 'reigning_champion.pt')
                 with Path(log_path).open('a', encoding='utf-8') as log:
                     log.write(json.dumps(entry) + '\n')
+                reporter.generation_done(entry, elapsed)
                 generation_samples = generation_updates = 0
                 league_mix = {}
                 phase1_counts = {}
@@ -428,6 +429,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                              champion=champion_generation, example_hand=None)
                 with Path(log_path).open('a', encoding='utf-8') as log:
                     log.write(json.dumps(entry) + '\n')
+                round_stop = 'time_cap'
+                reporter.generation_done(entry, elapsed)
             if checkpoint_dir is not None:
                 state = dict(model=model.state_dict(), optimizer=optimizer.state_dict(),
                              round=round_id + 1, generation=(round_id + 1) // generation_rounds,
