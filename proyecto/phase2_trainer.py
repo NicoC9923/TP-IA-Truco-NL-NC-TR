@@ -20,7 +20,7 @@ from phase1_network import ACTIONS, NetworkPolicy
 from phase2_torch import Phase2Network, Phase2Policy
 from symmetric_engine import play_match, play_mirror_pair
 from validation_schedule import validation_schedule
-from phase2_league import retain_snapshots, panel_exclusions
+from phase2_league import retain_snapshots, panel_exclusions, draw_opponent, load_phase1_manifest, DEFAULT_SHARES
 from phase2_promotion import load_panel, check_seed, promotion_decision, saturated, build_panel, RESERVED_SEEDS
 
 def _configure_threads():
@@ -67,6 +67,52 @@ def _matches(args):
                    for seat, policy in enumerate(policies) for x, action in policy.samples]
         results.append((match_id, samples))
     return results
+
+def _league_block(args):
+    weights, seed, ids, target, random_start_share, spec, opponents, temperature = args
+    model = Phase2Network()
+    model.load_state_dict(weights)
+    identity = spec['identity']
+    opponent_model = model
+    if identity != 'current':
+        member = opponents[identity]
+        path = Path(member['resolved_path'])
+        if hashlib.sha256(path.read_bytes()).hexdigest() != identity:
+            raise ValueError('league opponent hash mismatch')
+        if spec['category'] == 'phase1':
+            opponent_model = np.load(path)
+        else:
+            opponent_model = Phase2Network.load(path)
+    seeds = np.random.SeedSequence([seed, ids[0], 81]).generate_state(2)
+    learner = RecordingPolicy(model, seed=int(seeds[0]), temperature=temperature, adapt=not spec['neutral_profile'])
+    if spec['category'] == 'phase1':
+        opponent = NetworkPolicy(opponent_model, seed=int(seeds[1]), encoder=member['encoder'])
+    else:
+        cls = RecordingPolicy if spec['category'] == 'self' else Phase2Policy
+        opponent = cls(opponent_model, seed=int(seeds[1]), temperature=temperature,
+                       style=spec['style'], style_strength=spec['offset'],
+                       adapt=not spec['neutral_profile'] if spec['category'] == 'self' else True)
+    policies = (learner, opponent)
+    results = []
+    for match_id in ids:
+        for policy in policies:
+            if isinstance(policy, RecordingPolicy):
+                policy.samples = []
+            policy.rng = np.random.default_rng(np.random.SeedSequence([seed, match_id, 1, policies.index(policy)]))
+        match_target, score = match_settings(seed, match_id, target, random_start_share)
+        result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score)
+        samples = [(x, action, 1.0 if seat == result.winner else -1.0, seat)
+                   for seat, policy in enumerate(policies) if isinstance(policy, RecordingPolicy)
+                   for x, action in policy.samples]
+        results.append((match_id, samples))
+    return results
+
+
+def _league_chunk(job):
+    weights, seed, blocks, target, random_start_share, opponents, temperature = job
+    return [result for ids, spec in blocks for result in
+            _league_block((weights, seed, ids, target, random_start_share, spec, opponents, temperature))]
+
 
 def _check_pair(job):
     challenger, opponent, deal_seed, target, action_seed, temperature = job
@@ -153,12 +199,12 @@ class RoundResult:
     updates: int
     last_samples: list
 
-def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixed',
+def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixed',
                lr=3e-4, minibatch=512, generation_rounds=None, log_path=None,
                random_start_share=.3, checkpoint_dir=None, config=None, resume_state=None,
                stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
                check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
-               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4):
+               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05):
     if (min(rounds, matches_per_round, workers, minibatch) < 1 or min(pool_recent, pool_diverse) < 0 or seed < 0
             or (target != 'mixed' and (not isinstance(target, int) or target < 1))
             or not 0 <= random_start_share <= 1 or not math.isfinite(lr) or lr <= 0):
@@ -167,6 +213,14 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
             or (generation_rounds is not None and generation_rounds < 1)
             or (checkpoint_dir is not None and generation_rounds is None)):
         raise ValueError('generation_rounds and log_path must be supplied together for checkpoints')
+    if block_size < 1 or matches_per_round % block_size:
+        raise ValueError('matches_per_round must be divisible by block_size')
+    if phase1_manifest is None:
+        phase1_manifest = Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/league-phase1.json'
+    phase1 = load_phase1_manifest(phase1_manifest)
+    for member in phase1:
+        member['resolved_path'] = str((Path(phase1_manifest).resolve().parent / member['path']).resolve())
+    shares = dict(DEFAULT_SHARES if league_shares is None else league_shares)
     _configure_threads()
     torch.use_deterministic_algorithms(True)
     model = Phase2Network(seed=seed)
@@ -175,6 +229,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
     total = updates = 0
     last = []
     generation_samples = generation_updates = 0
+    league_mix = {}
     losses = []
     started = clock()
     run_tick = started
@@ -206,6 +261,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
         first_round = resume_state['round']
         total, updates = resume_state['samples'], resume_state['updates']
         generation_samples, generation_updates = resume_state['generation_samples'], resume_state['generation_updates']
+        league_mix = resume_state.get('league_mix', {})
         losses = resume_state['losses']
         random.setstate(resume_state['python_rng'])
         np.random.set_state(resume_state['numpy_rng'])
@@ -218,10 +274,24 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
     with pool_context as pool:
         for round_id in range(first_round, min(rounds, stop_after_round or rounds)):
             weights = model.state_dict()
-            ids = range(round_id * matches_per_round, (round_id + 1) * matches_per_round)
-            chunks = [list(chunk) for chunk in np.array_split(list(ids), min(workers, matches_per_round))]
-            jobs = [(weights, seed, [int(i) for i in chunk], target, random_start_share) for chunk in chunks]
-            batches = pool.map(_matches, jobs, chunksize=1) if pool else list(map(_matches, jobs))
+            exclusions = panel_exclusions(panel, panel_history)
+            available = [x for x in league_pool if x['sha256'] not in exclusions]
+            opponents = {x['sha256']: dict(x, resolved_path=str((Path(checkpoint_dir) / x['path']).resolve())) for x in available}
+            opponents.update({x['sha256']: x for x in phase1 if x['sha256'] not in exclusions})
+            blocks = []
+            first_id = round_id * matches_per_round
+            for match_id in range(first_id, first_id + matches_per_round, block_size):
+                spec = draw_opponent(seed, match_id // block_size, shares=shares, pool=available,
+                                     phase1=phase1, exclusions=exclusions, matches_so_far=match_id,
+                                     target_offset=style_target, ramp_matches=style_ramp_matches,
+                                     neutral_rate=neutral_rate)
+                ids = list(range(match_id, match_id + block_size))
+                blocks.append((ids, spec))
+                category = spec['style'] or spec['category']
+                league_mix[category] = league_mix.get(category, 0) + len(ids)
+            chunks = [list(chunk) for chunk in np.array_split(np.arange(len(blocks)), min(workers, len(blocks)))]
+            jobs = [(weights, seed, [blocks[int(i)] for i in chunk], target, random_start_share, opponents, temperature) for chunk in chunks]
+            batches = pool.map(_league_chunk, jobs, chunksize=1) if pool else list(map(_league_chunk, jobs))
             results = [result for batch in batches for result in batch]
             last = [sample for _, samples in sorted(results) for sample in samples]
             total += len(last)
@@ -245,6 +315,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                              matches=generation_rounds * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
                              mean_loss=sum(losses) / len(losses), elapsed_seconds=clock() - started,
+                             league_mix=dict(league_mix), style_offset=style_target * min(1, ((round_id + 1) * matches_per_round) / style_ramp_matches) if style_ramp_matches else style_target,
                              check=None, promoted=False,
                              phase_ended=False, stop_reason=None, measuring_only=bool(panel and panel.get('measuring_only')), fitness=None, behavior=None,
                              diversity=None, champion=None, example_hand=None)
@@ -310,6 +381,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                 with Path(log_path).open('a', encoding='utf-8') as log:
                     log.write(json.dumps(entry) + '\n')
                 generation_samples = generation_updates = 0
+                league_mix = {}
                 losses = []
                 started = clock()
             if generation_rounds and (round_id + 1) % generation_rounds and elapsed >= time_cap_seconds:
@@ -317,6 +389,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                              matches=(round_id + 1) % generation_rounds * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
                              mean_loss=sum(losses) / len(losses), elapsed_seconds=clock() - started,
+                             league_mix=dict(league_mix), style_offset=style_target * min(1, ((round_id + 1) * matches_per_round) / style_ramp_matches) if style_ramp_matches else style_target,
                              check=None, promoted=False, phase_ended=True,
                              stop_reason='time_cap', measuring_only=bool(panel and panel.get('measuring_only')), fitness=None, behavior=None, diversity=None,
                              champion=champion_generation, example_hand=None)
@@ -327,7 +400,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                              round=round_id + 1, generation=(round_id + 1) // generation_rounds,
                              matches=(round_id + 1) * matches_per_round, samples=total, updates=updates,
                              generation_samples=generation_samples, generation_updates=generation_updates,
-                             losses=losses, config=config, phase_ended=entry['phase_ended'] if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else False, stop_reason=entry.get('stop_reason') if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else None, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots), league_pool=_portable(league_pool), panel_history=_portable(panel_history), panel=_portable(panel), champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
+                             losses=losses, league_mix=league_mix, config=config, phase_ended=entry['phase_ended'] if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else False, stop_reason=entry.get('stop_reason') if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else None, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots), league_pool=_portable(league_pool), panel_history=_portable(panel_history), panel=_portable(panel), champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
                              numpy_rng=np.random.get_state(), torch_rng=torch.get_rng_state(),
                              shuffle_rng=rng.bit_generator.state)
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
@@ -353,9 +426,9 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
           random_start_share=.3, resume=None, stop_after_round=None, panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json',
           champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
           check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
-          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4):
-    """Round each generation up to a whole number of rounds."""
-    if min(generations, matches_per_generation, matches_per_round) < 1:
+          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05):
+    """Round match counts up to complete blocks and generations to complete rounds."""
+    if min(generations, matches_per_generation, matches_per_round, block_size) < 1:
         raise ValueError('Generation and match counts must be positive')
     if min(panel_pairs, head_to_head_pairs) < 2 or temperature <= 0 or min(patience, time_cap_seconds, saturation_checks, saturation_pairs) <= 0:
         raise ValueError('Invalid selection configuration')
@@ -366,7 +439,9 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         for member in panel['members']:
             member['resolved_path'] = str((Path(panel_path).resolve().parent / member['path']).resolve())
             member['path'] = os.path.relpath(member['resolved_path'], Path(directory).resolve())
-    config = dict(pool_recent=pool_recent, pool_diverse=pool_diverse, patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=str(Path(panel_path).resolve()) if panel_path else None,
+    matches_per_round = ((matches_per_round + block_size - 1) // block_size) * block_size
+    phase1_manifest = str(Path(phase1_manifest or (Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/league-phase1.json')).resolve())
+    config = dict(block_size=block_size, league_shares=dict(DEFAULT_SHARES if league_shares is None else league_shares), phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, pool_recent=pool_recent, pool_diverse=pool_diverse, patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=str(Path(panel_path).resolve()) if panel_path else None,
                   panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs,
                   check_seed_base=check_seed_base, temperature=temperature, min_gain=min_gain, min_direct=min_direct,
                   matches_per_generation=matches_per_generation,
@@ -384,7 +459,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
     if state is not None and old_config != config:
         raise ValueError('Checkpoint configuration does not match')
     if state is not None and state.get('phase_ended'):
-        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state)
+        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate)
     output.mkdir(parents=True, exist_ok=True)
     log_path = output / 'generations.jsonl'
     if state is None:
@@ -399,7 +474,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
                       resume_state=state, stop_after_round=stop_after_round, panel=panel, champions_dir=champions_dir,
                       panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs, check_seed_base=check_seed_base,
-                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse)
+                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -425,6 +500,14 @@ def main():
     parser.add_argument('--saturation-checks', type=int, default=3)
     parser.add_argument('--saturation-pairs', type=int, default=300)
     parser.add_argument('--saturation-threshold', type=float, default=.7)
+    parser.add_argument('--league-shares', type=json.loads, help='JSON mapping of league shares')
+    parser.add_argument('--block-size', type=int, default=4)
+    parser.add_argument('--pool-recent', type=int, default=8)
+    parser.add_argument('--pool-diverse', type=int, default=4)
+    parser.add_argument('--style-target', type=float, default=.1)
+    parser.add_argument('--style-ramp-matches', type=int, default=20000)
+    parser.add_argument('--neutral-rate', type=float, default=.05)
+    parser.add_argument('--phase1-manifest')
     parser.add_argument('--resume')
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--minibatch', type=int, default=512)

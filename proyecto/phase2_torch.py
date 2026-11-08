@@ -33,7 +33,7 @@ class Phase2Network(nn.Module):
 class Phase2Policy:
     """Sample with a seeded RNG that continues across matches."""
     def __init__(self, model=None, *, seed=0, temperature=0.1, profile=None,
-                 weighted_beliefs=True, style=None, style_strength=0.1):
+                 weighted_beliefs=True, style=None, style_strength=0.1, adapt=True):
         if not np.isfinite(temperature) or temperature <= 0:
             raise ValueError('temperature must be positive and finite')
         if style not in (None, 'bluffer', 'calculating', 'cautious', 'aggressive'):
@@ -43,12 +43,14 @@ class Phase2Policy:
         self.rng = np.random.default_rng(seed)
         self.temperature = temperature
         self.weighted_beliefs = weighted_beliefs
+        self.adapt = adapt
+        self.neutral_profile = OpponentProfile()
         self.style, self.style_strength = style, style_strength
         self.exact_inference = IncrementalInference()
         self.weighted_inference = IncrementalInference()
 
     def encode(self, observation, legal_actions):
-        return encode_observation(observation, self.profile, legal_actions,
+        return encode_observation(observation, self.profile if self.adapt else self.neutral_profile, legal_actions,
                                   weighted_beliefs=self.weighted_beliefs,
                                   exact_inference=self.exact_inference,
                                   weighted_inference=self.weighted_inference)

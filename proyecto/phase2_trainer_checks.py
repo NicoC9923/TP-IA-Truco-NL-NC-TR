@@ -1,6 +1,8 @@
 import unittest
 import torch
-from phase2_trainer import run_rounds
+from phase2_trainer import run_rounds as _run_rounds
+from functools import partial
+run_rounds = partial(_run_rounds, block_size=1)
 
 class Phase2TrainerTest(unittest.TestCase):
     def test_rounds_are_deterministic_across_workers(self):
@@ -17,8 +19,7 @@ class Phase2TrainerTest(unittest.TestCase):
         self.assertTrue(any(not torch.equal(v, initial.state_dict()[k]) for k, v in a.model.state_dict().items()))
         self.assertTrue(all(torch.equal(v, b.model.state_dict()[k]) for k, v in a.model.state_dict().items()))
         self.assertTrue(any(not torch.equal(v, c.model.state_dict()[k]) for k, v in a.model.state_dict().items()))
-        signs = {seat: result for _, _, result, seat in a.last_samples}
-        self.assertEqual(set(signs.values()), {-1.0, 1.0})
+        self.assertTrue(all(sample[2] in (-1.0, 1.0) for sample in a.last_samples))
     def test_samples_match_winner_and_learner_threads_are_fixed(self):
         from unittest.mock import patch
         import phase2_trainer
@@ -29,7 +30,7 @@ class Phase2TrainerTest(unittest.TestCase):
             winners.append(result.winner)
             return result
         with patch.object(phase2_trainer, 'play_match', side_effect=capture):
-            trained = run_rounds(seed=17, rounds=1, matches_per_round=1, target=1)
+            trained = run_rounds(seed=17, rounds=1, matches_per_round=1, target=1, league_shares={'self': 1, 'phase1': 0, 'snapshot': 0, 'bluffer': 0, 'cautious': 0, 'aggressive': 0, 'calculating': 0})
         self.assertEqual(len(winners), 1)
         self.assertEqual({sample[3] for sample in trained.last_samples}, {0, 1})
         for _, _, value, seat in trained.last_samples:
@@ -64,7 +65,7 @@ class Phase2TrainerTest(unittest.TestCase):
             script = Path(__file__).with_name('phase2_trainer.py')
             subprocess.run([sys.executable, str(script), '--output', directory, '--generations', '2',
                             '--no-selection', '--workers', '1', '--seed', '7', '--target', '1',
-                            '--matches-per-generation', '3', '--matches-per-round', '2'], check=True)
+                            '--matches-per-generation', '3', '--matches-per-round', '2', '--block-size', '1'], check=True)
             entries = [json.loads(line) for line in (Path(directory) / 'generations.jsonl').read_text().splitlines()]
         self.assertEqual(len(entries), 2)
         for generation, entry in enumerate(entries, 1):
@@ -79,7 +80,7 @@ class Phase2TrainerTest(unittest.TestCase):
         from pathlib import Path
         from phase2_trainer import train as _train
         from functools import partial
-        train = partial(_train, panel_path=None)
+        train = partial(_train, panel_path=None, block_size=1)
         with tempfile.TemporaryDirectory() as root:
             root = Path(root)
             config = dict(generations=2, matches_per_generation=2, matches_per_round=1,
@@ -125,7 +126,7 @@ class Phase2TrainerTest(unittest.TestCase):
         from pathlib import Path
         from phase2_trainer import train as _train
         from functools import partial
-        train = partial(_train, panel_path=None)
+        train = partial(_train, panel_path=None, block_size=1)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             config = dict(matches_per_generation=2, matches_per_round=1, workers=2, seed=29, target=1)
@@ -161,7 +162,7 @@ class Phase2TrainerTest(unittest.TestCase):
         from pathlib import Path
         from phase2_trainer import train as _train
         from functools import partial
-        train = partial(_train, panel_path=None)
+        train = partial(_train, panel_path=None, block_size=1)
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError, 'generation_rounds.*log_path'):
                 run_rounds(rounds=1, target=1, checkpoint_dir=directory)
@@ -181,7 +182,7 @@ class LeaguePoolCheckpointTest(unittest.TestCase):
         from phase2_trainer import train
         with tempfile.TemporaryDirectory() as directory:
             options = dict(generations=3, matches_per_generation=1, matches_per_round=1,
-                           workers=1, target=1, panel_path=None, seed=8)
+                           workers=1, target=1, panel_path=None, seed=8, block_size=1)
             train(directory, stop_after_round=2, **options)
             checkpoint = Path(directory) / 'checkpoint_000002.pt'
             before = torch.load(checkpoint, weights_only=False)['league_pool']
@@ -190,6 +191,123 @@ class LeaguePoolCheckpointTest(unittest.TestCase):
             after = torch.load(Path(directory) / 'checkpoint_000003.pt', weights_only=False)['league_pool']
             self.assertEqual(before, after[:2])
             self.assertEqual([s['generation'] for s in after], [1, 2, 3])
+
+
+
+class LeagueActorTest(unittest.TestCase):
+    def test_nonself_records_only_learner_seat(self):
+        from phase2_trainer import _league_block
+        from phase2_torch import Phase2Network
+        spec = {'category': 'styled', 'identity': 'current', 'style': 'bluffer', 'offset': .1, 'neutral_profile': False}
+        results = _league_block((Phase2Network(seed=5).state_dict(), 5, [0, 1], 1, 0, spec, {}, .1))
+        self.assertEqual(len(results), 2)
+        self.assertTrue(all({s[3] for s in samples} == {0} for _, samples in results))
+
+class LeagueRunTest(unittest.TestCase):
+    def test_league_mix_and_worker_determinism(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from phase2_trainer import train
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            opts = dict(generations=1, matches_per_generation=8, matches_per_round=8,
+                        seed=22, target=1, panel_path=None, champions_dir=None)
+            a = train(root / 'a', workers=1, **opts)
+            b = train(root / 'b', workers=2, **opts)
+            self.assertTrue(all(torch.equal(v, b.model.state_dict()[k]) for k, v in a.model.state_dict().items()))
+            log = json.loads((root / 'a' / 'generations.jsonl').read_text())
+            self.assertEqual(sum(log['league_mix'].values()), 8)
+            self.assertAlmostEqual(log['style_offset'], .1 * 8 / 20000)
+
+
+
+class LeagueStyleTest(unittest.TestCase):
+    def test_styles_change_observed_behavior(self):
+        from phase2_torch import Phase2Network, Phase2Policy
+        from symmetric_engine import play_match, bluff
+        model = Phase2Network(seed=4)
+        def evaluate(style):
+            counts = [0, 0, 0, 0]
+            for seed in range(120):
+                result = play_match(Phase2Policy(model, seed=seed, style=style, style_strength=.3),
+                                    Phase2Policy(model, seed=seed + 1000), seed=seed, target=1)
+                for d in result.decisions:
+                    if d['player'] != 0:
+                        continue
+                    if any(bluff(a, d['observation']['hand']) for a in d['legal_actions']):
+                        counts[1] += 1
+                        counts[0] += d['bluff'] is True
+                    if 'quiero' in d['legal_actions']:
+                        counts[3] += 1
+                        counts[2] += d['action'] == 'quiero'
+            return counts
+        bluffer, calculating = evaluate('bluffer'), evaluate('calculating')
+        cautious, aggressive = evaluate('cautious'), evaluate('aggressive')
+        self.assertGreater(bluffer[0] / bluffer[1], calculating[0] / calculating[1])
+        self.assertLess(cautious[2] / cautious[3], aggressive[2] / aggressive[3])
+
+
+
+class LeaguePanelTest(unittest.TestCase):
+    def test_real_run_excludes_panel_members(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import phase2_trainer as trainer
+        from phase2_league import panel_exclusions
+        real_draw = trainer.draw_opponent
+        seen = []
+        def capture(*args, **kwargs):
+            spec = real_draw(*args, **kwargs)
+            self.assertNotIn(spec['identity'], kwargs['exclusions'])
+            seen.append(spec['identity'])
+            return spec
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as directory, patch.object(trainer, 'draw_opponent', side_effect=capture):
+            trainer.train(directory, generations=1, matches_per_generation=8, matches_per_round=4,
+                          target=1, workers=1, champions_dir=None,
+                          panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v0-measuring.json',
+                          league_shares={'self': 0, 'phase1': 1, 'snapshot': 0,
+                                         'bluffer': 0, 'cautious': 0, 'aggressive': 0, 'calculating': 0})
+        self.assertEqual(len(seen), 2)
+        self.assertNotIn('current', seen)
+
+
+
+
+class BlockProfileTest(unittest.TestCase):
+    def test_profiles_are_retained_within_block(self):
+        from unittest.mock import patch
+        import phase2_trainer as trainer
+        from phase2_torch import Phase2Network
+        real_play = trainer.play_match
+        profiles = []
+        def capture(a, b, **kwargs):
+            profiles.append((a.profile, b.profile, sum(a.profile.confidence().values())))
+            return real_play(a, b, **kwargs)
+        spec = {'category': 'styled', 'identity': 'current', 'style': 'bluffer', 'offset': .1, 'neutral_profile': True}
+        with patch.object(trainer, 'play_match', side_effect=capture):
+            trainer._league_block((Phase2Network(seed=9).state_dict(), 9, [0, 1], 5, 0, spec, {}, .1))
+        self.assertIs(profiles[0][0], profiles[1][0])
+        self.assertIs(profiles[0][1], profiles[1][1])
+        self.assertGreater(profiles[1][2], profiles[0][2])
+
+
+
+
+class LeagueIntegrityTest(unittest.TestCase):
+    def test_frozen_opponent_hash_is_verified(self):
+        import tempfile
+        from pathlib import Path
+        from phase2_trainer import _league_block
+        from phase2_torch import Phase2Network
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'snapshot.pt'
+            path.write_bytes(b'changed')
+            spec = {'category': 'snapshot', 'identity': 'expected', 'style': None, 'offset': 0, 'neutral_profile': False}
+            with self.assertRaisesRegex(ValueError, 'hash mismatch'):
+                _league_block((Phase2Network().state_dict(), 1, [0], 1, 0, spec,
+                               {'expected': {'resolved_path': str(path)}}, .1))
 
 if __name__ == '__main__':
     unittest.main()
