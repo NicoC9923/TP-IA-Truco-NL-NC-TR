@@ -267,7 +267,7 @@ class PartidaTruco:
             decision['revealed'] = revealed
             decision['bluff'] = is_bluff(decision['action'], hand) if revealed else None
         self.opponent_profile.observe(self._human_decisions, 0)
-        self.opponent_profile_v3.observe(self._human_decisions, 0, semantics='v2')
+        self.opponent_profile_v3.observe(self._human_decisions, 0, semantics='v3')
         self.estadisticas_partida["manos_jugadas"] += 1
         self.ia.analizar_mano_humano(
             self.cartas_humano,

@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 import numpy as np
 from phase1_network import encode_observation, NetworkPolicy, GENOME_SIZE
 from opponent_profile import OpponentProfile
@@ -71,6 +72,17 @@ class Chunk2Tests(unittest.TestCase):
             self.assertEqual([d['action'] for d in result.decisions[:4]],
                              ['truco', 'envido', 'quiero', 'quiero'])
             self.assertEqual(caller.snapshots[0], expected)
+
+    def test_profile_semantics_use_v3_name_and_keep_v2_alias(self):
+        decisions = [event('envido', 'truco'), event('quiero', 'truco')]
+        for semantics in ('v2', 'v3'):
+            profile = OpponentProfile()
+            profile.observe(decisions, 0, semantics=semantics)
+            self.assertEqual(profile.counts['truco_accepted'], [1, 1])
+        policy = NetworkPolicy(np.zeros(GENOME_SIZE), encoder='v3')
+        with patch.object(policy.profile, 'observe', wraps=policy.profile.observe) as observed:
+            policy.observe_hand(decisions, 0)
+            self.assertEqual(observed.call_args.kwargs['semantics'], 'v3')
 
     def test_human_adapter_keeps_separate_semantics(self):
         with tempfile.TemporaryDirectory() as tmp:

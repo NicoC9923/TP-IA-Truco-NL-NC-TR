@@ -141,7 +141,7 @@ class NetworkPolicy:
         return legal_actions[self.rng.choice(len(legal_actions), p=probabilities)]
 
     def observe_hand(self, decisions, opponent):
-        self.profile.observe(decisions, opponent, semantics='v2' if self.encoder == 'v3' else 'legacy')
+        self.profile.observe(decisions, opponent, semantics='v3' if self.encoder == 'v3' else 'legacy')
         self.inference.reset()
 
     def save(self, path):

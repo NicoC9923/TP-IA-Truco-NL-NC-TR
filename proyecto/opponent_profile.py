@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 
+TRUCO_RESOLUTION_ACTIONS = frozenset(('quiero', 'no_quiero', 'fold', 'retruco', 'vale_cuatro'))
+
 class OpponentProfile:
     def __init__(self, path=None):
         self.path = Path(path) if path is not None else None
@@ -26,6 +28,7 @@ class OpponentProfile:
         self._save()
 
     def observe(self, decisions, opponent, *, semantics="legacy"):
+        # The former v2 label remains an alias for the v3 resolution semantics.
         hands = {}
         for index, decision in enumerate(decisions):
             if decision['player'] == opponent:
@@ -37,8 +40,7 @@ class OpponentProfile:
             for decision in hand:
                 pending = decision['observation'].get('pending')
                 if (pending and pending['kind'] == 'truco' and
-                        (semantics == 'legacy' or decision['action'] in
-                         ('quiero', 'no_quiero', 'fold', 'retruco', 'vale_cuatro'))):
+                        (semantics == 'legacy' or decision['action'] in TRUCO_RESOLUTION_ACTIONS)):
                     self._record('truco_accepted', decision['action'] in ('quiero', 'retruco', 'vale_cuatro'))
             calls = [d for d in hand if d.get('bluff') is not None]
             if calls and all(d.get('revealed') for d in calls):
