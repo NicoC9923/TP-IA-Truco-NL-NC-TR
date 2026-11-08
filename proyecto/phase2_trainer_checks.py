@@ -199,9 +199,19 @@ class LeagueActorTest(unittest.TestCase):
         from phase2_trainer import _league_block
         from phase2_torch import Phase2Network
         spec = {'category': 'styled', 'identity': 'current', 'style': 'bluffer', 'offset': .1, 'neutral_profile': False}
-        results = _league_block((Phase2Network(seed=5).state_dict(), 5, [0, 1], 1, 0, spec, {}, .1))
-        self.assertEqual(len(results), 2)
-        self.assertTrue(all({s[3] for s in samples} == {0} for _, samples in results))
+        from unittest.mock import patch
+        import phase2_trainer
+        real_play = phase2_trainer.play_match
+        winners = []
+        def capture(*args, **kwargs):
+            result = real_play(*args, **kwargs)
+            winners.append(result.winner)
+            return result
+        with patch.object(phase2_trainer, 'play_match', side_effect=capture):
+            results = _league_block((Phase2Network(seed=5).state_dict(), 5, list(range(10)), 1, 0, spec, {}, .1))
+        self.assertEqual([{s[3] for s in samples} for _, samples in results], [{i % 2} for i in range(10)])
+        for (match_id, samples), winner in zip(results, winners):
+            self.assertTrue(all(s[2] == (1.0 if match_id % 2 == winner else -1.0) for s in samples))
 
 class LeagueRunTest(unittest.TestCase):
     def test_league_mix_and_worker_determinism(self):
@@ -283,7 +293,8 @@ class BlockProfileTest(unittest.TestCase):
         real_play = trainer.play_match
         profiles = []
         def capture(a, b, **kwargs):
-            profiles.append((a.profile, b.profile, sum(a.profile.confidence().values())))
+            learner, opponent = (a, b) if len(profiles) % 2 == 0 else (b, a)
+            profiles.append((learner.profile, opponent.profile, sum(learner.profile.confidence().values())))
             return real_play(a, b, **kwargs)
         spec = {'category': 'styled', 'identity': 'current', 'style': 'bluffer', 'offset': .1, 'neutral_profile': True}
         with patch.object(trainer, 'play_match', side_effect=capture):
@@ -308,6 +319,27 @@ class LeagueIntegrityTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'hash mismatch'):
                 _league_block((Phase2Network().state_dict(), 1, [0], 1, 0, spec,
                                {'expected': {'resolved_path': str(path)}}, .1))
+
+
+
+class OpponentCacheTest(unittest.TestCase):
+    def test_snapshot_loaded_once_for_repeated_blocks(self):
+        import hashlib
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        import phase2_trainer as trainer
+        from phase2_torch import Phase2Network
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'snapshot.pt'
+            Phase2Network(seed=71).save(path)
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            spec = {'category': 'snapshot', 'identity': digest, 'style': None, 'offset': 0, 'neutral_profile': False}
+            args = (Phase2Network(seed=2).state_dict(), 2, [0], 1, 0, spec, {digest: {'resolved_path': str(path)}}, .1)
+            with patch.object(Phase2Network, 'load', wraps=Phase2Network.load) as load:
+                trainer._league_block(args)
+                trainer._league_block(args)
+                self.assertEqual(load.call_count, 1)
 
 if __name__ == '__main__':
     unittest.main()

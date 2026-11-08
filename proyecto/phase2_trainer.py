@@ -12,6 +12,7 @@ import random
 import time
 from pathlib import Path
 from contextlib import nullcontext
+from collections import OrderedDict
 import multiprocessing as mp
 from dataclasses import dataclass
 import numpy as np
@@ -68,6 +69,23 @@ def _matches(args):
         results.append((match_id, samples))
     return results
 
+# Each spawned actor owns this cache; eviction bounds memory during long runs.
+_OPPONENT_CACHE = OrderedDict()
+
+
+def _load_league_opponent(identity, member, category):
+    key = (identity, 'phase1' if category == 'phase1' else 'phase2')
+    if key not in _OPPONENT_CACHE:
+        path = Path(member['resolved_path'])
+        if hashlib.sha256(path.read_bytes()).hexdigest() != identity:
+            raise ValueError('league opponent hash mismatch')
+        _OPPONENT_CACHE[key] = np.load(path) if category == 'phase1' else Phase2Network.load(path)
+        if len(_OPPONENT_CACHE) > 32:
+            _OPPONENT_CACHE.popitem(last=False)
+    _OPPONENT_CACHE.move_to_end(key)
+    return _OPPONENT_CACHE[key]
+
+
 def _league_block(args):
     weights, seed, ids, target, random_start_share, spec, opponents, temperature = args
     model = Phase2Network()
@@ -76,13 +94,7 @@ def _league_block(args):
     opponent_model = model
     if identity != 'current':
         member = opponents[identity]
-        path = Path(member['resolved_path'])
-        if hashlib.sha256(path.read_bytes()).hexdigest() != identity:
-            raise ValueError('league opponent hash mismatch')
-        if spec['category'] == 'phase1':
-            opponent_model = np.load(path)
-        else:
-            opponent_model = Phase2Network.load(path)
+        opponent_model = _load_league_opponent(identity, member, spec['category'])
     seeds = np.random.SeedSequence([seed, ids[0], 81]).generate_state(2)
     learner = RecordingPolicy(model, seed=int(seeds[0]), temperature=temperature, adapt=not spec['neutral_profile'])
     if spec['category'] == 'phase1':
@@ -92,9 +104,9 @@ def _league_block(args):
         opponent = cls(opponent_model, seed=int(seeds[1]), temperature=temperature,
                        style=spec['style'], style_strength=spec['offset'],
                        adapt=not spec['neutral_profile'] if spec['category'] == 'self' else True)
-    policies = (learner, opponent)
     results = []
     for match_id in ids:
+        policies = (learner, opponent) if match_id % 2 == 0 else (opponent, learner)
         for policy in policies:
             if isinstance(policy, RecordingPolicy):
                 policy.samples = []
