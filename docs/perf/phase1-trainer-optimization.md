@@ -76,3 +76,11 @@ relative to measured inference to justify additional changes for this goal.
 V2 full-run wall time: **194.707 -> 54.851 s**, **71.83% less time (3.55x)**.
 The >=50% v3 goal is met. No trainer settings, network topology, encodings,
 fitness, game rules or promotion criteria changed. No phase-2 work, pushes or PRs.
+
+Final integration: `git fetch origin` and `git merge origin/feat/ia-entrenada`
+reported already up to date. Required full suite passed: **236 tests, 82.516 s**.
+An earlier final rerun exposed an existing trace-comparison flake: identical
+traces crossed a wall-clock second and differed only in `hora`. The test now
+excludes that timestamp when comparing two separate runs; production code is
+unchanged by this test correction. The final full suite includes all six
+training golden comparisons again, with identical bytes/hashes.

@@ -168,5 +168,7 @@ class NetworkModesServerTests(unittest.TestCase):
                     match.cambiar_modo_ia('neuroevolucion')
                 self.assertEqual(match.network.encoder, 'v1')
                 match.jugar_carta_humano(match.cartas_humano_disponibles[0])
-                return match.ia.traza_razonamiento
+                # Separate runs can cross a wall-clock second boundary.
+                return [{key: value for key, value in row.items() if key != 'hora'}
+                        for row in match.ia.traza_razonamiento]
             self.assertEqual(play('default.json', False), play('explicit.json', True))
