@@ -8,6 +8,31 @@ from phase1_network import ACTIONS
 from phase2_network import INPUT_SIZE, encode_observation
 from symmetric_engine import bluff
 
+
+class _CombinationScores(torch.autograd.Function):
+    """Three ordered additions with the original gather's gradient accumulation."""
+    @staticmethod
+    def forward(ctx, logits, ids):
+        ctx.save_for_backward(ids)
+        ctx.logits_shape = logits.shape
+        # The reduction starts at +0, which also preserves signed-zero bits.
+        return 0.0 + logits[:, ids[:, 0]] + logits[:, ids[:, 1]] + logits[:, ids[:, 2]]
+
+    @staticmethod
+    def backward(ctx, gradient):
+        (ids,) = ctx.saved_tensors
+        result = gradient.new_zeros(ctx.logits_shape)
+        rows = torch.arange(gradient.shape[0], device=gradient.device)[:, None, None]
+        # Match IndexBackward's row/hand/card order, including duplicate cards.
+        result.index_put_((rows, ids[None, :, :]), gradient[:, :, None].expand(-1, -1, 3), accumulate=True)
+        return result, None
+
+
+def combination_scores(logits, ids):
+    """Sum ordered three-card logits with the original CPU gradient order."""
+    return _CombinationScores.apply(logits, ids)
+
+
 class Phase2Network(nn.Module):
     def __init__(self, seed=0, auxiliary=False):
         super().__init__()

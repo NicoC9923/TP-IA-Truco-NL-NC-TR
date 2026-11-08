@@ -9,6 +9,7 @@ _CARD_IDS = {card: i for i, card in enumerate(_DECK)}
 _HANDS = tuple(combinations(_DECK, 3))
 _HAND_IDS = {hand: i for i, hand in enumerate(_HANDS)}
 _IDS = np.array([[ _CARD_IDS[c] for c in hand] for hand in _HANDS])
+_MEMBERSHIP = np.array([(_IDS == card).any(axis=1) for card in range(len(_DECK))])
 _RANKS = np.array([rules.valor_carta_truco(*c) for c in _DECK])
 _BRAVAS = np.array([c in {(1, 'Espada'), (1, 'Basto'), (7, 'Espada'), (7, 'Oro')} for c in _DECK])
 
@@ -130,9 +131,9 @@ def compatible_mask(evidence):
     tantos = _hand_tantos()
     for row, (own, played, declared, upper) in zip(masks, evidence):
         for card in own:
-            row &= ~(_IDS == card).any(axis=1)
+            row &= ~_MEMBERSHIP[card]
         for card in played:
-            row &= (_IDS == card).any(axis=1)
+            row &= _MEMBERSHIP[card]
         if declared >= 0:
             row &= tantos == declared
         row &= tantos <= upper

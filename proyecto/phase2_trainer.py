@@ -19,7 +19,7 @@ from dataclasses import dataclass
 import numpy as np
 import torch
 from phase1_network import ACTIONS, NetworkPolicy
-from phase2_torch import Phase2Network, Phase2Policy
+from phase2_torch import Phase2Network, Phase2Policy, combination_scores
 from opponent_inference import compact_evidence, compatible_mask, _IDS, _CARD_IDS, _HAND_IDS, _DECK
 from symmetric_engine import play_match, play_mirror_pair
 from validation_schedule import validation_schedule
@@ -360,7 +360,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 if auxiliary:
                     masks = torch.from_numpy(compatible_mask([last[i][4] for i in indices]))
                     hand_ids = torch.from_numpy(_IDS)
-                    scores = model.card_logits(x)[:, hand_ids].sum(dim=2)
+                    scores = combination_scores(model.card_logits(x), hand_ids)
                     labels = torch.tensor([last[i][5] for i in indices])
                     if not masks[torch.arange(len(indices)), labels].all():
                         raise ValueError('True hand excluded by exact evidence')

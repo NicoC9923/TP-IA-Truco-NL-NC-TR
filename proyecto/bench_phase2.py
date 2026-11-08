@@ -282,9 +282,97 @@ def profile_component(args):
     return result
 
 
+def auxiliary_probe(args):
+    """Time actual 512-sample updates and reject changed gradients/tensors."""
+    import numpy as np
+    import torch
+    import phase2_trainer as trainer
+    trainer._configure_threads()
+    torch.use_deterministic_algorithms(True)
+    seed_all()
+    initial = trainer.Phase2Network(seed=35, auxiliary=True)
+    spec = dict(identity='current', category='self', neutral_profile=False, style=None, offset=0)
+    results = trainer._league_block((initial.state_dict(), 35, list(range(4)), 'mixed', .3, spec, {}, .1))
+    samples = [sample for _, batch in results for sample in batch]
+    samples = (samples * (512 // len(samples) + 1))[:512]
+    x = torch.from_numpy(np.stack([s[0] for s in samples]))
+    actions = torch.tensor([s[1] for s in samples])
+    targets = torch.tensor([s[2] for s in samples])
+    labels = torch.tensor([s[5] for s in samples])
+    ids = torch.from_numpy(trainer._IDS)
+    from opponent_inference import _hand_tantos
+    def legacy_mask(evidence):
+        masks = np.ones((len(evidence), len(ids)), dtype=bool)
+        tantos = _hand_tantos()
+        for row, (own, played, declared, upper) in zip(masks, evidence):
+            for card in own:
+                row &= ~(trainer._IDS == card).any(axis=1)
+            for card in played:
+                row &= (trainer._IDS == card).any(axis=1)
+            if declared >= 0:
+                row &= tantos == declared
+            row &= tantos <= upper
+        return masks
+    records = {}
+    from phase2_torch import combination_scores
+    for variant in ('original', 'legacy_masks', 'index_select', 'split_sum', 'shared_trunk', 'ordered_backward'):
+        model = trainer.Phase2Network(seed=35, auxiliary=True)
+        optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
+        times, losses, gradients = [], [], []
+        for _ in range(8):
+            row = {}
+            tick = time.perf_counter()
+            def mark(name):
+                nonlocal tick
+                now = time.perf_counter()
+                row[name], tick = now - tick, now
+            if variant == 'shared_trunk':
+                features = model.layers[:4](x)
+                q = model.layers[4](features)
+            else:
+                q = model(x)
+            loss = torch.nn.functional.mse_loss(q.gather(1, actions[:, None]).squeeze(1), targets)
+            mark('q_forward')
+            mask_function = legacy_mask if variant == 'legacy_masks' else trainer.compatible_mask
+            masks = torch.from_numpy(mask_function([s[4] for s in samples]))
+            mark('masks')
+            logits = model.card_head(features) if variant == 'shared_trunk' else model.card_logits(x)
+            mark('card_forward')
+            if variant == 'ordered_backward':
+                scores = combination_scores(logits, ids)
+            elif variant == 'index_select':
+                scores = logits.index_select(1, ids.flatten()).reshape(512, len(ids), 3).sum(dim=2)
+            elif variant == 'split_sum':
+                scores = logits[:, ids[:, 0]] + logits[:, ids[:, 1]] + logits[:, ids[:, 2]]
+            else:
+                scores = logits[:, ids].sum(dim=2)
+            mark('combination_scores')
+            if not masks[torch.arange(512), labels].all():
+                raise AssertionError('Invalid fixture evidence')
+            scores = scores.masked_fill(~masks, float('-inf'))
+            mark('masked_fill')
+            loss = loss + .1 * torch.nn.functional.cross_entropy(scores, labels)
+            mark('cross_entropy')
+            optimizer.zero_grad()
+            loss.backward()
+            mark('backward')
+            gradients.append(digest([p.grad for p in model.parameters()]))
+            tick = time.perf_counter()
+            optimizer.step()
+            mark('adam')
+            losses.append(float(loss.detach()))
+            times.append(row)
+        records[variant] = dict(mean_seconds={k: sum(r[k] for r in times) / len(times) for k in times[0]},
+                                losses=losses, gradients=gradients, model=digest(model.state_dict()),
+                                optimizer=digest(optimizer.state_dict()))
+        records[variant]['exact'] = all(records[variant][k] == records['original'][k]
+                                       for k in ('losses', 'gradients', 'model', 'optimizer'))
+    return dict(batch_size=512, combinations=len(ids), updates=8, variants=records)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=('bench', 'golden', 'actor', 'validation'))
+    parser.add_argument('mode', choices=('bench', 'golden', 'actor', 'validation', 'auxiliary'))
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--workers', type=int, default=12)
     parser.add_argument('--matches', type=int, default=96)
@@ -312,7 +400,7 @@ def main():
             process.wait()
             raise RuntimeError('175-second benchmark limit exceeded; process tree stopped')
     import torch
-    result = golden(args) if args.mode == 'golden' else bench(args) if args.mode == 'bench' else profile_component(args)
+    result = golden(args) if args.mode == 'golden' else bench(args) if args.mode == 'bench' else auxiliary_probe(args) if args.mode == 'auxiliary' else profile_component(args)
     result['environment'] = dict(python=sys.version, torch=torch.__version__, platform=platform.platform(),
                                  cpu=platform.processor(), logical_cpus=os.cpu_count(),
                                  revision=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip())
