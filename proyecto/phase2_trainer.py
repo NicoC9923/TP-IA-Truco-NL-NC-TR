@@ -9,6 +9,7 @@ import statistics
 import json
 import math
 import random
+import sys
 import time
 from pathlib import Path
 from contextlib import nullcontext
@@ -22,6 +23,7 @@ from phase2_torch import Phase2Network, Phase2Policy
 from symmetric_engine import play_match, play_mirror_pair
 from validation_schedule import validation_schedule
 from phase2_league import retain_snapshots, panel_exclusions, draw_opponent, load_phase1_manifest, validate_shares, DEFAULT_SHARES
+from phase2_progress import ProgressReporter, PROGRESS_FILE
 from phase2_promotion import load_panel, check_seed, promotion_decision, saturated, build_panel, RESERVED_SEEDS
 
 def _configure_threads():
@@ -216,7 +218,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                random_start_share=.3, checkpoint_dir=None, config=None, resume_state=None,
                stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
                check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
-               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05):
+               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress_path=None, console=None):
     if (min(rounds, matches_per_round, workers, minibatch) < 1 or min(pool_recent, pool_diverse) < 0 or seed < 0
             or (target != 'mixed' and (not isinstance(target, int) or target < 1))
             or not 0 <= random_start_share <= 1 or not math.isfinite(lr) or lr <= 0):
@@ -285,6 +287,11 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
         rng.bit_generator.state = resume_state['shuffle_rng']
     if resume_state is not None and resume_state.get('phase_ended'):
         return RoundResult(model, optimizer, total, updates, last)
+    promotions = 0
+    if log_path is not None and Path(log_path).exists():
+        promotions = sum(bool(json.loads(x).get('promoted')) for x in Path(log_path).read_text(encoding='utf-8').splitlines() if x)
+    reporter = ProgressReporter(progress_path, console, time_cap_seconds, temperature, promotions)
+    last_round = min(rounds, stop_after_round or rounds)
     context = mp.get_context('spawn')
     pool_context = context.Pool(workers, initializer=_configure_threads) if workers > 1 else nullcontext(None)
     with pool_context as pool:
@@ -327,6 +334,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 losses.append(float(loss.detach()))
                 updates += 1
                 generation_updates += 1
+            recent_loss = statistics.mean(losses[-20:]) if losses else None
+            mix_seen = dict(league_mix)
+            round_stop = None
             now = clock()
             elapsed += now - run_tick
             run_tick = now
@@ -395,6 +405,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     run_tick = now
                     entry['stop_reason'] = 'time_cap' if elapsed >= time_cap_seconds else ('patience' if stale >= patience else None)
                     entry['phase_ended'] = entry['stop_reason'] is not None
+                    round_stop = entry['stop_reason']
                     if changed and panel is not None and champions_dir is not None:
                         Path(champions_dir).mkdir(parents=True, exist_ok=True)
                         torch.save(champion, Path(champions_dir) / 'reigning_champion.pt')
@@ -439,6 +450,13 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     old_round = int(suffix)
                     if old_round != round_id + 1 and (old_round > round_id + 1 or old_round % generation_rounds):
                         old.unlink()
+            finished = round_stop is None and round_id + 1 == last_round and stop_after_round is None
+            reporter.round_done(elapsed=elapsed, generation=(round_id + 1) // generation_rounds if generation_rounds else 0,
+                                round=round_id + 1, matches=(round_id + 1) * matches_per_round, samples=total, updates=updates,
+                                recent_loss=recent_loss, league_mix=mix_seen, champion_generation=champion_generation,
+                                panel_version=panel['version'] if panel else None,
+                                ended=round_stop is not None or finished,
+                                stop_reason=round_stop or ('completed' if finished else None))
             if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) and entry['phase_ended']:
                 break
     return RoundResult(model, optimizer, total, updates, last)
@@ -448,7 +466,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
           random_start_share=.3, resume=None, stop_after_round=None, panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json',
           champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
           check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
-          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05):
+          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None):
     """Round match counts up to complete blocks and generations to complete rounds."""
     if min(generations, matches_per_generation, matches_per_round, block_size) < 1:
         raise ValueError('Generation and match counts must be positive')
@@ -481,7 +499,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
     if state is not None and old_config != config:
         raise ValueError('Checkpoint configuration does not match')
     if state is not None and state.get('phase_ended'):
-        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate)
+        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console)
     output.mkdir(parents=True, exist_ok=True)
     log_path = output / 'generations.jsonl'
     if state is None:
@@ -496,7 +514,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
                       resume_state=state, stop_after_round=stop_after_round, panel=panel, champions_dir=champions_dir,
                       panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs, check_seed_base=check_seed_base,
-                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate)
+                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -530,6 +548,7 @@ def main():
     parser.add_argument('--style-ramp-matches', type=int, default=20000)
     parser.add_argument('--neutral-rate', type=float, default=.05)
     parser.add_argument('--phase1-manifest')
+    parser.add_argument('--no-progress', action='store_true', help='skip progress.json and the terminal lines')
     parser.add_argument('--resume')
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--minibatch', type=int, default=512)
@@ -537,6 +556,8 @@ def main():
     if args.pop('no_selection'):
         args['panel_path'] = None
     args['directory'] = args.pop('output')
+    args['progress'] = not args.pop('no_progress')
+    args['console'] = sys.stdout if args['progress'] else None
     train(**args)
 
 if __name__ == '__main__':
