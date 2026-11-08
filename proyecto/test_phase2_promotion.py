@@ -24,7 +24,7 @@ class PanelTests(unittest.TestCase):
         panel = {'version': 1, 'members': members}
         snapshots = [{'sha256': 'a', 'gain': .3, 'scores': {'x': .2}}, {'sha256': 'b', 'gain': .1, 'scores': {'x': .8}}, {'sha256': 'c', 'gain': .2, 'scores': {'x': .3}}]
         result = build_panel(panel, {'0': .9, '1': .7, '2': .8}, snapshots, 'c')
-        self.assertEqual([m['sha256'] for m in result['members']], ['1', '2', 'a', 'b'])
+        self.assertEqual([m['sha256'] for m in result['members']], ['1', '2', 'b', 'a'])
         self.assertIsNone(build_panel(panel, {'0': .9, '1': .7, '2': .8}, snapshots[:1], 'c'))
 
     def test_hash_and_reserved_seed(self):
@@ -41,3 +41,13 @@ class PanelTests(unittest.TestCase):
             with self.assertRaises(ValueError): load_panel(p/'panel.json')
         with self.assertRaises(ValueError): check_seed(9301, 0)
         with self.assertRaises(ValueError): check_seed(9300, 1)
+
+
+    def test_low_gain_noisy_stratum_and_pool_size(self):
+        from phase2_promotion import saturated
+        weak = promotion_decision({'a':[.505]*4}, {'a':[.5]*4}, [.5])
+        self.assertFalse(weak['promoted'])
+        quiet = promotion_decision({'a':[.6]*4, 'b':[.6]*4}, {'a':[.5]*4, 'b':[.5]*4}, [.5])
+        noisy = promotion_decision({'a':[.6]*4, 'b':[0, 1, 0, 1]}, {'a':[.5]*4, 'b':[.4]*4}, [.5])
+        self.assertLess(noisy['lower_bound'], quiet['lower_bound'])
+        self.assertFalse(saturated([{'champion':'a', 'scores':{'x':[.9]*99}}]*3, 'a', ['x']))

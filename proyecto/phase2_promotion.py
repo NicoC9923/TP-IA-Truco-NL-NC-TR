@@ -52,7 +52,7 @@ def saturated(history, champion_id, members, checks=3, min_pairs=300, threshold=
     return True
 
 def build_panel(panel, scores, snapshots, champion_sha256):
-    """Rank strong by gain, distinct by L1 distance; break ties by hash."""
+    """Rank strong by mean panel score, distinct by L1 distance; break ties by hash."""
     originals = [m for m in panel['members'] if m['kind'] == 'phase1']
     if len(originals) < 2:
         raise ValueError('two original phase 1 members required')
@@ -60,7 +60,7 @@ def build_panel(panel, scores, snapshots, champion_sha256):
     eligible = {s['sha256']: s for s in snapshots if s['sha256'] != champion_sha256 and s['sha256'] not in {m['sha256'] for m in kept}}
     if len(eligible) < 2:
         return None
-    strong = sorted(eligible.values(), key=lambda s: (-s['gain'], s['sha256']))[0]
+    strong = sorted(eligible.values(), key=lambda s: (-statistics.mean(s['scores'].values()), s['sha256']))[0]
     def distance(s):
         return sum(abs(s['scores'][name] - strong['scores'][name]) for name in sorted(strong['scores']))
     distinct = sorted((s for s in eligible.values() if s['sha256'] != strong['sha256']), key=lambda s: (-distance(s), s['sha256']))[0]

@@ -3,6 +3,7 @@ import os
 for _name in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS'):
     os.environ[_name] = '1'
 import argparse
+import copy
 import hashlib
 import statistics
 import json
@@ -19,7 +20,7 @@ from phase1_network import ACTIONS, NetworkPolicy
 from phase2_torch import Phase2Network, Phase2Policy
 from symmetric_engine import play_match, play_mirror_pair
 from validation_schedule import validation_schedule
-from phase2_promotion import load_panel, check_seed, promotion_decision, saturated, build_panel
+from phase2_promotion import load_panel, check_seed, promotion_decision, saturated, build_panel, RESERVED_SEEDS
 
 def _configure_threads():
     torch.set_num_threads(1)
@@ -83,29 +84,65 @@ def _check_chunk(job):
     return [_check_pair((a, b, deal, target, action_seed, temperature))
             for deal, target, action_seed in deals]
 
-def _selection_check(model, champion, panel, schedule_seed, pairs, direct_pairs, target, temperature, pool, min_gain, min_direct):
-    current = {'kind': 'phase2', 'weights': model.state_dict()}
-    incumbent = {'kind': 'phase2', 'weights': champion}
-    def measure(a, b, count, salt):
-        deals = [(deal, t, schedule_seed * 100000 + i * 2 + salt)
-                 for i, (deal, t) in enumerate(validation_schedule(schedule_seed, target, count))]
-        workers = pool._processes if pool else 1
-        chunks = np.array_split(np.arange(count), min(workers, count))
-        jobs = [(a, b, [deals[int(i)] for i in chunk], temperature) for chunk in chunks]
-        batches = pool.map(_check_chunk, jobs, chunksize=1) if pool else list(map(_check_chunk, jobs))
-        return [score for batch in batches for score in batch]
-    members, challenger_scores, champion_scores = {}, {}, {}
+def _panel_jobs(panel, candidates, schedule_seed, pairs, target, temperature, workers):
+    jobs, keys = [], []
     for member in panel['members']:
         opponent = {'kind': member['kind'], 'encoder': member['encoder']}
         opponent['weights'] = (torch.load(member['resolved_path'], map_location='cpu', weights_only=True)
                                if member['kind'] == 'phase2' else np.load(member['resolved_path']))
-        a = measure(current, opponent, pairs, 0)
-        b = measure(incumbent, opponent, pairs, 0)
-        challenger_scores[member['name']], champion_scores[member['name']] = a, b
-        members[member['name']] = {'challenger': a, 'champion': b}
-    direct = measure(current, incumbent, direct_pairs, 1)
+        for label, candidate in candidates:
+            deals = [(deal, t, schedule_seed * 100000 + i * 2)
+                     for i, (deal, t) in enumerate(validation_schedule(schedule_seed, target, pairs))]
+            for chunk in np.array_split(np.arange(pairs), min(workers, pairs)):
+                jobs.append((candidate, opponent, [deals[int(i)] for i in chunk], temperature))
+                keys.append((member['name'], label))
+    return jobs, keys
+
+def _run_check_jobs(jobs, keys, pool):
+    batches = pool.map(_check_chunk, jobs, chunksize=1) if pool else list(map(_check_chunk, jobs))
+    results = {}
+    for key, batch in zip(keys, batches):
+        results.setdefault(key, []).extend(batch)
+    return results
+
+def _champion_overlap(champion, panel, schedule_seed, pairs, target, temperature, pool):
+    incumbent = {'kind': 'phase2', 'weights': champion}
+    jobs, keys = _panel_jobs(panel, [('champion', incumbent)], schedule_seed, pairs, target, temperature, pool._processes if pool else 1)
+    scores = _run_check_jobs(jobs, keys, pool)
+    return {member['name']: scores[(member['name'], 'champion')] for member in panel['members']}
+
+def _selection_check(model, champion, panel, schedule_seed, pairs, direct_pairs, target, temperature, pool, min_gain, min_direct):
+    current = {'kind': 'phase2', 'weights': model.state_dict()}
+    incumbent = {'kind': 'phase2', 'weights': champion}
+    workers = pool._processes if pool else 1
+    jobs, keys = _panel_jobs(panel, [('challenger', current), ('champion', incumbent)], schedule_seed, pairs, target, temperature, workers)
+    deals = [(deal, t, schedule_seed * 100000 + i * 2 + 1) for i, (deal, t) in enumerate(validation_schedule(schedule_seed, target, direct_pairs))]
+    for chunk in np.array_split(np.arange(direct_pairs), min(workers, direct_pairs)):
+        jobs.append((current, incumbent, [deals[int(i)] for i in chunk], temperature))
+        keys.append((None, 'direct'))
+    scores = _run_check_jobs(jobs, keys, pool)
+    members = {member['name']: {label: scores[(member['name'], label)] for label in ('challenger', 'champion')} for member in panel['members']}
+    challenger_scores = {name: row['challenger'] for name, row in members.items()}
+    champion_scores = {name: row['champion'] for name, row in members.items()}
+    direct = scores[(None, 'direct')]
     result = promotion_decision(challenger_scores, champion_scores, direct, min_gain, min_direct)
-    return dict(result, members=members, direct=direct, panel_version=panel['version'], schedule_seed=schedule_seed)
+    return dict(result, members=members, direct=direct, panel_version=panel['version'], measuring_only=bool(panel.get('measuring_only')), schedule_seed=schedule_seed)
+
+def _portable(value):
+    value = copy.deepcopy(value)
+    if isinstance(value, dict):
+        return {key: _portable(item) for key, item in value.items() if key != 'resolved_path'}
+    if isinstance(value, list):
+        return [_portable(item) for item in value]
+    return value
+
+def _resolve_panel(panel, base):
+    for member in panel['members']:
+        path = (Path(base) / member['path']).resolve()
+        if hashlib.sha256(path.read_bytes()).hexdigest() != member['sha256']:
+            raise ValueError('panel hash mismatch: ' + member['name'])
+        member['resolved_path'] = str(path)
+    return panel
 
 @dataclass
 class RoundResult:
@@ -155,6 +192,10 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
         snapshots = resume_state.get('panel_snapshots', [])
         panel_history = resume_state.get('panel_history', [])
         panel = resume_state.get('panel', panel)
+        if panel is not None:
+            _resolve_panel(panel, checkpoint_dir)
+        for snapshot in snapshots:
+            snapshot['resolved_path'] = str((Path(checkpoint_dir) / snapshot['path']).resolve())
         champion = resume_state.get('champion_weights')
         champion_generation = resume_state.get('champion_generation')
         model.load_state_dict(resume_state['model'])
@@ -167,6 +208,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
         np.random.set_state(resume_state['numpy_rng'])
         torch.set_rng_state(resume_state['torch_rng'])
         rng.bit_generator.state = resume_state['shuffle_rng']
+    if resume_state is not None and resume_state.get('phase_ended'):
+        return RoundResult(model, optimizer, total, updates, last)
     context = mp.get_context('spawn')
     pool_context = context.Pool(workers, initializer=_configure_threads) if workers > 1 else nullcontext(None)
     with pool_context as pool:
@@ -199,8 +242,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                              matches=generation_rounds * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
                              mean_loss=sum(losses) / len(losses), elapsed_seconds=clock() - started,
-                             check=None, promotion_check=None, promoted=False,
-                             phase_ended=False, fitness=None, behavior=None,
+                             check=None, promoted=False,
+                             phase_ended=False, stop_reason=None, measuring_only=bool(panel and panel.get('measuring_only')), fitness=None, behavior=None,
                              diversity=None, champion=None, example_hand=None)
                 if checkpoint_dir is not None:
                     generation = entry['generation']
@@ -222,13 +265,13 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                                 old_panel = panel
                                 panel = new_panel
                                 for member in panel['members']:
-                                    member['path'] = member['resolved_path']
+                                    member['path'] = os.path.relpath(member['resolved_path'], checkpoint_dir)
                                 panel_history.append(panel)
                                 path = Path(checkpoint_dir) / f"panel-v{panel['version']}.json"
-                                path.write_text(json.dumps(panel, indent=2) + '\n', encoding='utf-8')
+                                path.write_text(json.dumps(_portable(panel), indent=2) + '\n', encoding='utf-8')
                                 seed_for_overlap = check_seed(check_seed_base, generation - 2)
-                                old_overlap = _selection_check(model, champion, old_panel, seed_for_overlap, panel_pairs, head_to_head_pairs, None if target == 'mixed' else target, temperature, pool, min_gain, min_direct)
-                                boundary = {'from': old_panel['version'], 'to': panel['version'], 'old_champion': {k: v['champion'] for k, v in old_overlap['members'].items()}}
+                                old_overlap = _champion_overlap(champion, old_panel, seed_for_overlap, panel_pairs, None if target == 'mixed' else target, temperature, pool)
+                                boundary = {'from': old_panel['version'], 'to': panel['version'], 'old_champion': old_overlap}
                                 history = []
                         result = _selection_check(model, champion, panel, check_seed(check_seed_base, generation - 2),
                                                   panel_pairs, head_to_head_pairs, None if target == 'mixed' else target,
@@ -236,9 +279,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                         if boundary is not None:
                             boundary['new_champion'] = {k: v['champion'] for k, v in result['members'].items()}
                             entry['panel_boundary'] = boundary
-                        entry['check'] = entry['promotion_check'] = result
+                        entry['check'] = result
                         history.append({'champion': champion_generation, 'scores': {k: v['champion'] for k, v in result['members'].items()}})
-                        snapshots.append({'name': f'generation-{generation}', 'path': str(snapshot), 'resolved_path': str(snapshot), 'kind': 'phase2', 'encoder': 'v1', 'sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'gain': result['gain'], 'scores': {k: statistics.mean(v['challenger']) for k, v in result['members'].items()}})
+                        snapshots.append({'name': f'generation-{generation}', 'path': snapshot.name, 'resolved_path': str(snapshot), 'kind': 'phase2', 'encoder': 'v1', 'sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'gain': result['gain'], 'scores': {k: statistics.mean(v['challenger']) for k, v in result['members'].items()}})
                         stale = 0 if result['promoted'] else stale + 1
                         entry['promoted'] = result['promoted']
                         changed = result['promoted']
@@ -267,8 +310,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                              matches=(round_id + 1) % generation_rounds * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
                              mean_loss=sum(losses) / len(losses), elapsed_seconds=clock() - started,
-                             check=None, promotion_check=None, promoted=False, phase_ended=True,
-                             stop_reason='time_cap', fitness=None, behavior=None, diversity=None,
+                             check=None, promoted=False, phase_ended=True,
+                             stop_reason='time_cap', measuring_only=bool(panel and panel.get('measuring_only')), fitness=None, behavior=None, diversity=None,
                              champion=champion_generation, example_hand=None)
                 with Path(log_path).open('a', encoding='utf-8') as log:
                     log.write(json.dumps(entry) + '\n')
@@ -277,7 +320,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                              round=round_id + 1, generation=(round_id + 1) // generation_rounds,
                              matches=(round_id + 1) * matches_per_round, samples=total, updates=updates,
                              generation_samples=generation_samples, generation_updates=generation_updates,
-                             losses=losses, config=config, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=snapshots, panel_history=panel_history, panel=panel, champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
+                             losses=losses, config=config, phase_ended=entry['phase_ended'] if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else False, stop_reason=entry.get('stop_reason') if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else None, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots), panel_history=_portable(panel_history), panel=_portable(panel), champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
                              numpy_rng=np.random.get_state(), torch_rng=torch.get_rng_state(),
                              shuffle_rng=rng.bit_generator.state)
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
@@ -309,10 +352,13 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         raise ValueError('Generation and match counts must be positive')
     if min(panel_pairs, head_to_head_pairs) < 2 or temperature <= 0 or min(patience, time_cap_seconds, saturation_checks, saturation_pairs) <= 0:
         raise ValueError('Invalid selection configuration')
+    if panel_path and (check_seed_base < 0 or any(check_seed_base <= seed <= check_seed_base + max(0, generations - 2) for seed in RESERVED_SEEDS)):
+        raise ValueError('reserved schedule seed in requested checks')
     panel = load_panel(panel_path) if panel_path else None
     if panel is not None:
         for member in panel['members']:
             member['resolved_path'] = str((Path(panel_path).resolve().parent / member['path']).resolve())
+            member['path'] = os.path.relpath(member['resolved_path'], Path(directory).resolve())
     config = dict(patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=str(Path(panel_path).resolve()) if panel_path else None,
                   panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs,
                   check_seed_base=check_seed_base, temperature=temperature, min_gain=min_gain, min_direct=min_direct,
@@ -330,6 +376,8 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         old_config.pop('generations', None)
     if state is not None and old_config != config:
         raise ValueError('Checkpoint configuration does not match')
+    if state is not None and state.get('phase_ended'):
+        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state)
     output.mkdir(parents=True, exist_ok=True)
     log_path = output / 'generations.jsonl'
     if state is None:
