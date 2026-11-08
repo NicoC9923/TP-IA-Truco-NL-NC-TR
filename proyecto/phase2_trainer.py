@@ -446,6 +446,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                         Path(champions_dir).mkdir(parents=True, exist_ok=True)
                         torch.save(champion, Path(champions_dir) / 'reigning_champion.pt')
                         (Path(champions_dir) / 'reigning_champion.json').write_text(json.dumps({'generation': champion_generation, 'temperature': temperature}) + chr(10), encoding='utf-8')
+                if auxiliary:
+                    from phase2_card_metrics import validation_predictions
+                    entry['card_prediction'] = validation_predictions(model, schedule_seed=check_seed_base, target=target, temperature=temperature)
                 with Path(log_path).open('a', encoding='utf-8') as log:
                     log.write(json.dumps(entry) + '\n')
                 reporter.generation_done(entry, elapsed)
@@ -464,6 +467,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                              check=None, promoted=False, phase_ended=True,
                              stop_reason='time_cap', measuring_only=bool(panel and panel.get('measuring_only')), fitness=None, behavior=None, diversity=None,
                              champion=champion_generation, example_hand=None)
+                if auxiliary:
+                    from phase2_card_metrics import validation_predictions
+                    entry['card_prediction'] = validation_predictions(model, schedule_seed=check_seed_base, target=target, temperature=temperature)
                 with Path(log_path).open('a', encoding='utf-8') as log:
                     log.write(json.dumps(entry) + '\n')
                 round_stop = 'time_cap'

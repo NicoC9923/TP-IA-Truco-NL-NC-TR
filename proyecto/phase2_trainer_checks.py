@@ -66,6 +66,21 @@ class Phase2TrainerTest(unittest.TestCase):
                 'phase': 2, 'phase1_opponents': {'v3s1-g55': 1}, 'phase_ended': False,
                 'promoted': False, 'stop_reason': None, 'style_offset_round_end': 5e-06, 'updates': 1})
 
+    def test_card_prediction_log_only_with_auxiliary(self):
+        import json, tempfile
+        from pathlib import Path
+        from phase2_trainer import train
+        config = dict(generations=1, matches_per_generation=1, matches_per_round=1,
+                      block_size=1, target=1, panel_path=None, progress=False)
+        with tempfile.TemporaryDirectory() as root:
+            for enabled in (False, True):
+                directory = Path(root) / str(enabled)
+                train(directory, auxiliary=enabled, **config)
+                entry = json.loads((directory / 'generations.jsonl').read_text())
+                self.assertEqual('card_prediction' in entry, enabled)
+                if enabled:
+                    self.assertEqual(set(entry['card_prediction']), {'exact', 'weighted', 'learned'})
+
     def test_updates_and_seed(self):
         from phase2_torch import Phase2Network
         a = run_rounds(seed=11, rounds=1, matches_per_round=1, target=1)
