@@ -3,6 +3,8 @@ import os
 for _name in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS'):
     os.environ[_name] = '1'
 import argparse
+import hashlib
+import statistics
 import json
 import math
 import random
@@ -17,7 +19,7 @@ from phase1_network import ACTIONS, NetworkPolicy
 from phase2_torch import Phase2Network, Phase2Policy
 from symmetric_engine import play_match, play_mirror_pair
 from validation_schedule import validation_schedule
-from phase2_promotion import load_panel, check_seed, promotion_decision
+from phase2_promotion import load_panel, check_seed, promotion_decision, saturated, build_panel
 
 def _configure_threads():
     torch.set_num_threads(1)
@@ -71,18 +73,27 @@ def _check_pair(job):
             model = Phase2Network()
             model.load_state_dict(spec['weights'])
             return Phase2Policy(model, seed=seed, temperature=temperature)
-        return NetworkPolicy(spec['weights'], seed=seed, encoder=spec['encoder'], temperature=temperature)
+        return NetworkPolicy(spec['weights'], seed=seed, encoder=spec['encoder'])
     a, b = policy(challenger, action_seed), policy(opponent, action_seed + 1)
     first, second = play_mirror_pair(a, b, seed=deal_seed, target=target)
     return ((first.winner == 0) + (second.winner == 1)) / 2
+
+def _check_chunk(job):
+    a, b, deals, temperature = job
+    return [_check_pair((a, b, deal, target, action_seed, temperature))
+            for deal, target, action_seed in deals]
 
 def _selection_check(model, champion, panel, schedule_seed, pairs, direct_pairs, target, temperature, pool, min_gain, min_direct):
     current = {'kind': 'phase2', 'weights': model.state_dict()}
     incumbent = {'kind': 'phase2', 'weights': champion}
     def measure(a, b, count, salt):
-        jobs = [(a, b, deal, t, schedule_seed * 100000 + i * 2 + salt, temperature)
-                for i, (deal, t) in enumerate(validation_schedule(schedule_seed, target, count))]
-        return pool.map(_check_pair, jobs, chunksize=8) if pool else list(map(_check_pair, jobs))
+        deals = [(deal, t, schedule_seed * 100000 + i * 2 + salt)
+                 for i, (deal, t) in enumerate(validation_schedule(schedule_seed, target, count))]
+        workers = pool._processes if pool else 1
+        chunks = np.array_split(np.arange(count), min(workers, count))
+        jobs = [(a, b, [deals[int(i)] for i in chunk], temperature) for chunk in chunks]
+        batches = pool.map(_check_chunk, jobs, chunksize=1) if pool else list(map(_check_chunk, jobs))
+        return [score for batch in batches for score in batch]
     members, challenger_scores, champion_scores = {}, {}, {}
     for member in panel['members']:
         opponent = {'kind': member['kind'], 'encoder': member['encoder']}
@@ -108,7 +119,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                lr=3e-4, minibatch=512, generation_rounds=None, log_path=None,
                random_start_share=.3, checkpoint_dir=None, config=None, resume_state=None,
                stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
-               check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475):
+               check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
+               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7):
     if (min(rounds, matches_per_round, workers, minibatch) < 1 or seed < 0
             or (target != 'mixed' and (not isinstance(target, int) or target < 1))
             or not 0 <= random_start_share <= 1 or not math.isfinite(lr) or lr <= 0):
@@ -126,11 +138,23 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
     last = []
     generation_samples = generation_updates = 0
     losses = []
-    started = time.monotonic()
+    started = clock()
+    run_tick = started
+    elapsed = 0.0
+    stale = 0
+    history = []
+    snapshots = []
+    panel_history = []
     first_round = 0
     champion = None
     champion_generation = None
     if resume_state is not None:
+        elapsed = resume_state.get('elapsed', 0.0)
+        stale = resume_state.get('stale', 0)
+        history = resume_state.get('saturation_history', [])
+        snapshots = resume_state.get('panel_snapshots', [])
+        panel_history = resume_state.get('panel_history', [])
+        panel = resume_state.get('panel', panel)
         champion = resume_state.get('champion_weights')
         champion_generation = resume_state.get('champion_generation')
         model.load_state_dict(resume_state['model'])
@@ -167,11 +191,14 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                 losses.append(float(loss.detach()))
                 updates += 1
                 generation_updates += 1
+            now = clock()
+            elapsed += now - run_tick
+            run_tick = now
             if generation_rounds and (round_id + 1) % generation_rounds == 0:
                 entry = dict(phase=2, generation=(round_id + 1) // generation_rounds,
                              matches=generation_rounds * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
-                             mean_loss=sum(losses) / len(losses), elapsed_seconds=time.monotonic() - started,
+                             mean_loss=sum(losses) / len(losses), elapsed_seconds=clock() - started,
                              check=None, promotion_check=None, promoted=False,
                              phase_ended=False, fitness=None, behavior=None,
                              diversity=None, champion=None, example_hand=None)
@@ -184,19 +211,47 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                         champion_generation = generation
                         changed = True
                     elif panel is not None:
+                        boundary = None
+                        names = [m['name'] for m in panel['members']]
+                        if not panel.get('measuring_only') and saturated(history, champion_generation, names, checks=saturation_checks, min_pairs=saturation_pairs, threshold=saturation_threshold):
+                            pooled = {name: statistics.mean([x for row in history[-saturation_checks:] for x in row['scores'][name]]) for name in names}
+                            champion_hash = hashlib.sha256((Path(checkpoint_dir) / f'generation_{champion_generation:06d}.pt').read_bytes()).hexdigest()
+                            compatible = [x for x in snapshots if set(x['scores']) == set(names)]
+                            new_panel = build_panel(panel, pooled, compatible, champion_hash)
+                            if new_panel is not None:
+                                old_panel = panel
+                                panel = new_panel
+                                panel_history.append(panel)
+                                path = Path(checkpoint_dir) / f"panel-v{panel['version']}.json"
+                                path.write_text(json.dumps(panel, indent=2) + '\n', encoding='utf-8')
+                                seed_for_overlap = check_seed(check_seed_base, generation - 2)
+                                old_overlap = _selection_check(model, champion, old_panel, seed_for_overlap, panel_pairs, head_to_head_pairs, None if target == 'mixed' else target, temperature, pool, min_gain, min_direct)
+                                boundary = {'from': old_panel['version'], 'to': panel['version'], 'old_champion': {k: v['champion'] for k, v in old_overlap['members'].items()}}
+                                history = []
                         result = _selection_check(model, champion, panel, check_seed(check_seed_base, generation - 2),
                                                   panel_pairs, head_to_head_pairs, None if target == 'mixed' else target,
                                                   temperature, pool, min_gain, min_direct)
+                        if boundary is not None:
+                            boundary['new_champion'] = {k: v['champion'] for k, v in result['members'].items()}
+                            entry['panel_boundary'] = boundary
                         entry['check'] = entry['promotion_check'] = result
+                        history.append({'champion': champion_generation, 'scores': {k: v['champion'] for k, v in result['members'].items()}})
+                        snapshots.append({'name': f'generation-{generation}', 'path': str(snapshot), 'resolved_path': str(snapshot), 'kind': 'phase2', 'encoder': 'v1', 'sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'gain': result['gain'], 'scores': {k: statistics.mean(v['challenger']) for k, v in result['members'].items()}})
+                        stale = 0 if result['promoted'] else stale + 1
                         entry['promoted'] = result['promoted']
                         changed = result['promoted']
                         if changed:
                             champion = {k: v.clone() for k, v in model.state_dict().items()}
                             champion_generation = generation
+                            history = []
                     else:
                         changed = False
                     entry['champion'] = champion_generation
-                    entry['stop_reason'] = None
+                    now = clock()
+                    elapsed += now - run_tick
+                    run_tick = now
+                    entry['stop_reason'] = 'time_cap' if elapsed >= time_cap_seconds else ('patience' if stale >= patience else None)
+                    entry['phase_ended'] = entry['stop_reason'] is not None
                     if changed and panel is not None and champions_dir is not None:
                         Path(champions_dir).mkdir(parents=True, exist_ok=True)
                         torch.save(champion, Path(champions_dir) / 'reigning_champion.pt')
@@ -204,13 +259,23 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                     log.write(json.dumps(entry) + '\n')
                 generation_samples = generation_updates = 0
                 losses = []
-                started = time.monotonic()
+                started = clock()
+            if generation_rounds and (round_id + 1) % generation_rounds and elapsed >= time_cap_seconds:
+                entry = dict(phase=2, generation=(round_id + 1) // generation_rounds + 1,
+                             matches=(round_id + 1) % generation_rounds * matches_per_round,
+                             learner_samples=generation_samples, updates=generation_updates,
+                             mean_loss=sum(losses) / len(losses), elapsed_seconds=clock() - started,
+                             check=None, promotion_check=None, promoted=False, phase_ended=True,
+                             stop_reason='time_cap', fitness=None, behavior=None, diversity=None,
+                             champion=champion_generation, example_hand=None)
+                with Path(log_path).open('a', encoding='utf-8') as log:
+                    log.write(json.dumps(entry) + '\n')
             if checkpoint_dir is not None:
                 state = dict(model=model.state_dict(), optimizer=optimizer.state_dict(),
                              round=round_id + 1, generation=(round_id + 1) // generation_rounds,
                              matches=(round_id + 1) * matches_per_round, samples=total, updates=updates,
                              generation_samples=generation_samples, generation_updates=generation_updates,
-                             losses=losses, config=config, champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
+                             losses=losses, config=config, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=snapshots, panel_history=panel_history, panel=panel, champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
                              numpy_rng=np.random.get_state(), torch_rng=torch.get_rng_state(),
                              shuffle_rng=rng.bit_generator.state)
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
@@ -227,23 +292,26 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                     old_round = int(suffix)
                     if old_round != round_id + 1 and (old_round > round_id + 1 or old_round % generation_rounds):
                         old.unlink()
+            if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) and entry['phase_ended']:
+                break
     return RoundResult(model, optimizer, total, updates, last)
 
 def train(directory, *, generations=1, matches_per_generation=120, matches_per_round=12,
           workers=1, seed=0, target='mixed', lr=3e-4, minibatch=512,
           random_start_share=.3, resume=None, stop_after_round=None, panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json',
           champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
-          check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475):
+          check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
+          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7):
     """Round each generation up to a whole number of rounds."""
     if min(generations, matches_per_generation, matches_per_round) < 1:
         raise ValueError('Generation and match counts must be positive')
-    if min(panel_pairs, head_to_head_pairs) < 2 or temperature <= 0:
+    if min(panel_pairs, head_to_head_pairs) < 2 or temperature <= 0 or min(patience, time_cap_seconds, saturation_checks, saturation_pairs) <= 0:
         raise ValueError('Invalid selection configuration')
     panel = load_panel(panel_path) if panel_path else None
     if panel is not None:
         for member in panel['members']:
             member['resolved_path'] = str((Path(panel_path).resolve().parent / member['path']).resolve())
-    config = dict(panel_path=str(Path(panel_path).resolve()) if panel_path else None,
+    config = dict(patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=str(Path(panel_path).resolve()) if panel_path else None,
                   panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs,
                   check_seed_base=check_seed_base, temperature=temperature, min_gain=min_gain, min_direct=min_direct,
                   matches_per_generation=matches_per_generation,
@@ -274,7 +342,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
                       resume_state=state, stop_after_round=stop_after_round, panel=panel, champions_dir=champions_dir,
                       panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs, check_seed_base=check_seed_base,
-                      temperature=temperature, min_gain=min_gain, min_direct=min_direct)
+                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -295,6 +363,11 @@ def main():
     parser.add_argument('--temperature', type=float, default=.1)
     parser.add_argument('--min-gain', type=float, default=.01)
     parser.add_argument('--min-direct', type=float, default=.475)
+    parser.add_argument('--patience', type=int, default=40)
+    parser.add_argument('--time-cap-seconds', type=float, default=28800)
+    parser.add_argument('--saturation-checks', type=int, default=3)
+    parser.add_argument('--saturation-pairs', type=int, default=300)
+    parser.add_argument('--saturation-threshold', type=float, default=.7)
     parser.add_argument('--resume')
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--minibatch', type=int, default=512)
