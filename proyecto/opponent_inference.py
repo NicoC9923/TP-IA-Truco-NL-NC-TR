@@ -44,6 +44,10 @@ class Inference:
 
     def seen_cards(self, excluded=(), opponent_played=()):
         excluded, played = set(excluded), set(opponent_played)
+        # Earlier filters already enforce these cards; later evidence and calls
+        # only remove hands or change weights, never restore excluded hands.
+        if not excluded and played.issubset(self.played):
+            return
         self.played.update(played)
         self.weights = {h: w for h, w in self.weights.items() if not excluded.intersection(h) and played.issubset(h)}
 
