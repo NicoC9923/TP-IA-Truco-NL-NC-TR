@@ -18,11 +18,12 @@ class CardPredictionTest(unittest.TestCase):
         self.assertAlmostEqual(result['log_loss'], -math.log(.25))
 
     def test_validation_predictions_are_deterministic(self):
-        from phase2_card_metrics import validation_predictions, _validation_situations
+        from phase2_card_metrics import validation_predictions, _validation_situations, _validation_preprocessing
         from phase2_torch import Phase2Network
         model = Phase2Network(seed=5, auxiliary=True)
         first = validation_predictions(model, schedule_seed=10000, target=1, temperature=.1, situation_count=8)
         _validation_situations.cache_clear()
+        _validation_preprocessing.cache_clear()
         second = validation_predictions(model, schedule_seed=10000, target=1, temperature=.1, situation_count=8)
         self.assertEqual(first, second)
         self.assertEqual(set(first), {'exact', 'weighted', 'learned'})

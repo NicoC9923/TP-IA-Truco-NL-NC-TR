@@ -163,7 +163,7 @@ def golden(args):
     import phase2_trainer as trainer
     if args.partial_directory:
         seed_all()
-        trainer.train(args.partial_directory, stop_after_round=1, **configuration(args, golden=True))
+        trainer.train(args.partial_directory, stop_after_round=args.resume_round, **configuration(args, golden=True))
         return dict(partial=True)
     with tempfile.TemporaryDirectory(prefix='golden-', dir=SCRATCH) as root:
         directory = Path(root)
@@ -172,11 +172,12 @@ def golden(args):
         if args.resume:
             command = [sys.executable, str(Path(__file__).resolve()), 'golden', '--child',
                        '--workers', str(args.workers), '--partial-directory', str(directory),
+                       '--resume-round', str(args.resume_round),
                        '--output', str(directory / 'partial.json')]
             if args.auxiliary:
                 command.append('--auxiliary')
             subprocess.run(command, check=True)
-            result = trainer.train(directory, resume=directory / 'checkpoint_000001.pt', **config)
+            result = trainer.train(directory, resume=directory / f'checkpoint_{args.resume_round:06d}.pt', **config)
         else:
             result = trainer.train(directory, **config)
         actual = manifest(directory, result)
@@ -185,7 +186,7 @@ def golden(args):
         if actual != expected:
             different = [key for key in actual if actual[key] != expected[key]]
             raise AssertionError('Golden mismatch: ' + ', '.join(different))
-    return dict(golden=actual, workers=args.workers, resume=args.resume,
+    return dict(golden=actual, workers=args.workers, resume=args.resume, resume_round=args.resume_round if args.resume else None,
                 auxiliary=args.auxiliary, configuration=config)
 
 
@@ -291,6 +292,7 @@ def main():
     parser.add_argument('--direct-pairs', type=int, default=200)
     parser.add_argument('--auxiliary', action='store_true')
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--resume-round', type=int, default=1)
     parser.add_argument('--reference', type=Path)
     parser.add_argument('--profile', action='store_true')
     parser.add_argument('--child', action='store_true', help=argparse.SUPPRESS)

@@ -28,7 +28,7 @@ def prediction_metrics(hands, probabilities, true_hand, exposed):
 from functools import lru_cache
 import torch
 from opponent_inference import exact_inference_from_observation, inference_from_observation
-from phase2_torch import Phase2Network, Phase2Policy, card_distribution
+from phase2_torch import Phase2Network, Phase2Policy
 from symmetric_engine import play_match
 from validation_schedule import validation_schedule
 
@@ -75,6 +75,25 @@ def _validation_situations(schedule_seed, target, temperature, situation_count):
     return tuple(situations)
 
 
+@lru_cache(maxsize=1)
+def _validation_preprocessing(schedule_seed, target, temperature, situation_count):
+    """Cache only fixed evidence, baseline scores and ordered hand indices.
+
+    Keep one protocol to bound the hand-index tensors retained in a long run.
+    Learned logits, probabilities and scores never enter this cache.
+    """
+    prepared = []
+    for obs, inputs, bluff_rate, true_hand, exposed in _validation_situations(schedule_seed, target, temperature, situation_count):
+        exact = exact_inference_from_observation(obs).distribution()
+        weighted = inference_from_observation(obs, bluff_rate).distribution()
+        hands = tuple(exact)
+        ids = torch.tensor([[_CARD_IDS[c] for c in hand] for hand in hands])
+        baseline = {name: prediction_metrics(tuple(distribution), tuple(distribution.values()), true_hand, exposed)
+                    for name, distribution in (('exact', exact), ('weighted', weighted))}
+        prepared.append((inputs, true_hand, exposed, hands, ids, baseline))
+    return tuple(prepared)
+
+
 def validation_predictions(model, *, schedule_seed, target, temperature, situation_count=400):
     """Compare predictors on fixed replayed decisions from the first validation deal."""
     if situation_count < 1:
@@ -82,17 +101,14 @@ def validation_predictions(model, *, schedule_seed, target, temperature, situati
     accuracies = {name: [] for name in ('exact', 'weighted', 'learned')}
     totals = {name: {'log_loss': 0.0, 'hidden_card_accuracy': 0.0, 'situations': 0}
               for name in ('exact', 'weighted', 'learned')}
-    for obs, inputs, bluff_rate, true_hand, exposed in _validation_situations(schedule_seed, target, temperature, situation_count):
-        exact = exact_inference_from_observation(obs).distribution()
-        weighted = inference_from_observation(obs, bluff_rate).distribution()
+    for inputs, true_hand, exposed, hands, ids, baseline in _validation_preprocessing(schedule_seed, target, temperature, situation_count):
         with torch.no_grad():
             logits = model.card_logits(torch.from_numpy(inputs)).double()
-            hands, probabilities, _ = card_distribution(logits, obs)
-        distributions = {'exact': (tuple(exact), tuple(exact.values())),
-                         'weighted': (tuple(weighted), tuple(weighted.values())),
-                         'learned': (hands, probabilities.tolist())}
-        for name, (candidate_hands, candidate_probabilities) in distributions.items():
-            result = prediction_metrics(candidate_hands, candidate_probabilities, true_hand, exposed)
+            # Same gather, ordered three-card sum and softmax as card_distribution;
+            # its unused marginals need not be constructed for validation.
+            probabilities = torch.softmax(logits[ids.to(logits.device)].sum(dim=1), dim=0)
+        results = dict(baseline, learned=prediction_metrics(hands, probabilities.tolist(), true_hand, exposed))
+        for name, result in results.items():
             for metric in ('log_loss', 'hidden_card_accuracy'):
                 totals[name][metric] += result[metric]
             accuracies[name].append(result['hidden_card_accuracy'])
