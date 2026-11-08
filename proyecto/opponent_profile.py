@@ -42,11 +42,11 @@ class OpponentProfile:
                 for decision in hand:
                     pending = decision['observation'].get('pending')
                     action = decision['action']
-                    legal = decision['legal_actions']
                     if pending and pending['kind'] == 'truco' and action in TRUCO_RESOLUTION_ACTIONS:
                         self._record('fold', action == 'fold')
-                    if any(a in legal for a in ('envido', 'real_envido', 'falta_envido')):
-                        self._record('envido_called', action in ('envido', 'real_envido', 'falta_envido'))
+                envido_actions = ('envido', 'real_envido', 'falta_envido')
+                if any(any(a in d['legal_actions'] for a in envido_actions) for d in hand):
+                    self._record('envido_called', any(a in envido_actions for a in actions))
             else:
                 self._record('fold', 'fold' in actions)
                 self._record('envido_called', any(a in ('envido', 'real_envido', 'falta_envido') for a in actions))
