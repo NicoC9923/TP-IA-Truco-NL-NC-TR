@@ -16,7 +16,7 @@ class Phase2TrainerTest(unittest.TestCase):
         from phase2_trainer import train
         config = dict(generations=1, matches_per_generation=2, matches_per_round=1,
                       block_size=1, seed=9, target=1, minibatch=8, panel_path=None,
-                      auxiliary=True, progress=False)
+                      auxiliary=True, progress=False, card_prediction_situations=4)
         with tempfile.TemporaryDirectory() as root:
             root = Path(root)
             one = train(root / 'one', workers=1, **config)
@@ -71,7 +71,7 @@ class Phase2TrainerTest(unittest.TestCase):
         from pathlib import Path
         from phase2_trainer import train
         config = dict(generations=1, matches_per_generation=1, matches_per_round=1,
-                      block_size=1, target=1, panel_path=None, progress=False)
+                      block_size=1, target=1, panel_path=None, progress=False, card_prediction_situations=4)
         with tempfile.TemporaryDirectory() as root:
             for enabled in (False, True):
                 directory = Path(root) / str(enabled)
@@ -80,6 +80,27 @@ class Phase2TrainerTest(unittest.TestCase):
                 self.assertEqual('card_prediction' in entry, enabled)
                 if enabled:
                     self.assertEqual(set(entry['card_prediction']), {'exact', 'weighted', 'learned'})
+
+    def test_card_prediction_time_counts_toward_cap(self):
+        import json, tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+        from phase2_trainer import train
+        class Clock:
+            now = 0.0
+            def __call__(self):
+                return self.now
+        clock = Clock()
+        def predictions(*args, **kwargs):
+            clock.now += 10.0
+            return {}
+        with tempfile.TemporaryDirectory() as root, patch('phase2_card_metrics.validation_predictions', predictions):
+            train(root, generations=1, matches_per_generation=1, matches_per_round=1,
+                  block_size=1, target=1, panel_path=None, progress=False, auxiliary=True,
+                  time_cap_seconds=5, clock=clock)
+            entry = json.loads((Path(root) / 'generations.jsonl').read_text())
+            self.assertEqual(entry['stop_reason'], 'time_cap')
+            self.assertGreaterEqual(entry['elapsed_seconds'], 10)
 
     def test_updates_and_seed(self):
         from phase2_torch import Phase2Network

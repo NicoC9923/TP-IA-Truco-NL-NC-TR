@@ -243,7 +243,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                random_start_share=.3, checkpoint_dir=None, config=None, resume_state=None,
                stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
                check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
-               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress_path=None, console=None, auxiliary=False, auxiliary_weight=.1):
+               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress_path=None, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400):
+    if not isinstance(card_prediction_situations, int) or card_prediction_situations < 1:
+        raise ValueError('Invalid card prediction situation count')
     if not math.isfinite(auxiliary_weight) or auxiliary_weight < 0:
         raise ValueError('Invalid auxiliary loss weight')
     if (min(rounds, matches_per_round, workers, minibatch) < 1 or min(pool_recent, pool_diverse) < 0 or seed < 0
@@ -448,7 +450,14 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                         (Path(champions_dir) / 'reigning_champion.json').write_text(json.dumps({'generation': champion_generation, 'temperature': temperature}) + chr(10), encoding='utf-8')
                 if auxiliary:
                     from phase2_card_metrics import validation_predictions
-                    entry['card_prediction'] = validation_predictions(model, schedule_seed=check_seed_base, target=target, temperature=temperature)
+                    entry['card_prediction'] = validation_predictions(model, schedule_seed=check_seed_base, target=target, temperature=temperature, situation_count=card_prediction_situations)
+                    now = clock()
+                    elapsed += now - run_tick
+                    run_tick = now
+                    entry['elapsed_seconds'] = now - started
+                    if elapsed >= time_cap_seconds:
+                        entry['stop_reason'] = round_stop = 'time_cap'
+                        entry['phase_ended'] = True
                 with Path(log_path).open('a', encoding='utf-8') as log:
                     log.write(json.dumps(entry) + '\n')
                 reporter.generation_done(entry, elapsed)
@@ -469,7 +478,14 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                              champion=champion_generation, example_hand=None)
                 if auxiliary:
                     from phase2_card_metrics import validation_predictions
-                    entry['card_prediction'] = validation_predictions(model, schedule_seed=check_seed_base, target=target, temperature=temperature)
+                    entry['card_prediction'] = validation_predictions(model, schedule_seed=check_seed_base, target=target, temperature=temperature, situation_count=card_prediction_situations)
+                    now = clock()
+                    elapsed += now - run_tick
+                    run_tick = now
+                    entry['elapsed_seconds'] = now - started
+                    if elapsed >= time_cap_seconds:
+                        entry['stop_reason'] = round_stop = 'time_cap'
+                        entry['phase_ended'] = True
                 with Path(log_path).open('a', encoding='utf-8') as log:
                     log.write(json.dumps(entry) + '\n')
                 round_stop = 'time_cap'
@@ -512,7 +528,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
           random_start_share=.3, resume=None, stop_after_round=None, panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json',
           champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
           check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475,
-          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None, auxiliary=False, auxiliary_weight=.1):
+          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400):
     """Round match counts up to complete blocks and generations to complete rounds."""
     if min(generations, matches_per_generation, matches_per_round, block_size) < 1:
         raise ValueError('Generation and match counts must be positive')
@@ -533,7 +549,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                   matches_per_generation=matches_per_generation,
                   matches_per_round=matches_per_round, seed=seed, target=target,
                   lr=lr, minibatch=minibatch, random_start_share=random_start_share)
-    config.update(auxiliary=auxiliary, auxiliary_weight=auxiliary_weight)
+    config.update(auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations)
     generation_rounds = (matches_per_generation + matches_per_round - 1) // matches_per_round
     output = Path(directory).resolve()
     if resume and Path(resume).resolve().parent != output:
@@ -545,10 +561,11 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         old_config.pop('generations', None)
         old_config.setdefault('auxiliary', False)
         old_config.setdefault('auxiliary_weight', .1)
+        old_config.setdefault('card_prediction_situations', 400)
     if state is not None and old_config != config:
         raise ValueError('Checkpoint configuration does not match')
     if state is not None and state.get('phase_ended'):
-        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight)
+        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations)
     output.mkdir(parents=True, exist_ok=True)
     log_path = output / 'generations.jsonl'
     if state is None:
@@ -563,7 +580,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
                       resume_state=state, stop_after_round=stop_after_round, panel=panel, champions_dir=champions_dir,
                       panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs, check_seed_base=check_seed_base,
-                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight)
+                      temperature=temperature, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -600,6 +617,7 @@ def main():
     parser.add_argument('--no-progress', action='store_true', help='skip progress.json and the terminal lines')
     parser.add_argument('--auxiliary', action='store_true')
     parser.add_argument('--auxiliary-weight', type=float, default=.1)
+    parser.add_argument('--card-prediction-situations', type=int, default=400)
     parser.add_argument('--resume')
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--minibatch', type=int, default=512)

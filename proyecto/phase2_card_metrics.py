@@ -1,5 +1,6 @@
 """Metrics for distributions over an opponent's original hand."""
 import math
+import statistics
 import numpy as np
 from opponent_inference import _CARD_IDS
 
@@ -47,32 +48,41 @@ class _ValidationPolicy(Phase2Policy):
 
 
 @lru_cache(maxsize=16)
-def _validation_situations(schedule_seed, target, temperature):
-    """Replay one fixed validation deal using fixed policies; sample at most eight decisions."""
-    deal_seed, match_target = validation_schedule(schedule_seed, None if target == 'mixed' else target, 1)[0]
+def _validation_situations(schedule_seed, target, temperature, situation_count):
+    """Replay fixed validation deals, sampling up to eight decisions per match."""
     model = Phase2Network(seed=0)
-    policies = [_ValidationPolicy(model, seed=201 + seat, temperature=temperature) for seat in range(2)]
-    result = play_match(*policies, seed=deal_seed, target=match_target)
-    offsets = [0, 0]
     situations = []
-    for decision in result.decisions:
-        seat = decision['player']
-        obs, inputs, bluff_rate = policies[seat].situations[offsets[seat]]
-        offsets[seat] += 1
-        exposed = tuple(card for player, card in obs['table'] if player == 1 - seat)
-        hand = result.deals[decision['hand_index']][1 - seat]
-        if len(exposed) < 3:
-            situations.append((obs, inputs, bluff_rate, hand, exposed))
-    if len(situations) > 8:
-        situations = [situations[i] for i in np.linspace(0, len(situations) - 1, 8, dtype=int)]
+    # Every match has at least one decision, so this schedule is sufficient.
+    schedule = validation_schedule(schedule_seed, None if target == 'mixed' else target, situation_count)
+    for match_index, (deal_seed, match_target) in enumerate(schedule):
+        policies = [_ValidationPolicy(model, seed=201 + 2 * match_index + seat,
+                                      temperature=temperature) for seat in range(2)]
+        result = play_match(*policies, seed=deal_seed, target=match_target)
+        offsets = [0, 0]
+        candidates = []
+        for decision in result.decisions:
+            seat = decision['player']
+            obs, inputs, bluff_rate = policies[seat].situations[offsets[seat]]
+            offsets[seat] += 1
+            exposed = tuple(card for player, card in obs['table'] if player == 1 - seat)
+            hand = result.deals[decision['hand_index']][1 - seat]
+            if len(exposed) < 3:
+                candidates.append((obs, inputs, bluff_rate, hand, exposed))
+        count = min(8, len(candidates), situation_count - len(situations))
+        situations.extend(candidates[i] for i in np.linspace(0, len(candidates) - 1, count, dtype=int))
+        if len(situations) == situation_count:
+            break
     return tuple(situations)
 
 
-def validation_predictions(model, *, schedule_seed, target, temperature):
+def validation_predictions(model, *, schedule_seed, target, temperature, situation_count=400):
     """Compare predictors on fixed replayed decisions from the first validation deal."""
+    if situation_count < 1:
+        raise ValueError('situation_count must be positive')
+    accuracies = {name: [] for name in ('exact', 'weighted', 'learned')}
     totals = {name: {'log_loss': 0.0, 'hidden_card_accuracy': 0.0, 'situations': 0}
               for name in ('exact', 'weighted', 'learned')}
-    for obs, inputs, bluff_rate, true_hand, exposed in _validation_situations(schedule_seed, target, temperature):
+    for obs, inputs, bluff_rate, true_hand, exposed in _validation_situations(schedule_seed, target, temperature, situation_count):
         exact = exact_inference_from_observation(obs).distribution()
         weighted = inference_from_observation(obs, bluff_rate).distribution()
         with torch.no_grad():
@@ -85,9 +95,12 @@ def validation_predictions(model, *, schedule_seed, target, temperature):
             result = prediction_metrics(candidate_hands, candidate_probabilities, true_hand, exposed)
             for metric in ('log_loss', 'hidden_card_accuracy'):
                 totals[name][metric] += result[metric]
+            accuracies[name].append(result['hidden_card_accuracy'])
             totals[name]['situations'] += 1
-    for result in totals.values():
+    for name, result in totals.items():
         if result['situations']:
             for metric in ('log_loss', 'hidden_card_accuracy'):
                 result[metric] /= result['situations']
+        values = accuracies[name]
+        result['accuracy_standard_error'] = statistics.stdev(values) / math.sqrt(len(values)) if len(values) > 1 else None
     return totals

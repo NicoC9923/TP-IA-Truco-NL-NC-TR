@@ -21,12 +21,27 @@ class CardPredictionTest(unittest.TestCase):
         from phase2_card_metrics import validation_predictions, _validation_situations
         from phase2_torch import Phase2Network
         model = Phase2Network(seed=5, auxiliary=True)
-        first = validation_predictions(model, schedule_seed=10000, target=1, temperature=.1)
+        first = validation_predictions(model, schedule_seed=10000, target=1, temperature=.1, situation_count=8)
         _validation_situations.cache_clear()
-        second = validation_predictions(model, schedule_seed=10000, target=1, temperature=.1)
+        second = validation_predictions(model, schedule_seed=10000, target=1, temperature=.1, situation_count=8)
         self.assertEqual(first, second)
         self.assertEqual(set(first), {'exact', 'weighted', 'learned'})
         for metrics in first.values():
             self.assertGreater(metrics['situations'], 0)
+            self.assertGreaterEqual(metrics['accuracy_standard_error'], 0)
             self.assertGreaterEqual(metrics['log_loss'], 0)
             self.assertTrue(0 <= metrics['hidden_card_accuracy'] <= 1)
+
+    def test_requested_number_of_situations(self):
+        from phase2_card_metrics import validation_predictions
+        from phase2_torch import Phase2Network
+        result = validation_predictions(Phase2Network(auxiliary=True), schedule_seed=10000,
+                                        target=1, temperature=.1, situation_count=12)
+        self.assertTrue(all(row['situations'] == 12 for row in result.values()))
+
+    def test_single_situation_has_undefined_standard_error(self):
+        from phase2_card_metrics import validation_predictions
+        from phase2_torch import Phase2Network
+        result = validation_predictions(Phase2Network(auxiliary=True), schedule_seed=10000,
+                                        target=1, temperature=.1, situation_count=1)
+        self.assertTrue(all(row['accuracy_standard_error'] is None for row in result.values()))
