@@ -31,7 +31,7 @@ def _behavior(results):
     own = [d for result, seat in results for d in result.decisions if d['player'] == seat]
     hands = len({(j, d['hand_index']) for j, (result, seat) in enumerate(results) for d in result.decisions if d['player'] == seat})
     calls = [d for d in own if d['bluff'] is not None]
-    opportunities = [d for d in own if d['observation']['pending'] and d['observation']['pending']['kind'] == 'truco']
+    opportunities = [d for d in own if d['observation']['pending'] and d['observation']['pending']['kind'] == 'truco' and d['action'] in ('quiero', 'no_quiero', 'fold', 'retruco', 'vale_cuatro')]
     return {'envido': sum(d['action'] in ('envido', 'real_envido', 'falta_envido') for d in own) / max(hands, 1), 'bluff': sum(d['bluff'] for d in calls) / max(len(calls), 1), 'truco_acceptance': sum(d['action'] in ('quiero', 'retruco', 'vale_cuatro') for d in opportunities) / max(len(opportunities), 1)}
 
 def league_schedule(rng, generation, population_size, pairs, seed, target, hall, reigning, styles_after_first_promotion):

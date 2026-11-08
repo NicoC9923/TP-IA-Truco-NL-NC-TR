@@ -33,6 +33,7 @@ class PartidaTruco:
         self.ia = AgenteTrucoIA(historial_path=historial_path, rng=self.rng, champions_dir=champions_dir)
         profile_path = Path(historial_path).with_name('opponent_profile.json') if historial_path else Path(__file__).with_name('opponent_profile.json')
         self.opponent_profile = OpponentProfile(profile_path)
+        self.opponent_profile_v3 = OpponentProfile(profile_path.with_name('opponent_profile_v3.json'))
         self.adapt_to_opponent = True
         self.network = None
 
@@ -172,6 +173,7 @@ class PartidaTruco:
     def reset_profile(self):
         """Reset the persisted opponent profile and pending observations."""
         self.opponent_profile.reset()
+        self.opponent_profile_v3.reset()
         self._human_decisions.clear()
 
     def reiniciar_partido(self, meta_puntos: Optional[int] = None) -> Dict:
@@ -263,6 +265,7 @@ class PartidaTruco:
             decision['revealed'] = revealed
             decision['bluff'] = is_bluff(decision['action'], hand) if revealed else None
         self.opponent_profile.observe(self._human_decisions, 0)
+        self.opponent_profile_v3.observe(self._human_decisions, 0, semantics='v2')
         self.estadisticas_partida["manos_jugadas"] += 1
         self.ia.analizar_mano_humano(
             self.cartas_humano,
@@ -435,7 +438,8 @@ class PartidaTruco:
         self._robot_tira_carta(carta_humano_en_baza)
 
     def _network_decide(self, actions, pending=None):
-        profile = self.opponent_profile if self.adapt_to_opponent else OpponentProfile()
+        stored_profile = self.opponent_profile_v3 if self.network.encoder == 'v3' else self.opponent_profile
+        profile = stored_profile if self.adapt_to_opponent else OpponentProfile()
         self.network.profile = profile
         cards = tuple((c['valor'], c['palo']) for c in self.cartas_robot)
         reveal = None
@@ -1151,7 +1155,8 @@ class PartidaTruco:
         siguiente_truco = self._siguiente_nivel_truco() if self.quien_tiene_quiero_truco in ("ambos", "humano") else None
         aprendizaje = self.ia.resumen_aprendizaje()
         aprendizaje['adaptacion_activa'] = self.adapt_to_opponent
-        aprendizaje['perfil_rival'] = self.opponent_profile.rates()
+        profile = self.opponent_profile_v3 if self.network is not None and self.network.encoder == 'v3' and self.ia.modo_agente == 'neuroevolucion' else self.opponent_profile
+        aprendizaje['perfil_rival'] = profile.rates()
         if not self.mano_terminada:
             def vista_publica(paso):
                 if paso is None:

@@ -25,7 +25,7 @@ class OpponentProfile:
         self.counts = {name: [0, 0] for name in self.counts}
         self._save()
 
-    def observe(self, decisions, opponent):
+    def observe(self, decisions, opponent, *, semantics="legacy"):
         hands = {}
         for index, decision in enumerate(decisions):
             if decision['player'] == opponent:
@@ -36,7 +36,9 @@ class OpponentProfile:
             self._record('envido_called', any(a in ('envido', 'real_envido', 'falta_envido') for a in actions))
             for decision in hand:
                 pending = decision['observation'].get('pending')
-                if pending and pending['kind'] == 'truco':
+                if (pending and pending['kind'] == 'truco' and
+                        (semantics == 'legacy' or decision['action'] in
+                         ('quiero', 'no_quiero', 'fold', 'retruco', 'vale_cuatro'))):
                     self._record('truco_accepted', decision['action'] in ('quiero', 'retruco', 'vale_cuatro'))
             calls = [d for d in hand if d.get('bluff') is not None]
             if calls and all(d.get('revealed') for d in calls):

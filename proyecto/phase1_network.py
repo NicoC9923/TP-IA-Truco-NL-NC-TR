@@ -26,7 +26,8 @@ def encode_observation(obs, profile, inference=None, encoder='v1'):
     50: brava probability; 51: expected opponent strength / 24.7;
     52-54: slot-aligned signed trick outcomes; 55-58: bluff, fold,
     truco accepted and envido called profile rates; 59: completed tricks / 2.
-    60, 61, 62, 63: reserved zeros. Unavailable card outcomes are zero;
+    60: accepted points won / 30; 61: negative accepted points lost / 30;
+    62: negative declined points / 30; 63: reserved zero. Unavailable card outcomes are zero;
     ties are zero. The individual slot indexes are:
     0 rank, 1 suit, 2 available, 3 tantos; 4 rank, 5 suit, 6 available,
     7 tantos; 8 rank, 9 suit, 10 available, 11 tantos; 12 rank, 13 suit,
@@ -91,6 +92,15 @@ def encode_observation(obs, profile, inference=None, encoder='v1'):
                 values.append(expectation)
         values.extend(rates.values())
         values.append(len(obs['tricks']) / 2)
+        if pending and pending['kind'] == 'envido':
+            if pending['call'] == 'falta_envido':
+                win = rules.puntos_falta_envido(*obs['score'], obs['target'], ('humano', 'robot')[player])[0]
+                loss = rules.puntos_falta_envido(*obs['score'], obs['target'], ('humano', 'robot')[1-player])[0]
+            else:
+                win = loss = pending['accepted']
+            values.extend((win / 30, -loss / 30, -pending['declined'] / 30))
+        else:
+            values.extend((0, 0, 0))
     else:
         values.extend((summaries['brava_probability'], summaries['expected_strength'] / 24.7, summaries['next_trick_win_probability']))
         values.extend(rates.values())
@@ -141,7 +151,7 @@ class NetworkPolicy:
         return legal_actions[self.rng.choice(len(legal_actions), p=probabilities)]
 
     def observe_hand(self, decisions, opponent):
-        self.profile.observe(decisions, opponent)
+        self.profile.observe(decisions, opponent, semantics='v2' if self.encoder == 'v3' else 'legacy')
         self.inference.reset()
 
     def save(self, path):
