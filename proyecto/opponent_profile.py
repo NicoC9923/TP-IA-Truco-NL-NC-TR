@@ -5,7 +5,10 @@ from pathlib import Path
 TRUCO_RESOLUTION_ACTIONS = frozenset(('quiero', 'no_quiero', 'fold', 'retruco', 'vale_cuatro'))
 
 class OpponentProfile:
-    def __init__(self, path=None):
+    def __init__(self, path=None, *, prior_strength=20):
+        if prior_strength <= 0:
+            raise ValueError('prior_strength must be positive')
+        self.prior_strength = prior_strength
         self.path = Path(path) if path is not None else None
         self.counts = {name: [0, 0] for name in ('bluff', 'fold', 'truco_accepted', 'envido_called')}
         if self.path is not None and self.path.is_file():
@@ -35,8 +38,18 @@ class OpponentProfile:
                 hands.setdefault(decision.get('hand_index', ('event', index)), []).append(decision)
         for hand in hands.values():
             actions = [d['action'] for d in hand]
-            self._record('fold', 'fold' in actions)
-            self._record('envido_called', any(a in ('envido', 'real_envido', 'falta_envido') for a in actions))
+            if semantics == 'phase2':
+                for decision in hand:
+                    pending = decision['observation'].get('pending')
+                    action = decision['action']
+                    legal = decision['legal_actions']
+                    if pending and pending['kind'] == 'truco' and action in TRUCO_RESOLUTION_ACTIONS:
+                        self._record('fold', action == 'fold')
+                    if any(a in legal for a in ('envido', 'real_envido', 'falta_envido')):
+                        self._record('envido_called', action in ('envido', 'real_envido', 'falta_envido'))
+            else:
+                self._record('fold', 'fold' in actions)
+                self._record('envido_called', any(a in ('envido', 'real_envido', 'falta_envido') for a in actions))
             for decision in hand:
                 pending = decision['observation'].get('pending')
                 if (pending and pending['kind'] == 'truco' and
@@ -51,6 +64,10 @@ class OpponentProfile:
         self.counts[name][0] += int(success)
         self.counts[name][1] += 1
 
+    def confidence(self):
+        return {name: total for name, (_, total) in self.counts.items()}
+
     def rates(self, adapt=True):
-        return {name: (10 + successes) / (20 + total) if adapt else 0.5
+        return {name: (self.prior_strength * 0.5 + successes) / (self.prior_strength + total) if adapt else 0.5
                 for name, (successes, total) in self.counts.items()}
+
