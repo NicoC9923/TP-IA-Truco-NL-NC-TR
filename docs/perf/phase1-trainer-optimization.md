@@ -12,3 +12,10 @@ map uses default chunksize 1 and transfers full decision logs. These are seconda
 candidates; first target is posterior summaries, retaining ordered float additions.
 Baseline production measurements are recorded in before-v3.txt / before-v2.txt.
 The benchmark uses temporary directories which are removed automatically.
+
+Determinism fixture: six individuals, two pairs, two finalists, eight validation
+pairs, ten generations, target 1, seed 0, all three encoders. Ten generations
+exercise the actual checkpoint writer; SHA-256 covers raw log bytes, every
+champion and sidecar, and each checkpoint member's uncompressed bytes (ZIP
+container timestamps are deliberately excluded). Workers 1 and 2 must both
+match the same baseline. No timing fields occur in generations.jsonl.

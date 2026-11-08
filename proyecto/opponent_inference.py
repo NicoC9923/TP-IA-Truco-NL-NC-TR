@@ -2,6 +2,28 @@
 from itertools import combinations
 from functools import lru_cache
 import truco_reglas as rules
+import numpy as np
+
+_DECK = tuple((v, p) for p in rules.PALOS for v in rules.VALORES)
+_CARD_IDS = {card: i for i, card in enumerate(_DECK)}
+_HANDS = tuple(combinations(_DECK, 3))
+_HAND_IDS = {hand: i for i, hand in enumerate(_HANDS)}
+_IDS = np.array([[ _CARD_IDS[c] for c in hand] for hand in _HANDS])
+_RANKS = np.array([rules.valor_carta_truco(*c) for c in _DECK])
+_BRAVAS = np.array([c in {(1, 'Espada'), (1, 'Basto'), (7, 'Espada'), (7, 'Oro')} for c in _DECK])
+
+@lru_cache(maxsize=1)
+def _strength_table():
+    table = np.empty((15, 15, 15))
+    for indexes in np.ndindex(table.shape):
+        ranks = sorted((i - 1 for i in indexes if i), reverse=True)
+        table[indexes] = round(sum(r * factor for r, factor in zip(ranks, (1.0, .6, .3))), 2)
+    return table
+
+def _ordered_sum(values):
+    # np.sum uses pairwise reduction: preserve Python's left-to-right additions.
+    return float(np.cumsum(values)[-1]) if len(values) else 0.0
+
 
 class Inference:
     def __init__(self, own_cards):
@@ -34,37 +56,38 @@ class Inference:
 
     def v3_summaries(self, cards, available, *, estimate_outcomes):
         """Compute v3 public summaries and slot outcomes in one posterior pass."""
-        distribution = self.distribution()
-        bravas = {(1, 'Espada'), (1, 'Basto'), (7, 'Espada'), (7, 'Oro')}
-        ranks = [rules.valor_carta_truco(*card) for card in cards]
-        brava_probability = 0.0
-        expected_strength = 0.0
+        weights, ranks, counts, brava, strength = self._summary_arrays()
         outcomes = [0.0, 0.0, 0.0]
-        for hand, weight in distribution.items():
-            remaining = [c for c in hand if c not in self.played]
-            brava_probability += weight * bool(bravas.intersection(remaining))
-            expected_strength += weight * _strength(tuple(remaining))
-            if estimate_outcomes and remaining:
-                other_ranks = [rules.valor_carta_truco(*c) for c in remaining]
-                for i in available:
-                    rank = ranks[i]
-                    outcomes[i] += weight * sum((rank > other) - (rank < other)
-                                                for other in other_ranks) / len(remaining)
-        return brava_probability, expected_strength, outcomes
+        if estimate_outcomes:
+            for i in available:
+                rank = rules.valor_carta_truco(*cards[i])
+                signs = ((rank > ranks).astype(int) - (rank < ranks)) * (ranks >= 0)
+                outcomes[i] = _ordered_sum(weights * signs.sum(axis=1) / counts)
+        return _ordered_sum(weights * brava), _ordered_sum(weights * strength), outcomes
+
+    def _summary_arrays(self):
+        # Dict iteration preserves the original posterior order, including after filters.
+        ids = np.fromiter((_HAND_IDS[h] for h in self.weights), dtype=np.int64)
+        weights = np.fromiter(self.weights.values(), dtype=np.float64)
+        weights = weights / sum(self.weights.values())
+        cards = _IDS[ids]
+        remaining = np.ones(cards.shape, dtype=bool)
+        for card in self.played:
+            remaining &= cards != _CARD_IDS[card]
+        ranks = np.where(remaining, _RANKS[cards], -1)
+        counts = np.maximum(remaining.sum(axis=1), 1)
+        brava = (_BRAVAS[cards] & remaining).any(axis=1)
+        strength = _strength_table()[tuple((ranks + 1).T)]
+        return weights, ranks, counts, brava, strength
 
     def summaries(self, card, *, ties_win=False):
-        distribution = self.distribution()
+        weights, ranks, counts, brava, strength = self._summary_arrays()
         rank = rules.valor_carta_truco(*card)
-        bravas = {(1, 'Espada'), (1, 'Basto'), (7, 'Espada'), (7, 'Oro')}
-        result = dict(brava_probability=0.0, expected_strength=0.0, next_trick_win_probability=0.0)
-        for hand, weight in distribution.items():
-            remaining = [c for c in hand if c not in self.played]
-            result['brava_probability'] += weight * bool(bravas.intersection(remaining))
-            result['expected_strength'] += weight * _strength(tuple(remaining))
-            if remaining:
-                # Opponent plays each remaining card with equal probability.
-                result['next_trick_win_probability'] += weight * sum(rank > rules.valor_carta_truco(*c) or (ties_win and rank == rules.valor_carta_truco(*c)) for c in remaining) / len(remaining)
-        return result
+        wins = ((rank > ranks) | (ties_win & (rank == ranks))) & (ranks >= 0)
+        return dict(brava_probability=_ordered_sum(weights * brava),
+                    expected_strength=_ordered_sum(weights * strength),
+                    next_trick_win_probability=_ordered_sum(weights * wins.sum(axis=1) / counts))
+
 
 
 @lru_cache(maxsize=20000)
