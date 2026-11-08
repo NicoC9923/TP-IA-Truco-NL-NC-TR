@@ -63,7 +63,7 @@ class Phase2TrainerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             script = Path(__file__).with_name('phase2_trainer.py')
             subprocess.run([sys.executable, str(script), '--output', directory, '--generations', '2',
-                            '--workers', '1', '--seed', '7', '--target', '1',
+                            '--no-selection', '--workers', '1', '--seed', '7', '--target', '1',
                             '--matches-per-generation', '3', '--matches-per-round', '2'], check=True)
             entries = [json.loads(line) for line in (Path(directory) / 'generations.jsonl').read_text().splitlines()]
         self.assertEqual(len(entries), 2)
@@ -77,7 +77,9 @@ class Phase2TrainerTest(unittest.TestCase):
         import json
         import tempfile
         from pathlib import Path
-        from phase2_trainer import train
+        from phase2_trainer import train as _train
+        from functools import partial
+        train = partial(_train, panel_path=None)
         with tempfile.TemporaryDirectory() as root:
             root = Path(root)
             config = dict(generations=2, matches_per_generation=2, matches_per_round=1,
@@ -121,7 +123,9 @@ class Phase2TrainerTest(unittest.TestCase):
         import tempfile
         import numpy as np
         from pathlib import Path
-        from phase2_trainer import train
+        from phase2_trainer import train as _train
+        from functools import partial
+        train = partial(_train, panel_path=None)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             config = dict(matches_per_generation=2, matches_per_round=1, workers=2, seed=29, target=1)
@@ -155,7 +159,9 @@ class Phase2TrainerTest(unittest.TestCase):
     def test_checkpoint_contract_and_retention(self):
         import tempfile
         from pathlib import Path
-        from phase2_trainer import train
+        from phase2_trainer import train as _train
+        from functools import partial
+        train = partial(_train, panel_path=None)
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(ValueError, 'generation_rounds.*log_path'):
                 run_rounds(rounds=1, target=1, checkpoint_dir=directory)

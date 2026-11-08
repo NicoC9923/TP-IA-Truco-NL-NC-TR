@@ -13,9 +13,11 @@ import multiprocessing as mp
 from dataclasses import dataclass
 import numpy as np
 import torch
-from phase1_network import ACTIONS
+from phase1_network import ACTIONS, NetworkPolicy
 from phase2_torch import Phase2Network, Phase2Policy
-from symmetric_engine import play_match
+from symmetric_engine import play_match, play_mirror_pair
+from validation_schedule import validation_schedule
+from phase2_promotion import load_panel, check_seed, promotion_decision
 
 def _configure_threads():
     torch.set_num_threads(1)
@@ -62,6 +64,38 @@ def _matches(args):
         results.append((match_id, samples))
     return results
 
+def _check_pair(job):
+    challenger, opponent, deal_seed, target, action_seed, temperature = job
+    def policy(spec, seed):
+        if spec['kind'] == 'phase2':
+            model = Phase2Network()
+            model.load_state_dict(spec['weights'])
+            return Phase2Policy(model, seed=seed, temperature=temperature)
+        return NetworkPolicy(spec['weights'], seed=seed, encoder=spec['encoder'], temperature=temperature)
+    a, b = policy(challenger, action_seed), policy(opponent, action_seed + 1)
+    first, second = play_mirror_pair(a, b, seed=deal_seed, target=target)
+    return ((first.winner == 0) + (second.winner == 1)) / 2
+
+def _selection_check(model, champion, panel, schedule_seed, pairs, direct_pairs, target, temperature, pool, min_gain, min_direct):
+    current = {'kind': 'phase2', 'weights': model.state_dict()}
+    incumbent = {'kind': 'phase2', 'weights': champion}
+    def measure(a, b, count, salt):
+        jobs = [(a, b, deal, t, schedule_seed * 100000 + i * 2 + salt, temperature)
+                for i, (deal, t) in enumerate(validation_schedule(schedule_seed, target, count))]
+        return pool.map(_check_pair, jobs, chunksize=8) if pool else list(map(_check_pair, jobs))
+    members, challenger_scores, champion_scores = {}, {}, {}
+    for member in panel['members']:
+        opponent = {'kind': member['kind'], 'encoder': member['encoder']}
+        opponent['weights'] = (torch.load(member['resolved_path'], map_location='cpu', weights_only=True)
+                               if member['kind'] == 'phase2' else np.load(member['resolved_path']))
+        a = measure(current, opponent, pairs, 0)
+        b = measure(incumbent, opponent, pairs, 0)
+        challenger_scores[member['name']], champion_scores[member['name']] = a, b
+        members[member['name']] = {'challenger': a, 'champion': b}
+    direct = measure(current, incumbent, direct_pairs, 1)
+    result = promotion_decision(challenger_scores, champion_scores, direct, min_gain, min_direct)
+    return dict(result, members=members, direct=direct, panel_version=panel['version'], schedule_seed=schedule_seed)
+
 @dataclass
 class RoundResult:
     model: Phase2Network
@@ -73,7 +107,8 @@ class RoundResult:
 def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixed',
                lr=3e-4, minibatch=512, generation_rounds=None, log_path=None,
                random_start_share=.3, checkpoint_dir=None, config=None, resume_state=None,
-               stop_after_round=None):
+               stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
+               check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475):
     if (min(rounds, matches_per_round, workers, minibatch) < 1 or seed < 0
             or (target != 'mixed' and (not isinstance(target, int) or target < 1))
             or not 0 <= random_start_share <= 1 or not math.isfinite(lr) or lr <= 0):
@@ -93,7 +128,11 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
     losses = []
     started = time.monotonic()
     first_round = 0
+    champion = None
+    champion_generation = None
     if resume_state is not None:
+        champion = resume_state.get('champion_weights')
+        champion_generation = resume_state.get('champion_generation')
         model.load_state_dict(resume_state['model'])
         optimizer.load_state_dict(resume_state['optimizer'])
         first_round = resume_state['round']
@@ -136,6 +175,31 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                              check=None, promotion_check=None, promoted=False,
                              phase_ended=False, fitness=None, behavior=None,
                              diversity=None, champion=None, example_hand=None)
+                if checkpoint_dir is not None:
+                    generation = entry['generation']
+                    snapshot = Path(checkpoint_dir) / f'generation_{generation:06d}.pt'
+                    model.save(snapshot)
+                    if champion is None:
+                        champion = {k: v.clone() for k, v in model.state_dict().items()}
+                        champion_generation = generation
+                        changed = True
+                    elif panel is not None:
+                        result = _selection_check(model, champion, panel, check_seed(check_seed_base, generation - 2),
+                                                  panel_pairs, head_to_head_pairs, None if target == 'mixed' else target,
+                                                  temperature, pool, min_gain, min_direct)
+                        entry['check'] = entry['promotion_check'] = result
+                        entry['promoted'] = result['promoted']
+                        changed = result['promoted']
+                        if changed:
+                            champion = {k: v.clone() for k, v in model.state_dict().items()}
+                            champion_generation = generation
+                    else:
+                        changed = False
+                    entry['champion'] = champion_generation
+                    entry['stop_reason'] = None
+                    if changed and panel is not None and champions_dir is not None:
+                        Path(champions_dir).mkdir(parents=True, exist_ok=True)
+                        torch.save(champion, Path(champions_dir) / 'reigning_champion.pt')
                 with Path(log_path).open('a', encoding='utf-8') as log:
                     log.write(json.dumps(entry) + '\n')
                 generation_samples = generation_updates = 0
@@ -146,7 +210,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                              round=round_id + 1, generation=(round_id + 1) // generation_rounds,
                              matches=(round_id + 1) * matches_per_round, samples=total, updates=updates,
                              generation_samples=generation_samples, generation_updates=generation_updates,
-                             losses=losses, config=config, python_rng=random.getstate(),
+                             losses=losses, config=config, champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
                              numpy_rng=np.random.get_state(), torch_rng=torch.get_rng_state(),
                              shuffle_rng=rng.bit_generator.state)
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
@@ -167,11 +231,22 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
 
 def train(directory, *, generations=1, matches_per_generation=120, matches_per_round=12,
           workers=1, seed=0, target='mixed', lr=3e-4, minibatch=512,
-          random_start_share=.3, resume=None, stop_after_round=None):
+          random_start_share=.3, resume=None, stop_after_round=None, panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json',
+          champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
+          check_seed_base=10000, temperature=.1, min_gain=.01, min_direct=.475):
     """Round each generation up to a whole number of rounds."""
     if min(generations, matches_per_generation, matches_per_round) < 1:
         raise ValueError('Generation and match counts must be positive')
-    config = dict(matches_per_generation=matches_per_generation,
+    if min(panel_pairs, head_to_head_pairs) < 2 or temperature <= 0:
+        raise ValueError('Invalid selection configuration')
+    panel = load_panel(panel_path) if panel_path else None
+    if panel is not None:
+        for member in panel['members']:
+            member['resolved_path'] = str((Path(panel_path).resolve().parent / member['path']).resolve())
+    config = dict(panel_path=str(Path(panel_path).resolve()) if panel_path else None,
+                  panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs,
+                  check_seed_base=check_seed_base, temperature=temperature, min_gain=min_gain, min_direct=min_direct,
+                  matches_per_generation=matches_per_generation,
                   matches_per_round=matches_per_round, seed=seed, target=target,
                   lr=lr, minibatch=minibatch, random_start_share=random_start_share)
     generation_rounds = (matches_per_generation + matches_per_round - 1) // matches_per_round
@@ -197,7 +272,9 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                       matches_per_round=matches_per_round, workers=workers, target=target,
                       lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=log_path,
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
-                      resume_state=state, stop_after_round=stop_after_round)
+                      resume_state=state, stop_after_round=stop_after_round, panel=panel, champions_dir=champions_dir,
+                      panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs, check_seed_base=check_seed_base,
+                      temperature=temperature, min_gain=min_gain, min_direct=min_direct)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -209,10 +286,21 @@ def main():
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--target', type=lambda value: 'mixed' if value == 'mixed' else int(value), default='mixed')
     parser.add_argument('--random-start-share', type=float, default=.3)
+    parser.add_argument('--panel-path', default=str(Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json'))
+    parser.add_argument('--no-selection', action='store_true')
+    parser.add_argument('--champions-dir', default='champions/phase2')
+    parser.add_argument('--panel-pairs', type=int, default=100)
+    parser.add_argument('--head-to-head-pairs', type=int, default=200)
+    parser.add_argument('--check-seed-base', type=int, default=10000)
+    parser.add_argument('--temperature', type=float, default=.1)
+    parser.add_argument('--min-gain', type=float, default=.01)
+    parser.add_argument('--min-direct', type=float, default=.475)
     parser.add_argument('--resume')
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--minibatch', type=int, default=512)
     args = vars(parser.parse_args())
+    if args.pop('no_selection'):
+        args['panel_path'] = None
     args['directory'] = args.pop('output')
     train(**args)
 

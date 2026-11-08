@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "members": [
+    {"name": "run1-g48", "path": "../../champions/phase1/reigning_champion.npy", "kind": "phase1", "encoder": "v1", "sha256": "0b3e04fad09334f60d2d416b9c6848c7b3aabcfa6bb0d6593ac825feb32e47f7"},
+    {"name": "v2s1-g46", "path": "../../experiments/phase1-encoder-v2-seed1/reigning_champion.npy", "kind": "phase1", "encoder": "v2", "sha256": "9659d27a3c70f369751d48a9ba4d97f555f4d8cf20931cbbd23f06c90ecd7fe6"},
+    {"name": "v2s2-g25", "path": "../../experiments/phase1-seed2-matched/v2/reigning_champion.npy", "kind": "phase1", "encoder": "v2", "sha256": "3f25fb0b59b5c7a10c4666bb2450717f822ad6d13c8283a217069645a7f68a06"}
+  ],
+  "pending_member": "Phase 2 measuring run snapshot; supply a complete configurable manifest before use."
+}
+

@@ -71,6 +71,8 @@ def build_panel(panel, scores, snapshots, champion_sha256):
 def load_panel(path):
     path = Path(path)
     panel = json.loads(path.read_text(encoding='utf-8'))
+    if panel.get('pending_member'):
+        raise ValueError('panel has a pending member')
     if not panel.get('members'):
         raise ValueError('empty panel')
     for member in panel['members']:

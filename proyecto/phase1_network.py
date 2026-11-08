@@ -98,9 +98,12 @@ def encode_observation(obs, profile, inference=None, encoder='v1'):
     return np.asarray(values, dtype=np.float64)
 
 class NetworkPolicy:
-    def __init__(self, genome, seed=0, bias=None, profile=None, style=None, style_strength=1.0, explain=False, encoder='v1'):
+    def __init__(self, genome, seed=0, bias=None, profile=None, style=None, style_strength=1.0, explain=False, encoder='v1', temperature=1.0):
         if encoder not in ('v1', 'v2', 'v3'):
             raise ValueError('Unknown encoder')
+        if not np.isfinite(temperature) or temperature <= 0:
+            raise ValueError('Invalid temperature')
+        self.temperature = temperature
         self.encoder = encoder
         self.genome = np.asarray(genome, dtype=np.float64).copy()
         if self.genome.shape != (GENOME_SIZE,):
@@ -132,7 +135,7 @@ class NetworkPolicy:
                 adjustment += 3 * self.style_strength
             scores.append(logits[ACTIONS.index(action)] + adjustment)
         scores = np.array(scores)
-        weights = np.exp(scores - scores.max())
+        weights = np.exp((scores - scores.max()) / self.temperature)
         probabilities = weights / weights.sum()
         if self.explain:
             self.last_probabilities = dict(zip(legal_actions, map(float, probabilities)))
