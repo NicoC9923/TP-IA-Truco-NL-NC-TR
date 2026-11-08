@@ -42,6 +42,14 @@ class Phase2EncoderTests(unittest.TestCase):
         self.assertAlmostEqual(row[55], 30 / 33)
         self.assertEqual(row[58], 1)
 
+    def test_buenas_flags_distinguish_match_lengths(self):
+        short = dict(self.obs, score=(5, 5), target=15)
+        long = dict(self.obs, score=(20, 20), target=30)
+        np.testing.assert_array_equal(self.encode(short)[INDEX['buenas']], [1, 1])
+        np.testing.assert_array_equal(self.encode(long)[INDEX['buenas']], [1, 1])
+        long_malas = dict(self.obs, score=(5, 10), target=30)
+        np.testing.assert_array_equal(self.encode(long_malas)[INDEX['buenas']], [0, 0])
+
     def test_overflow_rejected(self):
         obs = dict(self.obs, history=((0, 'truco'),) * 25)
         with self.assertRaises(ValueError): self.encode(obs)

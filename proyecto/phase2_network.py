@@ -54,7 +54,8 @@ def encode_observation(obs, profile, legal_actions, *, weighted_beliefs=True,
         result[INDEX['weighted_belief']] = weighted[50:55]
     result[INDEX['confidence']] = list(profile.confidence().values())
     player = obs['player']
-    result[INDEX['buenas']] = [obs['score'][player] >= 15, obs['score'][1-player] >= 15]
+    result[INDEX['buenas']] = [obs['target'] != 30 or obs['score'][player] >= 15,
+                               obs['target'] != 30 or obs['score'][1-player] >= 15]
     for slot, card in enumerate(obs['hand']):
         result[70 + slot * 40 + _card_id(card)] = 1
     for action in legal_actions:
