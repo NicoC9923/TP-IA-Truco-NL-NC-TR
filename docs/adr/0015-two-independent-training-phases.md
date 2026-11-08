@@ -15,3 +15,7 @@ This is common practice: DouZero and AlphaZero trained by pure self-play from sc
 - **MCCFR:** theoretically the strongest (converges to a Nash equilibrium), but only on a simplified version of the game. It also doesn't exploit weak opponents and, being a table, can't take the opponent profile, so adapting to the opponent would be lost. It doesn't reuse the network either.
 - **PPO** instead of Deep Monte-Carlo: equally valid, but more delicate to tune. Deep Monte-Carlo has proven stable for card games trained on CPU.
 - **Keep only one of the two phases:** neuroevolution alone is medium-strength; reinforcement learning alone loses the syllabus's genetic algorithm and the generations to present.
+
+## Amendment (2026-11-08)
+
+Amended for phase 2 by ADR 0039: phase 2 may train against selected phase 1 networks (ADR 0043) and uses phase 1 networks in its selection panel (ADR 0047). The final comparison is presented as a comparison of the two network modes, not of the learning algorithms in isolation (ADR 0046).

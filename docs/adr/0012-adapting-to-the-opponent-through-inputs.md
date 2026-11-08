@@ -20,3 +20,7 @@ For the network to learn to read the profile, it faces opponents with different 
 - **Retrain on the human's matches:** far too few matches, and the result is unstable.
 - **Portfolio of champions** (pick, during the session, the one doing best against the human): needs several clearly different champions, and switching only pays off after many matches.
 - **Profile input only, or weighted inference only:** each shows adaptation from a single angle. Together they show it changes both how it plays and what it believes.
+
+## Amendment (2026-11-08)
+
+The switch's placement and default changed: advanced settings, on by default, reset each session (ADR 0048).

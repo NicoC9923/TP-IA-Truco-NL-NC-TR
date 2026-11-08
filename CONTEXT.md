@@ -70,7 +70,7 @@ Each of the two agent modes that play with a trained agent: the Neuroevolution n
 _Avoid_: trained mode, AI mode
 
 **Adapt to opponent**:
-A network-mode option. When on, the agent uses the opponent profile and weighted evidence; when off, it uses neutral values for both. UI: "Adaptarse al rival".
+A network-mode option. When on (the default), the agent uses the opponent profile and weighted evidence; when off, it uses neutral values for both but still reads the current hand. UI: "Adaptarse al rival", in advanced settings.
 _Avoid_: adaptive mode, "Entrenado adaptativo"
 
 **Reasoning trace**:
@@ -88,7 +88,7 @@ _Avoid_: personality, profile (for the style)
 ### Training
 
 **Phase**:
-Each stage of training, with its own technique: phase 1, neuroevolution; phase 2, reinforcement learning. The two phases are independent: neither is used to train the other.
+Each stage of training, with its own technique: phase 1, neuroevolution; phase 2, reinforcement learning. Phase 1 never uses phase 2. Phase 2 may train against selected phase 1 networks and uses some in its selection panel (ADR 0043, 0047); neither phase ever trains against a reference opponent.
 _Avoid_: stage, version
 
 **Self-play**:
@@ -96,15 +96,15 @@ Training in which the agent plays against copies of itself or earlier versions o
 _Avoid_: playing against a clone
 
 **League**:
-The set of opponents an agent plays while training: clones, the hall of fame and styled opponents, all from its own phase.
+The set of opponents an agent plays while training. Phase 1: clones, the hall of fame and styled opponents, all from phase 1. Phase 2: its current self, the snapshot pool (with selected phase 1 networks) and styled snapshots.
 _Avoid_: pool, tournament
 
 **Styled opponent**:
-A copy of a network from the same phase with a fixed bias added to its outputs so it plays in a style.
+A copy of a network with a fixed bias added to its outputs (in phase 2, to its action values) so it plays in a style.
 _Avoid_: sparring partner, style bot, reference opponent (for these)
 
 **Generation**:
-A full population of individuals evaluated at once; the evaluation yields the parents of the next generation. In phase 2, which has no population, each periodic champion check is called a generation.
+A full population of individuals evaluated at once; the evaluation yields the parents of the next generation. In phase 2, which has no population, each promotion check after a fixed number of training matches is called a generation.
 _Avoid_: epoch, iteration
 
 **Individual**:
@@ -120,16 +120,32 @@ An individual's score in a generation, from the matches it wins and its point di
 _Avoid_: score, reward
 
 **Champion**:
-The individual with the best fitness in a generation.
+The individual with the best fitness in a generation. In phase 2, the network at the end of a generation, which challenges the reigning champion.
 _Avoid_: best bot, winner
 
 **Reigning champion**:
-The best agent of a phase so far. A champion replaces it only by beating it clearly; that replacement is a **promotion**. It is the one that plays in its phase's network mode.
+The best agent of a phase so far. A champion replaces it only by beating it clearly (phase 1: 55% against it; phase 2: a measured improvement over it against the selection panel); that replacement is a **promotion**. It is the one that plays in its phase's network mode.
 _Avoid_: best champion, active champion
 
 **Hall of fame**:
-The set of champions that were promoted to reigning champion, which new generations keep playing against.
+The set of champions that were promoted to reigning champion, which new generations keep playing against. Phase 1 only; phase 2 uses a snapshot pool.
 _Avoid_: archive
+
+**Snapshot pool**:
+Phase 2's frozen past versions of itself, one saved every generation whether promoted or not, kept bounded to recent and behaviorally distinct ones, plus selected phase 1 networks. Training opponents only.
+_Avoid_: hall of fame (for phase 2), archive
+
+**Selection panel**:
+A fixed, versioned set of frozen networks against which phase 2's challenger and reigning champion are both measured in each promotion check. Its members are never training opponents.
+_Avoid_: evaluation panel, reference opponents
+
+**Measuring run**:
+A short phase 2 run, before the real one, that measures speed and fixes pilot settings; its last snapshot joins the selection panel.
+_Avoid_: tuning run, smoke test
+
+**Current-hand events**:
+The ordered public actions of the hand in progress (calls, answers, declarations, cards played), as the phase 2 network sees them.
+_Avoid_: history (alone), trace
 
 **Reference opponent**:
 An existing agent (Reactive or Adaptive Utility) the trained agent is measured against in the reference evaluation. Never an opponent in the league.

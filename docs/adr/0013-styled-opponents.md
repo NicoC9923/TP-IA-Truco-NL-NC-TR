@@ -20,3 +20,7 @@ At style strength 1.0, the logit adjustment is +3 for objectively weak envido or
 ## User-approved phase 1 deviation from story 17
 
 Phase 1 defaults to `--style-strength 0.5`, scaling those offsets to ±1.5, and `--styles-after-first-promotion`: the league is entirely unbiased until a challenger is promoted, then uses the 50/50 mix. `--no-styles-after-first-promotion` restores styles from generation 1 and strength 1 restores ±3. This is a user-approved deviation from story 17's 50/50 mix from the start. The Sonnet learning review (F3–F4) observed near-random early policies and reasoned that ±3 caricatures can reward exploiting styles instead of learning to read them, pulling selection away from the unbiased promotion gate. The empirical learning review similarly noted the offsets change action odds about twentyfold, but did not measure their effect on selection; this is a design rationale, not an established measured improvement.
+
+## Amendment (2026-11-08)
+
+Phase 2 uses 20% styled opponents from the start with small offsets in Q units, ramped up, instead of 50% after the first promotion (ADR 0043).

@@ -20,3 +20,7 @@ This is AlphaGo Zero's method: a new network replaced the best one only if it wo
 Promotion checks inspect up to 1,000 validation pairs in batches of 200. The default stops early only when the upper paired interval is below the threshold; otherwise promotion uses the observed win rate after all pairs. Repeated looks at ordinary 95% intervals inflate error rates, making early promotions overconfident. The rejection rule can still discard a promising challenger; it is a compute tradeoff, not a calibrated sequential test. Batch size zero disables early stopping. The historical `both` mode preserves early promotion for existing runs.
 
 A 400-pair minimum still permits repeated uncalibrated promotion decisions. A calibrated sequential test would need a designed error budget and changes the decision rule. Always playing 1,000 pairs wastes work on clear failures. These alternatives were rejected for this change.
+
+## Amendment (2026-11-08)
+
+Phase 2 promotes on measured improvement against a fixed selection panel instead of 55% against the reigning champion alone, and ends after 8 hours or 40 checks without promotion (ADRs 0044, 0047).
