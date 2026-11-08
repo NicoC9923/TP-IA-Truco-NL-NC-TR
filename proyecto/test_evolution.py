@@ -100,3 +100,34 @@ class EvolutionServerTests(unittest.TestCase):
             main()
         browser.assert_called_once()
         self.assertTrue(browser.call_args.args[0].endswith('/evolucion'))
+
+
+class EvolutionPageContentTests(unittest.TestCase):
+    page = (Path(__file__).resolve().parent / 'evolucion.html').read_text(encoding='utf8')
+
+    def test_has_three_tabs_and_required_texts(self):
+        for text in ('Fase 1 · Neuroevolución', 'Fase 2 · Aprendizaje por refuerzo', 'Comparación',
+                     'Neuroevolución vs Aprendizaje por refuerzo', 'Ver una mano de ejemplo de la campeona',
+                     'Disponible cuando la fase 2 tenga campeona evaluada',
+                     'Mejora sobre la campeona contra el panel fijo', 'Resultado del control contra la campeona',
+                     'la fase 2 entrenó también contra redes de la fase 1'):
+            self.assertIn(text, self.page)
+
+    def test_polls_every_five_seconds_only_while_training(self):
+        self.assertIn('POLL_MS = 5000', self.page)
+        self.assertIn("status === 'training'", self.page)
+
+    def test_reads_the_phase_routes(self):
+        for route in ('/evolucion/phase1/generations', '/evolucion/phase1/reference', '/evolucion/phase2/generations',
+                      '/evolucion/phase2/reference', '/evolucion/phase2/progress', '/evolucion/phase2/example-hand'):
+            self.assertIn(route, self.page)
+
+    def test_old_page_panels_and_hidden_metrics_are_gone(self):
+        for text in ('Aptitud de la población', 'Conducta emergente', 'Diversidad', 'Campeones reinantes',
+                     'mean_loss', 'league_mix', 'behavior', 'diversity', 'Sofia'):
+            self.assertNotIn(text, self.page)
+
+    def test_phone_layout_rules_and_touch_targets(self):
+        self.assertIn('name="viewport"', self.page)
+        self.assertIn('@media(max-width:640px)', self.page)
+        self.assertGreaterEqual(self.page.count('min-height:44px'), 1)

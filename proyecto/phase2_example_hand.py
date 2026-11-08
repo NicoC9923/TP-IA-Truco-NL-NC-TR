@@ -3,10 +3,12 @@
 Torch is optional, so everything torch-related is imported lazily and a missing
 torch (or a missing champion) yields an "unavailable" payload instead of an error.
 """
+import json
+import math
 from pathlib import Path
 
 SEED = 7
-TEMPERATURE = 0.1
+DEFAULT_TEMPERATURE = 0.1
 CHAMPION_FILE = 'reigning_champion.pt'
 OPPONENT_FILE = Path('champions') / 'phase1' / 'reigning_champion.npy'
 OPPONENT_NAME = 'Campeona de la fase 1'
@@ -22,6 +24,19 @@ def find_champion(root):
         if (directory / CHAMPION_FILE).is_file():
             return directory / CHAMPION_FILE
     return None
+
+
+def recorded_temperature(root):
+    """Temperature the run recorded in its progress file (live run first), else the default."""
+    root = Path(root)
+    for directory in (root / 'training_output' / 'phase2', root / 'champions' / 'phase2'):
+        try:
+            value = json.loads((directory / 'progress.json').read_text(encoding='utf-8')).get('temperature')
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value > 0:
+            return float(value)
+    return DEFAULT_TEMPERATURE
 
 
 def unavailable(reason):
@@ -43,10 +58,11 @@ def example_hand_payload(root, seed=SEED):
         from symmetric_engine import play_match
     except ImportError:
         return unavailable('torch')
+    temperature = recorded_temperature(root)
     model = Phase2Network()
     model.load_state_dict(torch.load(champion_path, map_location='cpu', weights_only=True))
     model.eval()
-    policy = Phase2Policy(model, seed=seed, temperature=TEMPERATURE)
+    policy = Phase2Policy(model, seed=seed, temperature=temperature)
     top = []
 
     def champion(observation, legal_actions):
@@ -66,6 +82,6 @@ def example_hand_payload(root, seed=SEED):
             step['top'] = next(own)
         steps.append(step)
     deal = result.deals[0]
-    return {'available': True, 'seed': seed, 'opponent': OPPONENT_NAME,
+    return {'available': True, 'seed': seed, 'temperature': temperature, 'opponent': OPPONENT_NAME,
             'champion_hand': [_card(c) for c in deal[0]], 'opponent_hand': [_card(c) for c in deal[1]],
             'steps': steps}

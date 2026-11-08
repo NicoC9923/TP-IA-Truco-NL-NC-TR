@@ -120,6 +120,18 @@ class ExampleHandTest(unittest.TestCase):
             self.assertTrue(all(0 <= p <= 100 for p in pcts))
         self.assertTrue(all('top' not in s for s in first['steps'] if s['by'] == 'rival'))
 
+    def test_uses_recorded_temperature_with_default_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            with running(root) as get:
+                self.assertEqual(get('example-hand')['temperature'], 0.1)
+                put(root, 'champions', 'progress.json', '{"temperature": 0.3}')
+                self.assertEqual(get('example-hand')['temperature'], 0.3)
+                put(root, 'training_output', 'progress.json', '{"temperature": 0.5}')
+                self.assertEqual(get('example-hand')['temperature'], 0.5)
+                put(root, 'training_output', 'progress.json', '{"temperature": -1}')
+                self.assertEqual(get('example-hand')['temperature'], 0.3)
+
     def test_live_champion_wins_over_committed(self):
         from phase2_example_hand import find_champion
         with tempfile.TemporaryDirectory() as tmp:
