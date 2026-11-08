@@ -64,6 +64,18 @@ class ServidorTruco(ThreadingHTTPServer):
                 return None
 
 
+def _leer_jsonl(path):
+    records = []
+    if path.is_file():
+        with path.open(encoding="utf-8") as stream:
+            for line in stream:
+                try:
+                    records.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+    return records
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, formato, *args):
         pass
@@ -80,18 +92,20 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(cuerpo)
         elif ruta_limpia in ("/evolucion/phase1/generations", "/evolucion/phase1/reference"):
             filename = "generations.jsonl" if ruta_limpia.endswith("generations") else "reference_evaluation.jsonl"
-            live = self.server.evolution_root / "training_output" / "phase1"
-            committed = self.server.evolution_root / "champions" / "phase1"
-            source = (live if (live / "generations.jsonl").is_file() else committed) / filename
-            records = []
-            if source.is_file():
-                with source.open(encoding="utf-8") as stream:
-                    for line in stream:
-                        try:
-                            records.append(json.loads(line))
-                        except json.JSONDecodeError:
-                            continue
-            self._responder(200, records)
+            self._responder(200, _leer_jsonl(self._origen_evolucion("phase1") / filename))
+        elif ruta_limpia in ("/evolucion/phase2/generations", "/evolucion/phase2/reference"):
+            filename = "generations.jsonl" if ruta_limpia.endswith("generations") else "reference_evaluation.jsonl"
+            self._responder(200, _leer_jsonl(self._origen_evolucion("phase2") / filename))
+        elif ruta_limpia == "/evolucion/phase2/progress":
+            source = self._origen_evolucion("phase2") / "progress.json"
+            try:
+                payload = json.loads(source.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                payload = {"status": "empty"}
+            self._responder(200, payload)
+        elif ruta_limpia == "/evolucion/phase2/example-hand":
+            from phase2_example_hand import example_hand_payload
+            self._responder(200, example_hand_payload(self.server.evolution_root))
         elif ruta_limpia in ("/", "/voz.html"):
             cuerpo = PAGINA.read_bytes()
             self.send_response(200)
@@ -287,6 +301,13 @@ class Handler(BaseHTTPRequestHandler):
 
         else:
             return 404, None
+
+    def _origen_evolucion(self, fase):
+        """Live run directory when it has data, else the committed copies."""
+        live = self.server.evolution_root / "training_output" / fase
+        if (live / "generations.jsonl").is_file() or (live / "progress.json").is_file():
+            return live
+        return self.server.evolution_root / "champions" / fase
 
     def _responder(self, codigo: int, data: dict) -> None:
         cuerpo = json.dumps(data, ensure_ascii=False).encode("utf-8")
