@@ -27,8 +27,9 @@ class SelectionIntegrationTest(unittest.TestCase):
             self.assertTrue(all(isinstance(v, torch.Tensor) for v in torch.load(root/'champions/reigning_champion.pt', weights_only=True).values()))
 
     def test_excluded_modules_not_imported(self):
-        import sys
-        self.assertFalse({'reactive', 'adaptive_utility'} & set(sys.modules))
+        import subprocess, sys
+        script = "import sys; import phase2_trainer; assert 'truco_ia' not in sys.modules; assert 'engine_policies' not in sys.modules"
+        subprocess.run([sys.executable, '-c', script], cwd=Path(__file__).parent, check=True)
 
 
 class CheckProtocolTest(unittest.TestCase):
@@ -99,6 +100,8 @@ class CheckProtocolTest(unittest.TestCase):
             self.assertEqual(full[-1]['panel_boundary']['to'], 2)
             self.assertEqual(full[-1]['promotion_check']['panel_version'], 2)
             self.assertTrue((root/'resumed/panel-v2.json').exists())
+            from phase2_promotion import load_panel
+            self.assertEqual(load_panel(root/'resumed/panel-v2.json')['version'], 2)
 
     def test_real_check_matches_across_workers_and_resume(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -113,3 +116,16 @@ class CheckProtocolTest(unittest.TestCase):
             def read(name): return [json.loads(x) for x in (root/name/'generations.jsonl').read_text().splitlines()]
             self.assertEqual(read('one'), read('two'))
             self.assertEqual(read('one')[-1]['promotion_check']['panel_version'], 0)
+
+    def test_time_cap_at_round_boundary_does_not_start_a_check(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            opponent = root/'opponent.pt'; Phase2Network(seed=9).save(opponent)
+            panel = root/'panel.json'
+            panel.write_text(json.dumps({'version': 0, 'members': [{'name':'x', 'path':'opponent.pt', 'kind':'phase2', 'encoder':'v1', 'sha256':hashlib.sha256(opponent.read_bytes()).hexdigest()}]}))
+            ticks = iter([0, 0, 0, 0, 0, 10, 10, 10, 10])
+            with patch('phase2_trainer._selection_check', side_effect=AssertionError('check started after cap')):
+                train(root/'run', generations=2, matches_per_generation=1, matches_per_round=1, target=1, panel_path=panel, champions_dir=root/'champ', panel_pairs=2, head_to_head_pairs=2, time_cap_seconds=5, clock=lambda: next(ticks))
+            entries = [json.loads(x) for x in (root/'run/generations.jsonl').read_text().splitlines()]
+            self.assertEqual(entries[-1]['stop_reason'], 'time_cap')
+            self.assertEqual(entries[-1]['generation'], 2)

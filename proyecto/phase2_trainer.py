@@ -210,7 +210,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                         champion = {k: v.clone() for k, v in model.state_dict().items()}
                         champion_generation = generation
                         changed = True
-                    elif panel is not None:
+                    elif panel is not None and elapsed < time_cap_seconds:
                         boundary = None
                         names = [m['name'] for m in panel['members']]
                         if not panel.get('measuring_only') and saturated(history, champion_generation, names, checks=saturation_checks, min_pairs=saturation_pairs, threshold=saturation_threshold):
@@ -221,6 +221,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=2, workers=1, target='mixe
                             if new_panel is not None:
                                 old_panel = panel
                                 panel = new_panel
+                                for member in panel['members']:
+                                    member['path'] = member['resolved_path']
                                 panel_history.append(panel)
                                 path = Path(checkpoint_dir) / f"panel-v{panel['version']}.json"
                                 path.write_text(json.dumps(panel, indent=2) + '\n', encoding='utf-8')
