@@ -5,6 +5,7 @@ import tempfile
 for _name in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS'):
     os.environ[_name] = '1'
 import argparse
+from datetime import datetime, timezone
 import copy
 import hashlib
 import statistics
@@ -295,7 +296,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                random_start_share=.3, checkpoint_dir=None, config=None, resume_state=None,
                stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
                check_seed_base=10000, temperature=.1, profile_prior=20, min_gain=.01, min_direct=.475,
-               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress_path=None, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400):
+               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress_path=None, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400, extension=None):
     if not math.isfinite(profile_prior) or profile_prior <= 0:
         raise ValueError('profile_prior must be positive and finite')
     if not isinstance(card_prediction_situations, int) or card_prediction_situations < 1:
@@ -373,11 +374,116 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
     promotions = 0
     if log_path is not None and Path(log_path).exists():
         promotions = sum(bool(json.loads(x).get('promoted')) for x in Path(log_path).read_text(encoding='utf-8').splitlines() if x)
-    reporter = ProgressReporter(progress_path, console, time_cap_seconds, temperature, promotions, profile_prior=profile_prior)
+    reporter = ProgressReporter(progress_path, console, time_cap_seconds, temperature, promotions, profile_prior=profile_prior, extension=extension)
     last_round = min(rounds, stop_after_round or rounds)
     context = mp.get_context('spawn')
     pool_context = context.Pool(workers, initializer=_configure_threads) if workers > 1 else nullcontext(None)
     with pool_context as pool:
+        if resume_state is not None and resume_state.get('_extension_reopen') and first_round % generation_rounds == 0:
+            generation = first_round // generation_rounds
+            lines = Path(log_path).read_text(encoding='utf-8').splitlines()
+            entry = json.loads(lines[-1])
+            if entry['generation'] != generation:
+                raise ValueError('Missing stopped generation log for extension')
+            entry['phase_ended'] = False
+            entry['stop_reason'] = None
+            pending_check = not any(item.get('name') == f'generation-{generation}' for item in snapshots)
+            if panel is not None and champion_generation != generation and pending_check:
+                previous = Path(checkpoint_dir) / f'checkpoint_{first_round - generation_rounds:06d}.pt'
+                if not previous.exists():
+                    raise ValueError('Previous generation checkpoint required for pending boundary work')
+                previous_state = torch.load(previous, map_location='cpu', weights_only=False)
+                league_pool = previous_state.get('league_pool', [])
+                snapshot = Path(checkpoint_dir) / f'generation_{generation:06d}.pt'
+                entry['check'] = None
+                entry['promoted'] = False
+                entry.pop('panel_boundary', None)
+                boundary = None
+                names = [m['name'] for m in panel['members']]
+                if not panel.get('measuring_only') and saturated(history, champion_generation, names, checks=saturation_checks, min_pairs=saturation_pairs, threshold=saturation_threshold):
+                    pooled = {name: statistics.mean([x for row in history[-saturation_checks:] for x in row['scores'][name]]) for name in names}
+                    champion_hash = hashlib.sha256((Path(checkpoint_dir) / f'generation_{champion_generation:06d}.pt').read_bytes()).hexdigest()
+                    compatible = [x for x in snapshots if set(x['scores']) == set(names)]
+                    new_panel = build_panel(panel, pooled, compatible, champion_hash)
+                    if new_panel is not None:
+                        old_panel = panel
+                        panel = new_panel
+                        for member in panel['members']:
+                            member['path'] = os.path.relpath(member['resolved_path'], checkpoint_dir)
+                        panel_history.append(old_panel)
+                        path = Path(checkpoint_dir) / f"panel-v{panel['version']}.json"
+                        path.write_text(json.dumps(_portable(panel), indent=2) + '\n', encoding='utf-8')
+                        seed_for_overlap = check_seed(check_seed_base, generation - 2)
+                        old_overlap = _champion_overlap(champion, old_panel, seed_for_overlap, panel_pairs, None if target == 'mixed' else target, temperature, pool, profile_prior)
+                        boundary = {'from': old_panel['version'], 'to': panel['version'], 'old_champion': old_overlap}
+                        history = []
+                result = _selection_check(model, champion, panel, check_seed(check_seed_base, generation - 2),
+                                          panel_pairs, head_to_head_pairs, None if target == 'mixed' else target,
+                                          temperature, pool, min_gain, min_direct, profile_prior)
+                if boundary is not None:
+                    boundary['new_champion'] = {k: v['champion'] for k, v in result['members'].items()}
+                    entry['panel_boundary'] = boundary
+                entry['check'] = result
+                history.append({'champion': champion_generation, 'scores': {k: v['champion'] for k, v in result['members'].items()}})
+                snapshot_record = {'name': f'generation-{generation}', 'path': snapshot.name, 'resolved_path': str(snapshot), 'kind': 'phase2', 'encoder': 'v1', 'sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'gain': result['gain'], 'scores': {k: statistics.mean(v['challenger']) for k, v in result['members'].items()}}
+                if profile_prior != 20:
+                    snapshot_record['profile_prior'] = profile_prior
+                snapshots.append(snapshot_record)
+                stale = 0 if result['promoted'] else stale + 1
+                entry['promoted'] = result['promoted']
+                changed = result['promoted']
+                if changed:
+                    champion = {k: v.clone() for k, v in model.state_dict().items()}
+                    champion_generation = generation
+                    history = []
+                league_pool.append({'generation': generation, 'path': snapshot.name,
+                                    'sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(),
+                                    'scores': {k: statistics.mean(v['challenger']) for k, v in result['members'].items()}})
+                league_pool = retain_snapshots(league_pool, pool_recent, pool_diverse, panel_exclusions(panel, panel_history))
+                entry['champion'] = champion_generation
+                if changed and champions_dir is not None:
+                    _export_champion(champions_dir, champion, champion_generation, temperature, profile_prior)
+                now = clock()
+                elapsed += now - run_tick
+                run_tick = now
+                if elapsed >= time_cap_seconds or stale >= patience:
+                    entry['phase_ended'] = True
+                    entry['stop_reason'] = 'time_cap' if elapsed >= time_cap_seconds else 'patience'
+            lines[-1] = json.dumps(entry)
+            reporter.promotions = sum(bool(json.loads(line).get('promoted')) for line in lines)
+            # Commit the log first; if checkpoint replacement is interrupted, replay
+            # from the old state replaces this same record and recounts promotions.
+            log_file = Path(log_path)
+            log_temporary = log_file.with_name(log_file.name + '.boundary.tmp')
+            with log_temporary.open('w', encoding='utf-8') as stream:
+                stream.write(''.join(line + '\n' for line in lines))
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(log_temporary, log_file)
+            if checkpoint_dir is not None:
+                saved = dict(resume_state)
+                saved.pop('_extension_reopen', None)
+                saved.update(phase_ended=entry['phase_ended'], stop_reason=entry['stop_reason'], elapsed=elapsed,
+                             promotions=reporter.promotions,
+                             stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots),
+                             league_pool=_portable(league_pool), panel_history=_portable(panel_history), panel=_portable(panel),
+                             champion_weights=champion, champion_generation=champion_generation,
+                             python_rng=random.getstate(), numpy_rng=np.random.get_state(),
+                             torch_rng=torch.get_rng_state(), shuffle_rng=rng.bit_generator.state)
+                path = Path(checkpoint_dir) / f'checkpoint_{first_round:06d}.pt'
+                temporary = path.with_suffix('.tmp')
+                with temporary.open('wb') as stream:
+                    torch.save(saved, stream)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, path)
+                reporter.round_done(elapsed=elapsed, generation=generation, round=first_round,
+                                    matches=resume_state['matches'], samples=total, updates=updates,
+                                    recent_loss=None, league_mix={}, champion_generation=champion_generation,
+                                    panel_version=panel['version'] if panel else None,
+                                    ended=entry['phase_ended'], stop_reason=entry['stop_reason'])
+                if entry['phase_ended']:
+                    return RoundResult(model, optimizer, total, updates, last)
         for round_id in range(first_round, min(rounds, stop_after_round or rounds)):
             weights = model.state_dict()
             exclusions = panel_exclusions(panel, panel_history)
@@ -553,6 +659,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                              losses=losses, league_mix=league_mix, phase1_counts=phase1_counts, neutral_blocks=neutral_blocks, config=config, phase_ended=entry['phase_ended'] if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else False, stop_reason=entry.get('stop_reason') if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else None, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots), league_pool=_portable(league_pool), panel_history=_portable(panel_history), panel=_portable(panel), champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
                              numpy_rng=np.random.get_state(), torch_rng=torch.get_rng_state(),
                              shuffle_rng=rng.bit_generator.state)
+                if extension is not None:
+                    state['extension'] = extension
+                    state['promotions'] = reporter.promotions
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
                 temporary = path.with_suffix('.tmp')
                 with temporary.open('wb') as stream:
@@ -583,8 +692,12 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
           random_start_share=.3, resume=None, stop_after_round=None, panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json',
           champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
           check_seed_base=10000, temperature=.1, profile_prior=20, min_gain=.01, min_direct=.475,
-          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400):
+          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400, extend_time_cap=None):
     """Round match counts up to complete blocks and generations to complete rounds."""
+    if extend_time_cap is not None and not resume:
+        raise ValueError("--extend-time-cap requires --resume")
+    if extend_time_cap is not None and not math.isfinite(extend_time_cap):
+        raise ValueError("Extension cap must be finite")
     positive_counts = (generations, matches_per_generation, matches_per_round, workers,
                        minibatch, patience, saturation_checks, saturation_pairs, block_size,
                        card_prediction_situations)
@@ -658,6 +771,38 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
             old_config.pop('profile_prior', None)
     if state is not None and old_config != config:
         raise ValueError('Checkpoint configuration does not match')
+    extension = state.get('extension') if state is not None else None
+    if extend_time_cap is not None:
+        if extension is not None:
+            if extend_time_cap != extension['new_cap']:
+                raise ValueError('Only the recorded time-cap extension is allowed')
+        else:
+            if extend_time_cap <= time_cap_seconds:
+                raise ValueError('Extension cap must be strictly greater than checkpoint cap')
+            if not state.get('phase_ended') or state.get('stop_reason') != 'time_cap' or state.get('stale', 0) >= patience or state['round'] >= generations * generation_rounds:
+                raise ValueError('Only a run ended solely by the time cap can be extended')
+            record_path = output / 'time_cap_extension.json'
+            if record_path.exists():
+                extension = json.loads(record_path.read_text(encoding='utf-8'))
+                if extension['checkpoint_sha256'] != hashlib.sha256(Path(resume).read_bytes()).hexdigest() or extension['new_cap'] != extend_time_cap:
+                    raise ValueError('A different time-cap extension is already recorded')
+            else:
+                import subprocess
+                revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=Path(__file__).resolve().parent, text=True).strip()
+                extension = dict(version=1, old_cap=time_cap_seconds, new_cap=extend_time_cap,
+                                 checkpoint_sha256=hashlib.sha256(Path(resume).read_bytes()).hexdigest(),
+                                 code_revision=revision, timestamp=datetime.now(timezone.utc).isoformat())
+                from phase2_progress import write_json_atomic
+                if not write_json_atomic(record_path, extension):
+                    raise OSError('Could not durably record time-cap extension')
+        state['extension'] = extension
+        if state.get('phase_ended') and state.get('stop_reason') == 'time_cap' and state['round'] * matches_per_round < generations * generation_rounds * matches_per_round and state.get('elapsed', 0) < extend_time_cap:
+            state['_extension_reopen'] = True
+            state['phase_ended'] = False
+        time_cap_seconds = extend_time_cap
+    elif extension is not None:
+        time_cap_seconds = extension['new_cap']
+
     if state is not None and state.get('panel') is not None and champions_dir is not None and state.get('champion_weights') is not None:
         _reconcile_champion(champions_dir, state['champion_weights'], state['champion_generation'], temperature, profile_prior)
     if state is not None and state.get('phase_ended'):
@@ -676,7 +821,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
                       resume_state=state, stop_after_round=stop_after_round, panel=panel, champions_dir=champions_dir,
                       panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs, check_seed_base=check_seed_base,
-                      temperature=temperature, profile_prior=profile_prior, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations)
+                      temperature=temperature, profile_prior=profile_prior, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations, extension=extension)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -716,6 +861,7 @@ def main():
     parser.add_argument('--auxiliary-weight', type=float, default=.1)
     parser.add_argument('--card-prediction-situations', type=int, default=400)
     parser.add_argument('--resume')
+    parser.add_argument('--extend-time-cap', type=float)
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--minibatch', type=int, default=512)
     args = vars(parser.parse_args())

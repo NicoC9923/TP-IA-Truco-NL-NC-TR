@@ -55,7 +55,8 @@ def write_json_atomic(path, payload, attempts=5):
 
 
 class ProgressReporter:
-    def __init__(self, path=None, console=None, time_cap=None, temperature=None, promotions=0, wall=time.monotonic, profile_prior=20):
+    def __init__(self, path=None, console=None, time_cap=None, temperature=None, promotions=0, wall=time.monotonic, profile_prior=20, extension=None):
+        self.extension = extension
         self.path = Path(path) if path else None
         self.console = console
         self.time_cap = time_cap
@@ -78,13 +79,16 @@ class ProgressReporter:
         seen = sum(league_mix.values())
         mix = {k: v / seen for k, v in league_mix.items()} if seen else {}
         if self.path is not None:
-            ok = write_json_atomic(self.path, dict(
+            payload = dict(
                 elapsed=elapsed, time_cap=self.time_cap, generation=generation, round=round,
                 matches=matches, samples=samples, updates=updates,
                 matches_per_s=matches_per_s, samples_per_s=samples_per_s, recent_loss=recent_loss,
                 league_mix=mix, temperature=self.temperature, profile_prior=self.profile_prior, champion_generation=champion_generation,
                 promotions=self.promotions, panel_version=panel_version,
-                status='ended' if ended else 'training', stop_reason=stop_reason))
+                status='ended' if ended else 'training', stop_reason=stop_reason)
+            if self.extension is not None:
+                payload['time_cap_extension'] = self.extension
+            ok = write_json_atomic(self.path, payload)
             if not ok and not self.warned:
                 self.warned = True
                 print(f'aviso: no se pudo escribir {self.path}; el entrenamiento sigue sin archivo de progreso', file=sys.stderr)
