@@ -1,7 +1,11 @@
 """One-time, pre-registered phase 2 shipping acceptance test."""
 import math
 import statistics
+from pathlib import Path
 from symmetric_engine import play_match
+
+BASELINE_SHA256 = '05f189491a1d6ca7a4d7cebfa556a16e70d7512028e6bb224d61d87a35d4cdcd'
+BASELINE_SNAPSHOT = Path(__file__).resolve().parent.parent / 'experiments/phase2-run2/generation_000028.pt'
 
 
 def interval(values):
@@ -48,17 +52,61 @@ def _hash(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def _metadata(path, temperature, prior):
+def _metadata(path):
     import json
     from pathlib import Path
     sidecar = Path(path).parent / 'reigning_champion.json'
-    if sidecar.exists():
+    try:
         meta = json.loads(sidecar.read_text(encoding='utf-8'))
-        temperature, prior = meta.get('temperature'), meta.get('profile_prior')
-    if (not isinstance(temperature, (int, float)) or not math.isfinite(temperature) or temperature <= 0
-            or not isinstance(prior, (int, float)) or not math.isfinite(prior) or prior <= 0):
-        raise ValueError('temperature and profile_prior required and must be positive and finite')
-    return {'temperature': temperature, 'profile_prior': prior}
+    except (OSError, ValueError) as exc:
+        raise ValueError('champion sidecar required') from exc
+    if not isinstance(meta, dict) or meta.get('temperature') != .05 or meta.get('profile_prior') != 5:
+        raise ValueError('champion sidecar must specify temperature 0.05 and profile_prior 5')
+    return meta
+
+
+def _same_tensors(first, second):
+    import torch
+    a = torch.load(first, map_location='cpu', weights_only=True)
+    b = torch.load(second, map_location='cpu', weights_only=True)
+    return (isinstance(a, dict) and isinstance(b, dict) and a.keys() == b.keys()
+            and all(torch.is_tensor(a[key]) and torch.is_tensor(b[key])
+                    and a[key].dtype == b[key].dtype and torch.equal(a[key], b[key]) for key in a))
+
+
+def _champions(candidate, baseline, run_dir):
+    import json
+    candidate, baseline, run_dir = Path(candidate).resolve(), Path(baseline).resolve(), Path(run_dir).resolve()
+    candidate_meta, baseline_meta = _metadata(candidate), _metadata(baseline)
+    if _hash(baseline) != BASELINE_SHA256 or not _same_tensors(baseline, BASELINE_SNAPSHOT):
+        raise ValueError('baseline identity mismatch')
+    lines = (run_dir / 'generations.jsonl').read_text(encoding='utf-8').splitlines()
+    generation = json.loads(lines[-1])['champion']
+    if not isinstance(generation, int) or isinstance(generation, bool) or generation < 1:
+        raise ValueError('invalid reigning champion generation')
+    if candidate_meta.get('generation') != generation:
+        raise ValueError('candidate sidecar generation mismatch')
+    snapshot = run_dir / f'generation_{generation:06d}.pt'
+    if not _same_tensors(candidate, snapshot):
+        raise ValueError('candidate identity mismatch')
+    def item(path, meta):
+        return {'path': str(path), 'sha256': _hash(path), 'generation': meta.get('generation'),
+                'settings': {'temperature': meta['temperature'], 'profile_prior': meta['profile_prior']}}
+    result = {'candidate': item(candidate, candidate_meta), 'baseline': item(baseline, baseline_meta)}
+    result['candidate']['generation_snapshot_sha256'] = _hash(snapshot)
+    result['baseline']['generation_snapshot_sha256'] = _hash(BASELINE_SNAPSHOT)
+    return result
+
+
+def _verify_source():
+    import subprocess
+    source = Path(__file__).resolve()
+    root = source.parent.parent
+    result = subprocess.run(['git', '-C', str(root), 'status', '--porcelain=v1', '--', str(source)],
+                            capture_output=True)
+    if result.returncode != 0 or result.stdout:
+        raise ValueError('acceptance tool has uncommitted changes or git verification failed')
+    return _hash(source)
 
 
 def _initialize_worker(config):
@@ -103,8 +151,7 @@ def summarize(rows, names):
 
 
 def evaluate(*, candidate, baseline, held_out_manifest, direct_seed, held_out_seed, pairs, workers, output,
-             candidate_temperature=None, candidate_prior=None, baseline_temperature=None, baseline_prior=None,
-             resume=False):
+             run_dir, resume=False):
     import json
     import multiprocessing as mp
     import os
@@ -121,6 +168,8 @@ def evaluate(*, candidate, baseline, held_out_manifest, direct_seed, held_out_se
         raise FileExistsError(str(output))
     if resume and not output.is_dir():
         raise ValueError('resume output directory does not exist')
+    source_hash = _verify_source()
+    champions = _champions(candidate, baseline, run_dir)
     manifest = Path(held_out_manifest).resolve()
     held_manifest = json.loads(manifest.read_text(encoding='utf-8'))
     members = held_manifest['members']
@@ -133,10 +182,7 @@ def evaluate(*, candidate, baseline, held_out_manifest, direct_seed, held_out_se
         if _hash(path) != member['sha256']:
             raise ValueError('held-out hash mismatch')
         held.append({'name': member['name'], 'path': str(path), 'sha256': member['sha256'], 'encoder': 'v1'})
-    config = {'candidate': {'path': str(Path(candidate).resolve()), 'sha256': _hash(candidate),
-                            'settings': _metadata(candidate, candidate_temperature, candidate_prior)},
-              'baseline': {'path': str(Path(baseline).resolve()), 'sha256': _hash(baseline),
-                           'settings': _metadata(baseline, baseline_temperature, baseline_prior)},
+    config = {**champions, 'run_dir': str(Path(run_dir).resolve()), 'tool_source_sha256': source_hash,
               'held_out_manifest_sha256': _hash(manifest), 'held_out': held,
               'direct_seed': direct_seed, 'held_out_seed': held_out_seed, 'pairs': pairs,
               'direct_schedule': validation_schedule(direct_seed, None, pairs),
@@ -194,12 +240,10 @@ def evaluate(*, candidate, baseline, held_out_manifest, direct_seed, held_out_se
 def main():
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ('candidate', 'baseline', 'held-out-manifest', 'output'):
+    for name in ('candidate', 'baseline', 'held-out-manifest', 'output', 'run-dir'):
         parser.add_argument('--' + name, required=True)
     for name in ('direct-seed', 'held-out-seed', 'pairs', 'workers'):
         parser.add_argument('--' + name, type=int, required=True)
-    for name in ('candidate-temperature', 'candidate-prior', 'baseline-temperature', 'baseline-prior'):
-        parser.add_argument('--' + name, type=float)
     parser.add_argument('--resume', action='store_true')
     evaluate(**vars(parser.parse_args()))
 
