@@ -56,7 +56,7 @@ section.card.hand{padding:0;gap:0}
 .row .act{flex:1;min-width:180px;font-weight:600}
 .row .why{color:var(--muted)}
 select,.step-button{font:inherit;color:var(--ink);background:white;border:1px solid #aeb7c3;border-radius:6px;padding:10px}
-.stack,section.card,.network-scroll,.table-scroll{min-width:0}#decision-status{overflow-wrap:anywhere}.network-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}.network-svg{min-width:720px}.network-svg .layer-node{cursor:pointer}.network-svg .layer-node:focus{outline:none}.network-svg .layer-node:focus rect,.network-svg .layer-node:hover rect{stroke:#1F5FBF;stroke-width:3}.network-svg text{fill:var(--ink);font-size:14px}.network-svg .edge{stroke:#98a7b9;stroke-width:1.3}.network-svg .neuron{stroke:#6b7482;stroke-width:1}.switch-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.switch-row input{width:22px;height:22px;accent-color:var(--blue)}.layer-details{padding:12px;background:var(--soft);border-radius:8px}.trace-legend{display:flex;gap:8px;align-items:center}.scale{width:100px;height:12px;background:linear-gradient(90deg,#e8eef8,#1f5fbf);border:1px solid #aeb7c3}.network-svg .sample-selected{stroke:#C2410C;stroke-width:3}.network-svg .inactive{fill:#fff}.trace-table td,.trace-table th{white-space:nowrap}
+.stack,section.card,.network-scroll,.table-scroll{min-width:0}#decision-status{overflow-wrap:anywhere}.network-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}.network-svg{min-width:720px}.network-svg .layer-node{cursor:pointer}.network-svg .layer-node:focus{outline:none}.network-svg .layer-node:focus rect,.network-svg .layer-node:hover rect{stroke:#1F5FBF;stroke-width:3}.network-svg text{fill:var(--ink);font-size:14px}.network-svg .edge{stroke:#98a7b9;stroke-width:1.3}.network-svg .neuron{stroke:#6b7482;stroke-width:1}.switch-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.switch-row input{width:22px;height:22px;accent-color:var(--blue)}.layer-details{padding:12px;background:var(--soft);border-radius:8px}.trace-legend{display:flex;gap:8px;align-items:center}.scale{width:100px;height:12px;background:linear-gradient(90deg,#e8eef8,#1f5fbf);border:1px solid #aeb7c3}.network-svg .sample-selected{stroke:#C2410C;stroke-width:3}.network-svg .inactive{fill:#fff}.trace-table td,.trace-table th{white-space:nowrap}.table-title{margin:0;font-weight:600}.scroll-hint{display:none}@media(max-width:640px){.scroll-hint{display:block}}
 .stage-list{display:flex;flex-wrap:wrap;gap:8px}.stage-list button[aria-pressed=true]{background:#e6eefa;border-color:#1f5fbf}.example{border-top:1px solid var(--line);padding-top:12px}.example h3{margin:0;font-size:16px}.network-svg circle[role=button]{cursor:pointer}.network-svg circle:focus{outline:none;stroke:#1f5fbf;stroke-width:4}.run-select{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.diagram{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}.diagram div{flex:1 1 150px;background:var(--soft);padding:14px;border-radius:8px}.diagram strong{display:block}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}.step-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.step-button:disabled{opacity:.5}
 .compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .pair{border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px}
@@ -462,7 +462,7 @@ function architecture() {
     }
     diagram.append(svg('text',{x:xs[i],y:230,'text-anchor':'middle'},['1.628 entradas','256 ReLU','128 ReLU','12 valores','Filtro legal','Sorteo'][i]));
   }
-  box.append(el('div',{class:'network-scroll'},diagram),el('p',{class:'small',text:'Círculos y conexiones representativos: no se dibujan las miles de conexiones. Las entradas están agrupadas por función; las tres neuronas visibles de cada capa son las de índices 0, 1 y 2; no son detectores con significado asignado. Contorno naranja: selección actual. Azul: valor real distinto de cero; claro: cero; blanco: sin dato. Los valores exactos están en el texto.'}));
+  box.append(el('p',{class:'small scroll-hint',text:'Deslizá el diagrama hacia los costados para ver todas las etapas.'}),el('div',{class:'network-scroll',tabindex:'0',role:'region','aria-label':'Diagrama desplazable de la red'},diagram),el('p',{class:'small',text:'Círculos y conexiones representativos: no se dibujan las miles de conexiones. Las entradas están agrupadas por función; las tres neuronas visibles de cada capa son las de índices 0, 1 y 2; no son detectores con significado asignado. Contorno naranja: selección actual. Azul: valor real distinto de cero; claro: cero; blanco: sin dato. Los valores exactos están en el texto.'}));
   const stages=el('div',{class:'stage-list','aria-label':'Elegir etapa'});
   LAYERS.forEach(([title],i)=>{const b=el('button',{type:'button',class:'step-button','aria-pressed':String(state.layer===i),text:title});b.onclick=()=>{state.layer=i;state.neuron=0;render();document.querySelectorAll('.stage-list button')[i]?.focus()};stages.append(b)});box.append(stages);
   const detail=el('div',{class:'layer-details','aria-live':'polite'},el('strong',{text:LAYERS[state.layer][0]}),el('p',{text:LAYERS[state.layer][1]}));
@@ -473,7 +473,7 @@ function architecture() {
   if(trace && state.layer>=4)detail.append(el('p',{text:`Temperatura ${h.temperature}. Acción sorteada: ${shortLabel(trace.chosen,null)}, con ${pct(trace.actions.find(a=>a.action===trace.chosen).probability)}. No es una animación del entrenamiento en vivo.`}));
   box.append(detail);
   box.append(el('div',{class:'example'},el('h3',{text:'Ejemplo didáctico · números inventados'}),el('p',{text:'Supongamos que tenemos una carta fuerte y podemos jugarla o cantar truco. Para una neurona imaginaria, usemos dos entradas: fuerza 1 con peso 0,6 y marcador 0,5 con peso −0,4. Sus aportes son 1 × 0,6 = 0,6 y 0,5 × (−0,4) = −0,2; con sesgo −0,5, la suma es −0,1. ReLU la deja en 0. En la red real cada neurona combina muchas más entradas.'}),el('p',{text:'Ahora supongamos valores de salida 0,2 para jugar, 0,1 para truco y 0,4 para «quiero». Si no hay canto pendiente, «quiero» se filtra aunque tenga el valor mayor. Con temperatura 0,1, softmax da aproximadamente 73 % para jugar y 27 % para truco. Un sorteo podría elegir truco: no siempre gana el porcentaje más alto. Estos números no son activaciones de la campeona.'})));
-  if(trace){const table=el('table',{class:'trace-table'},el('caption',{text:'Decisión registrada: valores y probabilidades de las 12 acciones'}),el('tr',{},...['Acción','Valor','Permitida','Probabilidad','Sorteada'].map(t=>el('th',{scope:'col',text:t}))));trace.actions.forEach(a=>table.append(el('tr',{},...[shortLabel(a.action,null),a.value.toFixed(4),a.legal?'Sí':'No',a.legal?pct(a.probability,1):'—',a.action===trace.chosen?'Sí':'No'].map(v=>el('td',{text:String(v)})))));box.append(el('div',{class:'table-scroll'},table));}
+  if(trace){const table=el('table',{class:'trace-table','aria-label':'Decisión registrada: valores y probabilidades de las 12 acciones'},el('tr',{},...['Acción','Valor','Permitida','Probabilidad','Sorteada'].map(t=>el('th',{scope:'col',text:t}))));trace.actions.forEach(a=>table.append(el('tr',{},...[shortLabel(a.action,null),a.value.toFixed(4),a.legal?'Sí':'No',a.legal?pct(a.probability,1):'—',a.action===trace.chosen?'Sí':'No'].map(v=>el('td',{text:String(v)})))));box.append(el('p',{class:'table-title',text:'Decisión registrada: valores y probabilidades de las 12 acciones'}),el('p',{class:'small scroll-hint',text:'Deslizá la tabla hacia los costados para ver todas las columnas.'}),el('div',{class:'table-scroll',tabindex:'0',role:'region','aria-label':'Tabla desplazable de la decisión registrada'},table));}
   return box;
 }
 
@@ -517,12 +517,22 @@ function render() {
   document.querySelectorAll('nav button').forEach((b) => { const on = b.dataset.tab === state.tab; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
   const view = document.getElementById('view');
   const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('main') ? document.activeElement.getAttribute('aria-controls') : null;
+  const active = document.activeElement, focusId = active?.closest('main') ? active.id : '';
+  const focusStage = [...view.querySelectorAll('.stage-list button')].indexOf(active);
+  const focusNeuron = [...view.querySelectorAll('.network-svg circle[role=button]')].indexOf(active);
   view.setAttribute('aria-labelledby', 'tab-' + state.tab);
   let running = false;
   if (!state.loaded) view.replaceChildren(el('p', { class: 'empty', text: state.failed ? 'No se pudieron cargar los datos.' : 'Cargando datos…' }));
   else if (state.tab === 'cmp') view.replaceChildren(comparison());
   else { const v = phaseView(state.tab); running = v.running; view.replaceChildren(v.node); }
   if (focused) { const again = view.querySelector(`[aria-controls="${focused}"]`); if (again) again.focus(); }
+  const restore = focusId ? document.getElementById(focusId) : focusStage >= 0 ? view.querySelectorAll('.stage-list button')[focusStage] : focusNeuron >= 0 ? view.querySelectorAll('.network-svg circle[role=button]')[focusNeuron] : null;
+  if (restore && !restore.disabled) restore.focus({preventScroll:true});
+  const scroller = view.querySelector('.network-scroll'), selected = scroller?.querySelector('circle[aria-pressed=true]');
+  if (selected && scroller.scrollWidth > scroller.clientWidth) {
+    const bounds = selected.getBoundingClientRect(), frame = scroller.getBoundingClientRect();
+    scroller.scrollLeft += bounds.left + bounds.width / 2 - (frame.left + frame.width / 2);
+  }
   const src = document.getElementById('source');
   src.textContent = state.failed ? 'No se pudieron actualizar los datos; reintentando.' : (trainingNow() ? 'Actualización automática cada 5 segundos.' : 'Datos guardados del entrenamiento.');
 }
@@ -539,7 +549,7 @@ async function loadHand() {
   state.hand.p2 = null;
   const run = state.run;
   const h = await getJson('/evolucion/phase2/example-hand?run=' + run, { available: false, reason: 'error' });
-  if (run === state.run) { state.hand.p2 = h; if (!h.available) state.showDecision = false; render(); }
+  if (run === state.run) { const restoreToggle = document.activeElement?.id === 'real-decision'; state.hand.p2 = h; if (!h.available) state.showDecision = false; render(); if (restoreToggle && h.available) document.getElementById('real-decision')?.focus({preventScroll:true}); }
 }
 
 async function refreshPhase2() {
