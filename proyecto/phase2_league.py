@@ -7,6 +7,7 @@ from pathlib import Path
 
 STYLES = ('bluffer', 'cautious', 'aggressive', 'calculating')
 DEFAULT_SHARES = {'self': .5, 'phase1': .1, 'snapshot': .2, **{s: .05 for s in STYLES}}
+REFERENCE_IDENTITIES = {name: f'reference:{name}:v1' for name in ('reactive', 'adaptive_utility')}
 
 
 def load_phase1_manifest(path):
@@ -21,7 +22,7 @@ def load_phase1_manifest(path):
 
 def validate_shares(shares):
     shares = dict(DEFAULT_SHARES if shares is None else shares)
-    if set(shares) != set(DEFAULT_SHARES) or any(not math.isfinite(v) or v < 0 for v in shares.values()) or abs(sum(shares.values()) - 1) > 1e-9:
+    if not set(DEFAULT_SHARES) <= set(shares) or set(shares) - (set(DEFAULT_SHARES) | set(REFERENCE_IDENTITIES)) or any(not math.isfinite(v) or v < 0 for v in shares.values()) or abs(sum(shares.values()) - 1) > 1e-9:
         raise ValueError('League shares must be nonnegative and sum to one')
     return shares
 
@@ -50,7 +51,7 @@ def draw_opponent(seed, block_id, shares=None, pool=(), phase1=(), exclusions=()
             break
     style = category if category in STYLES else None
     candidates = pool if category == 'snapshot' or style else phase1 if category == 'phase1' else ()
-    opponent = identity(rng.choice(candidates)) if candidates else 'current'
+    opponent = REFERENCE_IDENTITIES[category] if category in REFERENCE_IDENTITIES else identity(rng.choice(candidates)) if candidates else 'current'
     offset = target_offset * min(1, matches_so_far / ramp_matches) if ramp_matches else target_offset
     return {'category': 'styled' if style else category, 'identity': opponent, 'style': style,
             'offset': offset if style else 0.0, 'neutral_profile': rng.random() < neutral_rate}

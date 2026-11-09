@@ -31,6 +31,7 @@ from validation_schedule import validation_schedule
 from phase2_league import retain_snapshots, panel_exclusions, draw_opponent, load_phase1_manifest, validate_shares, DEFAULT_SHARES
 from phase2_progress import ProgressReporter, PROGRESS_FILE
 from phase2_promotion import load_panel, check_seed, promotion_decision, saturated, build_panel, RESERVED_SEEDS
+from phase2_league import REFERENCE_IDENTITIES
 
 def _champion_metadata(generation, temperature, profile_prior):
     return {'generation': generation, 'temperature': temperature, 'profile_prior': profile_prior}
@@ -158,12 +159,18 @@ def _league_block(args):
     model.load_state_dict(weights)
     identity = spec['identity']
     opponent_model = model
-    if identity != 'current':
+    is_reference = spec['category'] in REFERENCE_IDENTITIES
+    if is_reference and identity != REFERENCE_IDENTITIES[spec['category']]:
+        raise ValueError('reference opponent identity mismatch')
+    if identity != 'current' and not is_reference:
         member = opponents[identity]
         opponent_model = _load_league_opponent(identity, member, spec['category'])
     seeds = np.random.SeedSequence([seed, ids[0], 81]).generate_state(2)
     learner = RecordingPolicy(model, seed=int(seeds[0]), temperature=temperature, profile_prior=profile_prior, adapt=not spec['neutral_profile'])
-    if spec['category'] == 'phase1':
+    if is_reference:
+        from engine_policies import reference_policy
+        opponent = reference_policy(spec['category'], int(seeds[1]))
+    elif spec['category'] == 'phase1':
         opponent = NetworkPolicy(opponent_model, seed=int(seeds[1]), encoder=member['encoder'])
     else:
         cls = RecordingPolicy if spec['category'] == 'self' else Phase2Policy
@@ -176,7 +183,11 @@ def _league_block(args):
         for policy in policies:
             if isinstance(policy, RecordingPolicy):
                 policy.samples = []
-            policy.rng = np.random.default_rng(np.random.SeedSequence([seed, match_id, 1, policies.index(policy)]))
+            policy_seed = np.random.SeedSequence([seed, match_id, 1, policies.index(policy)])
+            if is_reference and policy is opponent:
+                policy.agent.rng = random.Random(int(policy_seed.generate_state(1)[0]))
+            else:
+                policy.rng = np.random.default_rng(policy_seed)
         match_target, score = match_settings(seed, match_id, target, random_start_share)
         result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score, deal_partition=1)
         samples = [(x, action, 1.0 if seat == result.winner else -1.0, seat)

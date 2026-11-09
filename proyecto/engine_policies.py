@@ -50,3 +50,9 @@ class AdaptiveUtilityPolicy(ReactivePolicy):
         self.agent = AgenteTrucoIA(modo_agente="utilidad_adaptativa",
                                    historial_path=history_path,
                                    fixed_initial_state=True, rng=random.Random(seed))
+
+
+def reference_policy(name, seed):
+    """Create a fresh fixed reference opponent for a league block or check."""
+    factories = {'reactive': ReactivePolicy, 'adaptive_utility': AdaptiveUtilityPolicy}
+    return factories[name](seed)

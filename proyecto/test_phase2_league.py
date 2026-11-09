@@ -54,3 +54,27 @@ class PanelExclusionsTest(unittest.TestCase):
         history = [{'members': [{'sha256': 'old'}], 'reserved': ['retired']}]
         self.assertEqual(panel_exclusions(current, history), {'current', 'pending', 'old', 'retired'})
 
+
+class ReferenceSharesTest(unittest.TestCase):
+    def test_run2_shares_and_invalid_values(self):
+        from phase2_league import validate_shares, DEFAULT_SHARES
+        shares = {'self': .30, 'snapshot': .20, 'phase1': .10, 'bluffer': .05,
+                  'cautious': .05, 'aggressive': .05, 'calculating': .05,
+                  'reactive': .10, 'adaptive_utility': .10}
+        self.assertEqual(validate_shares(shares), shares)
+        self.assertEqual(validate_shares(None), DEFAULT_SHARES)
+        for change in ({'unknown': 0}, {'self': -.1}, {'self': float('nan')},
+                       {'self': float('inf')}, {'self': .1}):
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                validate_shares({**shares, **change})
+
+    def test_reference_draws_have_stable_identities(self):
+        shares = {'self': .30, 'snapshot': .20, 'phase1': .10, 'bluffer': .05,
+                  'cautious': .05, 'aggressive': .05, 'calculating': .05,
+                  'reactive': .10, 'adaptive_utility': .10}
+        draws = [draw_opponent(25, i, shares, pool=['a'], phase1=['b']) for i in range(200)]
+        self.assertEqual(draws, [draw_opponent(25, i, shares, pool=['a'], phase1=['b']) for i in range(200)])
+        for name in ('reactive', 'adaptive_utility'):
+            matching = [d for d in draws if d['category'] == name]
+            self.assertTrue(matching)
+            self.assertTrue(all(d['identity'] == f'reference:{name}:v1' for d in matching))
