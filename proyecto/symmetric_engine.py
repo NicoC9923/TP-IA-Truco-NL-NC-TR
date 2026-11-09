@@ -174,9 +174,9 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
     return MatchResult(score.index(max(score)), tuple(score), decisions, deals)
 
 
-def play_mirror_pair(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
-    return (play_match(policy_a, policy_b, seed=seed, target=target, starting_score=starting_score),
-            play_match(policy_b, policy_a, seed=seed, target=target, starting_score=starting_score[::-1]))
+def play_mirror_pair(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), deal_partition=None):
+    return (play_match(policy_a, policy_b, seed=seed, target=target, starting_score=starting_score, deal_partition=deal_partition),
+            play_match(policy_b, policy_a, seed=seed, target=target, starting_score=starting_score[::-1], deal_partition=deal_partition))
 
 
 

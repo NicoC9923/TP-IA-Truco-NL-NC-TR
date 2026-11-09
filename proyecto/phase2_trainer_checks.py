@@ -33,7 +33,7 @@ class Phase2TrainerTest(unittest.TestCase):
                 for name, value in state.items():
                     self.assertTrue(torch.equal(value, resumed.optimizer.state_dict()['state'][key][name]))
 
-    def test_head_off_prechange_golden(self):
+    def test_head_off_partitioned_golden(self):
         import hashlib, json, tempfile
         from pathlib import Path
         from phase2_trainer import train
@@ -56,13 +56,13 @@ class Phase2TrainerTest(unittest.TestCase):
                     digest.update(repr(value).encode())
             update(result.model.state_dict())
             update(result.optimizer.state_dict())
-            self.assertEqual(digest.hexdigest(), '3e22bbd092f4e3a8e54196fcecbb603ee7f5e7713d8dbdbb3a4f385c42af8215')
+            self.assertEqual(digest.hexdigest(), '91f2bf18abe930a2668f4e804add94558a65e8aadca429e5acf726d5139c84cb')
             entry = json.loads((Path(directory) / 'generations.jsonl').read_text())
             entry.pop('elapsed_seconds')
             self.assertEqual(entry, {'behavior': None, 'champion': 1, 'check': None,
                 'diversity': None, 'example_hand': None, 'fitness': None, 'generation': 1,
                 'league_mix': {'phase1': 1}, 'learner_samples': 1, 'matches': 1,
-                'mean_loss': 0.9995097517967224, 'measuring_only': False, 'neutral_blocks': 0,
+                'mean_loss': 1.0005160570144653, 'measuring_only': False, 'neutral_blocks': 0,
                 'phase': 2, 'phase1_opponents': {'v3s1-g55': 1}, 'phase_ended': False,
                 'promoted': False, 'stop_reason': None, 'style_offset_round_end': 5e-06, 'updates': 1})
 

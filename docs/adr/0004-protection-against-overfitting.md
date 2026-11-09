@@ -17,3 +17,5 @@ This is common practice: OpenAI Five played about 80% of its games against its c
 ## Amendment (2026-11-08)
 
 Phase 2 replaces the hall of fame with a bounded snapshot pool that admits a snapshot every generation, promoted or not (ADR 0043).
+
+Phase 1 and phase 2 partition canonical unordered pairs of three-card hands by the same stable hash: partition 1 is reserved for training and partition 0 for validation, including phase 2 panel checks, direct matches, overlap checks and card-prediction replays. Distinct RNG seeds alone do not guarantee distinct deals; each hand in a match is filtered into the designated partition.

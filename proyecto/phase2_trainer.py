@@ -46,7 +46,7 @@ class RecordingPolicy(Phase2Policy):
         self.samples.append((inputs, ACTIONS.index(action)))
 
 def training_seed(seed, match_id):
-    """Odd training deal seeds cannot overlap the even validation schedule."""
+    """Assign a distinct deterministic seed to each training match."""
     # Cantor pairing is injective, unlike a truncated hash of the identifiers.
     diagonal = seed + match_id
     return 2 * (diagonal * (diagonal + 1) // 2 + match_id) + 1
@@ -66,7 +66,7 @@ def _matches(args):
         seeds = np.random.SeedSequence([seed, match_id, 1]).generate_state(2)
         policies = [RecordingPolicy(model, seed=int(seeds[i])) for i in range(2)]
         match_target, score = match_settings(seed, match_id, target, random_start_share)
-        result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score)
+        result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score, deal_partition=1)
         samples = [(x, action, 1.0 if seat == result.winner else -1.0, seat)
                    for seat, policy in enumerate(policies) for x, action in policy.samples]
         if hasattr(model, 'card_head'):
@@ -129,7 +129,7 @@ def _league_block(args):
                 policy.samples = []
             policy.rng = np.random.default_rng(np.random.SeedSequence([seed, match_id, 1, policies.index(policy)]))
         match_target, score = match_settings(seed, match_id, target, random_start_share)
-        result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score)
+        result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score, deal_partition=1)
         samples = [(x, action, 1.0 if seat == result.winner else -1.0, seat)
                    for seat, policy in enumerate(policies) if isinstance(policy, RecordingPolicy)
                    for x, action in policy.samples]
@@ -164,7 +164,7 @@ def _check_pair(job):
             return Phase2Policy(model, seed=seed, temperature=temperature, profile_prior=spec.get('profile_prior', 20))
         return NetworkPolicy(spec['weights'], seed=seed, encoder=spec['encoder'])
     a, b = policy(challenger, action_seed), policy(opponent, action_seed + 1)
-    first, second = play_mirror_pair(a, b, seed=deal_seed, target=target)
+    first, second = play_mirror_pair(a, b, seed=deal_seed, target=target, deal_partition=0)
     return ((first.winner == 0) + (second.winner == 1)) / 2
 
 def _check_chunk(job):
