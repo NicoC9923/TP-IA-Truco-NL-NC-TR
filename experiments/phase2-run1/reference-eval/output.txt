@@ -1,0 +1,19 @@
+Network  Opponent  Adapt  Win rate +/- 95%
+gen4  reactive  on  0.469 +/- 0.031
+gen4  reactive  off  0.436 +/- 0.030
+gen4  adaptive_utility  on  0.235 +/- 0.026
+gen4  adaptive_utility  off  0.211 +/- 0.026
+gen4  equal_weight  on  0.352 +/- 0.022
+gen4  equal_weight  off  0.324 +/- 0.022
+gen10  reactive  on  0.684 +/- 0.028
+gen10  reactive  off  0.698 +/- 0.028
+gen10  adaptive_utility  on  0.372 +/- 0.028
+gen10  adaptive_utility  off  0.386 +/- 0.030
+gen10  equal_weight  on  0.528 +/- 0.020
+gen10  equal_weight  off  0.542 +/- 0.021
+gen28  reactive  on  0.688 +/- 0.029
+gen28  reactive  off  0.695 +/- 0.029
+gen28  adaptive_utility  on  0.346 +/- 0.030
+gen28  adaptive_utility  off  0.335 +/- 0.030
+gen28  equal_weight  on  0.517 +/- 0.020
+gen28  equal_weight  off  0.515 +/- 0.020
