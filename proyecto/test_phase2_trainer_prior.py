@@ -14,7 +14,7 @@ class TrainerPriorTests(unittest.TestCase):
             train(root, stop_after_round=1, **config)
             checkpoint = root / 'checkpoint_000001.pt'
             state = torch.load(checkpoint, weights_only=False)
-            self.assertEqual(state['config']['profile_prior'], 20)
+            self.assertNotIn('profile_prior', state['config'])
             with self.assertRaisesRegex(ValueError, 'configuration'):
                 train(root, resume=checkpoint, profile_prior=5, **config)
             import subprocess
@@ -26,9 +26,24 @@ class TrainerPriorTests(unittest.TestCase):
                                     capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('Checkpoint configuration does not match', result.stderr)
+            state['config']['profile_prior'] = 20
+            torch.save(state, checkpoint)
+            train(root, resume=checkpoint, stop_after_round=1, **config)
             del state['config']['profile_prior']
             torch.save(state, checkpoint)
             train(root, resume=checkpoint, **config)
+
+    def test_nondefault_prior_is_stored_and_rejects_default_resume(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = dict(generations=1, matches_per_generation=2, matches_per_round=1,
+                          block_size=1, target=1, panel_path=None, seed=9, clock=lambda: 0)
+            train(root, profile_prior=5, stop_after_round=1, **config)
+            checkpoint = root / 'checkpoint_000001.pt'
+            state = torch.load(checkpoint, weights_only=False)
+            self.assertEqual(state['config']['profile_prior'], 5)
+            with self.assertRaisesRegex(ValueError, 'configuration'):
+                train(root, resume=checkpoint, **config)
 
     def test_run_uses_prior_for_both_self_play_policies(self):
         from unittest.mock import patch
@@ -145,6 +160,8 @@ class TrainerPriorTests(unittest.TestCase):
             panel_path.write_text(json.dumps(panel))
             train(root / 'run', profile_prior=5, stop_after_round=4, **config)
             self.assertIn((5, 7), seen)
+            state = torch.load(root / 'run/checkpoint_000004.pt', weights_only=False)
+            self.assertEqual(state['panel_snapshots'][0]['profile_prior'], 5)
             panel['members'][0]['profile_prior'] = 8
             panel_path.write_text(json.dumps(panel))
             with self.assertRaisesRegex(ValueError, 'configuration'):

@@ -429,7 +429,10 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                             entry['panel_boundary'] = boundary
                         entry['check'] = result
                         history.append({'champion': champion_generation, 'scores': {k: v['champion'] for k, v in result['members'].items()}})
-                        snapshots.append({'name': f'generation-{generation}', 'path': snapshot.name, 'resolved_path': str(snapshot), 'kind': 'phase2', 'encoder': 'v1', 'profile_prior': profile_prior, 'sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'gain': result['gain'], 'scores': {k: statistics.mean(v['challenger']) for k, v in result['members'].items()}})
+                        snapshot_record = {'name': f'generation-{generation}', 'path': snapshot.name, 'resolved_path': str(snapshot), 'kind': 'phase2', 'encoder': 'v1', 'sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'gain': result['gain'], 'scores': {k: statistics.mean(v['challenger']) for k, v in result['members'].items()}}
+                        if profile_prior != 20:
+                            snapshot_record['profile_prior'] = profile_prior
+                        snapshots.append(snapshot_record)
                         stale = 0 if result['promoted'] else stale + 1
                         entry['promoted'] = result['promoted']
                         changed = result['promoted']
@@ -566,11 +569,13 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         panel_config = {'version': panel['version'], 'measuring_only': bool(panel.get('measuring_only')), 'members': members}
     config = dict(block_size=block_size, league_shares=validate_shares(league_shares), phase1_manifest=[{k: m[k] for k in ('name', 'encoder', 'sha256')} for m in load_phase1_manifest(phase1_manifest)], style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, pool_recent=pool_recent, pool_diverse=pool_diverse, patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=panel_config,
                   panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs,
-                  check_seed_base=check_seed_base, temperature=temperature, profile_prior=profile_prior, min_gain=min_gain, min_direct=min_direct,
+                  check_seed_base=check_seed_base, temperature=temperature, min_gain=min_gain, min_direct=min_direct,
                   matches_per_generation=matches_per_generation,
                   matches_per_round=matches_per_round, seed=seed, target=target,
                   lr=lr, minibatch=minibatch, random_start_share=random_start_share)
     config.update(auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations)
+    if profile_prior != 20:
+        config['profile_prior'] = profile_prior
     generation_rounds = (matches_per_generation + matches_per_round - 1) // matches_per_round
     output = Path(directory).resolve()
     if resume and Path(resume).resolve().parent != output:
@@ -583,7 +588,8 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         old_config.setdefault('auxiliary', False)
         old_config.setdefault('auxiliary_weight', .1)
         old_config.setdefault('card_prediction_situations', 400)
-        old_config.setdefault('profile_prior', 20)
+        if old_config.get('profile_prior', 20) == 20:
+            old_config.pop('profile_prior', None)
     if state is not None and old_config != config:
         raise ValueError('Checkpoint configuration does not match')
     if state is not None and state.get('phase_ended'):
