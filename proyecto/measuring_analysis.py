@@ -113,21 +113,20 @@ def segment(directory, benchmark, smoke=False):
     bench = json.loads(benchmark.read_text())
     complete = [r for r in rows if r['matches'] == 240 and r.get('check')]
     check = statistics.mean(bench['check_seconds'])
-    validation = statistics.mean(bench['validation_seconds']) if bench['validation_seconds'] else 0
     if not smoke and len(complete) < 2:
         raise ValueError(f'{directory}: fewer than two complete checks')
-    # Head-off elapsed is logged before the check; head-on elapsed includes both.
+    # Head-off generation elapsed is logged before its check.
     if complete:
-        train_seconds = sum(r['elapsed_seconds'] - (check + validation if validation else 0) for r in complete)
+        train_seconds = sum(r['elapsed_seconds'] for r in complete)
         rate = sum(r['matches'] for r in complete) / train_seconds if train_seconds > 0 else None
     else:
         rate = progress['matches'] / progress['elapsed'] if progress['elapsed'] > 0 else None
     return {'matches_per_s': progress['matches'] / progress['elapsed'], 'samples_per_s': progress['samples'] / progress['elapsed'],
             'recent_matches_per_s': progress['matches_per_s'], 'recent_samples_per_s': progress['samples_per_s'],
-            'seconds_per_check': check, 'seconds_per_validation': validation,
+            'seconds_per_check': check,
             'learner_ms_per_update': bench['learner_seconds_per_update'] * 1000,
-            'generation_seconds': [r['elapsed_seconds'] + (check if not validation and r.get('check') else 0) for r in rows], 'training_matches_per_s': rate,
-            'matches_per_generation': generation_size(rate, check + validation) if rate else None,
+            'generation_seconds': [r['elapsed_seconds'] + (check if r.get('check') else 0) for r in rows], 'training_matches_per_s': rate,
+            'matches_per_generation': generation_size(rate, check) if rate else None,
             'checks': sum(r.get('check') is not None for r in rows), 'log': rows}
 
 def main():
@@ -136,8 +135,8 @@ def main():
     parser.add_argument('--smoke', action='store_true')
     args = parser.parse_args()
     root = args.directory.resolve()
-    a, b = (segment(root / s, root / ('bench_' + s + '.json'), args.smoke) for s in ('A', 'B'))
-    snapshot = sorted((root / 'B').glob('generation_*.pt'))[-1]
+    a = segment(root / 'A', root / 'bench_A.json', args.smoke)
+    snapshot = sorted((root / 'A').glob('generation_*.pt'))[-1]
     temperature, prior = replay(snapshot, args.smoke)
     digest = hashlib.sha256(snapshot.read_bytes()).hexdigest()
     panel = json.loads(PANEL.read_text())
@@ -147,16 +146,10 @@ def main():
     panel['version'] = 1
     panel.pop('measuring_only', None)
     (root / 'panel-v1.json').write_text(json.dumps(panel, indent=2) + '\n')
-    # Auxiliary is retained only if it costs at most half the throughput and its last
-    # completed validation has lower loss than exact; otherwise it is disabled.
-    validations = [x['card_prediction'] for x in b['log'] if 'card_prediction' in x]
-    last = validations[-1]
-    head = b['matches_per_s'] >= .5 * a['matches_per_s'] and last['learned']['log_loss'] < last['exact']['log_loss']
-    for item in (a, b):
-        item.pop('log')
-    result = {'A': a, 'B': b, 'temperature': temperature, 'profile_prior': prior,
-              'auxiliary_head': head, 'snapshot': str(snapshot), 'snapshot_sha256': digest,
-              'selected_matches_per_generation': (b if head else a)['matches_per_generation']}
+    a.pop('log')
+    result = {'A': a, 'temperature': temperature, 'profile_prior': prior,
+              'auxiliary_head': False, 'snapshot': str(snapshot), 'snapshot_sha256': digest,
+              'selected_matches_per_generation': a['matches_per_generation']}
     (root / 'results.json').write_text(json.dumps(result, indent=2) + '\n')
     (root / 'summary.txt').write_text('Phase 2 measuring analysis\n' + json.dumps(result, indent=2) + '\n')
     print(json.dumps(result, indent=2))

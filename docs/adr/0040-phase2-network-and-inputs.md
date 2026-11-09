@@ -27,3 +27,7 @@ One shared MLP, about 1,700 → 256 → 128 → 12, ReLU, float32, roughly 470,0
 - **DouZero's action-as-input scoring:** needed for DouDizhu's thousands of actions; Truco has 12 fixed actions, so one pass with 12 outputs is cheaper and equally valid.
 - **LSTM over events (DouZero) or a small attention block:** the current hand has at most a few dozen short events, and recurrent layers are slow on CPU. Revisit only if an order-sensitive probe fails, compared at equal wall time.
 - **Separate networks or heads for envido, truco and card play:** waste samples; the decisions share facts such as hand strength.
+
+## Amendment 2026-11-08: phase 2 card prediction
+
+The auxiliary card head is off for the measuring and real phase 2 runs. The measured head-off throughput is approximately twice head-on throughput, potentially allowing twice as many training matches in eight hours; there is no evidence that the auxiliary task compensates for that cost, and DouZero does not use this head. The implementation remains available as an option. The evolution page’s three-way card comparison will instead use a post-training linear probe on the frozen final champion, compared against the same probe on an untrained network and labelled “post-training probe”; this is future work.
