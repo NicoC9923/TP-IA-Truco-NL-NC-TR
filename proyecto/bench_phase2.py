@@ -151,7 +151,7 @@ def manifest(directory, result):
 def configuration(args, golden=False):
     return dict(generations=2, matches_per_generation=16 if golden else args.matches,
                 matches_per_round=8 if golden else args.matches, block_size=4,
-                workers=args.workers, seed=35, target='mixed', minibatch=32 if golden else 512,
+                workers=args.workers, seed=getattr(args, 'seed', 35), check_seed_base=getattr(args, 'check_seed_base', 10000), target='mixed', minibatch=32 if golden else 512,
                 panel_path=PANEL, panel_pairs=2 if golden else args.pairs,
                 head_to_head_pairs=2 if golden else args.direct_pairs,
                 auxiliary=args.auxiliary, card_prediction_situations=8 if golden else 400,
@@ -375,6 +375,8 @@ def main():
     parser.add_argument('mode', choices=('bench', 'golden', 'actor', 'validation', 'auxiliary'))
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--workers', type=int, default=12)
+    parser.add_argument('--seed', type=int, default=35)
+    parser.add_argument('--check-seed-base', type=int, default=10000)
     parser.add_argument('--matches', type=int, default=96)
     parser.add_argument('--pairs', type=int, default=100)
     parser.add_argument('--direct-pairs', type=int, default=200)
