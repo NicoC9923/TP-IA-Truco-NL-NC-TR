@@ -27,13 +27,13 @@ def _valid_temperature(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value > 0
 
 
-def find_run(root):
+def find_run(root, directory=None):
     """The champion file and its temperature, both taken from the same directory.
 
     The live run directory is one unit and the committed copies are another; a
     champion is never sampled at a temperature recorded by a different run."""
     root = Path(root)
-    for directory in (root / 'training_output' / 'phase2', root / 'champions' / 'phase2'):
+    for directory in ((Path(directory),) if directory is not None else (root / 'training_output' / 'phase2', root / 'champions' / 'phase2')):
         champion = directory / CHAMPION_FILE
         if not champion.is_file():
             continue
@@ -62,8 +62,8 @@ def unavailable(reason):
     return {'available': False, 'reason': reason}
 
 
-def example_hand_payload(root, seed=SEED):
-    champion_path, temperature = find_run(root)
+def example_hand_payload(root, seed=SEED, directory=None):
+    champion_path, temperature = find_run(root, directory=directory)
     if champion_path is None:
         return unavailable('no_champion')
     try:

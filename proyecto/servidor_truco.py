@@ -17,6 +17,7 @@ import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 from robot import Robot
 from control_voz import AgenteRobot
@@ -66,13 +67,17 @@ class ServidorTruco(ThreadingHTTPServer):
 
 def _leer_jsonl(path):
     records = []
-    if path.is_file():
+    try:
         with path.open(encoding="utf-8") as stream:
             for line in stream:
                 try:
-                    records.append(json.loads(line))
-                except json.JSONDecodeError:
+                    record = json.loads(line)
+                    if isinstance(record, dict):
+                        records.append(record)
+                except (json.JSONDecodeError, UnicodeDecodeError):
                     continue
+    except (OSError, UnicodeDecodeError):
+        pass
     return records
 
 
@@ -97,6 +102,49 @@ class Handler(BaseHTTPRequestHandler):
             origen = self._origen_evolucion("phase1")
             vivo = origen.parent.name == "training_output"
             self._responder(200, {"source": "live" if vivo else ("committed" if (origen / "generations.jsonl").is_file() else "empty")})
+        elif ruta_limpia == "/evolucion/phase2/runs":
+            root = self.server.evolution_root
+            self._responder(200, {"default": "run2" if (root / "training_output/phase2-run2").is_dir() else "run1"})
+        elif ruta_limpia.startswith("/evolucion/phase2/") and "run" in parse_qs(urlsplit(self.path).query, keep_blank_values=True):
+            run = parse_qs(urlsplit(self.path).query, keep_blank_values=True)["run"]
+            if len(run) != 1 or run[0] not in ("run1", "run2"):
+                self._responder(400, {"error": "invalid run"})
+                return
+            root = self.server.evolution_root
+            directory = root / ("champions/phase2" if run[0] == "run1" else "training_output/phase2-run2")
+            endpoint = ruta_limpia.rsplit("/", 1)[-1]
+            if endpoint in ("generations", "reference"):
+                name = "generations.jsonl" if endpoint == "generations" else "reference_evaluation.jsonl"
+                rows = _leer_jsonl(directory / name)
+                if endpoint == "reference" and run[0] == "run1" and not rows:
+                    try:
+                        archive = json.loads((root / "experiments/phase2-run1/reference-eval/results.json").read_text(encoding="utf-8"))
+                        summaries = archive["summaries"]["gen28"]
+                        rows = [{"generation": 28, "reference_opponent": opponent, "win_rate": value["on"]["mean"]}
+                                for opponent, value in summaries.items() if opponent != "equal_weight"]
+                    except (OSError, ValueError, UnicodeDecodeError, KeyError, TypeError):
+                        pass
+                self._responder(200, rows)
+            elif endpoint in ("progress", "acceptance"):
+                path = directory / "progress.json" if endpoint == "progress" else root / "experiments/phase2-run2/acceptance/results.json"
+                payload = {"status": "empty"} if endpoint == "progress" else {"status": "pending"}
+                if endpoint != "acceptance" or run[0] == "run2":
+                    try:
+                        value = json.loads(path.read_text(encoding="utf-8"))
+                        if isinstance(value, dict):
+                            payload = value
+                    except (OSError, ValueError, UnicodeDecodeError):
+                        pass
+                self._responder(200, payload)
+            elif endpoint == "example-hand":
+                # Only the published run 1 model is stable; never load a live checkpoint.
+                if run[0] == "run1":
+                    from phase2_example_hand import example_hand_payload
+                    self._responder(200, example_hand_payload(root, directory=directory))
+                else:
+                    self._responder(200, {"available": False, "reason": "awaiting_stable_example"})
+            else:
+                self._responder(404, {"error": "unknown endpoint"})
         elif ruta_limpia in ("/evolucion/phase2/generations", "/evolucion/phase2/reference"):
             filename = "generations.jsonl" if ruta_limpia.endswith("generations") else "reference_evaluation.jsonl"
             self._responder(200, _leer_jsonl(self._origen_evolucion("phase2") / filename))

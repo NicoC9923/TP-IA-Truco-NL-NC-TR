@@ -76,6 +76,31 @@ class Phase2RoutesTest(unittest.TestCase):
             with running(root) as get:
                 self.assertEqual(get('progress'), {'status': 'empty'})
 
+    def test_selected_runs_are_isolated_and_partial_files_safe(self):
+        from urllib.error import HTTPError
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            put(root, 'champions', 'generations.jsonl', '{"generation": 28}\n')
+            live = root / 'training_output/phase2-run2'
+            live.mkdir(parents=True)
+            (live / 'generations.jsonl').write_text('{"generation": 2}\n{"generation":')
+            (live / 'progress.json').write_text('{"status":')
+            with running(root) as get:
+                self.assertEqual(get('runs')['default'], 'run2')
+                self.assertEqual(get('generations?run=run1'), [{'generation': 28}])
+                self.assertEqual(get('generations?run=run2'), [{'generation': 2}])
+                self.assertEqual(get('progress?run=run2'), {'status': 'empty'})
+                self.assertEqual(get('acceptance?run=run2'), {'status': 'pending'})
+                self.assertEqual(get('example-hand?run=run2')['reason'], 'awaiting_stable_example')
+                for value in ('../phase1', '', 'run1&run=run2'):
+                    with self.assertRaises(HTTPError):
+                        get('progress?run=' + value)
+                acceptance = root / 'experiments/phase2-run2/acceptance'
+                acceptance.mkdir(parents=True)
+                (acceptance / 'results.json').write_text('{"decision":"ships","direct":{},"held_out":{}}')
+                self.assertEqual(get('acceptance?run=run2')['decision'], 'ships')
+                self.assertEqual(get('acceptance?run=run1')['status'], 'pending')
+
     def test_phase1_routes_still_work(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

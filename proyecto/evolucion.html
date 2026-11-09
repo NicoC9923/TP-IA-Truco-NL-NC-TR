@@ -4,9 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Evolución del entrenamiento</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link rel="icon" href="data:,">
+
 <style>
 :root{--ground:#F6F7F9;--card:#FFFFFF;--line:#E3E6EA;--soft:#EEF0F3;--ink:#15181D;--ink2:#3A414B;--muted:#5A626E;--blue:#1F5FBF;--blue-ink:#174A94;--blue-tint:#E6EEFA;--orange:#C2410C;--grey-bar:#6B7482;--track:#E9ECF0}
 *{box-sizing:border-box}
@@ -31,7 +30,7 @@ nav button[aria-selected=true]{background:var(--card);color:var(--ink);font-weig
 .track{height:6px;background:var(--line);border-radius:4px;overflow:hidden}
 .fill{height:6px;background:var(--blue)}
 .small{margin:0;font-size:13px;color:var(--muted)}
-.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
 .kpi{display:flex;flex-direction:column;gap:6px}
 .kpi span:first-child{font-size:13px;color:var(--muted)}
@@ -56,6 +55,8 @@ section.card.hand{padding:0;gap:0}
 .row .who{width:120px;color:var(--muted)}
 .row .act{flex:1;min-width:180px;font-weight:600}
 .row .why{color:var(--muted)}
+select,.step-button{font:inherit;color:var(--ink);background:white;border:1px solid #aeb7c3;border-radius:6px;padding:10px}
+.run-select{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.diagram{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}.diagram div{flex:1 1 150px;background:var(--soft);padding:14px;border-radius:8px}.diagram strong{display:block}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}.step-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.step-button:disabled{opacity:.5}
 .compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .pair{border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px}
 .pair p{margin:0;font-size:14px;font-weight:600}
@@ -107,7 +108,9 @@ const SUITS = { Espada: 'espadas', Oro: 'oros', Copa: 'copas', Basto: 'bastos' }
 const state = {
   tab: 'p2',
   p1: { gens: [], ref: [], source: 'empty' },
-  p2: { gens: [], ref: [], progress: { status: 'empty' } },
+  p2: { gens: [], ref: [], progress: { status: 'empty' }, acceptance: {} },
+  run: ['run1', 'run2'].includes(new URLSearchParams(location.search).get('run')) ? new URLSearchParams(location.search).get('run') : null,
+  step: 0,
   open: { p1: false, p2: false },
   hand: { p2: null },
   loaded: false,
@@ -155,7 +158,7 @@ function seriesFor(phase, gens) {
   for (const g of gens) {
     if (phase === 'p2') {
       const c = g.check;
-      if (!c || !num(c.gain)) continue;
+      if (!c || !num(c.gain) || !num(c.lower_bound) || !num(c.upper_bound) || !num(g.generation)) continue;
       rows.push({ gen: g.generation, v: c.gain * 100, lo: num(c.lower_bound) ? c.lower_bound * 100 : c.gain * 100, hi: num(c.upper_bound) ? c.upper_bound * 100 : c.gain * 100, promoted: !!g.promoted, boundary: g.panel_boundary ? g.panel_boundary.to : null });
     } else {
       const c = g.promotion_check;
@@ -193,7 +196,7 @@ function summary(phase, gens, progress) {
   } else if (last) {
     champion = num(last.reigning_champion) ? last.reigning_champion : last.generation;
   }
-  return { last, promos, champion, generation: last ? last.generation : 0 };
+  return { last, promos, champion, generation: phase === 'p2' && num(progress.generation) ? progress.generation : (last ? last.generation : null) };
 }
 
 /* ---------- DOM helpers ---------- */
@@ -260,7 +263,9 @@ function chart(phase, rows) {
   }
   s.append(svg('text', { x: L, y: H - 8, 'font-size': F, fill: '#5A626E' }, `gen ${gmin}`));
   s.append(svg('text', { x: R, y: H - 8, 'text-anchor': 'end', 'font-size': F, fill: '#5A626E' }, `gen ${gmax}`));
-  box.append(s, el('p', { class: 'small', text: note }));
+  const table = el('table', {}, el('caption', {text:'Datos del control por generación'}), el('tr', {}, ...['Generación','Resultado','Intervalo','Ascenso'].map(t => el('th', {scope:'col',text:t}))));
+  rows.forEach(r => table.append(el('tr', {}, ...[r.gen, r.v.toFixed(1), `${r.lo.toFixed(1)} a ${r.hi.toFixed(1)}`, r.promoted ? 'Sí' : 'No'].map(v => el('td',{text:String(v)})))));
+  box.append(s, el('details', {}, el('summary', {text:'Ver datos del gráfico'}), el('div',{class:'table-scroll'},table)), el('p', { class: 'small', text: note }));
   return box;
 }
 
@@ -278,7 +283,9 @@ function statusBlock(phase) {
     text = phase === 'p2' ? 'Todavía no hay una ejecución de la fase 2.' : 'Todavía no hay una ejecución de la fase 1.';
   } else if (prog.status === 'training') {
     running = true; label = 'Entrenando';
-    text = `Generación ${num(prog.generation) ? prog.generation + 1 : generation + 1} · ${champText}`;
+    text = `Generación ${num(prog.generation) ? prog.generation : (generation ?? '—')} · ${champText}`;
+  } else if (prog.status === 'empty' && phase === 'p2') {
+    label = 'Estado no disponible'; text = 'Hay registros, pero el progreso no está disponible en este momento.';
   } else {
     label = 'Terminada';
     const reason = prog.stop_reason || (last && last.stop_reason) || null;
@@ -304,7 +311,8 @@ function kpis(phase) {
   const third = phase === 'p2'
     ? ['Partidas por segundo', num(p.progress.matches_per_s) ? String(Math.round(p.progress.matches_per_s)) : '—']
     : ['Generaciones', s.generation ? String(s.generation) : '—'];
-  const items = [['Campeona actual', s.champion === null ? '—' : `gen ${s.champion}`], ['Ascensos', String(s.promos)], third];
+  const items = [['Campeona actual', s.champion === null ? '—' : `gen ${s.champion}`], ['Ascensos', phase === 'p2' && num(p.progress.promotions) ? String(p.progress.promotions) : (p.gens.length ? String(s.promos) : '—')], third];
+  if (phase === 'p2') items.push(['Partidas', num(p.progress.matches) ? p.progress.matches.toLocaleString('es-AR') : '—']);
   return el('div', { class: 'kpis' }, ...items.map(([l, v]) => el('div', { class: 'card kpi' }, el('span', { text: l }), el('span', { text: v }))));
 }
 
@@ -344,12 +352,22 @@ function handView(phase) {
   } else {
     const h = state.hand.p2;
     if (h === null) body.append(el('p', { class: 'empty', text: 'Cargando la mano…' }));
-    else if (!h.available) body.append(el('p', { class: 'empty', text: h.reason === 'torch' ? 'No se puede mostrar la mano: falta PyTorch en este equipo.' : 'Disponible cuando la fase 2 tenga una campeona.' }));
+    else if (!h.available) body.append(el('p', { class: 'empty', text: h.reason === 'torch' ? 'No se puede mostrar la mano: falta PyTorch en este equipo.' : 'Esperando una muestra estable de esta corrida; no se usa la campeona de otra ejecución.' }));
     else {
       const mine = h.champion_hand.map((c) => [c.valor, c.palo]);
-      const theirs = h.opponent_hand.map((c) => [c.valor, c.palo]);
-      body.append(el('p', { text: `Cartas de la campeona: ${mine.map(cardName).join(', ')} · contra la ${h.opponent.charAt(0).toLowerCase() + h.opponent.slice(1)}.` }));
-      body.append(...handRows(h.steps.map((s) => ({ who: s.by === 'champion' ? 0 : 1, action: s.action, why: s.top ? s.top.map((t) => `${Math.round(t.pct)} % ${shortLabel(t.action, mine)}`).join(' · ') : '' })), mine, theirs, ['Campeona', 'Rival']));
+            const step = h.steps[state.step];
+      body.append(el('p', { text: `Muestra ilustrativa con semilla ${h.seed}, generada con la campeona publicada de la corrida 1 contra ${h.opponent}. No representa una mano en vivo.` }));
+      body.append(el('p', { text: `Cartas propias conocidas: ${mine.map(cardName).join(', ')}. Las cartas ocultas del rival no son entradas de la red.` }));
+      const controls = el('div', {class:'step-controls'});
+      const prev = el('button', {type:'button',class:'step-button',text:'Anterior'}), next = el('button', {type:'button',class:'step-button',text:'Siguiente'});
+      prev.disabled = state.step === 0; next.disabled = state.step >= h.steps.length - 1;
+      prev.addEventListener('click', () => {state.step--; render();}); next.addEventListener('click', () => {state.step++; render();});
+      controls.append(prev, el('span', {text:`Paso ${state.step + 1} de ${h.steps.length}`}), next);
+      body.append(controls, el('p',{text:'Historial público hasta esta decisión:'}));
+      body.append(...handRows(h.steps.slice(0,state.step).map((s) => ({who:s.by === 'champion' ? 0 : 1, action:s.action})), mine, null, ['Campeona','Rival']));
+      if (step) body.append(el('p',{text:`Decisión: ${step.by === 'champion' ? 'campeona' : 'rival'} · ${actionLabel(step.action, step.by === 'champion' ? mine : null)}`}));
+      if (step && step.top) body.append(el('p',{text:'Probabilidades de las principales acciones legales: ' + step.top.map(t => `${t.pct} % ${shortLabel(t.action,mine)}`).join(' · ') + '. Los valores internos no se registraron en esta muestra.'}));
+
     }
   }
   wrap.append(body);
@@ -357,9 +375,56 @@ function handView(phase) {
 }
 
 function phaseView(phase) {
-  const { wrap, running } = statusBlock(phase);
-  wrap.append(kpis(phase), chart(phase, seriesFor(phase, state[phase].gens)), handView(phase));
+  const status = statusBlock(phase);
+  const running = status.running;
+  const wrap = el('div', {class:'stack'});
+  if (phase === 'p2') wrap.append(runSelector());
+  status.wrap.id = 'phase-status';
+  const metrics = kpis(phase); metrics.id = 'phase-metrics';
+  wrap.append(status.wrap, metrics, chart(phase, seriesFor(phase, state[phase].gens)));
+  if (phase === 'p2') wrap.append(lossChart(), acceptanceView(), architecture());
+  wrap.append(handView(phase));
   return { node: wrap, running };
+}
+
+function runSelector() {
+  const select = el('select', {id:'run-select','aria-label':'Corrida de fase 2'});
+  [['run2','Corrida 2 · entrenamiento actual'],['run1','Corrida 1 · publicada']].forEach(([v,t]) => select.append(el('option',{value:v,text:t})));
+  select.value = state.run;
+  select.addEventListener('change', async () => {
+    state.run = select.value; state.hand.p2 = null; state.step = 0;
+    state.p2 = {gens:[],ref:[],progress:{status:'empty'},acceptance:{}};
+    const url = new URL(location.href); url.searchParams.set('run',state.run); history.replaceState(null,'',url);
+    render(); await refreshPhase2(); render(); schedule();
+  });
+  return el('div',{class:'run-select'},el('label',{for:'run-select',text:'Corrida de fase 2'}),select);
+}
+function lossChart() {
+  const rows = state.p2.gens.filter(g => num(g.generation) && num(g.mean_loss));
+  const box = el('section',{class:'card'},el('h2',{text:'Error medio de entrenamiento'}),el('p',{class:'small',text:'Menor error de entrenamiento no demuestra que juegue mejor. Se mide por separado del rendimiento contra el panel.'}));
+  if (!rows.length) { box.append(el('p',{class:'empty',text:'Todavía no hay error medio por generación.'})); return box; }
+  const W=800,H=220,L=60,R=780,T=20,B=185, min=Math.min(...rows.map(r=>r.mean_loss)), max=Math.max(...rows.map(r=>r.mean_loss)), span=max-min || 1;
+  const x=(i)=>rows.length===1?(L+R)/2:L+(R-L)*i/(rows.length-1), y=(v)=>B-(B-T)*(v-min)/span;
+  const graph=svg('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Error medio por generación; los datos están disponibles en la tabla'});
+  graph.append(svg('line',{x1:L,y1:B,x2:R,y2:B,stroke:'#aeb7c3'}),svg('polyline',{points:rows.map((r,i)=>`${x(i)},${y(r.mean_loss)}`).join(' '),fill:'none',stroke:'#1F5FBF','stroke-width':2}));
+  rows.forEach((r,i)=>{const dot=svg('circle',{cx:x(i),cy:y(r.mean_loss),r:4,fill:'#1F5FBF'});dot.append(svg('title',{},`Generación ${r.generation}: ${r.mean_loss.toFixed(4)}`));graph.append(dot);});
+  graph.append(svg('text',{x:L,y:14,fill:'#3A414B','font-size':13},`máx. ${max.toFixed(4)}`),svg('text',{x:L,y:210,fill:'#3A414B','font-size':13},`mín. ${min.toFixed(4)} · generaciones ${rows[0].generation}–${rows[rows.length-1].generation}`));
+  const table=el('table',{},el('caption',{text:'Error medio por generación'}),el('tr',{},el('th',{scope:'col',text:'Generación'}),el('th',{scope:'col',text:'Error medio'})));
+  rows.forEach(r=>table.append(el('tr',{},el('td',{text:String(r.generation)}),el('td',{text:r.mean_loss.toFixed(4)}))));
+  box.append(graph,el('details',{},el('summary',{text:'Ver datos del gráfico'}),el('div',{class:'table-scroll'},table)));return box;
+}
+function acceptanceView() {
+  const a=state.p2.acceptance || {};
+  const box=el('section',{class:'card'},el('h2',{text:'Aceptación independiente'}));
+  if (state.run !== 'run2') { box.append(el('p',{text:'La prueba de aceptación compara la corrida 2 con la campeona de esta corrida.'})); return box; }
+  const interval = v => v && num(v.mean) && num(v.lower) && num(v.upper) ? `${pct(v.mean)} (intervalo 95 %: ${pct(v.lower)} a ${pct(v.upper)})` : 'pendiente';
+  if (!a.decision || !a.direct || !a.held_out) box.append(el('p',{text:'Pendiente: todavía no hay resultados completos de aceptación.'}));
+  else box.append(el('p',{text:`Decisión: ${{ships:'Se adopta', inconclusive:'No se demostró mejora', regression:'Regresión clara'}[a.decision] || a.decision}`}),el('p',{text:`Cara a cara: ${interval(a.direct)}. Diferencia contra rivales reservados: ${interval(a.held_out)}.`}));
+  box.append(el('p',{class:'small',text:'El panel fijo contiene rivales familiares del entrenamiento: sirve para controlar el desarrollo, no es un examen independiente. La aceptación usa rivales reservados y una comparación directa.'}));return box;
+}
+function architecture() {
+  const boxes=[['Entrada · 1.628','Cartas propias, estado público y acciones legales; incluye historia y creencias.'],['Historia · 24 × 59','Parte de la entrada: eventos públicos aplanados; no es una LSTM.'],['Creencias','Parte de la entrada: manos compatibles exactas y estimaciones ponderadas por perfil; sin ver cartas ocultas.'],['Capas densas','256 ReLU → 128 ReLU → 12 valores de acción.'],['Elección','Máscara legal y softmax con temperatura 0,05.']];
+  return el('section',{class:'card'},el('h2',{text:'Cómo decide la red de fase 2'}),el('p',{text:'La observación reúne información conocida y estimaciones; las neuronas no tienen interpretaciones individuales asignadas.'}),el('div',{class:'diagram',role:'list','aria-label':'Esquema de entradas, red y decisión'},...boxes.map(([h,t])=>el('div',{role:'listitem'},el('strong',{text:h}),el('span',{text:t})))),el('p',{class:'small',text:'El perfil usa una fuerza previa de 5 en la corrida actual. La cabeza auxiliar está desactivada en esta corrida.'}));
 }
 
 /* ---------- comparison ---------- */
@@ -422,18 +487,20 @@ async function getJson(url, fallback) {
 
 async function loadHand() {
   state.hand.p2 = null;
-  const h = await getJson('/evolucion/phase2/example-hand', { available: false, reason: 'error' });
-  state.hand.p2 = h;
-  render();
+  const run = state.run;
+  const h = await getJson('/evolucion/phase2/example-hand?run=' + run, { available: false, reason: 'error' });
+  if (run === state.run) { state.hand.p2 = h; render(); }
 }
 
 async function refreshPhase2() {
   state.failed = false;
-  const [gens, ref, progress] = await Promise.all([
-    getJson('/evolucion/phase2/generations', state.p2.gens),
-    getJson('/evolucion/phase2/reference', state.p2.ref),
-    getJson('/evolucion/phase2/progress', state.p2.progress)]);
-  state.p2 = { gens, ref, progress };
+  const run = state.run, query = '?run=' + run;
+  const [gens, ref, progress, acceptance] = await Promise.all([
+    getJson('/evolucion/phase2/generations' + query, state.p2.gens),
+    getJson('/evolucion/phase2/reference' + query, state.p2.ref),
+    getJson('/evolucion/phase2/progress' + query, state.p2.progress),
+    getJson('/evolucion/phase2/acceptance' + query, state.p2.acceptance)]);
+  if (run === state.run) state.p2 = { gens, ref, progress, acceptance };
 }
 
 async function refreshPhase1() {
@@ -447,6 +514,7 @@ async function refreshPhase1() {
 async function refreshAll() {
   state.failed = false;
   await refreshPhase1();
+  if (!state.run) { const runs = await getJson('/evolucion/phase2/runs', {default:'run1'}); state.run = runs.default; }
   await refreshPhase2();
   state.loaded = true;
   render();
@@ -461,12 +529,18 @@ function schedule() {
 
 async function poll() {
   const before = `${state.p2.progress.status}|${state.p2.progress.champion_generation}`;
+  const oldGens = JSON.stringify(state.p2.gens); const oldAcceptance = JSON.stringify(state.p2.acceptance);
   state.failed = false;
   if (phase1Training()) await refreshPhase1();
   await refreshPhase2();
   const after = `${state.p2.progress.status}|${state.p2.progress.champion_generation}`;
-  if (state.open.p2 && before !== after) loadHand();
-  render();
+  if (state.open.p2 && before !== after && state.run === 'run1') loadHand();
+  if (state.tab === 'p2' && oldGens === JSON.stringify(state.p2.gens) && oldAcceptance === JSON.stringify(state.p2.acceptance)) {
+    const status = statusBlock('p2').wrap; status.id = 'phase-status';
+    const metrics = kpis('p2'); metrics.id = 'phase-metrics';
+    document.getElementById('phase-status')?.replaceWith(status);
+    document.getElementById('phase-metrics')?.replaceWith(metrics);
+  } else if (!document.activeElement.closest('main') && !document.querySelector('main details[open]') && !state.open.p2) render();
   schedule();
 }
 

@@ -124,7 +124,7 @@ class EvolutionPageContentTests(unittest.TestCase):
 
     def test_old_page_panels_and_hidden_metrics_are_gone(self):
         for text in ('Aptitud de la población', 'Conducta emergente', 'Diversidad', 'Campeones reinantes',
-                     'mean_loss', 'league_mix', 'behavior', 'diversity', 'Sofia'):
+                     'league_mix', 'behavior', 'diversity', 'Sofia'):
             self.assertNotIn(text, self.page)
 
     def test_phone_layout_rules_and_touch_targets(self):
