@@ -2,7 +2,7 @@
   "golden": {
     "model": "f9c589b45a34f6c918a2b873e7b91fb4f956ceed431877d290a1fa8d0d970d77",
     "optimizer": "7afa45858cca0329c7e9dd56cbbea4d2ee1e815663080fbc25740ceb6ba1233d",
-    "log": "f15fc7e13132e169468cd574dbb55b4cab63466b7a25afb886efce03af8da0e4",
+    "log": "c6f6a9ee8f21c461b9ac5190dacff11dd837c0d72164d28165b7b3c90d2377eb",
     "samples": 683,
     "updates": 24,
     "checkpoints": {
@@ -42,6 +42,6 @@
     "platform": "Windows-11-10.0.26300-SP0",
     "cpu": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
     "logical_cpus": 16,
-    "revision": "360f3159e6085b1893df964dd0e1cfdce3f9de60"
+    "revision": "629b3d3b52f5210dc3cfe8ce99d8d31277e2cbc7"
   }
 }
