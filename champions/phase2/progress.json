@@ -1,0 +1,36 @@
+{
+  "elapsed": 43203.937999999995,
+  "time_cap": 43200.0,
+  "generation": 47,
+  "round": 11396,
+  "matches": 2735040,
+  "samples": 91465755,
+  "updates": 184354,
+  "matches_per_s": 60.33182503770916,
+  "samples_per_s": 2100.8547008547625,
+  "recent_loss": 0.73176891207695,
+  "league_mix": {
+    "self": 0.5097619047619047,
+    "snapshot": 0.19412698412698412,
+    "calculating": 0.050873015873015875,
+    "aggressive": 0.053015873015873016,
+    "cautious": 0.047857142857142855,
+    "phase1": 0.0961111111111111,
+    "bluffer": 0.04825396825396826
+  },
+  "temperature": 0.05,
+  "profile_prior": 5.0,
+  "champion_generation": 28,
+  "promotions": 6,
+  "panel_version": 2,
+  "status": "ended",
+  "stop_reason": "time_cap",
+  "time_cap_extension": {
+    "version": 1,
+    "old_cap": 28800.0,
+    "new_cap": 43200.0,
+    "checkpoint_sha256": "984271787e7f324762ef76cffc6d9e2ac94c4e3f515019509cd2cde9fad90b0d",
+    "code_revision": "091fa387975e4411aacc37a25957a741dd6e0a69",
+    "timestamp": "2026-11-09T12:56:16.697409+00:00"
+  }
+}
