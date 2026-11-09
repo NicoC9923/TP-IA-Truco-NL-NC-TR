@@ -1,0 +1,19 @@
+PHASE 2 REAL RUN 1 (#29): PRE-REGISTERED RULE
+Written 2026-11-08, before the run, at code commit 64fdcf4 (feat/ia-entrenada). No retries, no reselection of checkpoints, no post-hoc threshold changes. Any deviation needs the user and is recorded here before it takes effect.
+
+Settings (all others are trainer defaults at 64fdcf4):
+- training seed 52001; check seed base 53000 (check schedules run consecutively from 53000). Both are outside RESERVED_SEEDS in proyecto/phase2_promotion.py, outside the default 10000-based schedules, and outside everything #28 used (42001-50017).
+- auxiliary head OFF (user decision, ADR 0054; card predictions come later from the #36 probe).
+- --temperature 0.05 (measuring-run rule, ADR 0041 amendment).
+- --profile-prior 5: the measuring run's pre-registered rule chose 5 (lowest held-out log loss of 20/10/5). The evidence is thin (15 scored opportunities) and does not show that 5 plays stronger; 5 is used because the rule said so (user decision, ADR 0045 amendment). Frozen panel members keep their own value (20).
+- --matches-per-generation 57120 (measuring-run rule, ADR 0044 amendment), --matches-per-round 240, --generations 1000 (effectively unbounded), --patience 40, --time-cap-seconds 28800 (8 h, checked at round boundaries).
+- --workers 12, --target mixed, default league, default panel v1 (experiments/phase2-selection-panel/panel-v1.json), default promotion thresholds (min gain 0.01, min direct 0.475, 100 panel pairs, 200 direct pairs).
+- output training_output/phase2 (git-ignored; shown live on /evolucion "Fase 2"); champion export champions/phase2/ (trainer default). Existing output is never overwritten.
+
+Stop: the trainer's own end-of-phase rule (patience, time cap or generations). If the PC interrupts the run, it is resumed with --resume <latest checkpoint> and identical settings (bit-identical by ADR 0042); a resume is not a retry.
+
+Publish step (after the run):
+- champions/phase2/ must hold reigning_champion.pt (weights only) AND its sidecar reigning_champion.json (generation, temperature 0.05, profile_prior 5). Without the sidecar a loader would fall back to prior 20 and the champion would play with inputs it never trained on.
+- copy generations.jsonl and progress.json next to it.
+
+Then, per ADR 0048 and #29: reference evaluation of the champion against Reactive and Adaptive Utility with adaptation on vs off. These are descriptive only (ADR 0021); their seeds are pre-registered in a separate rule file before they run.
