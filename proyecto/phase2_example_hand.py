@@ -62,6 +62,24 @@ def unavailable(reason):
     return {'available': False, 'reason': reason}
 
 
+def decision_trace(model, inputs, probabilities, action):
+    """Describe one policy decision using its exact encoded input and model."""
+    import torch
+    from phase1_network import ACTIONS
+    with torch.no_grad():
+        tensor = torch.as_tensor(inputs, dtype=torch.float32)
+        first = model.layers[:2](tensor)
+        second = model.layers[2:4](first)
+        values = model.layers[4](second)
+    return {
+        'input': tensor.tolist(), 'hidden_256': first.tolist(), 'hidden_128': second.tolist(),
+        'actions': [{'action': name, 'value': float(values[i]),
+                     'legal': name in probabilities, 'probability': probabilities.get(name)}
+                    for i, name in enumerate(ACTIONS)],
+        'chosen': action,
+    }
+
+
 def example_hand_payload(root, seed=SEED, directory=None):
     champion_path, temperature = find_run(root, directory=directory)
     if champion_path is None:
@@ -92,7 +110,11 @@ def example_hand_payload(root, seed=SEED, directory=None):
     opponent_path = Path(root) / OPPONENT_FILE
     if not opponent_path.is_file():
         return unavailable('no_opponent')
-    key = (_digest(champion_path), _digest(opponent_path), temperature, profile_prior, seed)
+    try:
+        champion_hash, opponent_hash = _digest(champion_path), _digest(opponent_path)
+    except OSError:
+        return unavailable('unreadable_champion')
+    key = (champion_hash, opponent_hash, temperature, profile_prior, metadata.get('generation'), seed)
     with _cache_lock:
         if key in _cache:
             return _cache[key]
@@ -109,27 +131,42 @@ def example_hand_payload(root, seed=SEED, directory=None):
         return unavailable('torch')
     except Exception:
         return unavailable('unreadable_champion')
-    top = []
+    recorded = []
+    captured = {}
+    def capture(inputs, action):
+        captured['inputs'] = inputs.copy()
+    policy.record_decision = capture
+    first_hand = True
+    last_history = -1
 
     def champion(observation, legal_actions):
+        nonlocal first_hand, last_history
+        history_size = len(observation['history'])
+        if history_size <= last_history:
+            first_hand = False
+        last_history = history_size
         action = policy(observation, legal_actions)
-        ranked = sorted(policy.last_probabilities.items(), key=lambda item: -item[1])[:3]
-        top.append([{'action': name, 'pct': round(100 * p, 1)} for name, p in ranked])
+        if first_hand:
+            probabilities = dict(policy.last_probabilities)
+            ranked = sorted(probabilities.items(), key=lambda item: -item[1])[:3]
+            recorded.append({'top': [{'action': name, 'pct': round(100 * p, 1)} for name, p in ranked],
+                             'trace': decision_trace(policy.model, captured['inputs'], probabilities, action)})
         return action
 
     rival = NetworkPolicy(np.load(opponent_path), seed=seed)
     result = play_match(champion, rival, seed=seed)
     hand = [d for d in result.decisions if d['hand_index'] == 0]
-    own = iter(top)
+    own = iter(recorded)
     steps = []
     for decision in hand:
         step = {'by': 'champion' if decision['player'] == 0 else 'rival', 'action': decision['action']}
         if decision['player'] == 0:
-            step['top'] = next(own)
+            step.update(next(own))
         steps.append(step)
     deal = result.deals[0]
     payload = {'available': True, 'seed': seed, 'temperature': temperature, 'opponent': OPPONENT_NAME,
-            'champion_hand': [_card(c) for c in deal[0]], 'opponent_hand': [_card(c) for c in deal[1]],
+            'model_sha256': champion_hash, 'generation': metadata.get('generation'), 'profile_prior': profile_prior, 'sample': 'illustrative',
+            'champion_hand': [_card(c) for c in deal[0]],
             'steps': steps}
     with _cache_lock:
         _cache.clear()

@@ -208,6 +208,60 @@ class ExampleHandTest(unittest.TestCase):
             self.assertTrue(all(0 <= p <= 100 for p in pcts))
         self.assertTrue(all('top' not in s for s in first['steps'] if s['by'] == 'rival'))
 
+    def test_trace_matches_synthetic_model_forward_and_policy_mask(self):
+        import numpy as np
+        import torch
+        from phase1_network import ACTIONS
+        from phase2_example_hand import decision_trace
+        from phase2_torch import Phase2Network
+        model = Phase2Network(seed=19)
+        inputs = np.linspace(-1, 1, 1628, dtype=np.float32)
+        probabilities = {ACTIONS[0]: 0.25, ACTIONS[3]: 0.75}
+        trace = decision_trace(model, inputs, probabilities, ACTIONS[3])
+        with torch.no_grad():
+            x = torch.from_numpy(inputs)
+            first = model.layers[:2](x)
+            second = model.layers[2:4](first)
+            values = model(x)
+        np.testing.assert_allclose(trace['input'], inputs)
+        np.testing.assert_allclose(trace['hidden_256'], first.numpy())
+        np.testing.assert_allclose(trace['hidden_128'], second.numpy())
+        np.testing.assert_allclose([item['value'] for item in trace['actions']], values.numpy())
+        self.assertEqual([len(trace[k]) for k in ('input', 'hidden_256', 'hidden_128', 'actions')], [1628, 256, 128, 12])
+        self.assertEqual(trace['chosen'], ACTIONS[3])
+        self.assertEqual([a['action'] for a in trace['actions'] if a['legal']], [ACTIONS[0], ACTIONS[3]])
+        self.assertTrue(all(a['probability'] is None for a in trace['actions'] if not a['legal']))
+
+    def test_sample_traces_belong_to_recorded_decisions(self):
+        from phase2_example_hand import example_hand_payload
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            (root / 'champions/phase2/reigning_champion.json').write_text('{"generation": 9, "temperature": 0.05, "profile_prior": 5}')
+            result = example_hand_payload(root, directory=root / 'champions/phase2')
+            self.assertEqual(result['generation'], 9)
+            self.assertEqual(len(result['model_sha256']), 64)
+            self.assertNotIn('opponent_hand', result)
+            import numpy as np
+            import torch
+            from phase2_torch import Phase2Network
+            model = Phase2Network.load(root / 'champions/phase2/reigning_champion.pt')
+            for step in result['steps']:
+                if step['by'] == 'champion':
+                    trace = step['trace']
+                    with torch.no_grad():
+                        x = torch.tensor(trace['input'], dtype=torch.float32)
+                        np.testing.assert_allclose(trace['hidden_256'], model.layers[:2](x).numpy(), atol=1e-6)
+                        np.testing.assert_allclose(trace['hidden_128'], model.layers[:4](x).numpy(), atol=1e-6)
+                        np.testing.assert_allclose([a['value'] for a in trace['actions']], model(x).numpy(), atol=1e-6)
+                    legal = [a for a in trace['actions'] if a['legal']]
+                    scores = np.array([a['value'] for a in legal]) / result['temperature']
+                    probs = np.exp(scores - scores.max()); probs /= probs.sum()
+                    np.testing.assert_allclose([a['probability'] for a in legal], probs, atol=1e-7)
+                    self.assertEqual(trace['chosen'], step['action'])
+                    self.assertEqual(len(trace['input']), 1628)
+                    self.assertAlmostEqual(sum(a['probability'] for a in trace['actions'] if a['legal']), 1)
+                    self.assertTrue(next(a['legal'] for a in trace['actions'] if a['action'] == trace['chosen']))
+
     def test_temperature_comes_from_the_same_run_as_the_champion(self):
         from phase2_example_hand import find_run
         with tempfile.TemporaryDirectory() as tmp:
