@@ -68,12 +68,26 @@ def example_hand_payload(root, seed=SEED):
         return unavailable('no_champion')
     try:
         metadata = json.loads((champion_path.parent / SIDECAR_FILE).read_text(encoding='utf-8'))
-    except (OSError, ValueError):
+        has_sidecar = True
+    except FileNotFoundError:
         metadata = {}
+        has_sidecar = False
+    except (OSError, ValueError):
+        return unavailable('invalid_champion_metadata')
     if not isinstance(metadata, dict):
         return unavailable('invalid_champion_metadata')
-    profile_prior = metadata.get('profile_prior', 20)
+    if 'temperature' in metadata and not _valid_temperature(metadata['temperature']):
+        return unavailable('invalid_champion_metadata')
+    try:
+        progress = json.loads((champion_path.parent / 'progress.json').read_text(encoding='utf-8'))
+        if not isinstance(progress, dict):
+            progress = {}
+    except (OSError, ValueError):
+        progress = {}
+    profile_prior = metadata.get('profile_prior', progress.get('profile_prior', 20))
     if not _valid_temperature(profile_prior):
+        return unavailable('invalid_champion_metadata')
+    if not has_sidecar and profile_prior != 20:
         return unavailable('invalid_champion_metadata')
     opponent_path = Path(root) / OPPONENT_FILE
     if not opponent_path.is_file():
@@ -84,15 +98,13 @@ def example_hand_payload(root, seed=SEED):
             return _cache[key]
     try:
         import numpy as np
-        import torch
         from phase1_network import NetworkPolicy
         from phase2_torch import Phase2Network, Phase2Policy
         from symmetric_engine import play_match
     except ImportError:
         return unavailable('torch')
-    model = Phase2Network()
     try:
-        model.load_state_dict(torch.load(champion_path, map_location='cpu', weights_only=True))
+        model = Phase2Network.load(champion_path)
     except Exception:
         return unavailable('unreadable_champion')
     model.eval()

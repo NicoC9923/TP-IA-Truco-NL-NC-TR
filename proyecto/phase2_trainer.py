@@ -325,7 +325,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
     promotions = 0
     if log_path is not None and Path(log_path).exists():
         promotions = sum(bool(json.loads(x).get('promoted')) for x in Path(log_path).read_text(encoding='utf-8').splitlines() if x)
-    reporter = ProgressReporter(progress_path, console, time_cap_seconds, temperature, promotions)
+    reporter = ProgressReporter(progress_path, console, time_cap_seconds, temperature, promotions, profile_prior=profile_prior)
     last_round = min(rounds, stop_after_round or rounds)
     context = mp.get_context('spawn')
     pool_context = context.Pool(workers, initializer=_configure_threads) if workers > 1 else nullcontext(None)
@@ -543,7 +543,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         raise ValueError('profile_prior must be positive and finite')
     if min(generations, matches_per_generation, matches_per_round, block_size) < 1:
         raise ValueError('Generation and match counts must be positive')
-    if min(panel_pairs, head_to_head_pairs) < 2 or temperature <= 0 or min(patience, time_cap_seconds, saturation_checks, saturation_pairs) <= 0:
+    if min(panel_pairs, head_to_head_pairs) < 2 or not math.isfinite(temperature) or temperature <= 0 or min(patience, time_cap_seconds, saturation_checks, saturation_pairs) <= 0:
         raise ValueError('Invalid selection configuration')
     if panel_path and (check_seed_base < 0 or any(check_seed_base <= seed <= check_seed_base + max(0, generations - 2) for seed in RESERVED_SEEDS)):
         raise ValueError('reserved schedule seed in requested checks')

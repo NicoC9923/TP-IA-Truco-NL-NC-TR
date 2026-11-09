@@ -104,6 +104,53 @@ class Phase1SourceTest(unittest.TestCase):
 
 
 class ExampleHandTest(unittest.TestCase):
+    def test_invalid_sidecar_temperature_is_unavailable(self):
+        import json
+        from phase2_example_hand import example_hand_payload
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            folder = root / 'champions/phase2'
+            (folder / 'progress.json').write_text('{"temperature": 0.4}')
+            for value in (0, -1, float('nan'), float('inf'), None, '0.1'):
+                with self.subTest(value=value):
+                    (folder / 'reigning_champion.json').write_text(json.dumps({'temperature': value}))
+                    self.assertEqual(example_hand_payload(root)['reason'], 'invalid_champion_metadata')
+
+    def test_auxiliary_champion_is_playable(self):
+        from phase2_example_hand import example_hand_payload
+        from phase2_torch import Phase2Network
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            Phase2Network(seed=3, auxiliary=True).save(root / 'champions/phase2/reigning_champion.pt')
+            self.assertTrue(example_hand_payload(root)['available'])
+
+    def test_progress_prior_fallback_and_missing_sidecar_guard(self):
+        from unittest.mock import patch
+        from phase2_example_hand import example_hand_payload
+        from phase2_torch import Phase2Policy
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_root(tmp)
+            folder = root / 'champions/phase2'
+            sidecar = folder / 'reigning_champion.json'
+            progress = folder / 'progress.json'
+            sidecar.write_text('{"temperature": 0.3}')
+            progress.write_text('{"temperature": 0.4, "profile_prior": 5}')
+            with patch('phase2_torch.Phase2Policy', wraps=Phase2Policy) as policy:
+                self.assertTrue(example_hand_payload(root)['available'])
+                self.assertEqual(policy.call_args.kwargs['profile_prior'], 5)
+                self.assertEqual(policy.call_args.kwargs['temperature'], .3)
+                progress.write_text('{"temperature": 0.4, "profile_prior": 7}')
+                self.assertTrue(example_hand_payload(root)['available'])
+                self.assertEqual(policy.call_args.kwargs['profile_prior'], 7)
+                sidecar.write_text('{"profile_prior": 5}')
+                self.assertTrue(example_hand_payload(root)['available'])
+                self.assertEqual(policy.call_args.kwargs['profile_prior'], 5)
+                sidecar.unlink()
+                self.assertEqual(example_hand_payload(root)['reason'], 'invalid_champion_metadata')
+                progress.write_text('{"temperature": 0.4, "profile_prior": 20}')
+                self.assertTrue(example_hand_payload(root)['available'])
+                self.assertEqual(policy.call_args.kwargs['profile_prior'], 20)
+
     def setUp(self):
         try:
             import torch  # noqa: F401

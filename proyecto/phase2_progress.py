@@ -55,11 +55,12 @@ def write_json_atomic(path, payload, attempts=5):
 
 
 class ProgressReporter:
-    def __init__(self, path=None, console=None, time_cap=None, temperature=None, promotions=0, wall=time.monotonic):
+    def __init__(self, path=None, console=None, time_cap=None, temperature=None, promotions=0, wall=time.monotonic, profile_prior=20):
         self.path = Path(path) if path else None
         self.console = console
         self.time_cap = time_cap
         self.temperature = temperature
+        self.profile_prior = profile_prior
         self.promotions = promotions
         self.wall = wall
         self.window = deque(maxlen=RATE_WINDOW + 1)
@@ -81,7 +82,7 @@ class ProgressReporter:
                 elapsed=elapsed, time_cap=self.time_cap, generation=generation, round=round,
                 matches=matches, samples=samples, updates=updates,
                 matches_per_s=matches_per_s, samples_per_s=samples_per_s, recent_loss=recent_loss,
-                league_mix=mix, temperature=self.temperature, champion_generation=champion_generation,
+                league_mix=mix, temperature=self.temperature, profile_prior=self.profile_prior, champion_generation=champion_generation,
                 promotions=self.promotions, panel_version=panel_version,
                 status='ended' if ended else 'training', stop_reason=stop_reason))
             if not ok and not self.warned:

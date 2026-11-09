@@ -22,6 +22,14 @@ def make_config(root):
 
 
 class ProgressFileTest(unittest.TestCase):
+    def test_progress_records_run_prior_and_temperature(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            train(root / 'run', profile_prior=5, temperature=.3, **make_config(root))
+            progress = json.loads((root / 'run/progress.json').read_text(encoding='utf-8'))
+        self.assertEqual(progress['profile_prior'], 5)
+        self.assertEqual(progress['temperature'], .3)
+
     def test_file_is_valid_after_every_round_with_expected_fields(self):
         snapshots = []
         original = ProgressReporter.round_done

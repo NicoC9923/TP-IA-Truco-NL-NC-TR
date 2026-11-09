@@ -6,6 +6,15 @@ from phase2_trainer import train
 
 
 class TrainerPriorTests(unittest.TestCase):
+    def test_nonfinite_temperature_is_rejected_before_run_creation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for index, value in enumerate((float('nan'), float('inf'), float('-inf'))):
+                with self.subTest(value=value):
+                    output = Path(directory) / str(index)
+                    with self.assertRaises(ValueError):
+                        train(output, temperature=value, panel_path=None)
+                    self.assertFalse(output.exists())
+
     def test_checkpoint_prior_and_legacy_resume(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
