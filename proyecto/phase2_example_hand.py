@@ -99,16 +99,16 @@ def example_hand_payload(root, seed=SEED):
     try:
         import numpy as np
         from phase1_network import NetworkPolicy
-        from phase2_torch import Phase2Network, Phase2Policy
+        from phase2_loader import load_phase2_policy
         from symmetric_engine import play_match
     except ImportError:
         return unavailable('torch')
     try:
-        model = Phase2Network.load(champion_path)
+        policy = load_phase2_policy(champion_path, seed=seed, metadata={'temperature': temperature, 'profile_prior': profile_prior})
+    except ImportError:
+        return unavailable('torch')
     except Exception:
         return unavailable('unreadable_champion')
-    model.eval()
-    policy = Phase2Policy(model, seed=seed, temperature=temperature, profile_prior=profile_prior)
     top = []
 
     def champion(observation, legal_actions):
