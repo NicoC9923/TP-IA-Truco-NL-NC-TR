@@ -20,16 +20,13 @@ def check_seed(base, check):
 def promotion_decision(challenger, champion, direct, min_gain=.01, min_direct=.475):
     if not challenger or challenger.keys() != champion.keys() or not direct:
         raise ValueError('missing panel or direct results')
-    means, variances = [], []
-    for name, scores in challenger.items():
-        other = champion[name]
-        if len(scores) != len(other) or len(scores) < 2:
-            raise ValueError('paired results require at least two matching deals')
-        differences = [a-b for a, b in zip(scores, other)]
-        means.append(statistics.mean(differences))
-        variances.append(statistics.variance(differences) / len(differences))
-    gain = statistics.mean(means)
-    margin = 1.96 * math.sqrt(sum(variances)) / len(means)
+    counts = {len(scores) for panel in (challenger, champion) for scores in panel.values()}
+    if len(counts) != 1 or next(iter(counts)) < 2:
+        raise ValueError('paired results require at least two matching deals per member')
+    differences = [statistics.mean(challenger[name][i] - champion[name][i] for name in challenger)
+                   for i in range(next(iter(counts)))]
+    gain = statistics.mean(differences)
+    margin = 1.96 * math.sqrt(statistics.variance(differences) / len(differences))
     lower = gain - margin
     rate = statistics.mean(direct)
     return {'gain': gain, 'lower_bound': lower, 'upper_bound': gain + margin,

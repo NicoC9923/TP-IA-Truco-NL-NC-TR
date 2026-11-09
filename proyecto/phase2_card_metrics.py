@@ -57,7 +57,7 @@ def _validation_situations(schedule_seed, target, temperature, situation_count, 
     for match_index, (deal_seed, match_target) in enumerate(schedule):
         policies = [_ValidationPolicy(model, seed=201 + 2 * match_index + seat,
                                       temperature=temperature, profile_prior=profile_prior) for seat in range(2)]
-        result = play_match(*policies, seed=deal_seed, target=match_target)
+        result = play_match(*policies, seed=deal_seed, target=match_target, deal_partition=0)
         offsets = [0, 0]
         candidates = []
         for decision in result.decisions:

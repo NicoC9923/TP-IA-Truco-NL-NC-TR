@@ -7,6 +7,9 @@ from functools import lru_cache
 from pathlib import Path
 import truco_reglas as rules
 
+# Version 2 records acceptance when raising a pending truco.
+ENGINE_VERSION = 2
+
 @lru_cache(maxsize=1)
 def _percentiles():
     with Path(__file__).with_name('truco_stats.json').open(encoding='utf-8') as file:
@@ -97,6 +100,9 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
                 accepted = previous + (2 if action == 'envido' else 3 if action == 'real_envido' else 0)
                 pending = {'kind': 'envido', 'caller': actor, 'call': call, 'accepted': accepted, 'declined': max(1, previous)}
             elif action in ('truco', 'retruco', 'vale_cuatro'):
+                if pending and pending['kind'] == 'truco':
+                    truco = pending['level']
+                    raise_owner = actor
                 level = {'truco': 2, 'retruco': 3, 'vale_cuatro': 4}[action]
                 pending = {'kind': 'truco', 'caller': actor, 'level': level}
             elif action in ('quiero', 'no_quiero'):
@@ -171,9 +177,9 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
     return MatchResult(score.index(max(score)), tuple(score), decisions, deals)
 
 
-def play_mirror_pair(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0)):
-    return (play_match(policy_a, policy_b, seed=seed, target=target, starting_score=starting_score),
-            play_match(policy_b, policy_a, seed=seed, target=target, starting_score=starting_score[::-1]))
+def play_mirror_pair(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), deal_partition=None):
+    return (play_match(policy_a, policy_b, seed=seed, target=target, starting_score=starting_score, deal_partition=deal_partition),
+            play_match(policy_b, policy_a, seed=seed, target=target, starting_score=starting_score[::-1], deal_partition=deal_partition))
 
 
 

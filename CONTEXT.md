@@ -215,3 +215,10 @@ The signed result of playing an available card against the opposing card in the 
 
 **Pending envido stakes**:
 The points payable if a pending envido is accepted or declined, including the winner-dependent falta envido amount.
+
+## Confirmed training-engine rule decisions
+
+- Truco and raises may be called only on the caller's own card turn, or as an answer to a pending bet. Calling between card turns, which the human game allows, is not modeled.
+- "El envido va primero" is allowed as an answer to the first truco, even after the answering player has played their first card, as long as no trick is complete. This matches the human game.
+
+These are deliberate training-engine simplifications; see ADR 0055.

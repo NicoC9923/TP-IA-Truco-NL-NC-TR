@@ -20,6 +20,8 @@ import truco_reglas as rules
 from phase1_network import ACTIONS, encode_observation as encode_v3
 from opponent_inference import inference_from_observation
 
+ENCODER_VERSION = 1
+
 EVENT_SIZE = 59
 MAX_EVENTS = 24
 INDEX = {'summary': slice(0, 64), 'confidence': slice(64, 68),

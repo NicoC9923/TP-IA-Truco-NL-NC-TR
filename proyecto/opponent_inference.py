@@ -54,12 +54,17 @@ class Inference:
             return
         self._summary_cache = None
         self.played.update(played)
-        self.weights = {h: w for h, w in self.weights.items() if not excluded.intersection(h) and played.issubset(h)}
+        if excluded:
+            self.weights = {h: w for h, w in self.weights.items() if not excluded.intersection(h) and played.issubset(h)}
+        else:
+            self.weights = {h: w for h, w in self.weights.items() if played.issubset(h)}
 
     def truco_call(self, bluff_rate):
         if not 0 <= bluff_rate <= 1:
             raise ValueError('Bluff rate must be between zero and one')
         self._summary_cache = None
+        if bluff_rate == 1.0:
+            return
         for hand in self.weights:
             strength = _strength(hand) / 24.7
             self.weights[hand] *= bluff_rate + (1 - bluff_rate) * (0.1 + strength)

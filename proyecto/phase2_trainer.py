@@ -1,5 +1,7 @@
 """Synchronous self-play and Monte Carlo learning for phase 2."""
 import os
+import pickle
+import tempfile
 for _name in ('OMP_NUM_THREADS', 'MKL_NUM_THREADS', 'OPENBLAS_NUM_THREADS'):
     os.environ[_name] = '1'
 import argparse
@@ -8,6 +10,7 @@ import hashlib
 import statistics
 import json
 import math
+import numbers
 import random
 import sys
 import time
@@ -21,11 +24,56 @@ import torch
 from phase1_network import ACTIONS, NetworkPolicy
 from phase2_torch import Phase2Network, Phase2Policy, combination_scores
 from opponent_inference import compact_evidence, compatible_mask, _IDS, _CARD_IDS, _HAND_IDS, _DECK
-from symmetric_engine import play_match, play_mirror_pair
+from symmetric_engine import ENGINE_VERSION, play_match, play_mirror_pair
+from phase2_network import ENCODER_VERSION
 from validation_schedule import validation_schedule
 from phase2_league import retain_snapshots, panel_exclusions, draw_opponent, load_phase1_manifest, validate_shares, DEFAULT_SHARES
 from phase2_progress import ProgressReporter, PROGRESS_FILE
 from phase2_promotion import load_panel, check_seed, promotion_decision, saturated, build_panel, RESERVED_SEEDS
+
+def _champion_metadata(generation, temperature, profile_prior):
+    return {'generation': generation, 'temperature': temperature, 'profile_prior': profile_prior}
+
+
+def _atomic_champion_file(path, write):
+    path = Path(path)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode='w+b', dir=path.parent, prefix='.champion-', delete=False) as stream:
+            temporary = Path(stream.name)
+            write(stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def _export_champion(directory, weights, generation, temperature, profile_prior):
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    metadata = _champion_metadata(generation, temperature, profile_prior)
+    _atomic_champion_file(directory / 'reigning_champion.pt', lambda stream: torch.save(weights, stream))
+    _atomic_champion_file(directory / 'reigning_champion.json',
+                          lambda stream: stream.write((json.dumps(metadata) + '\n').encode('utf-8')))
+
+
+def _reconcile_champion(directory, weights, generation, temperature, profile_prior):
+    directory = Path(directory)
+    try:
+        metadata = json.loads((directory / 'reigning_champion.json').read_text(encoding='utf-8'))
+        exported = torch.load(directory / 'reigning_champion.pt', map_location='cpu', weights_only=True)
+        correct = (metadata == _champion_metadata(generation, temperature, profile_prior)
+                   and isinstance(exported, dict) and exported.keys() == weights.keys()
+                   and all(torch.is_tensor(exported[k]) and exported[k].dtype == value.dtype
+                           and torch.equal(exported[k], value)
+                           for k, value in weights.items()))
+    except (OSError, ValueError, RuntimeError, EOFError, pickle.UnpicklingError, TypeError):
+        correct = False
+    if not correct:
+        _export_champion(directory, weights, generation, temperature, profile_prior)
+
 
 def _configure_threads():
     torch.set_num_threads(1)
@@ -46,7 +94,7 @@ class RecordingPolicy(Phase2Policy):
         self.samples.append((inputs, ACTIONS.index(action)))
 
 def training_seed(seed, match_id):
-    """Odd training deal seeds cannot overlap the even validation schedule."""
+    """Assign a distinct deterministic seed to each training match."""
     # Cantor pairing is injective, unlike a truncated hash of the identifiers.
     diagonal = seed + match_id
     return 2 * (diagonal * (diagonal + 1) // 2 + match_id) + 1
@@ -66,7 +114,7 @@ def _matches(args):
         seeds = np.random.SeedSequence([seed, match_id, 1]).generate_state(2)
         policies = [RecordingPolicy(model, seed=int(seeds[i])) for i in range(2)]
         match_target, score = match_settings(seed, match_id, target, random_start_share)
-        result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score)
+        result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score, deal_partition=1)
         samples = [(x, action, 1.0 if seat == result.winner else -1.0, seat)
                    for seat, policy in enumerate(policies) for x, action in policy.samples]
         if hasattr(model, 'card_head'):
@@ -129,7 +177,7 @@ def _league_block(args):
                 policy.samples = []
             policy.rng = np.random.default_rng(np.random.SeedSequence([seed, match_id, 1, policies.index(policy)]))
         match_target, score = match_settings(seed, match_id, target, random_start_share)
-        result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score)
+        result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score, deal_partition=1)
         samples = [(x, action, 1.0 if seat == result.winner else -1.0, seat)
                    for seat, policy in enumerate(policies) if isinstance(policy, RecordingPolicy)
                    for x, action in policy.samples]
@@ -164,7 +212,7 @@ def _check_pair(job):
             return Phase2Policy(model, seed=seed, temperature=temperature, profile_prior=spec.get('profile_prior', 20))
         return NetworkPolicy(spec['weights'], seed=seed, encoder=spec['encoder'])
     a, b = policy(challenger, action_seed), policy(opponent, action_seed + 1)
-    first, second = play_mirror_pair(a, b, seed=deal_seed, target=target)
+    first, second = play_mirror_pair(a, b, seed=deal_seed, target=target, deal_partition=0)
     return ((first.winner == 0) + (second.winner == 1)) / 2
 
 def _check_chunk(job):
@@ -358,7 +406,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
             last = [sample for _, samples in sorted(results) for sample in samples]
             total += len(last)
             generation_samples += len(last)
-            for indices in np.array_split(rng.permutation(len(last)), range(minibatch, len(last), minibatch)):
+            for indices in (np.array_split(rng.permutation(len(last)), range(minibatch, len(last), minibatch)) if last else ()):
                 x = torch.from_numpy(np.stack([last[i][0] for i in indices]))
                 actions = torch.tensor([last[i][1] for i in indices])
                 targets = torch.tensor([last[i][2] for i in indices])
@@ -388,7 +436,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 entry = dict(phase=2, generation=(round_id + 1) // generation_rounds,
                              matches=generation_rounds * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
-                             mean_loss=sum(losses) / len(losses), elapsed_seconds=clock() - started,
+                             mean_loss=sum(losses) / len(losses) if losses else None, elapsed_seconds=clock() - started,
                              league_mix=dict(league_mix), phase1_opponents=dict(phase1_counts), neutral_blocks=neutral_blocks, style_offset_round_end=style_target * min(1, ((round_id + 1) * matches_per_round) / style_ramp_matches) if style_ramp_matches else style_target,
                              check=None, promoted=False,
                              phase_ended=False, stop_reason=None, measuring_only=bool(panel and panel.get('measuring_only')), fitness=None, behavior=None,
@@ -454,9 +502,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     entry['phase_ended'] = entry['stop_reason'] is not None
                     round_stop = entry['stop_reason']
                     if changed and panel is not None and champions_dir is not None:
-                        Path(champions_dir).mkdir(parents=True, exist_ok=True)
-                        torch.save(champion, Path(champions_dir) / 'reigning_champion.pt')
-                        (Path(champions_dir) / 'reigning_champion.json').write_text(json.dumps({'generation': champion_generation, 'temperature': temperature, 'profile_prior': profile_prior}) + chr(10), encoding='utf-8')
+                        _export_champion(champions_dir, champion, champion_generation, temperature, profile_prior)
                 if auxiliary:
                     from phase2_card_metrics import validation_predictions
                     entry['card_prediction'] = validation_predictions(model, schedule_seed=check_seed_base, target=target, temperature=temperature, situation_count=card_prediction_situations, profile_prior=profile_prior)
@@ -480,7 +526,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 entry = dict(phase=2, generation=(round_id + 1) // generation_rounds + 1,
                              matches=(round_id + 1) % generation_rounds * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
-                             mean_loss=sum(losses) / len(losses), elapsed_seconds=clock() - started,
+                             mean_loss=sum(losses) / len(losses) if losses else None, elapsed_seconds=clock() - started,
                              league_mix=dict(league_mix), phase1_opponents=dict(phase1_counts), neutral_blocks=neutral_blocks, style_offset_round_end=style_target * min(1, ((round_id + 1) * matches_per_round) / style_ramp_matches) if style_ramp_matches else style_target,
                              check=None, promoted=False, phase_ended=True,
                              stop_reason='time_cap', measuring_only=bool(panel and panel.get('measuring_only')), fitness=None, behavior=None, diversity=None,
@@ -539,6 +585,26 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
           check_seed_base=10000, temperature=.1, profile_prior=20, min_gain=.01, min_direct=.475,
           patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400):
     """Round match counts up to complete blocks and generations to complete rounds."""
+    positive_counts = (generations, matches_per_generation, matches_per_round, workers,
+                       minibatch, patience, saturation_checks, saturation_pairs, block_size,
+                       card_prediction_situations)
+    nonnegative_counts = (seed, check_seed_base, pool_recent, pool_diverse, style_ramp_matches)
+    if (any(not isinstance(value, numbers.Integral) or value < 1 for value in positive_counts)
+            or any(not isinstance(value, numbers.Integral) or value < 0 for value in nonnegative_counts)
+            or any(not isinstance(value, numbers.Integral) or value < 2 for value in (panel_pairs, head_to_head_pairs))
+            or (stop_after_round is not None and (not isinstance(stop_after_round, numbers.Integral) or stop_after_round < 1))
+            or (target != 'mixed' and (not isinstance(target, numbers.Integral) or target < 1))):
+        raise ValueError('Invalid training counts')
+    finite_settings = (time_cap_seconds, min_gain, min_direct, saturation_threshold,
+                       style_target, neutral_rate, lr, random_start_share, temperature,
+                       profile_prior, auxiliary_weight)
+    if (not all(math.isfinite(value) for value in finite_settings)
+            or time_cap_seconds <= 0 or lr <= 0 or temperature <= 0 or profile_prior <= 0
+            or not 0 <= min_gain <= 1 or not 0 <= min_direct <= 1
+            or not 0 <= saturation_threshold <= 1 or style_target < 0
+            or not 0 <= neutral_rate <= 1 or not 0 <= random_start_share <= 1
+            or auxiliary_weight < 0):
+        raise ValueError('Invalid finite training configuration')
     if not math.isfinite(profile_prior) or profile_prior <= 0:
         raise ValueError('profile_prior must be positive and finite')
     if min(generations, matches_per_generation, matches_per_round, block_size) < 1:
@@ -567,7 +633,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                     entry['profile_prior'] = prior
             members.append(entry)
         panel_config = {'version': panel['version'], 'measuring_only': bool(panel.get('measuring_only')), 'members': members}
-    config = dict(block_size=block_size, league_shares=validate_shares(league_shares), phase1_manifest=[{k: m[k] for k in ('name', 'encoder', 'sha256')} for m in load_phase1_manifest(phase1_manifest)], style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, pool_recent=pool_recent, pool_diverse=pool_diverse, patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=panel_config,
+    config = dict(engine_version=ENGINE_VERSION, encoder_version=ENCODER_VERSION, block_size=block_size, league_shares=validate_shares(league_shares), phase1_manifest=[{k: m[k] for k in ('name', 'encoder', 'sha256')} for m in load_phase1_manifest(phase1_manifest)], style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, pool_recent=pool_recent, pool_diverse=pool_diverse, patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=panel_config,
                   panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs,
                   check_seed_base=check_seed_base, temperature=temperature, min_gain=min_gain, min_direct=min_direct,
                   matches_per_generation=matches_per_generation,
@@ -592,6 +658,8 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
             old_config.pop('profile_prior', None)
     if state is not None and old_config != config:
         raise ValueError('Checkpoint configuration does not match')
+    if state is not None and state.get('panel') is not None and champions_dir is not None and state.get('champion_weights') is not None:
+        _reconcile_champion(champions_dir, state['champion_weights'], state['champion_generation'], temperature, profile_prior)
     if state is not None and state.get('phase_ended'):
         return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations, profile_prior=profile_prior)
     output.mkdir(parents=True, exist_ok=True)
