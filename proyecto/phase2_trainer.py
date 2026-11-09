@@ -228,8 +228,19 @@ def _check_pair(job):
         if spec['kind'] == 'phase1':
             return NetworkPolicy(spec['weights'], seed=seed, encoder=spec['encoder'])
         raise ValueError('invalid panel member kind')
-    a, b = policy(challenger, action_seed), policy(opponent, action_seed + 1)
-    first, second = play_mirror_pair(a, b, seed=deal_seed, target=target, deal_partition=0)
+    if challenger['kind'] != 'reference' and opponent['kind'] != 'reference':
+        a, b = policy(challenger, action_seed), policy(opponent, action_seed + 1)
+        first, second = play_mirror_pair(a, b, seed=deal_seed, target=target, deal_partition=0)
+    else:
+        # Keep network state across the pair, but give each reference seat its own stream.
+        a = None if challenger['kind'] == 'reference' else policy(challenger, action_seed)
+        b = None if opponent['kind'] == 'reference' else policy(opponent, action_seed + 1)
+        first = play_match(a if a is not None else policy(challenger, 2 * action_seed),
+                           b if b is not None else policy(opponent, 2 * action_seed + 1),
+                           seed=deal_seed, target=target, deal_partition=0)
+        second = play_match(b if b is not None else policy(opponent, 2 * action_seed),
+                            a if a is not None else policy(challenger, 2 * action_seed + 1),
+                            seed=deal_seed, target=target, deal_partition=0)
     return ((first.winner == 0) + (second.winner == 1)) / 2
 
 def _check_chunk(job):
@@ -314,9 +325,13 @@ def _held_out_hashes(path):
     return set(hashes)
 
 
-def _reject_held_out(members, hashes, base=None):
+def _reject_held_out(members, hashes, base=None, allow_references=False):
     for member in members:
-        if member.get('kind') == 'reference':
+        if member.get('kind') == 'reference' and 'path' not in member and 'sha256' not in member:
+            agent = member.get('agent')
+            if (not allow_references or agent not in REFERENCE_IDENTITIES
+                    or member.get('identity', REFERENCE_IDENTITIES[agent]) != REFERENCE_IDENTITIES[agent]):
+                raise ValueError('invalid reference panel member')
             continue
         digest = member.get('sha256')
         if digest in hashes:
@@ -808,7 +823,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
     held_out = _held_out_hashes(held_out_manifest)
     panel = load_panel(panel_path) if panel_path else None
     if panel:
-        _reject_held_out(panel['members'], held_out)
+        _reject_held_out(panel['members'], held_out, allow_references=True)
     if panel is not None:
         for member in panel['members']:
             if member['kind'] == 'reference':
@@ -866,7 +881,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
     if state is not None and held_out_manifest is not None:
         for saved_panel in [state.get('panel'), *state.get('panel_history', [])]:
             if saved_panel:
-                _reject_held_out(saved_panel.get('members', []), held_out, output)
+                _reject_held_out(saved_panel.get('members', []), held_out, output, allow_references=True)
         for key in ('league_pool', 'panel_snapshots'):
             _reject_held_out(state.get(key, []), held_out, output)
     old_config = dict(state['config']) if state is not None else None

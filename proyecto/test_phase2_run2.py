@@ -96,3 +96,17 @@ class HeldOutTest(unittest.TestCase):
                     train(root / 'run', generations=1, matches_per_generation=1,
                           matches_per_round=1, block_size=1, target=1, panel_path=None,
                           champions_dir=None, progress=False, held_out_manifest=held)
+
+    def test_reference_kind_cannot_disguise_held_out_phase1_file(self):
+        held = Path('experiments/phase2-run2/held-out.json')
+        source = Path('experiments/phase1-seed1/reigning_champion.npy').resolve()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sha = hashlib.sha256(source.read_bytes()).hexdigest()
+            manifest = root / 'phase1.json'
+            manifest.write_text(json.dumps({'members': [{'name': 'disguised', 'path': str(source),
+                                'kind': 'reference', 'encoder': 'v1', 'sha256': sha}]}))
+            with self.assertRaises(ValueError):
+                train(root / 'run', generations=1, matches_per_generation=1, matches_per_round=1,
+                      block_size=1, target=1, panel_path=None, champions_dir=None, progress=False,
+                      phase1_manifest=manifest, held_out_manifest=held)

@@ -193,3 +193,27 @@ class ReferencePanelTest(unittest.TestCase):
             torch.save(state, checkpoint)
             with self.assertRaisesRegex(ValueError, 'configuration'):
                 train(root / 'run', resume=checkpoint, **cfg)
+
+    def test_reference_is_fresh_and_seeded_independently_for_each_mirrored_seat(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from phase2_torch import Phase2Network
+        from phase2_trainer import _check_pair
+        network = {'kind': 'phase2', 'weights': Phase2Network(seed=4).state_dict()}
+        reference = {'kind': 'reference', 'agent': 'adaptive_utility'}
+        observations = []
+        def inspect(a, b, **kwargs):
+            ref = b if hasattr(b, 'agent') else a
+            seat = 1 if ref is b else 0
+            observations.append((ref, seat, ref.agent.rng.getstate()))
+            for _ in range(20 if seat else 1):
+                ref.agent.rng.random()
+            return SimpleNamespace(winner=0)
+        with patch('phase2_trainer.play_match', side_effect=inspect), patch('symmetric_engine.play_match', side_effect=inspect):
+            _check_pair((network, reference, 10000, 15, 77, .1))
+            _check_pair((network, reference, 10000, 15, 77, .1))
+        self.assertEqual([x[1] for x in observations], [1, 0, 1, 0])
+        self.assertIsNot(observations[0][0], observations[1][0])
+        self.assertEqual(observations[0][2], observations[2][2])
+        self.assertEqual(observations[1][2], observations[3][2])
+        self.assertNotEqual(observations[0][2], observations[1][2])

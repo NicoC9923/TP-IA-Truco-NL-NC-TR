@@ -14,6 +14,8 @@ def load_phase1_manifest(path):
     path = Path(path)
     members = json.loads(path.read_text(encoding='utf-8'))['members']
     for member in members:
+        if member.get('kind', 'phase1') != 'phase1':
+            raise ValueError('invalid phase 1 league member kind')
         file = (path.parent / member['path']).resolve()
         if hashlib.sha256(file.read_bytes()).hexdigest() != member['sha256']:
             raise ValueError(f"Hash mismatch for {member['name']}")
