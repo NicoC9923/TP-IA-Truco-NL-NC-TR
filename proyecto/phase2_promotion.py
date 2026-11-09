@@ -4,6 +4,7 @@ import json
 import math
 import statistics
 from pathlib import Path
+from phase2_league import REFERENCE_IDENTITIES
 
 RESERVED_SEEDS = frozenset([0, 1, 2, 3, 777, 4242, 9001, 9002, 9101, 9201, 9202, *range(9211, 9217), 9221, 9222, *range(9301, 9329)])
 
@@ -73,6 +74,11 @@ def load_panel(path):
     if not panel.get('members'):
         raise ValueError('empty panel')
     for member in panel['members']:
+        if member.get('kind') == 'reference':
+            if (member.get('agent') not in REFERENCE_IDENTITIES or 'path' in member or 'sha256' in member
+                    or member.get('identity', REFERENCE_IDENTITIES.get(member.get('agent'))) != REFERENCE_IDENTITIES.get(member.get('agent'))):
+                raise ValueError('invalid reference panel member')
+            continue
         # Phase 2 uses its own encoder; older saved panels used v1 as a placeholder.
         valid_encoders = {'phase1': ('v1', 'v2', 'v3'), 'phase2': ('phase2', 'v1')}
         if member.get('encoder') not in valid_encoders.get(member.get('kind'), ()):

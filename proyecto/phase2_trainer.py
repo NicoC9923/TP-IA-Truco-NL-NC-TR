@@ -221,8 +221,13 @@ def _check_pair(job):
         if spec['kind'] == 'phase2':
             model = Phase2Network(auxiliary='card_head.0.weight' in spec['weights'])
             model.load_state_dict(spec['weights'])
-            return Phase2Policy(model, seed=seed, temperature=temperature, profile_prior=spec.get('profile_prior', 20))
-        return NetworkPolicy(spec['weights'], seed=seed, encoder=spec['encoder'])
+            return Phase2Policy(model, seed=seed, temperature=spec.get('temperature', temperature), profile_prior=spec.get('profile_prior', 20))
+        if spec['kind'] == 'reference':
+            from engine_policies import reference_policy
+            return reference_policy(spec['agent'], seed)
+        if spec['kind'] == 'phase1':
+            return NetworkPolicy(spec['weights'], seed=seed, encoder=spec['encoder'])
+        raise ValueError('invalid panel member kind')
     a, b = policy(challenger, action_seed), policy(opponent, action_seed + 1)
     first, second = play_mirror_pair(a, b, seed=deal_seed, target=target, deal_partition=0)
     return ((first.winner == 0) + (second.winner == 1)) / 2
@@ -235,11 +240,17 @@ def _check_chunk(job):
 def _panel_jobs(panel, candidates, schedule_seed, pairs, target, temperature, workers):
     jobs, keys = [], []
     for member in panel['members']:
-        opponent = {'kind': member['kind'], 'encoder': member['encoder']}
+        opponent = {'kind': member['kind']}
+        if member['kind'] == 'reference':
+            opponent['agent'] = member['agent']
+        else:
+            opponent['encoder'] = member['encoder']
+            opponent['weights'] = (torch.load(member['resolved_path'], map_location='cpu', weights_only=True)
+                                   if member['kind'] == 'phase2' else np.load(member['resolved_path']))
         if member['kind'] == 'phase2':
             opponent['profile_prior'] = member.get('profile_prior', 20)
-        opponent['weights'] = (torch.load(member['resolved_path'], map_location='cpu', weights_only=True)
-                               if member['kind'] == 'phase2' else np.load(member['resolved_path']))
+            if 'temperature' in member:
+                opponent['temperature'] = member['temperature']
         for label, candidate in candidates:
             deals = [(deal, t, schedule_seed * 100000 + i * 2)
                      for i, (deal, t) in enumerate(validation_schedule(schedule_seed, target, pairs))]
@@ -288,6 +299,10 @@ def _portable(value):
 
 def _resolve_panel(panel, base):
     for member in panel['members']:
+        if member['kind'] == 'reference':
+            if member.get('identity') != REFERENCE_IDENTITIES.get(member['agent']):
+                raise ValueError('reference panel identity mismatch')
+            continue
         path = (Path(base) / member['path']).resolve()
         if hashlib.sha256(path.read_bytes()).hexdigest() != member['sha256']:
             raise ValueError('panel hash mismatch: ' + member['name'])
@@ -302,7 +317,7 @@ class RoundResult:
     updates: int
     last_samples: list
 
-def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixed',
+def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixed', panel_rotation=True,
                lr=3e-4, minibatch=512, generation_rounds=None, log_path=None,
                random_start_share=.3, checkpoint_dir=None, config=None, resume_state=None,
                stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
@@ -411,7 +426,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 entry.pop('panel_boundary', None)
                 boundary = None
                 names = [m['name'] for m in panel['members']]
-                if not panel.get('measuring_only') and saturated(history, champion_generation, names, checks=saturation_checks, min_pairs=saturation_pairs, threshold=saturation_threshold):
+                if panel_rotation and not panel.get('measuring_only') and saturated(history, champion_generation, names, checks=saturation_checks, min_pairs=saturation_pairs, threshold=saturation_threshold):
                     pooled = {name: statistics.mean([x for row in history[-saturation_checks:] for x in row['scores'][name]]) for name in names}
                     champion_hash = hashlib.sha256((Path(checkpoint_dir) / f'generation_{champion_generation:06d}.pt').read_bytes()).hexdigest()
                     compatible = [x for x in snapshots if set(x['scores']) == set(names)]
@@ -435,7 +450,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     boundary['new_champion'] = {k: v['champion'] for k, v in result['members'].items()}
                     entry['panel_boundary'] = boundary
                 entry['check'] = result
-                history.append({'champion': champion_generation, 'scores': {k: v['champion'] for k, v in result['members'].items()}})
+                if panel_rotation:
+                    history.append({'champion': champion_generation, 'scores': {k: v['champion'] for k, v in result['members'].items()}})
                 snapshot_record = {'name': f'generation-{generation}', 'path': snapshot.name, 'resolved_path': str(snapshot), 'kind': 'phase2', 'encoder': 'v1', 'sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'gain': result['gain'], 'scores': {k: statistics.mean(v['challenger']) for k, v in result['members'].items()}}
                 if profile_prior != 20:
                     snapshot_record['profile_prior'] = profile_prior
@@ -569,7 +585,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     elif panel is not None and elapsed < time_cap_seconds:
                         boundary = None
                         names = [m['name'] for m in panel['members']]
-                        if not panel.get('measuring_only') and saturated(history, champion_generation, names, checks=saturation_checks, min_pairs=saturation_pairs, threshold=saturation_threshold):
+                        if panel_rotation and not panel.get('measuring_only') and saturated(history, champion_generation, names, checks=saturation_checks, min_pairs=saturation_pairs, threshold=saturation_threshold):
                             pooled = {name: statistics.mean([x for row in history[-saturation_checks:] for x in row['scores'][name]]) for name in names}
                             champion_hash = hashlib.sha256((Path(checkpoint_dir) / f'generation_{champion_generation:06d}.pt').read_bytes()).hexdigest()
                             compatible = [x for x in snapshots if set(x['scores']) == set(names)]
@@ -593,7 +609,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                             boundary['new_champion'] = {k: v['champion'] for k, v in result['members'].items()}
                             entry['panel_boundary'] = boundary
                         entry['check'] = result
-                        history.append({'champion': champion_generation, 'scores': {k: v['champion'] for k, v in result['members'].items()}})
+                        if panel_rotation:
+                            history.append({'champion': champion_generation, 'scores': {k: v['champion'] for k, v in result['members'].items()}})
                         snapshot_record = {'name': f'generation-{generation}', 'path': snapshot.name, 'resolved_path': str(snapshot), 'kind': 'phase2', 'encoder': 'v1', 'sha256': hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'gain': result['gain'], 'scores': {k: statistics.mean(v['challenger']) for k, v in result['members'].items()}}
                         if profile_prior != 20:
                             snapshot_record['profile_prior'] = profile_prior
@@ -699,7 +716,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
     return RoundResult(model, optimizer, total, updates, last)
 
 def train(directory, *, generations=1, matches_per_generation=120, matches_per_round=12,
-          workers=1, seed=0, target='mixed', lr=3e-4, minibatch=512,
+          workers=1, seed=0, target='mixed', lr=3e-4, minibatch=512, panel_rotation=True,
           random_start_share=.3, resume=None, stop_after_round=None, panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json',
           champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
           check_seed_base=10000, temperature=.1, profile_prior=20, min_gain=.01, min_direct=.475,
@@ -740,6 +757,9 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
     panel = load_panel(panel_path) if panel_path else None
     if panel is not None:
         for member in panel['members']:
+            if member['kind'] == 'reference':
+                member['identity'] = REFERENCE_IDENTITIES[member['agent']]
+                continue
             member['resolved_path'] = str((Path(panel_path).resolve().parent / member['path']).resolve())
             member['path'] = os.path.relpath(member['resolved_path'], Path(directory).resolve())
     matches_per_round = ((matches_per_round + block_size - 1) // block_size) * block_size
@@ -748,8 +768,17 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
     if panel:
         members = []
         for member in panel['members']:
+            if member['kind'] == 'reference':
+                members.append({'name': member['name'], 'kind': 'reference', 'agent': member['agent'],
+                                'identity': REFERENCE_IDENTITIES[member['agent']]})
+                continue
             entry = {k: member[k] for k in ('name', 'kind', 'encoder', 'sha256')}
             if member['kind'] == 'phase2':
+                if 'temperature' in member:
+                    member_temperature = member['temperature']
+                    if not math.isfinite(member_temperature) or member_temperature <= 0:
+                        raise ValueError('panel temperature must be positive and finite')
+                    entry['temperature'] = member_temperature
                 prior = member.get('profile_prior', 20)
                 if not math.isfinite(prior) or prior <= 0:
                     raise ValueError('panel profile_prior must be positive and finite')
@@ -764,6 +793,9 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                   matches_per_round=matches_per_round, seed=seed, target=target,
                   lr=lr, minibatch=minibatch, random_start_share=random_start_share)
     config.update(auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations)
+    # Absence encodes the historical default and preserves run 1 checkpoints byte-for-byte.
+    if not panel_rotation:
+        config['panel_rotation'] = False
     if profile_prior != 20:
         config['profile_prior'] = profile_prior
     generation_rounds = (matches_per_generation + matches_per_round - 1) // matches_per_round
@@ -778,6 +810,8 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         old_config.setdefault('auxiliary', False)
         old_config.setdefault('auxiliary_weight', .1)
         old_config.setdefault('card_prediction_situations', 400)
+        if old_config.get('panel_rotation', True) is True:
+            old_config.pop('panel_rotation', None)
         if old_config.get('profile_prior', 20) == 20:
             old_config.pop('profile_prior', None)
     if state is not None and old_config != config:
@@ -826,7 +860,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         lines = log_path.read_text(encoding='utf-8').splitlines() if log_path.exists() else []
         kept = [line for line in lines if json.loads(line)['generation'] <= state['generation']]
         log_path.write_text(''.join(line + '\n' for line in kept), encoding='utf-8')
-    return run_rounds(seed=seed, rounds=generations * generation_rounds,
+    return run_rounds(seed=seed, rounds=generations * generation_rounds, panel_rotation=panel_rotation,
                       matches_per_round=matches_per_round, workers=workers, target=target,
                       lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=log_path,
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
@@ -846,6 +880,7 @@ def main():
     parser.add_argument('--random-start-share', type=float, default=.3)
     parser.add_argument('--panel-path', default=str(Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json'))
     parser.add_argument('--no-selection', action='store_true')
+    parser.add_argument('--no-panel-rotation', dest='panel_rotation', action='store_false')
     parser.add_argument('--champions-dir', default='champions/phase2')
     parser.add_argument('--panel-pairs', type=int, default=100)
     parser.add_argument('--head-to-head-pairs', type=int, default=200)
