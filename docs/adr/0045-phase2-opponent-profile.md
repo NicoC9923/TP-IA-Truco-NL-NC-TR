@@ -13,3 +13,9 @@ Why: the profile is what lets the network adapt to the opponent; counting non-op
 ## Measuring-run amendment 2026-11-08
 
 The preregistered held-out comparison selects neutral **prior strength 5** for the real run: mean log loss was 0.591 for 5, 0.623 for 10 and 0.651 for 20. Only 15 held-out opportunities were scored from nine short replays of an undertrained eight-minute network, with none for revealed bluffs; this is weak evidence for a stable choice. See the [measuring record](../../experiments/phase2-measuring-run/README.md).
+
+## Profile prior is a phase 2 run setting
+
+Each phase 2 run chooses a finite, positive profile prior with `--profile-prior` (default 20). The trainer stores it in the checkpoint configuration and with the reigning champion beside its temperature, so the champion uses its training value when played. Missing values in legacy checkpoints and champion metadata mean 20. Frozen selection panel members retain their own prior; a missing member value also means 20. Phase 1 and the shared profile default remain unchanged.
+
+Run #29 uses `--profile-prior 5` under the measuring run's pre-registered rule. The pilot's 15 scored opportunities do not establish that 5 produces a stronger player.
