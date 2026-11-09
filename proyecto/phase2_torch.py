@@ -77,21 +77,31 @@ def card_distribution(logits, observation):
         marginals = marginals.scatter(0, torch.tensor([_CARD_IDS[c] for c in played], device=logits.device), 0.0)
     return hands, probabilities, marginals
 
+_DEFAULT_PROFILE_PRIOR = object()
+
+
 class Phase2Policy:
     """Sample with a seeded RNG that continues across matches."""
     def __init__(self, model=None, *, seed=0, temperature=0.1, profile=None,
-                 weighted_beliefs=True, style=None, style_strength=0.1, adapt=True):
+                 weighted_beliefs=True, style=None, style_strength=0.1, adapt=True,
+                 profile_prior=_DEFAULT_PROFILE_PRIOR):
         if not np.isfinite(temperature) or temperature <= 0:
             raise ValueError('temperature must be positive and finite')
         if style not in (None, 'bluffer', 'calculating', 'cautious', 'aggressive'):
             raise ValueError('Unknown style')
+        if profile_prior is _DEFAULT_PROFILE_PRIOR:
+            profile_prior = profile.prior_strength if profile is not None else 20
+        if not np.isfinite(profile_prior) or profile_prior <= 0:
+            raise ValueError('profile_prior must be positive and finite')
+        if profile is not None and profile.prior_strength != profile_prior:
+            raise ValueError('profile_prior does not match profile')
         self.model = model if model is not None else Phase2Network(seed=seed)
-        self.profile = profile if profile is not None else OpponentProfile()
+        self.profile = profile if profile is not None else OpponentProfile(prior_strength=profile_prior)
         self.rng = np.random.default_rng(seed)
         self.temperature = temperature
         self.weighted_beliefs = weighted_beliefs
         self.adapt = adapt
-        self.neutral_profile = OpponentProfile()
+        self.neutral_profile = OpponentProfile(prior_strength=profile_prior)
         self.style, self.style_strength = style, style_strength
         self.exact_inference = IncrementalInference()
         self.weighted_inference = IncrementalInference()

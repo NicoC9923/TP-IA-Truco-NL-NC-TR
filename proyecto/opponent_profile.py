@@ -1,13 +1,14 @@
 """Smoothed opponent statistics computed from observed decisions."""
 import json
+import math
 from pathlib import Path
 
 TRUCO_RESOLUTION_ACTIONS = frozenset(('quiero', 'no_quiero', 'fold', 'retruco', 'vale_cuatro'))
 
 class OpponentProfile:
     def __init__(self, path=None, *, prior_strength=20):
-        if prior_strength <= 0:
-            raise ValueError('prior_strength must be positive')
+        if not math.isfinite(prior_strength) or prior_strength <= 0:
+            raise ValueError('prior_strength must be positive and finite')
         self.prior_strength = prior_strength
         self.path = Path(path) if path is not None else None
         self.counts = {name: [0, 0] for name in ('bluff', 'fold', 'truco_accepted', 'envido_called')}
