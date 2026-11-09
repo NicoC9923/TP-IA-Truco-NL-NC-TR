@@ -449,14 +449,22 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 if elapsed >= time_cap_seconds or stale >= patience:
                     entry['phase_ended'] = True
                     entry['stop_reason'] = 'time_cap' if elapsed >= time_cap_seconds else 'patience'
-            if entry.get('promoted') and pending_check:
-                reporter.promotions += 1
             lines[-1] = json.dumps(entry)
-            Path(log_path).write_text(''.join(line + '\n' for line in lines), encoding='utf-8')
-            if entry['phase_ended']:
+            reporter.promotions = sum(bool(json.loads(line).get('promoted')) for line in lines)
+            # Commit the log first; if checkpoint replacement is interrupted, replay
+            # from the old state replaces this same record and recounts promotions.
+            log_file = Path(log_path)
+            log_temporary = log_file.with_name(log_file.name + '.boundary.tmp')
+            with log_temporary.open('w', encoding='utf-8') as stream:
+                stream.write(''.join(line + '\n' for line in lines))
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(log_temporary, log_file)
+            if checkpoint_dir is not None:
                 saved = dict(resume_state)
                 saved.pop('_extension_reopen', None)
-                saved.update(phase_ended=True, stop_reason=entry['stop_reason'], elapsed=elapsed,
+                saved.update(phase_ended=entry['phase_ended'], stop_reason=entry['stop_reason'], elapsed=elapsed,
+                             promotions=reporter.promotions,
                              stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots),
                              league_pool=_portable(league_pool), panel_history=_portable(panel_history), panel=_portable(panel),
                              champion_weights=champion, champion_generation=champion_generation,
@@ -473,8 +481,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                                     matches=resume_state['matches'], samples=total, updates=updates,
                                     recent_loss=None, league_mix={}, champion_generation=champion_generation,
                                     panel_version=panel['version'] if panel else None,
-                                    ended=True, stop_reason=entry['stop_reason'])
-                return RoundResult(model, optimizer, total, updates, last)
+                                    ended=entry['phase_ended'], stop_reason=entry['stop_reason'])
+                if entry['phase_ended']:
+                    return RoundResult(model, optimizer, total, updates, last)
         for round_id in range(first_round, min(rounds, stop_after_round or rounds)):
             weights = model.state_dict()
             exclusions = panel_exclusions(panel, panel_history)
@@ -652,6 +661,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                              shuffle_rng=rng.bit_generator.state)
                 if extension is not None:
                     state['extension'] = extension
+                    state['promotions'] = reporter.promotions
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
                 temporary = path.with_suffix('.tmp')
                 with temporary.open('wb') as stream:

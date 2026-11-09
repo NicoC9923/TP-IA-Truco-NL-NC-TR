@@ -150,9 +150,34 @@ class ExtensionTest(unittest.TestCase):
                 train(root/'full', champions_dir=root/'champ-full', time_cap_seconds=100, clock=lambda: 0, **cfg)
                 ticks = iter([0]*5 + [10]*50)
                 train(root/'ext', champions_dir=root/'champ-ext', time_cap_seconds=5, clock=lambda: next(ticks), **cfg)
-                train(root/'ext', champions_dir=root/'champ-ext', time_cap_seconds=5, extend_time_cap=100, resume=root/'ext/checkpoint_000002.pt', clock=lambda: 0, **cfg)
+                import os
+                replace = os.replace
+                def crash_checkpoint(source, destination):
+                    if Path(destination) == root/'ext/checkpoint_000002.pt':
+                        raise OSError('simulated crash before checkpoint commit')
+                    return replace(source, destination)
+                with patch('phase2_trainer.os.replace', side_effect=crash_checkpoint):
+                    with self.assertRaisesRegex(OSError, 'simulated crash'):
+                        train(root/'ext', champions_dir=root/'champ-ext', time_cap_seconds=5, extend_time_cap=100, resume=root/'ext/checkpoint_000002.pt', stop_after_round=2, clock=lambda: 0, **cfg)
+                train(root/'ext', champions_dir=root/'champ-ext', time_cap_seconds=5, extend_time_cap=100, resume=root/'ext/checkpoint_000002.pt', stop_after_round=2, clock=lambda: 0, **cfg)
+                boundary = torch.load(root/'ext/checkpoint_000002.pt', weights_only=False)
+                self.assertFalse(boundary['phase_ended'])
+                self.assertEqual(boundary['champion_generation'], 2)
+                self.assertEqual(boundary['promotions'], 1)
+                with patch('phase2_trainer._selection_check', side_effect=check) as resumed_check:
+                    train(root/'ext', champions_dir=root/'champ-ext', time_cap_seconds=5, extend_time_cap=100, resume=root/'ext/checkpoint_000002.pt', clock=lambda: 0, **cfg)
+                    self.assertEqual(resumed_check.call_count, 1)
+            progress = json.loads((root/'ext/progress.json').read_text())
+            self.assertEqual(progress['promotions'], 2)
             a = torch.load(root/'champ-full/reigning_champion.pt', weights_only=True)
             b = torch.load(root/'champ-ext/reigning_champion.pt', weights_only=True)
             self.assertTrue(all(torch.equal(a[key], b[key]) for key in a))
             rows = [json.loads(x) for x in (root/'ext/generations.jsonl').read_text().splitlines()]
             self.assertTrue(rows[1]['promoted'])
+            full_rows = [json.loads(x) for x in (root/'full/generations.jsonl').read_text().splitlines()]
+            for row in rows + full_rows:
+                row.pop('elapsed_seconds')
+            self.assertEqual(rows, full_rows)
+            full = torch.load(root/'full/checkpoint_000003.pt', weights_only=False)
+            resumed = torch.load(root/'ext/checkpoint_000003.pt', weights_only=False)
+            self.assertTrue(all(torch.equal(full['model'][key], resumed['model'][key]) for key in full['model']))

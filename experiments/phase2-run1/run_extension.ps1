@@ -38,6 +38,23 @@ function Get-SkipReason {
     if (Test-Path -LiteralPath $archive) { return 'primary archive already exists' }
     return $null
 }
+function Get-TerminalCheckpoint {
+    $lines = @(Get-Content (Join-Path $root 'generations.jsonl') | Where-Object { $_.Trim() })
+    if ($lines.Count -eq 0) { throw 'generation log is empty' }
+    $last = $lines[-1] | ConvertFrom-Json
+    $generation = [long]$last.generation
+    $matches = [long]$last.matches
+    if ($generation -lt 1 -or $matches -lt 1 -or $matches -gt 57120 -or ($matches % 240) -ne 0) {
+        throw 'invalid terminal generation or match count'
+    }
+    $expectedRound = ($generation - 1) * (57120 / 240) + ($matches / 240)
+    $candidates = @(Get-ChildItem -LiteralPath $root -Filter 'checkpoint_*.pt' -File | Where-Object { $_.Name -match '^checkpoint_(\d+)\.pt$' } | ForEach-Object {
+        [pscustomobject]@{ File = $_; Round = [long]($_.BaseName.Substring(11)) }
+    } | Sort-Object Round -Descending)
+    if ($candidates.Count -eq 0) { throw 'checkpoint not found' }
+    if ($candidates[0].Round -ne $expectedRound) { throw 'latest checkpoint does not match terminal log round' }
+    return $candidates[0].File
+}
 function Get-ByteTotal($path) {
     $sum = (Get-ChildItem -LiteralPath $path -File -Recurse | Measure-Object -Property Length -Sum).Sum
     if ($null -eq $sum) { return [long]0 }; return [long]$sum
@@ -84,6 +101,22 @@ try {
             if (-not $actual) { throw "Dry run failed $case condition" }
             Write-Host "Dry run: $case skipped: $actual"
         }
+        $root = Join-Path $base 'checkpoint-case'
+        New-Item -ItemType Directory -Path $root | Out-Null
+        '{"generation":2,"matches":480}' | Set-Content -Encoding utf8 (Join-Path $root 'generations.jsonl')
+        $older = New-Item -ItemType File -Path (Join-Path $root 'checkpoint_000239.pt')
+        $newer = New-Item -ItemType File -Path (Join-Path $root 'checkpoint_000240.pt')
+        $older.LastWriteTimeUtc = [datetime]::UtcNow.AddHours(1)
+        $chosen = Get-TerminalCheckpoint
+        if ($chosen.Name -ne $newer.Name) { throw 'Dry run chose checkpoint by timestamp' }
+        $root = Join-Path $base 'checkpoint-mismatch'
+        New-Item -ItemType Directory -Path $root | Out-Null
+        New-Item -ItemType File -Path (Join-Path $root 'checkpoint_000240.pt') | Out-Null
+        '{"generation":2,"matches":720}' | Set-Content -Encoding utf8 (Join-Path $root 'generations.jsonl')
+        $rejected = $false
+        try { [void](Get-TerminalCheckpoint) } catch { $rejected = $true }
+        if (-not $rejected) { throw 'Dry run accepted mismatched checkpoint' }
+        Write-Host 'Dry run: numeric checkpoint selected and mismatch rejected.'
         Write-Host 'Dry run: eligible conditions passed.'
         exit 0
     }
@@ -100,8 +133,7 @@ try {
         Copy-Item -LiteralPath $champions -Destination $championArchive -Recurse
         $copiedChampions = Get-ByteTotal (Join-Path $archive 'champions_phase2')
         if ($copiedChampions -ne $championBytes -or ((Get-ByteTotal $archive) - $copiedChampions) -ne $primaryBytes) { throw 'archive byte totals do not match' }
-        $ckpt = Get-ChildItem -LiteralPath $root -Filter 'checkpoint_*.pt' -File | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
-        if (-not $ckpt) { throw 'checkpoint not found' }
+        $ckpt = Get-TerminalCheckpoint
     } catch {
         Write-NewJson $skipped @{ reason = $_.Exception.Message; timestamp = (Get-Date -Format o) }
         exit 0
