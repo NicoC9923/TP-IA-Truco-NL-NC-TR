@@ -57,7 +57,7 @@ section.card.hand{padding:0;gap:0}
 .row .why{color:var(--muted)}
 select,.step-button{font:inherit;color:var(--ink);background:white;border:1px solid #aeb7c3;border-radius:6px;padding:10px}
 .stack,section.card,.network-scroll,.table-scroll{min-width:0}#decision-status{overflow-wrap:anywhere}.network-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}.network-svg{min-width:720px}.network-svg .layer-node{cursor:pointer}.network-svg .layer-node:focus{outline:none}.network-svg .layer-node:focus rect,.network-svg .layer-node:hover rect{stroke:#1F5FBF;stroke-width:3}.network-svg text{fill:var(--ink);font-size:14px}.network-svg .edge{stroke:#98a7b9;stroke-width:1.3}.network-svg .neuron{stroke:#6b7482;stroke-width:1}.switch-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.switch-row input{width:22px;height:22px;accent-color:var(--blue)}.layer-details{padding:12px;background:var(--soft);border-radius:8px}.trace-legend{display:flex;gap:8px;align-items:center}.scale{width:100px;height:12px;background:linear-gradient(90deg,#e8eef8,#1f5fbf);border:1px solid #aeb7c3}.network-svg .sample-selected{stroke:#C2410C;stroke-width:3}.network-svg .inactive{fill:#fff}.trace-table td,.trace-table th{white-space:nowrap}
-.run-select{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.diagram{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}.diagram div{flex:1 1 150px;background:var(--soft);padding:14px;border-radius:8px}.diagram strong{display:block}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}.step-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.step-button:disabled{opacity:.5}
+.stage-list{display:flex;flex-wrap:wrap;gap:8px}.stage-list button[aria-pressed=true]{background:#e6eefa;border-color:#1f5fbf}.example{border-top:1px solid var(--line);padding-top:12px}.example h3{margin:0;font-size:16px}.network-svg circle[role=button]{cursor:pointer}.network-svg circle:focus{outline:none;stroke:#1f5fbf;stroke-width:4}.run-select{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.diagram{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}.diagram div{flex:1 1 150px;background:var(--soft);padding:14px;border-radius:8px}.diagram strong{display:block}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}.step-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.step-button:disabled{opacity:.5}
 .compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .pair{border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px}
 .pair p{margin:0;font-size:14px;font-weight:600}
@@ -114,6 +114,7 @@ const state = {
   step: 0,
   showDecision: false,
   layer: 0,
+  neuron: 0,
   open: { p1: false, p2: false },
   hand: { p2: null },
   loaded: false,
@@ -370,7 +371,7 @@ function handView(phase) {
       body.append(controls, el('p',{text:'Historial público hasta esta decisión:'}));
       body.append(...handRows(h.steps.slice(0,state.step).map((s) => ({who:s.by === 'champion' ? 0 : 1, action:s.action})), mine, null, ['Campeona','Rival']));
       if (step) body.append(el('p',{text:`Decisión: ${step.by === 'champion' ? 'campeona' : 'rival'} · ${actionLabel(step.action, step.by === 'champion' ? mine : null)}`}));
-      if (step && step.top) body.append(el('p',{text:'Probabilidades de las principales acciones legales: ' + step.top.map(t => `${t.pct} % ${shortLabel(t.action,mine)}`).join(' · ') + '. Los valores internos no se registraron en esta muestra.'}));
+      if (state.showDecision && step && step.top) body.append(el('p',{text:'Probabilidades de las principales acciones legales: ' + step.top.map(t => `${t.pct} % ${shortLabel(t.action,mine)}`).join(' · ') + '. Los valores internos no se registraron en esta muestra.'}));
 
     }
   }
@@ -427,67 +428,52 @@ function acceptanceView() {
   box.append(el('p',{class:'small',text:'El panel fijo contiene rivales familiares del entrenamiento: sirve para controlar el desarrollo, no es un examen independiente. La aceptación usa rivales reservados y una comparación directa.'}));return box;
 }
 const LAYERS = [
-  ['Entradas · 1.628', 'La observación contiene resumen y confianza (70), cartas propias (120), acciones legales (12), historia pública (1.416) y creencias (10). La historia es 24 × 59 eventos aplanados, no una LSTM; las creencias combinan compatibilidad exacta y estimaciones ponderadas por perfil sin conocer cartas ocultas.'],
-  ['Densa · 256 ReLU', 'Cada una de las 256 unidades recibe la entrada y aplica ReLU: conserva valores positivos y convierte los negativos en cero.'],
-  ['Densa · 128 ReLU', 'Las 128 unidades reciben la capa anterior y vuelven a aplicar ReLU. Los círculos son unidades representativas, no conceptos interpretados.'],
-  ['Salida · 12 valores', 'La capa lineal produce un valor bruto por acción. Un valor negativo es posible y no es una probabilidad.'],
-  ['Máscara y softmax', 'La máscara excluye acciones ilegales; softmax convierte los valores legales en probabilidades. Se muestrea una acción: no siempre es la más probable.']
+  ['Información de la partida', 'Una red recibe números, no ve cartas como una persona. Se traducen las cartas propias, el marcador y el estado de la mano, las acciones permitidas y los hechos públicos de esta mano. El perfil resume lo observado del rival en partidas anteriores y cuántas observaciones lo respaldan. Las cartas ocultas del rival no entran.'],
+  ['Primera capa · 256 neuronas', 'Cada neurona combina todas las entradas: multiplica cada número por su peso (cuánto influye), suma los resultados y un sesgo (un ajuste fijo). ReLU significa conservar el resultado positivo o reemplazarlo por cero si es negativo. Es una representación aprendida, no una etiqueta de lo que la neurona «entiende».'],
+  ['Segunda capa · 128 neuronas', 'Cada neurona vuelve a combinar las salidas de la primera con sus propios pesos y sesgo, y aplica ReLU. Estas representaciones intermedias no tienen una interpretación conocida por separado.'],
+  ['12 valores de acción', 'La red calcula un número por acción posible. Busca estimar el resultado final de la partida desde el lugar de quien juega: +1 si gana y −1 si pierde. Durante el entrenamiento se corrige el valor de la acción tomada hacia ese resultado; un valor no es una probabilidad ni garantiza ganar.'],
+  ['Acciones permitidas', 'La máscara es un filtro: descarta las acciones que las reglas no permiten en esta situación. Por ejemplo, no se puede responder «quiero» si no hay un canto pendiente.'],
+  ['Probabilidades y elección', 'Softmax convierte los valores de las acciones permitidas en probabilidades que suman 100 %. La temperatura controla cuánto se concentran: una menor favorece más al valor mayor. Luego se sortea una acción según esas probabilidades; puede salir una que no sea la más probable.']
 ];
+const INPUT_GROUPS = [['Estado y perfil',0,70],['Cartas propias',70,190],['Acciones legales',190,202],['Historia pública',202,1618],['Estimación compatible',1618,1623],['Estimación ponderada',1623,1628]];
 function architecture() {
-  const h = state.hand.p2;
-  const step = h && h.available && h.steps[state.step];
+  const h = state.hand.p2, step = h && h.available && h.steps[state.step];
   const trace = state.showDecision && step && step.by === 'champion' ? step.trace : null;
   const box = el('section',{class:'card'},el('h2',{text:'Cómo decide la red de fase 2'}));
   const toggle = el('input',{type:'checkbox',id:'real-decision','aria-describedby':'decision-status'});
-  toggle.checked = state.showDecision;
-  toggle.disabled = state.run !== 'run1' || (h && !h.available);
-  toggle.addEventListener('change', () => {
-    state.showDecision = toggle.checked;
-    if (state.showDecision) { state.open.p2 = true; if (state.hand.p2 === null) loadHand(); }
-    render(); document.getElementById('real-decision')?.focus();
-  });
-  const message = state.run !== 'run1' ? 'No hay una muestra estable disponible para esta corrida; la estructura sigue visible.' :
-    h && !h.available ? 'No se pudo cargar la muestra publicada en este equipo.' : state.showDecision ?
-    (h === null ? 'Cargando la muestra…' : trace ? `Muestra ilustrativa · corrida 1 · generación ${h.generation ?? 'no registrada'} · SHA-256 ${h.model_sha256}` : 'Este paso pertenece al rival; elegí un paso de la campeona para ver su decisión.') : 'Desactivado: se muestra solo la estructura, sin datos de una decisión.';
-  box.append(el('div',{class:'switch-row'},toggle,el('label',{for:'real-decision',text:'Mostrar decisión real'})), el('p',{id:'decision-status',class:'small',text:message}));
-  const W=910,H=260, xs=[90,270,450,630,810];
-  const diagram=svg('svg',{class:'network-svg',viewBox:`0 0 ${W} ${H}`,role:'group','aria-label':'Diagrama de la red; elegí una capa para ver su explicación'});
-  for (let i=0;i<4;i++) for(let n=0;n<3;n++) for(let m=0;m<3;m++) diagram.append(svg('line',{class:'edge',x1:xs[i]+46,y1:90+n*35,x2:xs[i+1]-46,y2:90+m*35}));
-  const samples = trace ? [trace.input.slice(0,3),trace.hidden_256.slice(0,3),trace.hidden_128.slice(0,3),trace.actions.slice(0,3).map(a=>a.value),null] : [];
-  for (let i=0;i<5;i++) {
-    const group=svg('g',{class:'layer-node',role:'button',tabindex:'0','aria-label':LAYERS[i][0], 'aria-pressed':String(state.layer===i)});
-    group.append(svg('rect',{x:xs[i]-48,y:40,width:96,height:160,rx:9,fill:'#ffffff',stroke:state.layer===i?'#1F5FBF':'#aeb7c3','stroke-width':state.layer===i?2:1}));
-    for(let n=0;n<3;n++) {
-      const vals=samples[i], v=vals && vals[n];
-      const max=vals ? Math.max(...vals.map(Math.abs), 0.000001) : 1;
-      const opacity = vals ? Math.max(0,Math.min(1,Math.abs(v)/max)) : 0;
-      group.append(svg('circle',{class:'neuron',cx:xs[i],cy:90+n*35,r:10,fill:vals?`rgba(31,95,191,${opacity})`:'#fff'}));
+  toggle.checked=state.showDecision; toggle.disabled=state.run !== 'run1' || (h && !h.available);
+  toggle.addEventListener('change',()=>{state.showDecision=toggle.checked;if(state.showDecision){state.open.p2=true;if(h===null)loadHand();}render();document.getElementById('real-decision')?.focus();});
+  const message=state.run !== 'run1' ? 'Esta corrida todavía no tiene una muestra estable disponible. No se sustituye por otra corrida.' : h && !h.available ? 'No se pudo cargar la muestra publicada en este equipo.' : state.showDecision ? (h===null ? 'Cargando la muestra…' : trace ? `Decisión registrada · corrida 1 · semilla ${h.seed} · generación ${h.generation ?? 'no registrada'} · SHA-256 ${h.model_sha256}` : 'Este paso es del rival. Elegí un paso de la campeona en la mano de ejemplo.') : 'Desactivado: la red muestra su estructura y el ejemplo didáctico, sin datos de la decisión real.';
+  box.append(el('p',{text:'Seguí el recorrido o elegí una etapa y una neurona. Las líneas muestran el sentido de la información, de izquierda a derecha.'}),el('div',{class:'switch-row'},toggle,el('label',{for:'real-decision',text:'Mostrar decisión real'})),el('p',{id:'decision-status',class:'small',text:message}));
+  const controls=el('div',{class:'step-controls'}), prev=el('button',{class:'step-button',type:'button',text:'Etapa anterior'}),next=el('button',{class:'step-button',type:'button',text:'Etapa siguiente'});
+  prev.disabled=state.layer===0;next.disabled=state.layer===5;
+  prev.onclick=()=>{state.layer--;state.neuron=0;render();document.getElementById('stage-prev')?.focus()};next.onclick=()=>{state.layer++;state.neuron=0;render();document.getElementById('stage-next')?.focus()};prev.id='stage-prev';next.id='stage-next';
+  controls.append(prev,el('span',{text:`Etapa ${state.layer+1} de 6`}),next);box.append(controls);
+  const W=960,H=260,xs=[65,235,405,575,730,880],ys=[72,118,164];
+  const diagram=svg('svg',{class:'network-svg',viewBox:`0 0 ${W} ${H}`,role:'group','aria-label':'Red neuronal. Elegí un círculo con clic, Enter o espacio.'});
+  for(let i=0;i<3;i++) for(let a=0;a<(i===0?6:3);a++) for(let b=0;b<3;b++) diagram.append(svg('line',{class:'edge',x1:xs[i]+12,y1:i===0?35+a*31:ys[a],x2:xs[i+1]-12,y2:ys[b]}));
+  for(let i=3;i<5;i++) diagram.append(svg('line',{class:'edge',x1:xs[i]+14,y1:118,x2:xs[i+1]-14,y2:118}));
+  for(let i=0;i<6;i++) {
+    const count=i===0?6:i<4?3:1;
+    for(let n=0;n<count;n++) {
+      const v=trace && i===0 ? trace.input[INPUT_GROUPS[n][1]] : trace && i===1 ? trace.hidden_256[n] : trace && i===2 ? trace.hidden_128[n] : trace && i===3 ? trace.actions[n].value : null;
+      const circle=svg('circle',{cx:xs[i],cy:i===0?35+n*31:count===1?118:ys[n],r:i===0?10:14,fill:v===null?'#fff':v===0?'#e8eef8':'#1f5fbf',stroke:state.layer===i && state.neuron===n?'#c2410c':'#536477','stroke-width':state.layer===i && state.neuron===n?4:1.5,tabindex:'0',role:'button','aria-label':`${LAYERS[i][0]}, ${i===0?INPUT_GROUPS[n][0]:i<4?'neurona '+n:'etapa'}`, 'aria-pressed':String(state.layer===i && state.neuron===n)});
+      const choose=()=>{state.layer=i;state.neuron=n;render();document.querySelectorAll('.network-svg circle[role=button]')[i===0?n:i<4?6+(i-1)*3+n:15+i-4]?.focus()};circle.addEventListener('click',choose);circle.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();choose()}});diagram.append(circle);
     }
-    group.append(svg('text',{x:xs[i],y:225,'text-anchor':'middle'},['1.628','256 ReLU','128 ReLU','12 valores','Legal / softmax'][i]));
-    if (trace && i === 4) {
-      group.append(svg('rect',{x:xs[i]-43,y:49,width:86,height:23,rx:4,fill:'#fff',stroke:'#C2410C','stroke-width':2}));
-      group.append(svg('text',{x:xs[i],y:65,'text-anchor':'middle','font-size':'11'},'Elegida'));
-    }
-    group.addEventListener('click',()=>{state.layer=i;render(); document.querySelectorAll('.layer-node')[i]?.focus();});
-    group.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();group.dispatchEvent(new Event('click'));}});
-    diagram.append(group);
+    diagram.append(svg('text',{x:xs[i],y:230,'text-anchor':'middle'},['1.628 entradas','256 ReLU','128 ReLU','12 valores','Filtro legal','Sorteo'][i]));
   }
-  box.append(el('p',{class:'small',text:'Las conexiones y los tres círculos por capa son representativos; los números indican el tamaño real. Elegí una capa con clic, Enter o espacio.'}),el('div',{class:'network-scroll'},diagram),el('div',{class:'layer-details','aria-live':'polite'},el('strong',{text:LAYERS[state.layer][0]}),el('p',{text:LAYERS[state.layer][1]})));
-  if (trace) {
-    box.append(el('div',{class:'trace-legend'},el('span',{class:'scale','aria-hidden':'true'}),el('span',{class:'small',text:'Magnitud de activación: cero → máximo de los tres círculos de cada capa; los valores exactos están abajo.'})),
-      el('p',{class:'small',text:`Acción elegida: ${shortLabel(trace.chosen,null)} · probabilidad ${pct(trace.actions.find(a=>a.action===trace.chosen).probability)}. La muestra usa T = ${h.temperature} y prior del perfil ${h.profile_prior}. No refleja los pesos en vivo. El color representa magnitud; la salida lineal y las probabilidades se muestran por separado.`}));
-    const inputGroups=[['Resumen y confianza',0,70],['Cartas propias',70,190],['Acciones legales',190,202],['Historia pública',202,1618],['Creencia exacta',1618,1623],['Creencia ponderada',1623,1628]];
-    const details=el('details',{},el('summary',{text:'Ver entradas y activaciones de la decisión'}));
-    for (const [label,values] of [...inputGroups.map(([n,a,b])=>[n,trace.input.slice(a,b)]),['Capa 256 ReLU',trace.hidden_256],['Capa 128 ReLU',trace.hidden_128]]) {
-      details.append(el('p',{text:`${label} (${values.length}): ` + values.map((v,i)=>`${i}: ${v.toFixed(4)}`).join(' · ')}));
-    }
-    box.append(details);
-    const table=el('table',{class:'trace-table'},el('caption',{text:'Valores y probabilidades de las 12 acciones'}),el('tr',{},...['Acción','Valor bruto','Legal','Probabilidad','Elegida'].map(t=>el('th',{scope:'col',text:t}))));
-    trace.actions.forEach(a=>table.append(el('tr',{},...[
-      shortLabel(a.action,null),a.value.toFixed(4),a.legal?'Sí':'No',a.legal?pct(a.probability,1):'—',a.action===trace.chosen?'Sí':'No'
-    ].map(v=>el('td',{text:String(v)})))));
-    box.append(el('div',{class:'table-scroll'},table));
-  }
+  box.append(el('div',{class:'network-scroll'},diagram),el('p',{class:'small',text:'Círculos y conexiones representativos: no se dibujan las miles de conexiones. Las entradas están agrupadas por función; las tres neuronas visibles de cada capa son las de índices 0, 1 y 2; no son detectores con significado asignado. Contorno naranja: selección actual. Azul: valor real distinto de cero; claro: cero; blanco: sin dato. Los valores exactos están en el texto.'}));
+  const stages=el('div',{class:'stage-list','aria-label':'Elegir etapa'});
+  LAYERS.forEach(([title],i)=>{const b=el('button',{type:'button',class:'step-button','aria-pressed':String(state.layer===i),text:title});b.onclick=()=>{state.layer=i;state.neuron=0;render();document.querySelectorAll('.stage-list button')[i]?.focus()};stages.append(b)});box.append(stages);
+  const detail=el('div',{class:'layer-details','aria-live':'polite'},el('strong',{text:LAYERS[state.layer][0]}),el('p',{text:LAYERS[state.layer][1]}));
+  if(state.layer===0) detail.append(el('p',{text:'Las estimaciones compatibles consideran las manos del rival que no contradicen los hechos públicos; las ponderadas también dan más o menos peso a esas posibilidades según el perfil de faroles. Son estimaciones, no cartas conocidas. La historia reserva 24 eventos de 59 números; los espacios vacíos se completan con ceros.'}));
+  if(trace && state.layer===0){const [name,a,b]=INPUT_GROUPS[state.neuron];detail.append(el('p',{text:`Entrada representativa: ${name}, posición ${a}, valor ${trace.input[a].toFixed(4)}. En este grupo hay ${b-a} números; por ejemplo, ${trace.input.slice(a,Math.min(a+5,b)).map(v=>v.toFixed(2)).join(', ')}.`}),el('p',{text:`En esta decisión: cartas propias ${h.champion_hand.map(c=>cardName([c.valor,c.palo])).join(', ')}; acciones permitidas ${trace.actions.filter(a=>a.legal).map(a=>shortLabel(a.action,null)).join(', ')}; eventos públicos registrados ${Array.from({length:24},(_,i)=>trace.input[202+i*59]).filter(Boolean).length}. Las estimaciones compatibles y ponderadas ocupan cinco números cada una.`}));}
+  if(trace && (state.layer===1||state.layer===2) && trace.calculations){const c=trace.calculations[state.layer-1][state.neuron], activation=(state.layer===1?trace.hidden_256:trace.hidden_128)[state.neuron];detail.append(el('p',{text:`Neurona ${state.neuron}: ${c.groups.map((v,i)=>`${state.layer===1?INPUT_GROUPS[i][0]:'suma de entradas'} ${v.toFixed(4)}`).join(' + ')} + sesgo ${c.bias.toFixed(4)} = ${c.sum.toFixed(4)} antes de ReLU → ${activation.toFixed(4)} después. Cada aporte suma entrada × peso de todo el grupo.`}));}
+  if(trace && state.layer===3){const a=trace.actions[state.neuron];detail.append(el('p',{text:`Salida ${state.neuron}: ${shortLabel(a.action,null)}, valor ${a.value.toFixed(4)}; ${a.legal?'permitida':'no permitida'}.`}));}
+  if(trace && state.layer>=4)detail.append(el('p',{text:`Temperatura ${h.temperature}. Acción sorteada: ${shortLabel(trace.chosen,null)}, con ${pct(trace.actions.find(a=>a.action===trace.chosen).probability)}. No es una animación del entrenamiento en vivo.`}));
+  box.append(detail);
+  box.append(el('div',{class:'example'},el('h3',{text:'Ejemplo didáctico · números inventados'}),el('p',{text:'Supongamos que tenemos una carta fuerte y podemos jugarla o cantar truco. Para una neurona imaginaria, usemos dos entradas: fuerza 1 con peso 0,6 y marcador 0,5 con peso −0,4. Sus aportes son 1 × 0,6 = 0,6 y 0,5 × (−0,4) = −0,2; con sesgo −0,5, la suma es −0,1. ReLU la deja en 0. En la red real cada neurona combina muchas más entradas.'}),el('p',{text:'Ahora supongamos valores de salida 0,2 para jugar, 0,1 para truco y 0,4 para «quiero». Si no hay canto pendiente, «quiero» se filtra aunque tenga el valor mayor. Con temperatura 0,1, softmax da aproximadamente 73 % para jugar y 27 % para truco. Un sorteo podría elegir truco: no siempre gana el porcentaje más alto. Estos números no son activaciones de la campeona.'})));
+  if(trace){const table=el('table',{class:'trace-table'},el('caption',{text:'Decisión registrada: valores y probabilidades de las 12 acciones'}),el('tr',{},...['Acción','Valor','Permitida','Probabilidad','Sorteada'].map(t=>el('th',{scope:'col',text:t}))));trace.actions.forEach(a=>table.append(el('tr',{},...[shortLabel(a.action,null),a.value.toFixed(4),a.legal?'Sí':'No',a.legal?pct(a.probability,1):'—',a.action===trace.chosen?'Sí':'No'].map(v=>el('td',{text:String(v)})))));box.append(el('div',{class:'table-scroll'},table));}
   return box;
 }
 

@@ -225,6 +225,20 @@ class ExampleHandTest(unittest.TestCase):
             values = model(x)
         np.testing.assert_allclose(trace['input'], inputs)
         np.testing.assert_allclose(trace['hidden_256'], first.numpy())
+        for layer_index, (layer, source, output) in enumerate(((model.layers[0], x, first), (model.layers[2], first, second))):
+            for index, calculation in enumerate(trace['calculations'][layer_index]):
+                expected = float(((layer.weight[index] * source).sum() + layer.bias[index]).detach())
+                self.assertAlmostEqual(sum(calculation['groups']) + calculation['bias'], expected, places=5)
+                self.assertAlmostEqual(calculation['sum'], expected, places=5)
+                self.assertAlmostEqual(max(0, expected), float(output[index]), places=5)
+        self.assertEqual(len(trace['calculations'][0][0]['groups']), 6)
+        from phase2_network import INDEX
+        spans = (slice(0, 70), INDEX['own_cards'], INDEX['legal_actions'],
+                 INDEX['events'], INDEX['exact_belief'], INDEX['weighted_belief'])
+        for index, calculation in enumerate(trace['calculations'][0]):
+            for span, contribution in zip(spans, calculation['groups']):
+                expected_group = float((model.layers[0].weight[index, span] * x[span]).sum().detach())
+                self.assertAlmostEqual(contribution, expected_group, places=5)
         np.testing.assert_allclose(trace['hidden_128'], second.numpy())
         np.testing.assert_allclose([item['value'] for item in trace['actions']], values.numpy())
         self.assertEqual([len(trace[k]) for k in ('input', 'hidden_256', 'hidden_128', 'actions')], [1628, 256, 128, 12])

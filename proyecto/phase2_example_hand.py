@@ -71,7 +71,22 @@ def decision_trace(model, inputs, probabilities, action):
         first = model.layers[:2](tensor)
         second = model.layers[2:4](first)
         values = model.layers[4](second)
+    # Only three representative units per layer are exposed, with exact sums
+    # over all their inputs. This does not change the model or policy.
+    groups = [(0, 70), (70, 190), (190, 202), (202, 1618),
+              (1618, 1623), (1623, 1628)]
+    calculations = []
+    for layer, source in ((model.layers[0], tensor), (model.layers[2], first)):
+        units = []
+        for index in range(3):
+            products = layer.weight[index].detach() * source
+            ranges = groups if source.numel() == 1628 else [(0, source.numel())]
+            units.append({'bias': float(layer.bias[index].detach()),
+                          'groups': [float(products[a:b].sum()) for a, b in ranges],
+                          'sum': float(products.sum() + layer.bias[index].detach())})
+        calculations.append(units)
     return {
+        'calculations': calculations,
         'input': tensor.tolist(), 'hidden_256': first.tolist(), 'hidden_128': second.tolist(),
         'actions': [{'action': name, 'value': float(values[i]),
                      'legal': name in probabilities, 'probability': probabilities.get(name)}
