@@ -66,10 +66,19 @@ def example_hand_payload(root, seed=SEED):
     champion_path, temperature = find_run(root)
     if champion_path is None:
         return unavailable('no_champion')
+    try:
+        metadata = json.loads((champion_path.parent / SIDECAR_FILE).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        metadata = {}
+    if not isinstance(metadata, dict):
+        return unavailable('invalid_champion_metadata')
+    profile_prior = metadata.get('profile_prior', 20)
+    if not _valid_temperature(profile_prior):
+        return unavailable('invalid_champion_metadata')
     opponent_path = Path(root) / OPPONENT_FILE
     if not opponent_path.is_file():
         return unavailable('no_opponent')
-    key = (_digest(champion_path), _digest(opponent_path), temperature, seed)
+    key = (_digest(champion_path), _digest(opponent_path), temperature, profile_prior, seed)
     with _cache_lock:
         if key in _cache:
             return _cache[key]
@@ -87,7 +96,7 @@ def example_hand_payload(root, seed=SEED):
     except Exception:
         return unavailable('unreadable_champion')
     model.eval()
-    policy = Phase2Policy(model, seed=seed, temperature=temperature)
+    policy = Phase2Policy(model, seed=seed, temperature=temperature, profile_prior=profile_prior)
     top = []
 
     def champion(observation, legal_actions):

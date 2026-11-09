@@ -48,7 +48,7 @@ class _ValidationPolicy(Phase2Policy):
 
 
 @lru_cache(maxsize=16)
-def _validation_situations(schedule_seed, target, temperature, situation_count):
+def _validation_situations(schedule_seed, target, temperature, situation_count, profile_prior=20):
     """Replay fixed validation deals, sampling up to eight decisions per match."""
     model = Phase2Network(seed=0)
     situations = []
@@ -56,7 +56,7 @@ def _validation_situations(schedule_seed, target, temperature, situation_count):
     schedule = validation_schedule(schedule_seed, None if target == 'mixed' else target, situation_count)
     for match_index, (deal_seed, match_target) in enumerate(schedule):
         policies = [_ValidationPolicy(model, seed=201 + 2 * match_index + seat,
-                                      temperature=temperature) for seat in range(2)]
+                                      temperature=temperature, profile_prior=profile_prior) for seat in range(2)]
         result = play_match(*policies, seed=deal_seed, target=match_target)
         offsets = [0, 0]
         candidates = []
@@ -76,14 +76,14 @@ def _validation_situations(schedule_seed, target, temperature, situation_count):
 
 
 @lru_cache(maxsize=1)
-def _validation_preprocessing(schedule_seed, target, temperature, situation_count):
+def _validation_preprocessing(schedule_seed, target, temperature, situation_count, profile_prior=20):
     """Cache only fixed evidence, baseline scores and ordered hand indices.
 
     Keep one protocol to bound the hand-index tensors retained in a long run.
     Learned logits, probabilities and scores never enter this cache.
     """
     prepared = []
-    for obs, inputs, bluff_rate, true_hand, exposed in _validation_situations(schedule_seed, target, temperature, situation_count):
+    for obs, inputs, bluff_rate, true_hand, exposed in _validation_situations(schedule_seed, target, temperature, situation_count, profile_prior):
         exact = exact_inference_from_observation(obs).distribution()
         weighted = inference_from_observation(obs, bluff_rate).distribution()
         hands = tuple(exact)
@@ -94,14 +94,14 @@ def _validation_preprocessing(schedule_seed, target, temperature, situation_coun
     return tuple(prepared)
 
 
-def validation_predictions(model, *, schedule_seed, target, temperature, situation_count=400):
+def validation_predictions(model, *, schedule_seed, target, temperature, situation_count=400, profile_prior=20):
     """Compare predictors on fixed replayed decisions from the first validation deal."""
     if situation_count < 1:
         raise ValueError('situation_count must be positive')
     accuracies = {name: [] for name in ('exact', 'weighted', 'learned')}
     totals = {name: {'log_loss': 0.0, 'hidden_card_accuracy': 0.0, 'situations': 0}
               for name in ('exact', 'weighted', 'learned')}
-    for inputs, true_hand, exposed, hands, ids, baseline in _validation_preprocessing(schedule_seed, target, temperature, situation_count):
+    for inputs, true_hand, exposed, hands, ids, baseline in _validation_preprocessing(schedule_seed, target, temperature, situation_count, profile_prior):
         with torch.no_grad():
             logits = model.card_logits(torch.from_numpy(inputs)).double()
             # Same gather, ordered three-card sum and softmax as card_distribution;
