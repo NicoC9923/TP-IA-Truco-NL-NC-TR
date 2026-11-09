@@ -1,21 +1,22 @@
 {
   "golden": {
-    "model": "5cf2e6c7eb15d1d48f28a3ad8144e8c48a52688985f2a5bd0a58b22175414794",
-    "optimizer": "519acad22a1da8a3e801ae8e0ed29e737806179727b37c73e0028315bcf837af",
-    "log": "74279acf7b33bcb96752009412961be3284c8260826b773e54ac0d4ae68bae89",
-    "samples": 754,
-    "updates": 26,
+    "model": "0388e2ac6cb9e3170dffdd6a9fe601464cd813cf419bba19523760d11387be1d",
+    "optimizer": "ed95e6eb3f689bc91c0c237a5bd2f070b6363245a493ce235e57a0efcfac4a00",
+    "log": "2bb1b10548b999adb91588b82a8ded2a594f136daa51fba1733251db53cd3da3",
+    "samples": 721,
+    "updates": 24,
     "checkpoints": {
-      "checkpoint_000002.pt": "93e8d4bb26b86215aeaf7feeb23af6bd694716912d8665c597128c72500775af",
-      "checkpoint_000004.pt": "920bbfd193dbd8e9ba8f4d2fe6f905e769f3b7a628c5bafeeab97a1b6aa49465"
+      "checkpoint_000002.pt": "9249fb123224eb94fb1055ea79029a1dd01fce86065251c5eb4fb91337f02f06",
+      "checkpoint_000004.pt": "c6026ffb3b75fd87abb4162e546d1d0e7241a667aeb439c6e78551d9507edfdb"
     },
     "snapshots": {
-      "generation_000001.pt": "4dd59eb4757325914bf021e9762732089a8437c2222a9208b1d4effc967b3ce0",
-      "generation_000002.pt": "7432d564b096267430fabf6d35311c2dd4714a94509273b05721ac8ba1fcde2d"
+      "generation_000001.pt": "880982db2d0c4e371d8730ecd163836b0d0306982ad0771cf5a6211e2c4f3d5a",
+      "generation_000002.pt": "027b485574859193a3097bf5731648cf447b76942b5e30691bd9b1098bc7c8d7"
     }
   },
   "workers": 1,
   "resume": false,
+  "resume_round": null,
   "auxiliary": false,
   "configuration": {
     "generations": 2,
@@ -24,9 +25,10 @@
     "block_size": 4,
     "workers": 1,
     "seed": 35,
+    "check_seed_base": 10000,
     "target": "mixed",
     "minibatch": 32,
-    "panel_path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-perf-35\\experiments\\phase2-selection-panel\\panel-v0-measuring.json",
+    "panel_path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-engine-fix\\experiments\\phase2-selection-panel\\panel-v0-measuring.json",
     "panel_pairs": 2,
     "head_to_head_pairs": 2,
     "auxiliary": false,
@@ -40,6 +42,6 @@
     "platform": "Windows-11-10.0.26300-SP0",
     "cpu": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
     "logical_cpus": 16,
-    "revision": "7ed6b76078e7cb8c1527200ed0c9a7f3b732cda5"
+    "revision": "64fdcf429d7ce8de4c0411b449f166ef00208ae9"
   }
 }

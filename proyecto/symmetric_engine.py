@@ -97,6 +97,9 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
                 accepted = previous + (2 if action == 'envido' else 3 if action == 'real_envido' else 0)
                 pending = {'kind': 'envido', 'caller': actor, 'call': call, 'accepted': accepted, 'declined': max(1, previous)}
             elif action in ('truco', 'retruco', 'vale_cuatro'):
+                if pending and pending['kind'] == 'truco':
+                    truco = pending['level']
+                    raise_owner = actor
                 level = {'truco': 2, 'retruco': 3, 'vale_cuatro': 4}[action]
                 pending = {'kind': 'truco', 'caller': actor, 'level': level}
             elif action in ('quiero', 'no_quiero'):

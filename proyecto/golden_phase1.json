@@ -32,16 +32,22 @@
       ]
     },
     {
-      "winner": 1,
+      "winner": 0,
       "points": [
-        0,
-        3
+        3,
+        2
       ],
       "actions": [
         "truco",
         "retruco",
+        "fold",
+        "card_1",
+        "card_0",
+        "fold",
         "real_envido",
-        "quiero"
+        "no_quiero",
+        "card_2",
+        "fold"
       ]
     }
   ],
