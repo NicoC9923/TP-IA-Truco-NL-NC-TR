@@ -1,0 +1,53 @@
+PHASE 2 RUN 2: PRE-REGISTERED RULE
+Status: FROZEN 2026-11-09, committed before training starts. Trainer and acceptance tool revision: 5241c2a (feat/ia-entrenada; run 2 trainer code 759c0d2, acceptance tool 5241c2a). Throughput pilot and three reviews (trainer, code review, acceptance tool) done before freezing. Decisions: ADR 0056-0060. No retries, no reselection of checkpoints, no post-hoc threshold changes. Any deviation needs the user and is recorded here before it takes effect.
+
+TRAINING SETTINGS
+- Trainer revision: 5241c2a. Runner: experiments/phase2-run2/run_run2.ps1.
+- Command (from the repo root):
+  python proyecto/phase2_trainer.py --output training_output/phase2-run2 --champions-dir champions/phase2-run2 --generations 1000 --matches-per-generation 57120 --matches-per-round 240 --workers 12 --seed 57001 --check-seed-base 58000 --target mixed --lr 0.0003 --minibatch 512 --temperature 0.05 --profile-prior 5 --patience 40 --time-cap-seconds 43200 --panel-path experiments/phase2-run2/panel.json --no-panel-rotation --held-out-manifest experiments/phase2-run2/held-out.json --league-shares experiments/phase2-run2/league-shares.json --timing-log
+- Both output directories (training_output/phase2-run2, champions/phase2-run2) must not exist before launch. Run 1 artifacts (champions/phase2/) are not touched unless run 2 ships.
+- Everything else as run 1: same network, auxiliary head off, fresh initial network. Training settings were not changed after the throughput pilot (advisor review: no change justified).
+- League (league-shares.json): self .30, snapshot .20, phase1 .10 (the four run 1 phase 1 networks in the default phase 1 manifest), bluffer/cautious/aggressive/calculating .05 each, reactive .10, adaptive_utility .10. Every league category plays on training deals (canonical partition 1); only learner decisions become samples. References are identified by code/configuration (reference:reactive, reference:adaptive_utility at 5241c2a), built fresh with seeded agent RNGs; Adaptive Utility is fixed (non-adaptive, ADR 0059).
+- Panel (panel.json, version 3, fixed, no rotation), equal weight:
+  v2s1-g46 9659d27a3c70f369751d48a9ba4d97f555f4d8cf20931cbbd23f06c90ecd7fe6 (phase 1, encoder v2)
+  v2s2-g25 3f25fb0b59b5c7a10c4666bb2450717f822ad6d13c8283a217069645a7f68a06 (phase 1, encoder v2)
+  run1-g12 681f456ba206f9455bc71aa63141ef279a4fdb2bb62bb78046bba0490f56fed4 (phase 2, T 0.05, prior 5)
+  run1-g28 66ed791f4dd113e350dc99e141c1ecead1917b3055e79a47d5b09920d54ad57f (phase 2, T 0.05, prior 5)
+  reactive, adaptive_utility (reference code identities)
+  The four panel networks are reserved: never drawn in the league as plain or styled snapshots. Checks use validation deals (canonical partition 0). Promotion thresholds unchanged (ADR 0047): gain >= 0.01 with clustered 95% lower bound > 0, direct >= 0.475, 100 panel pairs per member, 200 direct pairs.
+- Held-out networks (held-out.json), refused on every training and selection path:
+  v1s1-g23 413542520b893418371fa0ff29b4b693d0675ef60cd4be55f8e782dd544db31c (experiments/phase1-seed1/reigning_champion.npy)
+  v1s2-g2  5f00bfbaa27d7ee9fcedd7610ca36b092c71b8e935218a8f337a7cc1e25a3e79 (experiments/phase1-seed2/reigning_champion.npy)
+- Stop: patience 40 checks without promotion, or 12 h of active time (a cap, checked at round boundaries), whichever comes first. Patience will probably not be reached; that is acceptable. If the PC interrupts the run, it is resumed with --resume <latest checkpoint> and identical settings (bit-identical, ADR 0042); a resume is not a retry. No extension of the time cap.
+
+SEEDS AND DEALS
+- Training seed 57001 (training deals, partition 1).
+- Check schedule seeds 58000 + check index; at most 58000-58998. The range 58000-58999 is reserved for run 2.
+- Acceptance test: direct schedule seed 60001, held-out schedule seed 60002. The range 60001-60099 is reserved for the acceptance test.
+- Throughput pilot (measurement only, already run, output never used): 61001 / 62000.
+- Audit of earlier use: none of these is in RESERVED_SEEDS (proyecto/phase2_promotion.py: 0-3, 777, 4242, 9001-9328 subsets); #28 used 42001-50017; the aborted run 1 attempt used 52001 and checks 53000-53004; run 1 used 54001 and checks 55000-55045; the run 1 reference evaluation used 56001. No overlap with the ranges above.
+- Separation of training and evaluation comes from the canonical deal partitions (training 1, validation 0), not from the seeds. validation_schedule(seed, None, pairs) returns deal ids 2*(seed*10^9 + i) with targets alternating 15 (even i) and 30 (odd i).
+
+ACCEPTANCE TEST (ADR 0058), run once after training, no retries
+- Tool: proyecto/phase2_acceptance.py at 5241c2a (it records its own source SHA-256 and refuses to run with uncommitted changes), built test-first and reviewed before training starts, frozen afterwards; tests use synthetic fixtures only, never acceptance seeds.
+- Candidate: the run 2 reigning champion in champions/phase2-run2/ (weights + sidecar), played with temperature 0.05, profile prior 5, adaptation on. Baseline: run 1 gen28, champions/phase2/reigning_champion.pt (tensors identical to run1-g28), temperature 0.05, prior 5, adaptation on. Held-out opponents: phase 1 NetworkPolicy with encoder v1 and its native softmax and profile semantics, as the trainer's phase 1 path loads them. Every network file is hashed before playing; hashes are written to the output.
+- Part A, direct: candidate vs baseline on validation_schedule(60001, None, 1000), partition 0, mirror pairs (each deal played twice with seats swapped).
+- Part B, held-out: candidate and baseline each play the same validation_schedule(60002, None, 1000) mirror pairs, partition 0, against each held-out network.
+- Protocol: both matches start at 0-0; every match starts with fresh policies, fresh RNGs and fresh opponent profiles on both sides (no profile carried from the first match of a pair to the second; the existing mirror helpers that keep profiles across a pair are not reused as is). Action seeds: SeedSequence([schedule_seed, pair_index, match_in_pair, seat]), identical for candidate and baseline, where match_in_pair 0 has the evaluated network in seat 0 and match_in_pair 1 in seat 1.
+- Statistics:
+  - pair score = (wins of the evaluated network in the two matches) / 2, so 0, 0.5 or 1.
+  - Part A: mean of the 1,000 candidate pair scores; 95% interval = mean +/- 1.96 * SD / sqrt(1000), SD = sample standard deviation.
+  - Part B: for each pair index i, d_i = mean over the two held-out networks of (candidate pair score - baseline pair score). 95% interval = mean(d) +/- 1.96 * SD(d) / sqrt(1000) (clustered by pair index, equal weight per held-out network). Each held-out network's individual difference and interval are also reported, descriptively.
+  - All differences are fractions: "-3 points" means -0.03.
+- Decision: run 2 SHIPS (replaces gen28 in champions/phase2/ and the game) only if BOTH: Part A lower bound > 0.50 AND Part B lower bound > -0.03. A bound exactly equal to the threshold fails. Otherwise gen28 stays, and the result is reported as:
+  - "regression" if the whole Part A interval is below 0.50 or the whole Part B interval is below -0.03;
+  - otherwise "inconclusive (not shown better)".
+  This is a one-time shipping acceptance test, not an unbiased estimate of run 2's strength.
+- Command (from the repo root, once, after training):
+  python proyecto/phase2_acceptance.py --candidate champions/phase2-run2/reigning_champion.pt --baseline champions/phase2/reigning_champion.pt --run-dir training_output/phase2-run2 --held-out-manifest experiments/phase2-run2/held-out.json --direct-seed 60001 --held-out-seed 60002 --pairs 1000 --workers 12 --output experiments/phase2-run2/acceptance
+  The tool refuses to run unless: both sidecars exist with temperature 0.05 and prior 5; the baseline file has SHA-256 05f189491a1d6ca7a4d7cebfa556a16e70d7512028e6bb224d61d87a35d4cdcd and tensors equal to run1-g28; the candidate's tensors equal generation_<champion>.pt of the last generations.jsonl entry and its sidecar names that generation.
+- Output: a new folder experiments/phase2-run2/acceptance/ that must not exist before the test; it holds the raw per-pair scores, the schedules, network hashes, settings, tool revision and the decision. If the test is interrupted, only the missing pairs are played deterministically; no reselection and no threshold change.
+
+REPORTING
+- Reference scores (Reactive, Adaptive Utility fixed) are reported as familiar-opponent results (ADR 0060), not as an independent exam.
+- The outcome, its limitations, the README and the archive are published whatever the result.
