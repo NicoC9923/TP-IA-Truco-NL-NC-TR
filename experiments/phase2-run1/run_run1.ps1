@@ -16,7 +16,7 @@ public static class Run1Awake {
 $codes = @{}
 if (Test-Path "$root/done.json") { Remove-Item "$root/done.json" }
 try {
-    $argsTrain = @('proyecto/phase2_trainer.py','--output',$root,'--seed','52001','--check-seed-base','53000',
+    $argsTrain = @('proyecto/phase2_trainer.py','--output',$root,'--seed','54001','--check-seed-base','55000',
         '--workers','12','--target','mixed','--temperature','0.05','--profile-prior','5',
         '--matches-per-round','240','--matches-per-generation','57120','--generations','1000',
         '--patience','40','--time-cap-seconds','28800')
