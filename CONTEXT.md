@@ -58,7 +58,7 @@ The existing agent mode built on thresholds over the 474,000-hand tables, with o
 _Avoid_: Learning mode, "aprendizaje" (its former name)
 
 **Existing agent**:
-Each agent that was already in the app before the trained agent: Reactive and Adaptive Utility. It takes no part in training the trained agent.
+Each agent that was already in the app before the trained agent: Reactive and Adaptive Utility. It takes no part in phase 1 or phase 2 run 1 training; from phase 2 run 2 on it trains with the model and sits on its selection panel (ADR 0056).
 _Avoid_: legacy agent, old agent
 
 **Trained agent**:
@@ -88,7 +88,7 @@ _Avoid_: personality, profile (for the style)
 ### Training
 
 **Phase**:
-Each stage of training, with its own technique: phase 1, neuroevolution; phase 2, reinforcement learning. Phase 1 never uses phase 2. Phase 2 may train against selected phase 1 networks and uses some in its selection panel (ADR 0043, 0047); neither phase ever trains against a reference opponent.
+Each stage of training, with its own technique: phase 1, neuroevolution; phase 2, reinforcement learning. Phase 1 never uses phase 2. Phase 2 may train against selected phase 1 networks and uses some in its selection panel (ADR 0043, 0047). Phase 1 and phase 2 run 1 never trained against a reference opponent; phase 2 run 2 does (ADR 0056).
 _Avoid_: stage, version
 
 **Self-play**:
@@ -136,7 +136,7 @@ Phase 2's frozen past versions of itself, one saved every generation whether pro
 _Avoid_: hall of fame (for phase 2), archive
 
 **Selection panel**:
-A fixed, versioned set of frozen networks against which phase 2's challenger and reigning champion are both measured in each promotion check. Its members are never training opponents.
+A fixed, versioned set of frozen opponents against which phase 2's challenger and reigning champion are both measured in each promotion check. Its network members are never training opponents. Run 1 used networks only; run 2 adds Reactive and Adaptive Utility (ADR 0057).
 _Avoid_: evaluation panel, reference opponents
 
 **Measuring run**:
@@ -148,12 +148,20 @@ The ordered public actions of the hand in progress (calls, answers, declarations
 _Avoid_: history (alone), trace
 
 **Reference opponent**:
-An existing agent (Reactive or Adaptive Utility) the trained agent is measured against in the reference evaluation. Never an opponent in the league.
+An existing agent (Reactive or Adaptive Utility) the trained agent is measured against in the reference evaluation. Not a league opponent in phase 1 or phase 2 run 1; from run 2 on it is one, so its scores are familiar-opponent results (ADR 0060).
 _Avoid_: benchmark, sparring partner
 
 **Reference evaluation**:
 Measuring champions against the reference opponents, done separately from training. Its result is shown but training never reads it.
 _Avoid_: benchmark, test, validation (for this measurement)
+
+**Held-out networks**:
+The two phase 1 champions (v1s1-g23 and v1s2-g2) never used in any league or panel, kept out of phase 2 run 2 entirely so they remain the only unseen check (ADR 0060).
+_Avoid_: test set, exam (alone)
+
+**Acceptance test**:
+The one-time, pre-registered test that decides whether a new phase 2 champion replaces the shipped one: a direct match plus the held-out networks (ADR 0058).
+_Avoid_: final evaluation, unbiased estimate
 
 **Validation deals**:
 A fixed set of deals never used for training, on which promotions are decided and the reference evaluation is run.

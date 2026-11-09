@@ -9,3 +9,7 @@ Each completed generation writes `generation_NNNNNN.pt` to the run directory as 
 The run clock is monotonic wall time measured while the process is active. Its accumulated value is stored at round boundaries and restored on resume, excluding downtime between invocations. The cap is checked at round boundaries and after a complete promotion check, so a running round or check finishes before stopping. Patience counts completed checks without promotion and resets on promotion.
 
 The version 1 manifest remains unusable until the measuring run identifies its fourth member. An explicitly selected version 0 measuring-only manifest contains the three frozen phase 1 members and does not rotate; its logs identify panel version 0. Phase 1 policies use their native softmax and encoder, while phase 2 policies use the configured temperature. Checks send contiguous pair batches to the persistent actor pool and concatenate results in pair order, preserving deterministic results across worker counts without serializing a network for every pair.
+
+## Amendment (2026-11-09, run 2)
+
+Panel manifests may now hold reference members, identified by code and configuration instead of a weights file. A persisted no-rotation switch disables both saturation tracking and panel replacement (ADR 0057). Checkpoint resume validates both.

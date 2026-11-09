@@ -25,3 +25,7 @@ Why phase 1 networks: competent opponents from the first match, at no extra trai
 - **Only promoted champions in the pool (hall of fame, ADR 0004):** the 55% filter discards useful variety.
 - **Styles only after the first promotion (phase 1's deviation, ADR 0013):** phase 2 instead starts styles gently from the beginning with ramped offsets.
 - **Randomized opponent temperature, multiple independent agents, dedicated exploiters (AlphaStar):** vary mistake rate rather than style, or cost scarce training time; deferred until weaknesses persist.
+
+## Amendment (2026-11-09)
+
+Run 2 uses a different mix: self 30%, snapshots 20%, phase 1 networks 10%, the four styles 5% each, Reactive 10% and Adaptive Utility 10% (ADR 0056). The two held-out networks are locked out of every league path (ADR 0060). Run 1 used the shares above.

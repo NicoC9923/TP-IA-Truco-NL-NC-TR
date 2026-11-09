@@ -26,3 +26,7 @@ The log records per-member results for challenger and champion, the panel gain w
 ## Amendment (2026-11-09)
 
 Panel members share each deal schedule, so their results may be correlated. For each pair index, average the challenger-minus-champion differences equally across members; compute the standard error across these per-pair averages and use 1.96 standard errors for the 95% interval. The gain and direct thresholds are unchanged.
+
+## Amendment (2026-11-09, run 2)
+
+Run 2 replaces panel v1 and the saturation rotation with a fixed six-member panel: v2s1-g46, v2s2-g25, run 1 generations 12 and 28, Reactive and Adaptive Utility, all with equal weight and no rotation (ADR 0057). Thresholds and pairs per member are unchanged. The references are no longer kept out of the check.
