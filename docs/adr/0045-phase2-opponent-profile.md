@@ -9,3 +9,7 @@ Phase 2 keeps the four observed rates (bluff, fold, accept, envido) and adds the
 - **Bluffs are still counted only on revealed hands** with the objective criterion (envido under 24 tantos, truco under the 0.44 percentile; ADR 0011). The rate means "bluffs that were caught", not the opponent's true bluff frequency, because which hands get revealed depends on play.
 
 Why: the profile is what lets the network adapt to the opponent; counting non-opportunities as reluctance, or an arbitrary prior, feeds it misleading numbers.
+
+## Measuring-run amendment 2026-11-08
+
+The preregistered held-out comparison selects neutral **prior strength 5** for the real run: mean log loss was 0.591 for 5, 0.623 for 10 and 0.651 for 20. Only 15 held-out opportunities were scored from nine short replays of an undertrained eight-minute network, with none for revealed bluffs; this is weak evidence for a stable choice. See the [measuring record](../../experiments/phase2-measuring-run/README.md).

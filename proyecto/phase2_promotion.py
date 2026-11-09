@@ -76,7 +76,9 @@ def load_panel(path):
     if not panel.get('members'):
         raise ValueError('empty panel')
     for member in panel['members']:
-        if member['kind'] not in ('phase1', 'phase2') or member['encoder'] not in ('v1', 'v2', 'v3'):
+        # Phase 2 uses its own encoder; older saved panels used v1 as a placeholder.
+        valid_encoders = {'phase1': ('v1', 'v2', 'v3'), 'phase2': ('phase2', 'v1')}
+        if member.get('encoder') not in valid_encoders.get(member.get('kind'), ()):
             raise ValueError('invalid panel member')
         if hashlib.sha256((path.parent / member['path']).read_bytes()).hexdigest() != member['sha256']:
             raise ValueError('panel hash mismatch: ' + member['name'])

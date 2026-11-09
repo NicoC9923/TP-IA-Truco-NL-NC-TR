@@ -27,6 +27,14 @@ class PanelTests(unittest.TestCase):
         self.assertEqual([m['sha256'] for m in result['members']], ['1', '2', 'b', 'a'])
         self.assertIsNone(build_panel(panel, {'0': .9, '1': .7, '2': .8}, snapshots[:1], 'c'))
 
+    def test_frozen_default_panel_loads_phase2_encoder(self):
+        from pathlib import Path
+        from phase2_promotion import load_panel
+        panel = load_panel(Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json')
+        self.assertEqual(len(panel['members']), 4)
+        self.assertEqual(panel['members'][-1]['kind'], 'phase2')
+        self.assertEqual(panel['members'][-1]['encoder'], 'phase2')
+
     def test_hash_and_reserved_seed(self):
         import hashlib, json, tempfile
         from pathlib import Path

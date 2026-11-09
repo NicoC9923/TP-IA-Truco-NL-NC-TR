@@ -12,3 +12,7 @@ Limits recorded with the decision (advisor): softmax spreads randomness over eve
 
 - **DouZero's ε-greedy training and greedy play:** the standard DMC method, kept as the baseline for a later optional experiment (equal budget, several seeds); not run now because each comparison costs overnight runs.
 - **ε-greedy in training, softmax in the game:** learns one policy and deploys another.
+
+## Measuring-run amendment 2026-11-08
+
+The preregistered measuring run selects **T = 0.05** for the real run: median top legal-action probability at T=0.1 was 0.336, below 0.40, and the descriptive tactical-mistake rate was 0/34. This is based on only 34 decisions from an undertrained eight-minute network; three of five replay matches ended in one hand after accepted falta envido. See the [measuring record](../../experiments/phase2-measuring-run/README.md).

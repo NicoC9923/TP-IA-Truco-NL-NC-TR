@@ -142,7 +142,7 @@ def main():
     panel = json.loads(PANEL.read_text())
     for m in panel['members']:
         m['path'] = os.path.relpath((PANEL.parent / m['path']).resolve(), root).replace('\\', '/')
-    panel['members'].append(dict(name='measuring-final', path=os.path.relpath(snapshot, root).replace('\\', '/'), kind='phase2', encoder='v1', sha256=digest))
+    panel['members'].append(dict(name='measuring-final', path=os.path.relpath(snapshot, root).replace('\\', '/'), kind='phase2', encoder='phase2', sha256=digest))
     panel['version'] = 1
     panel.pop('measuring_only', None)
     (root / 'panel-v1.json').write_text(json.dumps(panel, indent=2) + '\n')

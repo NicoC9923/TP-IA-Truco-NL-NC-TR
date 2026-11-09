@@ -12,3 +12,7 @@ Why: in reinforcement learning a network often improves gradually without beatin
 - **20 checks without promotion (spec #15):** too early for gradual RL progress.
 - **Time cap only (advisor):** the safety net costs nothing when progress is real.
 - **~3 hours while the PC is in use:** rejected in favor of overnight runs.
+
+## Measuring-run amendment 2026-11-08
+
+The preregistered measuring rule selects **57,120 training matches per generation**, estimating 450.4 seconds per generation and 2.6% check overhead. The eight-minute head-off run measured 24.73 whole-run matches/s and 327.69 samples/s; pre-check training throughput was 130.24 matches/s, while the separate benchmark estimated 11.79 seconds/check and 10.13 ms/update. These figures come from an undertrained network and early short matches; longer future matches could reduce throughput and increase generation time. See the [measuring record](../../experiments/phase2-measuring-run/README.md).
