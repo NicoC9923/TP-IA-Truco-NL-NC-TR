@@ -6,8 +6,8 @@
     "samples": 683,
     "updates": 24,
     "checkpoints": {
-      "checkpoint_000002.pt": "1352f05252cce78559e113b829129ab2a89f56b801267217899a255f89e0dfb4",
-      "checkpoint_000004.pt": "4abf5013c4f242843a9eaf2cfe90338b0a02f5b51370121427bbbd7d9e0ec5c2"
+      "checkpoint_000002.pt": "0f6502c7c0acf08f0bfeb1b719d1f2c6a0b39f945023ef37d88447ba5b27ed0c",
+      "checkpoint_000004.pt": "caccea367e688f153d04f312595ac5d3e08fdf5132708d20ef54c26e2c4738d9"
     },
     "snapshots": {
       "generation_000001.pt": "74fa4e39ef58932d9e88b616f7338adf07d9ad14807dbb8de113e5df2c301856",
@@ -42,6 +42,6 @@
     "platform": "Windows-11-10.0.26300-SP0",
     "cpu": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
     "logical_cpus": 16,
-    "revision": "629b3d3b52f5210dc3cfe8ce99d8d31277e2cbc7"
+    "revision": "8a454b8f783de23d181380d28c8d30888e74da95"
   }
 }

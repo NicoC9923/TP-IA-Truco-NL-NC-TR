@@ -7,6 +7,9 @@ from functools import lru_cache
 from pathlib import Path
 import truco_reglas as rules
 
+# Version 2 records acceptance when raising a pending truco.
+ENGINE_VERSION = 2
+
 @lru_cache(maxsize=1)
 def _percentiles():
     with Path(__file__).with_name('truco_stats.json').open(encoding='utf-8') as file:

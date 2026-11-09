@@ -158,7 +158,7 @@ class CheckProtocolTest(unittest.TestCase):
                 path=root/f'm{i}.npy'; np.save(path, np.random.default_rng(i).normal(0, .1, GENOME_SIZE))
                 members.append({'name':f'm{i}','path':path.name,'kind':'phase1','encoder':'v1','sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
             panel=root/'panel.json'; panel.write_text(json.dumps({'version':1,'members':members}))
-            cfg=dict(generations=6, matches_per_generation=1, matches_per_round=1, target=1, panel_path=panel, champions_dir=root/'champ', panel_pairs=2, head_to_head_pairs=2, min_gain=2, saturation_checks=1, saturation_pairs=2, saturation_threshold=0, clock=lambda:0)
+            cfg=dict(generations=6, matches_per_generation=1, matches_per_round=1, target=1, panel_path=panel, champions_dir=root/'champ', panel_pairs=2, head_to_head_pairs=2, min_gain=1, saturation_checks=1, saturation_pairs=2, saturation_threshold=0, clock=lambda:0)
             train(root/'one', workers=1, **cfg)
             train(root/'two', workers=2, **cfg)
             train(root/'resume', workers=1, stop_after_round=3, **cfg)
