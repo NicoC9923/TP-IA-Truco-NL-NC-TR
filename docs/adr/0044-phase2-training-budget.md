@@ -16,3 +16,8 @@ Why: in reinforcement learning a network often improves gradually without beatin
 ## Measuring-run amendment 2026-11-08
 
 The preregistered measuring rule selects **57,120 training matches per generation**, estimating 450.4 seconds per generation and 2.6% check overhead. The eight-minute head-off run measured 24.73 whole-run matches/s and 327.69 samples/s; pre-check training throughput was 130.24 matches/s, while the separate benchmark estimated 11.79 seconds/check and 10.13 ms/update. These figures come from an undertrained network and early short matches; longer future matches could reduce throughput and increase generation time. See the [measuring record](../../experiments/phase2-measuring-run/README.md).
+
+
+## One-time run #29 extension, 2026-11-09
+
+After observing generations 1–12, the user approved preserving the eight-hour result and, only when the run stops solely on the time cap with fewer than 40 stale checks and independent review has created `EXTENSION_READY`, one continuation to twelve hours of active time. All selection settings remain fixed and the continuation is reported separately. The extension records the original checkpoint hash, old and new caps, revision and timestamp; downtime is excluded. The original `--time-cap-seconds` remains part of the checkpoint configuration and must be passed unchanged, while `--extend-time-cap` specifies the new total. Pending generation-boundary selection is completed on resume before further training. No retries or further extensions are authorized for run #29.
