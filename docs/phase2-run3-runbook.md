@@ -104,3 +104,10 @@ The change is recorded in the checkpoint (`generation_schedule`, config `generat
   `phase2` or `v1` there); the real encoder version is in the weights' shape and the config.
 - Resume of an old (pre-run 3) checkpoint with new code works (config keys are only added when set); a run 3
   checkpoint cannot be resumed without the same run 3 flags.
+
+## Coordinator additions before running (advisor review, 2026-11-10)
+
+Fixed before any real run:
+- Pilot pass = the tool's `passes` (pilot greedy win rate vs fixed Adaptive Utility >= 68%) AND the paired difference pilot minus warm start (same 300 pairs, both in `evaluation`) >= -0.03.
+- After the table check: report visit counts and spot cells (0-0 mano near 0.5-0.55; 14-0 at target 15 near 1).
+- In the pilot entry, `greedy_disagreement` must be non-null; report it and the mean and SD of the blended targets against the plain match results.
