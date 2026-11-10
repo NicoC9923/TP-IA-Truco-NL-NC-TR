@@ -66,6 +66,7 @@ select,.step-button{font:inherit;color:var(--ink);background:white;border:1px so
 .line .rail{flex:1;height:10px;background:var(--soft);border-radius:6px}
 .line .rail div{height:10px;border-radius:6px}
 .line .val{width:64px;text-align:right;font-size:14px;font-weight:600}
+table.wide th,table.wide td{white-space:nowrap;padding-right:16px}
 [hidden]{display:none!important}
 @media(max-width:640px){
  .page{padding:24px 16px 48px;gap:20px}
@@ -111,7 +112,7 @@ const state = {
   p1: { gens: [], ref: [], source: 'empty' },
   p2: { gens: [], ref: [], progress: { status: 'empty' }, acceptance: {} },
   comparison: null,
-  run: ['run1', 'run2'].includes(new URLSearchParams(location.search).get('run')) ? new URLSearchParams(location.search).get('run') : null,
+  run: ['run1', 'run2', 'run3'].includes(new URLSearchParams(location.search).get('run')) ? new URLSearchParams(location.search).get('run') : null,
   step: 0,
   showDecision: false,
   layer: 0,
@@ -317,6 +318,8 @@ function kpis(phase) {
     ? ['Partidas por segundo', num(p.progress.matches_per_s) ? String(Math.round(p.progress.matches_per_s)) : '—']
     : ['Generaciones', s.generation ? String(s.generation) : '—'];
   const items = [['Campeona actual', s.champion === null ? '—' : `gen ${s.champion}`], ['Ascensos', phase === 'p2' && num(p.progress.promotions) ? String(p.progress.promotions) : (p.gens.length ? String(s.promos) : '—')], third];
+  if (phase === 'p2' && state.run === 'run3' && num(p.progress.generation)) items.unshift(['Generación', String(p.progress.generation)]);
+  if (phase === 'p2' && state.run === 'run3' && num(p.progress.elapsed) && num(p.progress.time_cap)) items.splice(2, 0, [`Tiempo (tope ${duration(p.progress.time_cap)})`, duration(p.progress.elapsed)]);
   if (phase === 'p2') items.push(['Partidas', num(p.progress.matches) ? p.progress.matches.toLocaleString('es-AR') : '—']);
   return el('div', { class: 'kpis' }, ...items.map(([l, v]) => el('div', { class: 'card kpi' }, el('span', { text: l }), el('span', { text: v }))));
 }
@@ -387,7 +390,10 @@ function phaseView(phase) {
   if (phase === 'p2') wrap.append(shippedNetwork(), runSelector());
   status.wrap.id = 'phase-status';
   const metrics = kpis(phase); metrics.id = 'phase-metrics';
-  wrap.append(status.wrap, metrics, chart(phase, seriesFor(phase, state[phase].gens)));
+  wrap.append(status.wrap, metrics);
+  if (phase === 'p2' && state.run === 'run3') wrap.append(runThreeNotes());
+  wrap.append(chart(phase, seriesFor(phase, state[phase].gens)));
+  if (phase === 'p2' && state.run === 'run3') wrap.append(runThreeGenerations(), runThreePanel());
   if (phase === 'p2') wrap.append(lossChart(), acceptanceView(), architecture());
   wrap.append(handView(phase));
   return { node: wrap, running };
@@ -416,7 +422,7 @@ function shippedNetwork() {
 
 function runSelector() {
   const select = el('select', {id:'run-select','aria-label':'Corrida de fase 2'});
-  [['run2','Corrida 2 · publicada (generación 38)'],['run1','Corrida 1 · retirada (generación 28)']].forEach(([v,t]) => select.append(el('option',{value:v,text:t})));
+  [['run3','Corrida 3 · en curso'],['run2','Corrida 2 · publicada (generación 38)'],['run1','Corrida 1 · retirada (generación 28)']].forEach(([v,t]) => select.append(el('option',{value:v,text:t})));
   select.value = state.run;
   select.addEventListener('change', async () => {
     state.run = select.value; state.hand.p2 = null; state.step = 0; state.showDecision = false;
@@ -426,6 +432,67 @@ function runSelector() {
   });
   return el('div',{class:'run-select'},el('label',{for:'run-select',text:'Corrida de fase 2'}),select);
 }
+/* ---------- run 3 (live) ---------- */
+const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+const MEMBER_NAMES = { reactive: 'Reactivo', adaptive_utility: 'Utilidad adaptativa' };
+const memberName = (id) => MEMBER_NAMES[id] || `Red ${id}`;
+const pts = (v) => signed(v * 100) + ' pts';
+
+function runThreeNotes() {
+  const box = el('section', { class: 'card' }, el('h2', { text: 'Corrida 3: cómo leer estos números' }));
+  const notes = [
+    'Los controles de la corrida 3 juegan «voraz» (siempre la acción de mayor valor) y con 300 pares de manos por integrante del panel. Por eso sus resultados no se pueden comparar con los de la corrida 2, que sorteaba con temperatura 0,05 y usaba menos pares.',
+    'Para aprender, la red sí sortea acciones, pero con temperatura 0,02: casi siempre elige la de mayor valor y explora muy poco. «Desacuerdo voraz» es el porcentaje de decisiones de entrenamiento en las que el sorteo eligió algo distinto de la acción voraz.',
+    'La red publicada en el juego sigue siendo la generación 38 de la corrida 2. La corrida 3 solo la reemplaza si supera el examen final; entrenar no alcanza.'];
+  box.append(el('ul', { class: 'small' }, ...notes.map((t) => el('li', { text: t }))));
+  return box;
+}
+
+function genSeconds(g) {
+  if (num(g.training_seconds) && num(g.check_seconds)) return g.training_seconds + g.check_seconds;
+  return num(g.elapsed_seconds) ? g.elapsed_seconds : null;
+}
+
+function runThreeGenerations() {
+  const rows = state.p2.gens.filter((g) => num(g.generation) && g.check && num(g.check.gain));
+  const box = el('section', { class: 'card' }, el('h2', { text: 'Resultado de cada generación' }),
+    el('p', { class: 'small', text: 'Mejora: puntos porcentuales sobre la campeona vigente en el panel, con su intervalo del 95 %. Asciende con +1 punto o más, intervalo por encima de cero y al menos 47,5 % cara a cara.' }));
+  if (!rows.length) { box.append(el('p', { class: 'empty', text: 'Todavía no hay controles. El primero aparece al terminar la generación 2.' })); return box; }
+  const table = el('table', { class: 'wide' }, el('caption', { text: 'Controles por generación de la corrida 3' }),
+    el('tr', {}, ...['Generación', 'Mejora', 'Intervalo 95 %', 'Cara a cara', 'Ascenso', 'Desacuerdo voraz', 'Duración'].map((t) => el('th', { scope: 'col', text: t }))));
+  rows.slice().reverse().forEach((g) => {
+    const c = g.check, s = genSeconds(g);
+    table.append(el('tr', {}, ...[g.generation, pts(c.gain), num(c.lower_bound) && num(c.upper_bound) ? `${signed(c.lower_bound * 100)} a ${signed(c.upper_bound * 100)}` : '—',
+      num(c.head_to_head) ? pct(c.head_to_head) : '—', g.promoted ? 'Sí' : 'No', num(g.greedy_disagreement) ? pct(g.greedy_disagreement) : '—', s === null ? '—' : duration(s)].map((v) => el('td', { text: String(v) }))));
+  });
+  box.append(el('div', { class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': 'Controles por generación' }, table));
+  return box;
+}
+
+function runThreePanel() {
+  const rows = state.p2.gens.filter((g) => num(g.generation) && g.check && g.check.members);
+  const box = el('section', { class: 'card' }, el('h2', { text: 'Resultados por integrante del panel' }));
+  if (!rows.length) { box.append(el('p', { class: 'empty', text: 'Todavía no hay resultados por integrante.' })); return box; }
+  const last = rows[rows.length - 1], ids = Object.keys(last.check.members);
+  const score = (m, k) => (m && Array.isArray(m[k]) && m[k].length ? mean(m[k]) : null);
+  box.append(el('p', { class: 'small', text: `Generación ${last.generation}: puntaje medio (1 por partida ganada, ½ por empate) de la aspirante y de la campeona contra cada integrante, jugando voraz. Cada integrante juega ${(last.check.members[ids[0]].challenger || []).length} pares de manos.` }));
+  const table = el('table', { class: 'wide' }, el('caption', { text: `Panel de la generación ${last.generation}` }),
+    el('tr', {}, ...['Integrante', 'Aspirante', 'Campeona', 'Diferencia'].map((t) => el('th', { scope: 'col', text: t }))));
+  ids.forEach((id) => {
+    const m = last.check.members[id], a = score(m, 'challenger'), c = score(m, 'champion');
+    table.append(el('tr', {}, ...[memberName(id), a === null ? '—' : pct(a), c === null ? '—' : pct(c), a === null || c === null ? '—' : pts(a - c)].map((v) => el('td', { text: String(v) }))));
+  });
+  box.append(el('div', { class: 'table-scroll', tabindex: '0', role: 'region', 'aria-label': 'Resultados por integrante del panel' }, table));
+  const hist = el('table', { class: 'wide' }, el('caption', { text: 'Diferencia aspirante menos campeona por generación e integrante' }),
+    el('tr', {}, el('th', { scope: 'col', text: 'Generación' }), ...ids.map((id) => el('th', { scope: 'col', text: memberName(id) }))));
+  rows.slice().reverse().forEach((g) => hist.append(el('tr', {}, el('td', { text: String(g.generation) }), ...ids.map((id) => {
+    const m = g.check.members[id], a = score(m, 'challenger'), c = score(m, 'champion');
+    return el('td', { text: a === null || c === null ? '—' : pts(a - c) });
+  }))));
+  box.append(el('details', {}, el('summary', { text: 'Ver el historial por integrante' }), el('div', { class: 'table-scroll' }, hist)));
+  return box;
+}
+
 function lossChart() {
   const rows = state.p2.gens.filter(g => num(g.generation) && num(g.mean_loss));
   const box = el('section',{class:'card'},el('h2',{text:'Error medio de entrenamiento'}),el('p',{class:'small',text:'Menor error de entrenamiento no demuestra que juegue mejor. Se mide por separado del rendimiento contra el panel.'}));
@@ -443,6 +510,7 @@ function lossChart() {
 function acceptanceView() {
   const a=state.p2.acceptance || {};
   const box=el('section',{class:'card'},el('h2',{text:'Aceptación independiente'}));
+  if (state.run === 'run3') { box.append(el('p',{text:'No aplica todavía: la corrida 3 se juzga con el examen final con partidas nuevas, que se escribe y aprueba después de que termine el entrenamiento. Mientras tanto la red publicada sigue siendo la generación 38 de la corrida 2.'})); return box; }
   if (state.run !== 'run2') { box.append(el('p',{text:'La prueba de aceptación compara la corrida 2 con la campeona de esta corrida.'})); return box; }
   const interval = v => v && num(v.mean) && num(v.lower) && num(v.upper) ? `${pct(v.mean)} (intervalo 95 %: ${pct(v.lower)} a ${pct(v.upper)})` : 'pendiente';
   if (!a.decision || !a.direct || !a.held_out) box.append(el('p',{text:'Pendiente: todavía no hay resultados completos de aceptación.'}));
