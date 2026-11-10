@@ -1,0 +1,9 @@
+# Phase 2 run 2
+
+The frozen protocol and full settings are in [RULE.txt](RULE.txt). Training used seed 57001, 12 workers, mixed targets, learning rate 0.0003, minibatch 512, temperature 0.05 and profile prior 5. The 12-hour cap stopped the run at a round boundary after 43,203 seconds: 2,799,120 matches, 84,279,677 samples and 170,459 updates. Progress recorded generation 49; the final partial generation record is 50. There were nine promotions and the selected candidate was generation 38.
+
+The one-time acceptance used 1,000 mirrored pairs per comparison, with fresh profiles and the frozen direct and held-out schedules. Candidate generation 38 scored 0.518500 directly against the published run 1 generation 28, with 95% interval [0.499752, 0.537248]. The equal-weight held-out difference was 0.030750 [0.015530, 0.045970]; individual differences were 0.032000 [0.010254, 0.053746] and 0.029500 [0.009610, 0.049390]. See acceptance/ for raw pairs and configuration.
+
+The decision is **inconclusive**: the direct lower bound does not strictly exceed 0.50, although the held-out lower bound exceeds -0.03. The published champion remains run 1 generation 28 (SHA-256 `05f189491a1d6ca7a4d7cebfa556a16e70d7512028e6bb224d61d87a35d4cdcd`); run 2 generation 38 (SHA-256 `95eee708e8839233c27e4b3d710b6b5da74f3a149f7fe5ce8deef4cb720b60bf`) was not shipped. No acceptance retry was performed.
+
+These intervals describe the specified opponents and streams, not universal strength or isolated algorithm superiority. Reference and panel scores are familiar-opponent results, not an independent strength examination. The time cap interrupted generation 50; no extrapolation beyond the observed run is implied. Raw training checkpoints and generation weights are preserved outside Git in the training archive.
