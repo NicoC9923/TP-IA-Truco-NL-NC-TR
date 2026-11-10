@@ -27,11 +27,14 @@ RUN2 = ROOT / 'experiments/phase2-run2'
 SCRATCH = ROOT / 'training_output/phase2-speed'
 
 
-def setup(weights_path, directory):
+def setup(weights_path, directory, encoder_version=1):
     import torch
     import phase2_trainer as trainer
     from phase2_league import load_phase1_manifest, panel_exclusions
     weights = torch.load(weights_path, map_location='cpu', weights_only=True)
+    if encoder_version > 1:
+        from phase2_torch import widen_state_dict
+        weights = widen_state_dict(weights, encoder_version)
     snapshot = Path(directory) / 'generation_000001.pt'
     shutil.copyfile(weights_path, snapshot)
     digest = hashlib.sha256(snapshot.read_bytes()).hexdigest()
@@ -113,7 +116,7 @@ def round_mode(args):
     SCRATCH.mkdir(parents=True, exist_ok=True)
     out = {}
     with tempfile.TemporaryDirectory(dir=SCRATCH) as directory:
-        weights, pool_list, phase1, shares, exclusions, opponents = setup(args.weights, directory)
+        weights, pool_list, phase1, shares, exclusions, opponents = setup(args.weights, directory, args.encoder_version)
         context = trainer.mp.get_context('spawn')
         with context.Pool(args.workers, initializer=trainer._configure_threads) as pool:
             # Warm-up round: process start, imports, opponent caches.
@@ -132,8 +135,7 @@ def round_mode(args):
                     first_samples = samples
                 digests.append(sample_digest(samples))
                 counts.append(len(samples))
-        model = trainer.Phase2Network()
-        model.load_state_dict(weights)
+        model = trainer.Phase2Network.from_state(weights)
         update = learner_seconds(trainer, model, first_samples)
         payload = len(pickle.dumps(first_samples, protocol=pickle.HIGHEST_PROTOCOL))
         check_start = time.perf_counter()
@@ -166,7 +168,7 @@ def profile_mode(args):
     torch.use_deterministic_algorithms(True)
     SCRATCH.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=SCRATCH) as directory:
-        weights, pool_list, phase1, shares, exclusions, opponents = setup(args.weights, directory)
+        weights, pool_list, phase1, shares, exclusions, opponents = setup(args.weights, directory, args.encoder_version)
         blocks = round_blocks(57001, 1, args.matches, pool_list, phase1, shares, exclusions)
         job = (weights, 57001, blocks, 'mixed', .3, opponents, .05, 5)
         trainer._league_chunk((weights, 57001, blocks[:2], 'mixed', .3, opponents, .05, 5))  # warm caches
@@ -195,6 +197,7 @@ def main():
     parser.add_argument('--workers', type=int, default=12)
     parser.add_argument('--matches', type=int, default=240)
     parser.add_argument('--rounds', type=int, default=3)
+    parser.add_argument('--encoder-version', type=int, default=1, choices=(1, 2, 3), help='widen the weights with zero columns')
     parser.add_argument('--check-pairs', type=int, default=0)
     args = parser.parse_args()
     (round_mode if args.mode == 'round' else profile_mode)(args)
