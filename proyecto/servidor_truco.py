@@ -81,6 +81,42 @@ def _leer_jsonl(path):
     return records
 
 
+def _comparacion_publicada(root):
+    """Only the shipped run's recorded measurements; never replay a match."""
+    root = Path(root)
+    p1 = root / 'champions/phase1'
+    p2 = root / 'champions/phase2'
+    payload = {'phase1_reference': _leer_jsonl(p1 / 'reference_evaluation.jsonl'),
+               'phase1_champions': [{'generation': r.get('generation'), 'champion': r.get('reigning_champion')}
+                                    for r in _leer_jsonl(p1 / 'generations.jsonl')],
+               'phase2_champions': [{'generation': r.get('generation'), 'champion': r.get('champion')}
+                                    for r in _leer_jsonl(p2 / 'generations.jsonl')],
+               'phase2_reference': [], 'probe': None}
+    try:
+        archive = json.loads((root / 'experiments/phase2-run1/reference-eval/results.json').read_text(encoding='utf-8'))
+        for generation, opponents in archive['summaries'].items():
+            if not generation.startswith('gen') or not generation[3:].isdigit():
+                continue
+            for opponent, values in opponents.items():
+                if opponent not in ('reactive', 'adaptive_utility'):
+                    continue
+                for adaptation in ('on', 'off'):
+                    value = values[adaptation]
+                    payload['phase2_reference'].append({'generation': int(generation[3:]), 'reference_opponent': opponent,
+                        'adaptation': adaptation, 'win_rate': value['mean'], 'lower': value['lower'], 'upper': value['upper']})
+    except (OSError, ValueError, UnicodeDecodeError, KeyError, TypeError):
+        pass
+    try:
+        probe = json.loads((p2 / 'card-probe-report.json').read_text(encoding='utf-8'))
+        if probe.get('champion_unchanged') and probe.get('champion_sha256'):
+            import hashlib
+            if hashlib.sha256((p2 / 'reigning_champion.pt').read_bytes()).hexdigest() == probe['champion_sha256']:
+                payload['probe'] = {k: probe.get(k) for k in ('status', 'counts', 'test_scored', 'predictors', 'examples')}
+    except (OSError, ValueError, UnicodeDecodeError, TypeError):
+        pass
+    return payload
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, formato, *args):
         pass
@@ -95,6 +131,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(cuerpo)))
             self.end_headers()
             self.wfile.write(cuerpo)
+        elif ruta_limpia == "/evolucion/comparison":
+            self._responder(200, _comparacion_publicada(self.server.evolution_root))
         elif ruta_limpia in ("/evolucion/phase1/generations", "/evolucion/phase1/reference"):
             filename = "generations.jsonl" if ruta_limpia.endswith("generations") else "reference_evaluation.jsonl"
             self._responder(200, _leer_jsonl(self._origen_evolucion("phase1") / filename))

@@ -36,6 +36,7 @@ class PartidaTruco:
         # Legacy aggregates include interruptions and cannot be converted reliably.
         # Preserve them and accumulate v3 semantics independently from neutral.
         self.opponent_profile_v3 = OpponentProfile(profile_path.with_name('opponent_profile_v3.json'))
+        self.opponent_profile_phase2 = OpponentProfile(profile_path.with_name('opponent_profile_phase2.json'), prior_strength=5)
         self.adapt_to_opponent = True
         self.network = None
 
@@ -168,6 +169,9 @@ class PartidaTruco:
         if modo == 'neuroevolucion':
             champion = self.ia.champions_dir / PHASE1_CHAMPION
             self.network = NetworkPolicy.load(champion, seed=self.rng.randrange(2**32), explain=True)
+        elif modo == 'refuerzo':
+            from phase2_game_policy import GamePhase2Policy
+            self.network = GamePhase2Policy.load(self.ia.champions_dir / 'phase2/reigning_champion.pt', seed=self.rng.randrange(2**32))
         info = self.ia.set_modo_agente(modo)
         self.registrar(f"🧠 Arquitectura IA cambiada a: {info['nombre']}")
         return self.estado_publico()
@@ -176,9 +180,11 @@ class PartidaTruco:
         """Reset the persisted opponent profile and pending observations."""
         self.opponent_profile.reset()
         self.opponent_profile_v3.reset()
+        self.opponent_profile_phase2.reset()
         self._human_decisions.clear()
 
     def reiniciar_partido(self, meta_puntos: Optional[int] = None) -> Dict:
+        self.adapt_to_opponent = True
         if meta_puntos in (15, 30):
             self.meta_puntos = meta_puntos
         self.puntos_humano = 0
@@ -268,6 +274,8 @@ class PartidaTruco:
             decision['bluff'] = is_bluff(decision['action'], hand) if revealed else None
         self.opponent_profile.observe(self._human_decisions, 0)
         self.opponent_profile_v3.observe(self._human_decisions, 0, semantics='v3')
+        phase2_decisions = [dict(d, legal_actions=d.get('legal_actions', ())) for d in self._human_decisions]
+        self.opponent_profile_phase2.observe(phase2_decisions, 0, semantics='phase2')
         self.estadisticas_partida["manos_jugadas"] += 1
         self.ia.analizar_mano_humano(
             self.cartas_humano,
@@ -379,7 +387,7 @@ class PartidaTruco:
         if not self.cartas_robot_disponibles:
             return
 
-        if self.ia.modo_agente == 'neuroevolucion':
+        if self.ia.modo_agente in ('neuroevolucion', 'refuerzo'):
             actions = ['card_%d' % i for i, card in enumerate(self.cartas_robot) if card in self.cartas_robot_disponibles] + ['fold']
             if self.puede_cantar_envido():
                 actions += ['envido', 'real_envido', 'falta_envido']
@@ -440,9 +448,12 @@ class PartidaTruco:
         self._robot_tira_carta(carta_humano_en_baza)
 
     def _network_decide(self, actions, pending=None):
-        stored_profile = self.opponent_profile_v3 if self.network.encoder == 'v3' else self.opponent_profile
-        profile = stored_profile if self.adapt_to_opponent else OpponentProfile()
+        stored_profile = (self.opponent_profile_phase2 if self.network.encoder == 'phase2' else
+                          self.opponent_profile_v3 if self.network.encoder == 'v3' else self.opponent_profile)
+        profile = stored_profile if self.adapt_to_opponent else OpponentProfile(prior_strength=stored_profile.prior_strength)
         self.network.profile = profile
+        if self.network.encoder == 'phase2':
+            self.network.adapt = self.adapt_to_opponent
         cards = tuple((c['valor'], c['palo']) for c in self.cartas_robot)
         reveal = None
         if self.resultado_envido_detalle and 'pts_humano' in self.resultado_envido_detalle:
@@ -473,7 +484,10 @@ class PartidaTruco:
 
     def _record_human(self, action, pending=None):
         self._network_history.append((0, action))
-        self._human_decisions.append({'player': 0, 'action': action, 'hand_index': 0,
+        legal = [action]
+        if self.puede_cantar_envido():
+            legal.extend(('envido', 'real_envido', 'falta_envido'))
+        self._human_decisions.append({'player': 0, 'action': action, 'hand_index': 0, 'legal_actions': legal,
                                       'observation': {'pending': pending}, 'revealed': False, 'bluff': None})
 
     def _robot_tira_carta_network(self, index):
@@ -631,7 +645,7 @@ class PartidaTruco:
         es_farol: bool = False,
         detalle_farol: str = "",
     ) -> None:
-        if self.ia.modo_agente != 'neuroevolucion':
+        if self.ia.modo_agente not in ('neuroevolucion', 'refuerzo'):
             self._network_history.append((1, 'envido' if canto == 'ENVIDO_ENVIDO' else canto.lower()))
         pts_q, pts_nq = self._valores_envido(canto)
         self.ultimo_canto_envido = canto
@@ -697,7 +711,7 @@ class PartidaTruco:
         self.por_el_partido = canto == "FALTA_ENVIDO" and tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos)[1]
         self.registrar(f"👤 Humano cantó: {canto.replace('_', ' ')}")
 
-        if self.ia.modo_agente == 'neuroevolucion':
+        if self.ia.modo_agente in ('neuroevolucion', 'refuerzo'):
             pending = {'kind': 'envido', 'caller': 0, 'call': canto.lower(), 'accepted': pts_q, 'declined': pts_nq}
             actions = ['quiero', 'no_quiero', 'fold'] + [('envido' if a == 'ENVIDO_ENVIDO' else a.lower()) for a in self._opciones_subir_envido(canto)]
             choice = self._network_decide(actions, pending)
@@ -814,7 +828,7 @@ class PartidaTruco:
         es_farol: bool = False,
         detalle_farol: str = "",
     ) -> None:
-        if self.ia.modo_agente != 'neuroevolucion':
+        if self.ia.modo_agente not in ('neuroevolucion', 'refuerzo'):
             self._network_history.append((1, nivel.lower()))
         pts_q, pts_nq = self._puntos_nivel_truco(nivel)
         self.estadisticas_partida["truco"]["cantados_robot"] += 1
@@ -883,7 +897,7 @@ class PartidaTruco:
             None,
         )
 
-        if self.ia.modo_agente != 'neuroevolucion' and nivel == "TRUCO" and self.ronda_actual == 1 and not self.envido_resuelto:
+        if self.ia.modo_agente not in ('neuroevolucion', 'refuerzo') and nivel == "TRUCO" and self.ronda_actual == 1 and not self.envido_resuelto:
             canto_e, _ = self.ia.decidir_iniciar_envido(
                 self.cartas_robot,
                 es_mano=(not self.es_mano_humano),
@@ -906,7 +920,7 @@ class PartidaTruco:
         return self._responder_truco_robot(nivel, pts_q, pts_nq, carta_humano_en_baza)
 
     def _responder_truco_robot(self, nivel, pts_q, pts_nq, carta_humano_en_baza):
-        if self.ia.modo_agente == 'neuroevolucion':
+        if self.ia.modo_agente in ('neuroevolucion', 'refuerzo'):
             pending = {'kind': 'truco', 'caller': 0, 'level': pts_q}
             actions = ['quiero', 'no_quiero', 'fold']
             if pts_q < 4:
@@ -1157,7 +1171,8 @@ class PartidaTruco:
         siguiente_truco = self._siguiente_nivel_truco() if self.quien_tiene_quiero_truco in ("ambos", "humano") else None
         aprendizaje = self.ia.resumen_aprendizaje()
         aprendizaje['adaptacion_activa'] = self.adapt_to_opponent
-        profile = self.opponent_profile_v3 if self.network is not None and self.network.encoder == 'v3' and self.ia.modo_agente == 'neuroevolucion' else self.opponent_profile
+        profile = (self.opponent_profile_phase2 if self.ia.modo_agente == 'refuerzo' else
+                   self.opponent_profile_v3 if self.network is not None and self.network.encoder == 'v3' and self.ia.modo_agente == 'neuroevolucion' else self.opponent_profile)
         aprendizaje['perfil_rival'] = profile.rates()
         if not self.mano_terminada:
             def vista_publica(paso):

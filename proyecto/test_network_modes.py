@@ -21,20 +21,50 @@ class NetworkModesServerTests(unittest.TestCase):
                 modes = {m['codigo']: m for m in state['aprendizaje_ia']['modos_disponibles']}
                 self.assertEqual(set(modes), {'reactivo', 'utilidad_adaptativa', 'neuroevolucion', 'refuerzo'})
                 self.assertTrue(modes['neuroevolucion']['disponible'])
-                self.assertFalse(modes['refuerzo']['disponible'])
+                self.assertTrue(modes['refuerzo']['disponible'])
                 connection.request('POST', '/truco/modo_ia', json.dumps({'modo': 'foo'}))
                 response = connection.getresponse(); self.assertEqual(response.status, 400); response.read()
                 connection.request('GET', '/truco/estado')
                 self.assertEqual(json.loads(connection.getresponse().read())['aprendizaje_ia']['modo_agente'], 'utilidad_adaptativa')
                 connection.request('POST', '/truco/modo_ia', json.dumps({'modo': 'refuerzo'}))
-                response = connection.getresponse(); self.assertEqual(response.status, 409); response.read()
-                self.assertEqual(match.ia.modo_agente, 'utilidad_adaptativa')
+                response = connection.getresponse(); self.assertEqual(response.status, 200); response.read()
+                self.assertEqual(match.ia.modo_agente, 'refuerzo')
+                self.assertEqual(match.network.encoder, 'phase2')
                 connection.request('POST', '/truco/modo_ia', json.dumps({'modo': ' NEUROEVOLUCION '}))
                 response = connection.getresponse(); self.assertEqual(response.status, 200); response.read()
                 self.assertEqual(match.ia.modo_agente, 'neuroevolucion')
                 connection.close()
             finally:
                 server.shutdown(); thread.join(); server.server_close()
+    def test_phase2_game_uses_published_model_and_resets_adaptation(self):
+        from phase2_torch import Phase2Network
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            match = PartidaTruco(historial_path=str(Path(tmp) / 'history.json'), rng=random.Random(7))
+            with patch.object(Phase2Network, 'load', wraps=Phase2Network.load) as load:
+                match.cambiar_modo_ia('refuerzo')
+                self.assertEqual(load.call_args.args[0], match.ia.champions_dir / 'phase2/reigning_champion.pt')
+            self.assertTrue(match.adapt_to_opponent)
+            match.adapt_to_opponent = False
+            match.jugar_carta_humano(match.cartas_humano_disponibles[0])
+            self.assertTrue(match.ia.traza_razonamiento)
+            self.assertIsNone(match.ia.traza_razonamiento[-1]['perfil_rival'])
+            match.reiniciar_partido()
+            self.assertTrue(match.adapt_to_opponent)
+
+    def test_phase2_mode_unavailable_without_torch_or_file(self):
+        from unittest.mock import patch
+        import sys
+        with tempfile.TemporaryDirectory() as tmp:
+            match = PartidaTruco(historial_path=str(Path(tmp) / 'history.json'), champions_dir=tmp)
+            self.assertFalse(match.ia.mode_available('refuerzo'))
+            phase2 = Path(tmp) / 'phase2'; phase2.mkdir()
+            (phase2 / 'reigning_champion.pt').write_bytes(b'placeholder')
+            with patch.dict(sys.modules, {'torch': None}):
+                self.assertFalse(match.ia.mode_available('refuerzo'))
+                match.cambiar_modo_ia('refuerzo')
+                self.assertEqual(match.ia.modo_agente, 'utilidad_adaptativa')
+
     def test_truco_after_robot_plays_all_cards(self):
         with tempfile.TemporaryDirectory() as tmp:
             match = PartidaTruco(historial_path=str(Path(tmp) / 'history.json'), rng=random.Random(7))

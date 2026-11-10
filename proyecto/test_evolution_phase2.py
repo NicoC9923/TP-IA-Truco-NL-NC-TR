@@ -351,5 +351,27 @@ print(json.dumps(phase2_example_hand.example_hand_payload(root)))
         self.assertEqual(json.loads(result.stdout), {'available': False, 'reason': 'torch'})
 
 
+class PublishedComparisonTests(unittest.TestCase):
+    def test_comparison_uses_recorded_series_and_probe(self):
+        from servidor_truco import _comparacion_publicada
+        data = _comparacion_publicada(REPO)
+        self.assertEqual({r['generation'] for r in data['phase2_reference']}, {4, 10, 28})
+        self.assertEqual({r['adaptation'] for r in data['phase2_reference']}, {'on', 'off'})
+        self.assertEqual({r['reference_opponent'] for r in data['phase2_reference']}, {'reactive', 'adaptive_utility'})
+        self.assertTrue(data['phase1_reference'])
+        self.assertEqual(data['phase1_champions'][-1]['champion'], 48)
+        self.assertEqual(data['phase2_champions'][-1]['champion'], 28)
+        self.assertEqual(data['probe']['test_scored'], 2000)
+        self.assertEqual(set(data['probe']['predictors']), {'exact', 'weighted', 'champion', 'control'})
+
+    def test_comparison_rejects_probe_from_other_champion(self):
+        from servidor_truco import _comparacion_publicada
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); folder = root / 'champions/phase2'; folder.mkdir(parents=True)
+            (folder / 'reigning_champion.pt').write_bytes(b'other')
+            (folder / 'card-probe-report.json').write_text('{"champion_unchanged": true, "champion_sha256": "wrong"}')
+            self.assertIsNone(_comparacion_publicada(root)['probe'])
+
+
 if __name__ == '__main__':
     unittest.main()

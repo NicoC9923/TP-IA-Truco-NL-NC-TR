@@ -112,7 +112,13 @@ class AgenteTrucoIA:
         if mode == 'neuroevolucion':
             return (self.champions_dir / PHASE1_CHAMPION).is_file()
         if mode == 'refuerzo':
-            return False
+            if not (self.champions_dir / 'phase2/reigning_champion.pt').is_file():
+                return False
+            try:
+                import torch
+                return torch is not None
+            except ImportError:
+                return False
         return mode in self.MODOS_DISPONIBLES
 
     def limpiar_traza_mano(self) -> None:
