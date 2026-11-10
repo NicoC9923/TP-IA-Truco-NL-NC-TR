@@ -29,6 +29,7 @@ from symmetric_engine import ENGINE_VERSION, play_match, play_mirror_pair
 from phase2_network import ENCODER_VERSION, INPUT_SIZES
 from phase2_equity import EquityTable
 from phase2_target import decision_targets
+from phase2_schedule import GenerationSchedule
 from validation_schedule import validation_schedule
 from phase2_league import retain_snapshots, panel_exclusions, draw_opponent, load_phase1_manifest, validate_shares, DEFAULT_SHARES
 from phase2_progress import ProgressReporter, PROGRESS_FILE
@@ -442,7 +443,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
                check_seed_base=10000, temperature=.1, profile_prior=20, min_gain=.01, min_direct=.475,
                patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress_path=None, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400, extension=None,
-               encoder_version=1, warm_start=None, target_blend=0.0, equity_table=None, check_greedy=False):
+               encoder_version=1, warm_start=None, target_blend=0.0, equity_table=None, check_greedy=False, schedule=None):
+    if schedule is None and generation_rounds:
+        schedule = GenerationSchedule(generation_rounds)
     if not math.isfinite(profile_prior) or profile_prior <= 0:
         raise ValueError('profile_prior must be positive and finite')
     if not isinstance(card_prediction_situations, int) or card_prediction_situations < 1:
@@ -535,8 +538,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
     context = mp.get_context('spawn')
     pool_context = context.Pool(workers, initializer=_configure_threads) if workers > 1 else nullcontext(None)
     with pool_context as pool:
-        if resume_state is not None and resume_state.get('_extension_reopen') and first_round % generation_rounds == 0:
-            generation = first_round // generation_rounds
+        if resume_state is not None and resume_state.get('_extension_reopen') and schedule.is_boundary(first_round):
+            generation = schedule.generation_at(first_round)
             lines = Path(log_path).read_text(encoding='utf-8').splitlines()
             entry = json.loads(lines[-1])
             if entry['generation'] != generation:
@@ -546,7 +549,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
             pending_check = not any(item.get('name') == f'generation-{generation}' for item in snapshots)
             if panel is not None and champion_generation != generation and pending_check:
                 check_started = time.perf_counter() if timing_log else None
-                previous = Path(checkpoint_dir) / f'checkpoint_{first_round - generation_rounds:06d}.pt'
+                previous = Path(checkpoint_dir) / f'checkpoint_{schedule.previous_boundary(first_round):06d}.pt'
                 if not previous.exists():
                     raise ValueError('Previous generation checkpoint required for pending boundary work')
                 previous_state = torch.load(previous, map_location='cpu', weights_only=False)
@@ -705,9 +708,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
             now = clock()
             elapsed += now - run_tick
             run_tick = now
-            if generation_rounds and (round_id + 1) % generation_rounds == 0:
-                entry = dict(phase=2, generation=(round_id + 1) // generation_rounds,
-                             matches=generation_rounds * matches_per_round,
+            if generation_rounds and schedule.is_boundary(round_id + 1):
+                entry = dict(phase=2, generation=schedule.generation_at(round_id + 1),
+                             matches=(round_id + 1 - schedule.previous_boundary(round_id + 1)) * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
                              mean_loss=sum(losses) / len(losses) if losses else None, elapsed_seconds=clock() - started,
                              league_mix=dict(league_mix), phase1_opponents=dict(phase1_counts), neutral_blocks=neutral_blocks, style_offset_round_end=style_target * min(1, ((round_id + 1) * matches_per_round) / style_ramp_matches) if style_ramp_matches else style_target,
@@ -719,6 +722,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 if rollout:
                     entry.update(decisions=generation_decisions,
                                  greedy_disagreement=generation_differs / generation_decisions if generation_decisions else None)
+                if schedule.change and entry['generation'] == schedule.change[1] + 1:
+                    entry['generation_size_change'] = schedule.info  # logged once, on the first generation of the new size
                 if checkpoint_dir is not None:
                     generation = entry['generation']
                     snapshot = Path(checkpoint_dir) / f'generation_{generation:06d}.pt'
@@ -809,9 +814,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 neutral_blocks = 0
                 losses = []
                 started = clock()
-            if generation_rounds and (round_id + 1) % generation_rounds and elapsed >= time_cap_seconds:
-                entry = dict(phase=2, generation=(round_id + 1) // generation_rounds + 1,
-                             matches=(round_id + 1) % generation_rounds * matches_per_round,
+            if generation_rounds and not schedule.is_boundary(round_id + 1) and elapsed >= time_cap_seconds:
+                entry = dict(phase=2, generation=schedule.generation_at(round_id + 1) + 1,
+                             matches=(round_id + 1 - schedule.last_boundary(round_id + 1)) * matches_per_round,
                              learner_samples=generation_samples, updates=generation_updates,
                              mean_loss=sum(losses) / len(losses) if losses else None, elapsed_seconds=clock() - started,
                              league_mix=dict(league_mix), phase1_opponents=dict(phase1_counts), neutral_blocks=neutral_blocks, style_offset_round_end=style_target * min(1, ((round_id + 1) * matches_per_round) / style_ramp_matches) if style_ramp_matches else style_target,
@@ -839,10 +844,10 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 reporter.generation_done(entry, elapsed)
             if checkpoint_dir is not None:
                 state = dict(model=model.state_dict(), optimizer=optimizer.state_dict(),
-                             round=round_id + 1, generation=(round_id + 1) // generation_rounds,
+                             round=round_id + 1, generation=schedule.generation_at(round_id + 1) if schedule else 0,
                              matches=(round_id + 1) * matches_per_round, samples=total, updates=updates,
                              generation_samples=generation_samples, generation_updates=generation_updates,
-                             losses=losses, league_mix=league_mix, phase1_counts=phase1_counts, neutral_blocks=neutral_blocks, config=config, phase_ended=entry['phase_ended'] if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else False, stop_reason=entry.get('stop_reason') if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) else None, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots), league_pool=_portable(league_pool), panel_history=_portable(panel_history), panel=_portable(panel), champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
+                             losses=losses, league_mix=league_mix, phase1_counts=phase1_counts, neutral_blocks=neutral_blocks, config=config, phase_ended=entry['phase_ended'] if generation_rounds and (schedule.is_boundary(round_id + 1) or elapsed >= time_cap_seconds) else False, stop_reason=entry.get('stop_reason') if generation_rounds and (schedule.is_boundary(round_id + 1) or elapsed >= time_cap_seconds) else None, elapsed=elapsed, stale=stale, saturation_history=history, panel_snapshots=_portable(snapshots), league_pool=_portable(league_pool), panel_history=_portable(panel_history), panel=_portable(panel), champion_weights=champion, champion_generation=champion_generation, python_rng=random.getstate(),
                              numpy_rng=np.random.get_state(), torch_rng=torch.get_rng_state(),
                              shuffle_rng=rng.bit_generator.state)
                 if extension is not None:
@@ -850,6 +855,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     state['promotions'] = reporter.promotions
                 if rollout:
                     state.update(generation_decisions=generation_decisions, generation_differs=generation_differs)
+                if schedule.change:
+                    state['generation_schedule'] = schedule.record()
                 if timing_log:
                     state['generation_training_seconds'] = generation_training_seconds
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
@@ -864,16 +871,16 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     if not suffix.isdigit():
                         continue
                     old_round = int(suffix)
-                    if old_round != round_id + 1 and (old_round > round_id + 1 or old_round % generation_rounds):
+                    if old_round != round_id + 1 and (old_round > round_id + 1 or not schedule.is_boundary(old_round)):
                         old.unlink()
             finished = round_stop is None and round_id + 1 == last_round and stop_after_round is None
-            reporter.round_done(elapsed=elapsed, generation=(round_id + 1) // generation_rounds if generation_rounds else 0,
+            reporter.round_done(elapsed=elapsed, generation=schedule.generation_at(round_id + 1) if generation_rounds else 0,
                                 round=round_id + 1, matches=(round_id + 1) * matches_per_round, samples=total, updates=updates,
                                 recent_loss=recent_loss, league_mix=mix_seen, champion_generation=champion_generation,
                                 panel_version=panel['version'] if panel else None,
                                 ended=round_stop is not None or finished,
                                 stop_reason=round_stop or ('completed' if finished else None))
-            if generation_rounds and ((round_id + 1) % generation_rounds == 0 or elapsed >= time_cap_seconds) and entry['phase_ended']:
+            if generation_rounds and (schedule.is_boundary(round_id + 1) or elapsed >= time_cap_seconds) and entry['phase_ended']:
                 break
     return RoundResult(model, optimizer, total, updates, last)
 
@@ -883,7 +890,8 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
           champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
           check_seed_base=10000, temperature=.1, profile_prior=20, min_gain=.01, min_direct=.475,
           patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400, extend_time_cap=None,
-          encoder_version=1, warm_start=None, target_blend=0.0, equity_table=None, check_selection='sampled'):
+          encoder_version=1, warm_start=None, target_blend=0.0, equity_table=None, check_selection='sampled',
+          change_matches_per_generation=False):
     """Round match counts up to complete blocks and generations to complete rounds."""
     if (encoder_version not in INPUT_SIZES or check_selection not in ('sampled', 'greedy')
             or not isinstance(target_blend, numbers.Real) or not 0 <= target_blend <= 1
@@ -997,7 +1005,32 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                 _reject_held_out(saved_panel.get('members', []), held_out, output, allow_references=True)
         for key in ('league_pool', 'panel_snapshots'):
             _reject_held_out(state.get(key, []), held_out, output)
+    schedule = GenerationSchedule(generation_rounds)
+    size_change = None
+    if state is not None and state.get('generation_schedule'):
+        if change_matches_per_generation:
+            raise ValueError('The generation size can be changed only once')
+        schedule = GenerationSchedule.from_record(state['generation_schedule'])
+        if generation_rounds != schedule.current_size:
+            raise ValueError('Checkpoint configuration does not match')
+        config['generation_size_change'] = schedule.info
+    elif change_matches_per_generation:
+        if state is None:
+            raise ValueError('Changing the generation size requires --resume')
+        previous = state['config']['matches_per_generation']
+        if previous == matches_per_generation or state['config']['matches_per_round'] != matches_per_round:
+            raise ValueError('A generation size change needs a different matches per generation and the same matches per round')
+        previous_rounds = (previous + matches_per_round - 1) // matches_per_round
+        info = {'from_matches_per_generation': previous, 'to_matches_per_generation': matches_per_generation,
+                'at_round': state['round'], 'at_generation': state['round'] // previous_rounds}
+        schedule = GenerationSchedule(previous_rounds).with_change(
+            round=state['round'], rounds_per_generation=generation_rounds, info=info)
+        config['generation_size_change'] = info
+        size_change = info
     old_config = dict(state['config']) if state is not None else None
+    if old_config is not None and size_change is not None:
+        old_config['matches_per_generation'] = matches_per_generation
+        old_config['generation_size_change'] = size_change
     if old_config is not None:
         old_config.pop('workers', None)
         old_config.pop('generations', None)
@@ -1010,6 +1043,12 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
             old_config.pop('profile_prior', None)
     if state is not None and old_config != config:
         raise ValueError('Checkpoint configuration does not match')
+    if size_change is not None:
+        from phase2_progress import write_json_atomic
+        record = dict(size_change, checkpoint_sha256=hashlib.sha256(Path(resume).read_bytes()).hexdigest(),
+                      timestamp=datetime.now(timezone.utc).isoformat())
+        if not write_json_atomic(output / 'generation_size_change.json', record):
+            raise OSError('Could not durably record the generation size change')
     extension = state.get('extension') if state is not None else None
     if extend_time_cap is not None:
         if extension is not None:
@@ -1018,7 +1057,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         else:
             if extend_time_cap <= time_cap_seconds:
                 raise ValueError('Extension cap must be strictly greater than checkpoint cap')
-            if not state.get('phase_ended') or state.get('stop_reason') != 'time_cap' or state.get('stale', 0) >= patience or state['round'] >= generations * generation_rounds:
+            if not state.get('phase_ended') or state.get('stop_reason') != 'time_cap' or state.get('stale', 0) >= patience or state['round'] >= schedule.total_rounds(generations):
                 raise ValueError('Only a run ended solely by the time cap can be extended')
             record_path = output / 'time_cap_extension.json'
             if record_path.exists():
@@ -1035,7 +1074,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                 if not write_json_atomic(record_path, extension):
                     raise OSError('Could not durably record time-cap extension')
         state['extension'] = extension
-        if state.get('phase_ended') and state.get('stop_reason') == 'time_cap' and state['round'] * matches_per_round < generations * generation_rounds * matches_per_round and state.get('elapsed', 0) < extend_time_cap:
+        if state.get('phase_ended') and state.get('stop_reason') == 'time_cap' and state['round'] < schedule.total_rounds(generations) and state.get('elapsed', 0) < extend_time_cap:
             state['_extension_reopen'] = True
             state['phase_ended'] = False
         time_cap_seconds = extend_time_cap
@@ -1046,7 +1085,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         _reconcile_champion(champions_dir, state['champion_weights'], state['champion_generation'], temperature, profile_prior,
                             'greedy' if check_selection == 'greedy' else None)
     if state is not None and state.get('phase_ended'):
-        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations, profile_prior=profile_prior, **run3)
+        return run_rounds(seed=seed, rounds=schedule.total_rounds(generations), schedule=schedule, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations, profile_prior=profile_prior, **run3)
     output.mkdir(parents=True, exist_ok=True)
     log_path = output / 'generations.jsonl'
     if state is None:
@@ -1055,7 +1094,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         lines = log_path.read_text(encoding='utf-8').splitlines() if log_path.exists() else []
         kept = [line for line in lines if json.loads(line)['generation'] <= state['generation']]
         log_path.write_text(''.join(line + '\n' for line in kept), encoding='utf-8')
-    return run_rounds(seed=seed, rounds=generations * generation_rounds, panel_rotation=panel_rotation, timing_log=timing_log, held_out_hashes=held_out,
+    return run_rounds(seed=seed, rounds=schedule.total_rounds(generations), schedule=schedule, panel_rotation=panel_rotation, timing_log=timing_log, held_out_hashes=held_out,
                       matches_per_round=matches_per_round, workers=workers, target=target,
                       lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=log_path,
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
@@ -1069,6 +1108,8 @@ def main():
     parser.add_argument('--generations', type=int, default=1)
     parser.add_argument('--matches-per-generation', type=int, default=120)
     parser.add_argument('--matches-per-round', type=int, default=12)
+    parser.add_argument('--change-matches-per-generation', action='store_true',
+                        help='with --resume: use the --matches-per-generation given now from this generation boundary on (once, logged)')
     parser.add_argument('--workers', type=int, default=1)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--target', type=lambda value: 'mixed' if value == 'mixed' else int(value), default='mixed')
