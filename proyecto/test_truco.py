@@ -239,7 +239,7 @@ class TestServidorHTTP(unittest.TestCase):
                 self.assertEqual(status, 200)
                 summary = data["estado"]["aprendizaje_ia"]
                 self.assertEqual(summary["modo_agente"], "utilidad_adaptativa")
-                self.assertEqual([m["nombre"] for m in summary["modos_disponibles"]], ["Reactivo", "Utilidad adaptativa", "Red neuronal · Neuroevolución", "Red neuronal · Aprendizaje por refuerzo"])
+                self.assertEqual([m["nombre"] for m in summary["modos_disponibles"]], ["Reactivo", "Utilidad adaptativa", "Red neuronal · Algoritmos genéticos", "Red neuronal · Aprendizaje por refuerzo"])
             finally:
                 servidor.shutdown(); hilo.join(); servidor.server_close()
 

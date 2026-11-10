@@ -106,8 +106,8 @@ class EvolutionPageContentTests(unittest.TestCase):
     page = (Path(__file__).resolve().parent / 'evolucion.html').read_text(encoding='utf8')
 
     def test_has_three_tabs_and_required_texts(self):
-        for text in ('Fase 1 · Neuroevolución', 'Fase 2 · Aprendizaje por refuerzo', 'Comparación',
-                     'Neuroevolución vs Aprendizaje por refuerzo', 'Ver una mano de ejemplo de la campeona',
+        for text in ('Fase 1 · Algoritmos genéticos', 'Fase 2 · Aprendizaje por refuerzo', 'Comparación',
+                     'Algoritmos genéticos vs Aprendizaje por refuerzo', 'Ver una mano de ejemplo de la campeona',
                      'Disponible cuando la fase 2 tenga campeona evaluada',
                      'Mejora sobre la campeona contra el panel fijo', 'Resultado del control contra la campeona',
                      'la fase 2 entrenó también contra redes de la fase 1'):

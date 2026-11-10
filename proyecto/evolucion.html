@@ -89,7 +89,7 @@ select,.step-button{font:inherit;color:var(--ink);background:white;border:1px so
    <p class="sub" id="source">Cargando datos…</p>
   </div>
   <nav role="tablist" aria-label="Vista">
-   <button type="button" role="tab" id="tab-p1" aria-controls="view" data-tab="p1" aria-selected="false">Fase 1 · Neuroevolución</button>
+   <button type="button" role="tab" id="tab-p1" aria-controls="view" data-tab="p1" aria-selected="false">Fase 1 · Algoritmos genéticos</button>
    <button type="button" role="tab" id="tab-p2" aria-controls="view" data-tab="p2" aria-selected="true">Fase 2 · Aprendizaje por refuerzo</button>
    <button type="button" role="tab" id="tab-cmp" aria-controls="view" data-tab="cmp" aria-selected="false">Comparación</button>
   </nav>
@@ -530,15 +530,15 @@ function probeSnapshot(report) {
 
 function comparison() {
   const data=state.comparison || {}, refs1=data.phase1_reference||[], refs2=data.phase2_reference||[];
-  const root=el('div',{class:'stack'},el('section',{class:'card'},el('h2',{text:'Neuroevolución vs Aprendizaje por refuerzo'}),el('p',{text:'Comparación de las corridas publicadas. En particular, la fase 2 entrenó también contra redes de la fase 1 en la corrida publicada. Los rivales de referencia sirvieron para evaluarla, no participaron en su entrenamiento: estas mediciones no aíslan los algoritmos ni demuestran superioridad general.'}),el('p',{class:'small',text:'Fase 1: corrida 1. Fase 2: corrida 1 publicada. Contra cada rival se muestra el porcentaje ganado; fase 2 solo tiene mediciones registradas en las generaciones 4, 10 y 28. Las líneas unen mediciones disponibles, no inventan otras.'})));
+  const root=el('div',{class:'stack'},el('section',{class:'card'},el('h2',{text:'Algoritmos genéticos vs Aprendizaje por refuerzo'}),el('p',{text:'Comparación de las corridas publicadas. En particular, la fase 2 entrenó también contra redes de la fase 1 en la corrida publicada. Los rivales de referencia sirvieron para evaluarla, no participaron en su entrenamiento: estas mediciones no aíslan los algoritmos ni demuestran superioridad general.'}),el('p',{class:'small',text:'Fase 1: corrida 1. Fase 2: corrida 1 publicada. Contra cada rival se muestra el porcentaje ganado; fase 2 solo tiene mediciones registradas en las generaciones 4, 10 y 28. Las líneas unen mediciones disponibles, no inventan otras.'})));
   if (!refs2.length) root.append(el('p',{class:'empty',text:'Disponible cuando la fase 2 tenga campeona evaluada.'}));
   for(const opponent of ['reactive','adaptive_utility']) {
     const p1=refs1.filter(r=>r.reference_opponent===opponent).map(r=>({generation:r.generation,value:r.win_rate*100,lower:num(r.margin_of_error)?(r.win_rate-r.margin_of_error)*100:null,upper:num(r.margin_of_error)?(r.win_rate+r.margin_of_error)*100:null}));
     const p2=refs2.filter(r=>r.reference_opponent===opponent&&r.adaptation==='on').map(r=>({generation:r.generation,value:r.win_rate*100,lower:num(r.lower)?r.lower*100:null,upper:num(r.upper)?r.upper*100:null}));
-    root.append(comparisonChart(`Contra ${OPPONENTS[opponent]}`, [{name:'Neuroevolución',color:'#C2410C',rows:p1},{name:'Refuerzo · adaptación activa',color:'#1F5FBF',dash:'6 4',rows:p2}],100,' %'));
+    root.append(comparisonChart(`Contra ${OPPONENTS[opponent]}`, [{name:'Algoritmos genéticos',color:'#C2410C',rows:p1},{name:'Refuerzo · adaptación activa',color:'#1F5FBF',dash:'6 4',rows:p2}],100,' %'));
   }
   root.append(comparisonChart('Sucesión de campeonas · misma escala de generaciones',[
-    {name:'Neuroevolución',color:'#C2410C',rows:(data.phase1_champions||[]).map(r=>({generation:r.generation,value:r.champion}))},
+    {name:'Algoritmos genéticos',color:'#C2410C',rows:(data.phase1_champions||[]).map(r=>({generation:r.generation,value:r.champion}))},
     {name:'Refuerzo',color:'#1F5FBF',dash:'6 4',rows:(data.phase2_champions||[]).map(r=>({generation:r.generation,value:r.champion}))}],80,''));
   const adapt=el('section',{class:'card'},el('h2',{text:'Adaptación activa y desactivada · fase 2'}),el('p',{class:'small',text:'Evaluaciones registradas de las campeonas 4, 10 y 28 contra los mismos rivales; no se volvieron a jugar partidas.'}));
   const tbl=el('table',{},el('tr',{},...['Generación','Rival','Activa','Desactivada'].map(v=>el('th',{scope:'col',text:v}))));

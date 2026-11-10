@@ -46,8 +46,8 @@ class AgenteTrucoIA:
             "subtitulo": "Utilidad esperada (474k) + cuota dinámica de farol + modelado online del rival humano",
         },
         "neuroevolucion": {
-            "codigo": "neuroevolucion", "nombre": "Red neuronal · Neuroevolución",
-            "subtitulo": "Red entrenada por neuroevolución",
+            "codigo": "neuroevolucion", "nombre": "Red neuronal · Algoritmos genéticos",
+            "subtitulo": "Red entrenada mediante algoritmos genéticos",
         },
         "refuerzo": {
             "codigo": "refuerzo", "nombre": "Red neuronal · Aprendizaje por refuerzo",

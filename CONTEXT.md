@@ -47,7 +47,7 @@ _Avoid_: probable evidence, weak evidence
 ### Agents
 
 **Agent mode**:
-Each AI architecture Ottoman can use in a match, chosen from the UI: Reactive, Adaptive Utility, Neuroevolution network and Reinforcement-learning network.
+Each AI architecture Ottoman can use in a match, chosen from the UI: Reactive, Adaptive Utility, Genetic-algorithms network and Reinforcement-learning network.
 _Avoid_: profile, difficulty, level
 
 **Reactive**:
@@ -66,7 +66,7 @@ An agent whose policy was not hand-written: it comes from an iterative training 
 _Avoid_: new AI, trained bot, "Entrenado" (as a mode name)
 
 **Network mode**:
-Each of the two agent modes that play with a trained agent: the Neuroevolution network (phase 1, UI: "Red neuronal · Neuroevolución") and the Reinforcement-learning network (phase 2, UI: "Red neuronal · Aprendizaje por refuerzo").
+Each of the two agent modes that play with a trained agent: the Genetic-algorithms network (phase 1, UI: "Red neuronal · Algoritmos genéticos") and the Reinforcement-learning network (phase 2, UI: "Red neuronal · Aprendizaje por refuerzo").
 _Avoid_: trained mode, AI mode
 
 **Adapt to opponent**:
@@ -88,7 +88,7 @@ _Avoid_: personality, profile (for the style)
 ### Training
 
 **Phase**:
-Each stage of training, with its own technique: phase 1, neuroevolution; phase 2, reinforcement learning. Phase 1 never uses phase 2. Phase 2 may train against selected phase 1 networks and uses some in its selection panel (ADR 0043, 0047). Phase 1 and phase 2 run 1 never trained against a reference opponent; phase 2 run 2 does (ADR 0056).
+Each stage of training, with its own technique: phase 1, genetic algorithms; phase 2, reinforcement learning. Phase 1 never uses phase 2. Phase 2 may train against selected phase 1 networks and uses some in its selection panel (ADR 0043, 0047). Phase 1 and phase 2 run 1 never trained against a reference opponent; phase 2 run 2 does (ADR 0056).
 _Avoid_: stage, version
 
 **Self-play**:
