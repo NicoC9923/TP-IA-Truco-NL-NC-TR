@@ -215,6 +215,25 @@ def _league_chunk(job):
             _league_block((weights, seed, ids, target, random_start_share, spec, opponents, temperature, profile_prior))]
 
 
+# Blocks against code or phase 1 opponents are cheaper; dispatch them last so
+# the round ends on short tasks. Order never affects results (see _play_round).
+_LATE_CATEGORIES = frozenset(('phase1', *REFERENCE_IDENTITIES))
+
+
+def _play_round(pool, *, weights, seed, blocks, target, random_start_share, opponents, temperature, profile_prior):
+    """Play a round's league blocks; return (match_id, samples) sorted by match id.
+
+    Each block is its own task so idle workers pick up the remaining blocks.
+    A block seeds every policy and match from its match ids and builds fresh
+    policies, so neither the split into tasks nor their order changes results.
+    """
+    order = sorted(range(len(blocks)), key=lambda i: (blocks[i][1]['category'] in _LATE_CATEGORIES, i))
+    jobs = [(weights, seed, [blocks[i]], target, random_start_share, opponents, temperature, profile_prior)
+            for i in order]
+    batches = pool.map(_league_chunk, jobs, chunksize=1) if pool else list(map(_league_chunk, jobs))
+    return sorted(result for batch in batches for result in batch)
+
+
 def _check_pair(job):
     challenger, opponent, deal_seed, target, action_seed, temperature = job
     def policy(spec, seed):
@@ -584,11 +603,10 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     name = opponents[spec['identity']]['name']
                     phase1_counts[name] = phase1_counts.get(name, 0) + len(ids)
                 neutral_blocks += int(spec['neutral_profile'])
-            chunks = [list(chunk) for chunk in np.array_split(np.arange(len(blocks)), min(workers, len(blocks)))]
-            jobs = [(weights, seed, [blocks[int(i)] for i in chunk], target, random_start_share, opponents, temperature, profile_prior) for chunk in chunks]
-            batches = pool.map(_league_chunk, jobs, chunksize=1) if pool else list(map(_league_chunk, jobs))
-            results = [result for batch in batches for result in batch]
-            last = [sample for _, samples in sorted(results) for sample in samples]
+            results = _play_round(pool, weights=weights, seed=seed, blocks=blocks, target=target,
+                                  random_start_share=random_start_share, opponents=opponents,
+                                  temperature=temperature, profile_prior=profile_prior)
+            last = [sample for _, samples in results for sample in samples]
             total += len(last)
             generation_samples += len(last)
             for indices in (np.array_split(rng.permutation(len(last)), range(minibatch, len(last), minibatch)) if last else ()):

@@ -131,7 +131,16 @@ def run(workers):
         np.random.seed(35)
         torch.manual_seed(35)
         start = time.perf_counter()
-        if workers == 1:
+        if hasattr(trainer, '_play_round'):
+            real_round = trainer._play_round
+
+            def play_round(*a, **kw):
+                results = real_round(*a, **kw)
+                recorder.record([results])
+                return results
+            with patch.object(trainer, '_play_round', play_round):
+                result = trainer.train(directory, **configuration(workers, champions))
+        elif workers == 1:
             with patch.object(trainer, '_league_chunk', chunk):
                 result = trainer.train(directory, **configuration(workers, champions))
         else:

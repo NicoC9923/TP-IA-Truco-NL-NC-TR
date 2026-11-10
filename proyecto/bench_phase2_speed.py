@@ -64,7 +64,7 @@ def play(trainer, pool, weights, seed, blocks, opponents):
     args = dict(weights=weights, seed=seed, blocks=blocks, target='mixed', random_start_share=.3,
                 opponents=opponents, temperature=.05, profile_prior=5)
     if hasattr(trainer, '_play_round'):
-        return trainer._play_round(pool, **args)
+        return [sample for _, samples in trainer._play_round(pool, **args) for sample in samples]
     import numpy as np
     workers = pool._processes if pool else 1
     chunks = [list(chunk) for chunk in np.array_split(np.arange(len(blocks)), min(workers, len(blocks)))]
@@ -198,3 +198,25 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+def timed(payload):
+    function, job = payload
+    start = time.perf_counter()
+    result = function(job)
+    return result, time.perf_counter() - start, time.perf_counter()
+
+
+_PROBE_WEIGHTS = None
+
+
+def timed_cached(payload):
+    global _PROBE_WEIGHTS
+    path, job = payload
+    import torch
+    import phase2_trainer as trainer
+    if _PROBE_WEIGHTS is None:
+        _PROBE_WEIGHTS = torch.load(path, map_location='cpu', weights_only=True)
+    start = time.perf_counter()
+    result = trainer._league_chunk((_PROBE_WEIGHTS, *job[1:]))
+    return result, time.perf_counter() - start, time.perf_counter()

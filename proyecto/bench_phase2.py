@@ -74,8 +74,8 @@ class RoundProbe:
         self.code = function.__code__
         source, first = inspect.getsourcelines(function)
         markers = {'weights = model.state_dict()': 'setup',
-                   'batches = pool.map(_league_chunk': 'actors',
-                   'results = [result for batch': 'merge',
+                   'results = _play_round(': 'actors',
+                   'last = [sample for _, samples in results': 'merge',
                    'for indices in np.array_split': 'learner',
                    'recent_loss = statistics.mean': 'boundary',
                    'reporter.round_done(': 'progress'}
