@@ -35,3 +35,7 @@ Both candidates pass the primary test (Holm one-sided p < 1e-100), all guardrail
 - **The candidates were named after their development checks had been seen.** Fresh seeds make the exam unbiased for these two named candidates; the ranking was fixed before play.
 - **Greedy play is deterministic for a given situation,** so a human who plays it many times may learn to read it. ADR 0061 ships the candidate with the selection rule it was examined with.
 - The intervals describe this protocol and these opponents. They do not establish universal strength.
+
+## Files
+
+The rule names `champions/phase2-run2/reigning_champion.pt` for candidate C1. That file is byte-identical (SHA-256 `95eee708…60bf`) to the shipped `champions/phase2/reigning_champion.pt`, and an identical copy with its sidecar is kept in the training archive at `TP-IA-Truco-training-archive/phase2-run2/champions/phase2-run2/`. To reproduce the exam, restore that folder to the path the rule names.
