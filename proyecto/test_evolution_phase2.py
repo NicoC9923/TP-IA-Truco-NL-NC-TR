@@ -407,6 +407,35 @@ class ShippedRun2Tests(unittest.TestCase):
                 self.assertTrue(hand['available'])
                 self.assertEqual(hand['generation'], 28)
 
+    def test_run3_is_default_while_live_and_falls_back_to_committed_copy(self):
+        from urllib.error import HTTPError
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'champions/phase2-run2').mkdir(parents=True)
+            (root / 'champions/phase2-run2/generations.jsonl').write_text('{"generation": 38}\n')
+            (root / 'champions/phase2-run3').mkdir(parents=True)
+            (root / 'champions/phase2-run3/generations.jsonl').write_text('{"generation": 7}\n')
+            with running(root) as get:
+                self.assertEqual(get('runs')['default'], 'run2')
+                self.assertEqual(get('generations?run=run3'), [{'generation': 7}])
+            live = root / 'training_output/phase2-run3'
+            live.mkdir(parents=True)
+            with running(root) as get:
+                self.assertEqual(get('runs')['default'], 'run3')
+                self.assertEqual(get('generations?run=run3'), [{'generation': 7}])
+                self.assertEqual(get('progress?run=run3'), {'status': 'empty'})
+                (live / 'generations.jsonl').write_text('{"generation": 2, "greedy_disagreement": 0.4}\n{"generation":')
+                (live / 'progress.json').write_text('{"status": "training", "generation": 2}')
+                (live / 'reference_evaluation.jsonl').write_text('{"generation": 2}\n')
+                self.assertEqual(get('generations?run=run3'), [{'generation': 2, 'greedy_disagreement': 0.4}])
+                self.assertEqual(get('progress?run=run3')['generation'], 2)
+                self.assertEqual(get('reference?run=run3'), [{'generation': 2}])
+                self.assertEqual(get('acceptance?run=run3'), {'status': 'pending'})
+                self.assertEqual(get('example-hand?run=run3')['reason'], 'awaiting_stable_example')
+                self.assertEqual(get('generations?run=run2'), [{'generation': 38}])
+                with self.assertRaises(HTTPError):
+                    get('progress?run=run4')
+
 
 if __name__ == '__main__':
     unittest.main()

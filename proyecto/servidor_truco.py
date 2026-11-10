@@ -176,14 +176,23 @@ class Handler(BaseHTTPRequestHandler):
             self._responder(200, {"source": "live" if vivo else ("committed" if (origen / "generations.jsonl").is_file() else "empty")})
         elif ruta_limpia == "/evolucion/phase2/runs":
             root = self.server.evolution_root
-            self._responder(200, {"default": "run2" if (root / "training_output/phase2-run2").is_dir() or (root / "champions/phase2-run2").is_dir() else "run1"})
+            if (root / "training_output/phase2-run3").is_dir():
+                default = "run3"
+            elif (root / "training_output/phase2-run2").is_dir() or (root / "champions/phase2-run2").is_dir():
+                default = "run2"
+            else:
+                default = "run1"
+            self._responder(200, {"default": default})
         elif ruta_limpia.startswith("/evolucion/phase2/") and "run" in parse_qs(urlsplit(self.path).query, keep_blank_values=True):
             run = parse_qs(urlsplit(self.path).query, keep_blank_values=True)["run"]
-            if len(run) != 1 or run[0] not in ("run1", "run2"):
+            if len(run) != 1 or run[0] not in ("run1", "run2", "run3"):
                 self._responder(400, {"error": "invalid run"})
                 return
             root = self.server.evolution_root
-            directory = root / "champions/phase2" if run[0] == "run1" else self._origen_run2(root)
+            if run[0] == "run1":
+                directory = root / "champions/phase2"
+            else:
+                directory = self._origen_run(root, run[0])
             endpoint = ruta_limpia.rsplit("/", 1)[-1]
             if endpoint in ("generations", "reference"):
                 name = "generations.jsonl" if endpoint == "generations" else "reference_evaluation.jsonl"
@@ -200,7 +209,7 @@ class Handler(BaseHTTPRequestHandler):
             elif endpoint in ("progress", "acceptance"):
                 path = directory / "progress.json" if endpoint == "progress" else root / "experiments/phase2-run2/acceptance/results.json"
                 payload = {"status": "empty"} if endpoint == "progress" else {"status": "pending"}
-                if endpoint != "acceptance" or run[0] == "run2":
+                if endpoint != "acceptance" or run[0] == "run2":  # run 3 has no final exam yet: pending
                     try:
                         value = json.loads(path.read_text(encoding="utf-8"))
                         if isinstance(value, dict):
@@ -427,12 +436,13 @@ class Handler(BaseHTTPRequestHandler):
             return 404, None
 
     @staticmethod
-    def _origen_run2(root):
-        """Live run 2 directory when it has data, else the committed copy next to the shipped champion."""
-        live = root / "training_output/phase2-run2"
+    def _origen_run(root, run):
+        """Live run directory when it has data, else the committed copy (run 2: next to the shipped champion)."""
+        name = "phase2-" + run
+        live = root / "training_output" / name
         if (live / "generations.jsonl").is_file() or (live / "progress.json").is_file():
             return live
-        return root / "champions/phase2-run2"
+        return root / "champions" / name
 
     def _origen_evolucion(self, fase):
         """Live run directory when it has data, else the committed copies."""
