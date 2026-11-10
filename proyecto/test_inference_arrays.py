@@ -71,6 +71,24 @@ class DictInference(Inference):
         self._summary_cache = weights, ranks, counts, brava, strength
         return self._summary_cache
 
+    def v3_summaries(self, cards, available, *, estimate_outcomes):
+        weights, ranks, counts, brava, strength = self._summary_arrays()
+        outcomes = [0.0, 0.0, 0.0]
+        if estimate_outcomes:
+            for i in available:
+                rank = rules.valor_carta_truco(*cards[i])
+                signs = ((rank > ranks).astype(int) - (rank < ranks)) * (ranks >= 0)
+                outcomes[i] = oi._ordered_sum(weights * signs.sum(axis=1) / counts)
+        return oi._ordered_sum(weights * brava), oi._ordered_sum(weights * strength), outcomes
+
+    def summaries(self, card, *, ties_win=False):
+        weights, ranks, counts, brava, strength = self._summary_arrays()
+        rank = rules.valor_carta_truco(*card)
+        wins = ((rank > ranks) | (ties_win & (rank == ranks))) & (ranks >= 0)
+        return dict(brava_probability=oi._ordered_sum(weights * brava),
+                    expected_strength=oi._ordered_sum(weights * strength),
+                    next_trick_win_probability=oi._ordered_sum(weights * wins.sum(axis=1) / counts))
+
 
 def first_difference(actual, expected):
     """Avoid difflib on 7,770-entry lists: report the first differing entry."""
@@ -93,8 +111,12 @@ def same(test, actual, expected, own):
     for card in own:
         for ties in (False, True):
             test.assertEqual(repr(actual.summaries(card, ties_win=ties)), repr(expected.summaries(card, ties_win=ties)))
-    test.assertEqual(repr(actual.v3_summaries(own, (0, 1, 2), estimate_outcomes=True)),
-                     repr(expected.v3_summaries(own, (0, 1, 2), estimate_outcomes=True)))
+    for available in ((0, 1, 2), (1,), (0, 2), ()):
+        for estimate in (True, False):
+            test.assertEqual(repr(actual.v3_summaries(own, available, estimate_outcomes=estimate)),
+                             repr(expected.v3_summaries(own, available, estimate_outcomes=estimate)))
+    for card in oi._DECK[::7]:
+        test.assertEqual(repr(actual.summaries(card)), repr(expected.summaries(card)))
 
 
 class ArrayPosteriorTests(unittest.TestCase):

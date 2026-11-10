@@ -21,6 +21,21 @@ def _strength_table():
         table[indexes] = round(sum(r * factor for r, factor in zip(ranks, (1.0, .6, .3))), 2)
     return table
 
+_CODE_PLACES = np.array([225, 15, 1])
+_HAND_RANKS = _RANKS[_IDS]
+_HAND_BRAVA = _BRAVAS[_IDS].any(axis=1)
+_HAND_CODES = (_HAND_RANKS + 1) @ _CODE_PLACES
+
+
+@lru_cache(maxsize=1)
+def _sign_table():
+    """[rank, code]: sum over the code's present slots of sign(rank - slot rank)."""
+    digits = np.array(list(np.ndindex(15, 15, 15))) - 1
+    ranks = np.arange(int(_RANKS.max()) + 1)[:, None, None]
+    signs = ((ranks > digits).astype(int) - (ranks < digits)) * (digits >= 0)
+    return signs.sum(axis=2)
+
+
 def _ordered_sum(values):
     # np.sum uses pairwise reduction: preserve Python's left-to-right additions.
     return float(np.cumsum(values)[-1]) if len(values) else 0.0
@@ -129,26 +144,38 @@ class Inference:
         weights, ranks, counts, brava, strength = self._summary_arrays()
         outcomes = [0.0, 0.0, 0.0]
         if estimate_outcomes:
+            codes = self._code_cache
+            signs = _sign_table()
             for i in available:
                 rank = rules.valor_carta_truco(*cards[i])
-                signs = ((rank > ranks).astype(int) - (rank < ranks)) * (ranks >= 0)
-                outcomes[i] = _ordered_sum(weights * signs.sum(axis=1) / counts)
+                # The per-hand sum of slot signs, as int64, read from a table.
+                outcomes[i] = _ordered_sum(weights * signs[rank][codes] / counts)
         return _ordered_sum(weights * brava), _ordered_sum(weights * strength), outcomes
 
     def _summary_arrays(self):
         # All evidence and weight mutators invalidate this derived state.
         if self._summary_cache is not None:
             return self._summary_cache
-        # Dict iteration preserves the original posterior order, including after filters.
+        # Array order is the original posterior order, including after filters.
         weights = self._weights / self._total()
-        cards = _IDS[self._ids]
-        remaining = np.ones(cards.shape, dtype=bool)
-        for card in self.played:
-            remaining &= cards != _CARD_IDS[card]
-        ranks = np.where(remaining, _RANKS[cards], -1)
-        counts = np.maximum(remaining.sum(axis=1), 1)
-        brava = (_BRAVAS[cards] & remaining).any(axis=1)
-        strength = _strength_table()[tuple((ranks + 1).T)]
+        played = [_CARD_IDS[card] for card in self.played]
+        if played:
+            cards = _IDS[self._ids]
+            remaining = np.ones(cards.shape, dtype=bool)
+            for card in played:
+                remaining &= cards != card
+            ranks = np.where(remaining, _RANKS[cards], -1)
+            counts = np.maximum(remaining.sum(axis=1), 1)
+            brava = (_BRAVAS[cards] & remaining).any(axis=1)
+            codes = (ranks + 1) @ _CODE_PLACES
+        else:
+            ranks = _HAND_RANKS[self._ids]
+            counts = np.full(len(self._ids), 3, dtype=ranks.dtype)
+            brava = _HAND_BRAVA[self._ids]
+            codes = _HAND_CODES[self._ids]
+        # _strength_table() indexed by the three (rank + 1) digits, flattened.
+        strength = _strength_table().reshape(-1)[codes]
+        self._code_cache = codes
         self._summary_cache = weights, ranks, counts, brava, strength
         return self._summary_cache
 
