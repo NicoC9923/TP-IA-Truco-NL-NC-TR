@@ -39,3 +39,5 @@ Both candidates pass the primary test (Holm one-sided p < 1e-100), all guardrail
 ## Files
 
 The rule names `champions/phase2-run2/reigning_champion.pt` for candidate C1. That file is byte-identical (SHA-256 `95eee708…60bf`) to the shipped `champions/phase2/reigning_champion.pt`, and an identical copy with its sidecar is kept in the training archive at `TP-IA-Truco-training-archive/phase2-run2/champions/phase2-run2/`. To reproduce the exam, restore that folder to the path the rule names.
+
+The rule's other inputs, `training_output/phase2-run2/generation_000038.pt` and `generation_000049.pt`, were removed from the working tree after verifying all 102 files of `training_output/phase2-run2` by SHA-256 against `TP-IA-Truco-training-archive/phase2-run2/manifest.json`. Restore that folder to reproduce the exam.
