@@ -64,6 +64,13 @@ class Inference:
         self._ids = np.fromiter((_HAND_IDS[h] for h in value), dtype=np.int64, count=len(value))
         self._weights = np.fromiter(value.values(), dtype=np.float64, count=len(value))
 
+    def same_posterior(self, other):
+        """True when every summary would be identical (same hands, weights, played)."""
+        return (self is other or
+                (type(self) is type(other) and self._scalars == other._scalars and self.played == other.played
+                 and len(self._ids) == len(other._ids) and np.array_equal(self._ids, other._ids)
+                 and self._weights.tobytes() == other._weights.tobytes()))
+
     def _keep(self, mask):
         self._ids = self._ids[mask]
         self._weights = self._weights[mask]

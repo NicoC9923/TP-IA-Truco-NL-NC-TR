@@ -52,8 +52,15 @@ def encode_observation(obs, profile, legal_actions, *, weighted_beliefs=True,
     result[INDEX['summary']] = summary
     result[INDEX['exact_belief']] = summary[50:55]
     if weighted_beliefs:
-        weighted = encode_v3(obs, profile, weighted_inference, encoder='v3')
-        result[INDEX['weighted_belief']] = weighted[50:55]
+        # The same posterior update encode_v3 would make for the weighted belief.
+        rate = profile.rates()['bluff']
+        weighted = (weighted_inference.update(obs, rate) if weighted_inference is not None
+                    else inference_from_observation(obs, rate))
+        if weighted.same_posterior(exact):
+            # Values 50:55 depend only on the posterior and the observation.
+            result[INDEX['weighted_belief']] = summary[50:55]
+        else:
+            result[INDEX['weighted_belief']] = encode_v3(obs, profile, _FixedInference(weighted), encoder='v3')[50:55]
     result[INDEX['confidence']] = [n / (n + profile.prior_strength)
                                     for n in profile.confidence().values()]
     player = obs['player']
