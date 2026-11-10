@@ -27,24 +27,60 @@ def _ordered_sum(values):
 
 
 class Inference:
+    """Ordered posterior over the opponent's original hands.
+
+    Hands are kept as parallel arrays (hand ids, float64 weights) in the original
+    dict order: ascending hand id after construction, preserved by every filter.
+    Each mutator performs the same IEEE operations, element by element, as the
+    original dict code, and totals still use Python's ``sum`` over the same
+    values in the same order (Python 3.12 compensated summation). A NumPy
+    scalar bluff rate used to turn every weight into ``np.float64``, which makes
+    ``sum`` add naively; ``_scalars`` records that so totals stay identical.
+    """
     def __init__(self, own_cards):
-        deck = [(v, p) for p in rules.PALOS for v in rules.VALORES]
+        own = [_CARD_IDS[c] for c in set(own_cards) if c in _CARD_IDS]
         self.played = set()
-        self.weights = {hand: 1.0 for hand in combinations((c for c in deck if c not in own_cards), 3)}
+        self._ids = np.flatnonzero(~_MEMBERSHIP[own].any(axis=0)) if own else np.arange(len(_HANDS))
+        self._weights = np.ones(len(self._ids))
+        self._scalars = False
         self._summary_cache = None
 
+    def _values(self):
+        # Python floats exactly as the dict held them, or np.float64 objects.
+        return list(self._weights) if self._scalars else self._weights.tolist()
+
+    def _total(self):
+        return sum(self._values())
+
+    @property
+    def weights(self):
+        """Ordered {hand: weight} view; build it only outside hot paths."""
+        return dict(zip((_HANDS[i] for i in self._ids.tolist()), self._values()))
+
+    @weights.setter
+    def weights(self, value):
+        self._summary_cache = None
+        self._scalars = any(type(w) is not float for w in value.values())
+        self._ids = np.fromiter((_HAND_IDS[h] for h in value), dtype=np.int64, count=len(value))
+        self._weights = np.fromiter(value.values(), dtype=np.float64, count=len(value))
+
+    def _keep(self, mask):
+        self._ids = self._ids[mask]
+        self._weights = self._weights[mask]
+
     def distribution(self):
-        total = sum(self.weights.values())
-        return {hand: weight / total for hand, weight in self.weights.items()}
+        total = self._total()
+        values = self._weights / total
+        return dict(zip((_HANDS[i] for i in self._ids.tolist()), list(values) if self._scalars else values.tolist()))
 
     def declared_tantos(self, value):
         self._summary_cache = None
-        self.weights = {h: w for h, w in self.weights.items() if _tantos(h) == value}
+        self._keep(_hand_tantos()[self._ids] == value)
 
     def son_buenas(self, own_tantos, opponent_is_mano):
         self._summary_cache = None
-        self.weights = {h: w for h, w in self.weights.items()
-                        if _tantos(h) < own_tantos or (not opponent_is_mano and _tantos(h) == own_tantos)}
+        tantos = _hand_tantos()[self._ids]
+        self._keep((tantos < own_tantos) | ((not opponent_is_mano) & (tantos == own_tantos)))
 
     def seen_cards(self, excluded=(), opponent_played=()):
         excluded, played = set(excluded), set(opponent_played)
@@ -54,10 +90,16 @@ class Inference:
             return
         self._summary_cache = None
         self.played.update(played)
-        if excluded:
-            self.weights = {h: w for h, w in self.weights.items() if not excluded.intersection(h) and played.issubset(h)}
-        else:
-            self.weights = {h: w for h, w in self.weights.items() if played.issubset(h)}
+        if any(card not in _CARD_IDS for card in played):
+            self._keep(np.zeros(len(self._ids), dtype=bool))
+            return
+        mask = np.ones(len(self._ids), dtype=bool)
+        for card in played:
+            mask &= _MEMBERSHIP[_CARD_IDS[card]][self._ids]
+        for card in excluded:
+            if card in _CARD_IDS:
+                mask &= ~_MEMBERSHIP[_CARD_IDS[card]][self._ids]
+        self._keep(mask)
 
     def truco_call(self, bluff_rate):
         if not 0 <= bluff_rate <= 1:
@@ -65,9 +107,15 @@ class Inference:
         self._summary_cache = None
         if bluff_rate == 1.0:
             return
-        for hand in self.weights:
-            strength = _strength(hand) / 24.7
-            self.weights[hand] *= bluff_rate + (1 - bluff_rate) * (0.1 + strength)
+        # Same two roundings per hand as the scalar loop: 0.1 + strength, then
+        # bluff_rate + (1 - bluff_rate) * that, then the in-place product.
+        if type(bluff_rate) is np.float64:
+            self._scalars = True
+        elif isinstance(bluff_rate, np.generic) or not isinstance(bluff_rate, (float, int)):
+            # Other scalar types promoted differently in the original loop.
+            raise TypeError('Bluff rate must be a Python float or numpy.float64')
+        strength = _hand_strength()[self._ids]
+        self._weights = self._weights * (bluff_rate + (1 - bluff_rate) * (0.1 + strength))
 
     def v3_summaries(self, cards, available, *, estimate_outcomes):
         """Compute v3 public summaries and slot outcomes in one posterior pass."""
@@ -85,10 +133,8 @@ class Inference:
         if self._summary_cache is not None:
             return self._summary_cache
         # Dict iteration preserves the original posterior order, including after filters.
-        ids = np.fromiter((_HAND_IDS[h] for h in self.weights), dtype=np.int64)
-        weights = np.fromiter(self.weights.values(), dtype=np.float64)
-        weights = weights / sum(self.weights.values())
-        cards = _IDS[ids]
+        weights = self._weights / self._total()
+        cards = _IDS[self._ids]
         remaining = np.ones(cards.shape, dtype=bool)
         for card in self.played:
             remaining &= cards != _CARD_IDS[card]
@@ -133,6 +179,11 @@ def compact_evidence(obs):
         else:
             declared = value
     return own, played, declared, upper
+
+
+@lru_cache(maxsize=1)
+def _hand_strength():
+    return np.array([_strength(hand) / 24.7 for hand in _HANDS])
 
 
 @lru_cache(maxsize=1)
