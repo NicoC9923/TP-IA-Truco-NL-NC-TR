@@ -23,18 +23,23 @@ from dataclasses import dataclass
 import numpy as np
 import torch
 from phase1_network import ACTIONS, NetworkPolicy
-from phase2_torch import Phase2Network, Phase2Policy, combination_scores
+from phase2_torch import Phase2Network, Phase2Policy, combination_scores, widen_state_dict
 from opponent_inference import compact_evidence, compatible_mask, _IDS, _CARD_IDS, _HAND_IDS, _DECK
 from symmetric_engine import ENGINE_VERSION, play_match, play_mirror_pair
-from phase2_network import ENCODER_VERSION
+from phase2_network import ENCODER_VERSION, INPUT_SIZES
+from phase2_equity import EquityTable
+from phase2_target import decision_targets
 from validation_schedule import validation_schedule
 from phase2_league import retain_snapshots, panel_exclusions, draw_opponent, load_phase1_manifest, validate_shares, DEFAULT_SHARES
 from phase2_progress import ProgressReporter, PROGRESS_FILE
 from phase2_promotion import load_panel, check_seed, promotion_decision, saturated, build_panel, RESERVED_SEEDS
 from phase2_league import REFERENCE_IDENTITIES
 
-def _champion_metadata(generation, temperature, profile_prior):
-    return {'generation': generation, 'temperature': temperature, 'profile_prior': profile_prior}
+def _champion_metadata(generation, temperature, profile_prior, selection=None):
+    metadata = {'generation': generation, 'temperature': temperature, 'profile_prior': profile_prior}
+    if selection is not None:
+        metadata['selection'] = selection  # run 3 champions are checked, and meant to play, greedy
+    return metadata
 
 
 def _atomic_champion_file(path, write):
@@ -52,21 +57,21 @@ def _atomic_champion_file(path, write):
             temporary.unlink(missing_ok=True)
 
 
-def _export_champion(directory, weights, generation, temperature, profile_prior):
+def _export_champion(directory, weights, generation, temperature, profile_prior, selection=None):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
-    metadata = _champion_metadata(generation, temperature, profile_prior)
+    metadata = _champion_metadata(generation, temperature, profile_prior, selection)
     _atomic_champion_file(directory / 'reigning_champion.pt', lambda stream: torch.save(weights, stream))
     _atomic_champion_file(directory / 'reigning_champion.json',
                           lambda stream: stream.write((json.dumps(metadata) + '\n').encode('utf-8')))
 
 
-def _reconcile_champion(directory, weights, generation, temperature, profile_prior):
+def _reconcile_champion(directory, weights, generation, temperature, profile_prior, selection=None):
     directory = Path(directory)
     try:
         metadata = json.loads((directory / 'reigning_champion.json').read_text(encoding='utf-8'))
         exported = torch.load(directory / 'reigning_champion.pt', map_location='cpu', weights_only=True)
-        correct = (metadata == _champion_metadata(generation, temperature, profile_prior)
+        correct = (metadata == _champion_metadata(generation, temperature, profile_prior, selection)
                    and isinstance(exported, dict) and exported.keys() == weights.keys()
                    and all(torch.is_tensor(exported[k]) and exported[k].dtype == value.dtype
                            and torch.equal(exported[k], value)
@@ -74,7 +79,7 @@ def _reconcile_champion(directory, weights, generation, temperature, profile_pri
     except (OSError, ValueError, RuntimeError, EOFError, pickle.UnpicklingError, TypeError):
         correct = False
     if not correct:
-        _export_champion(directory, weights, generation, temperature, profile_prior)
+        _export_champion(directory, weights, generation, temperature, profile_prior, selection)
 
 
 def _configure_threads():
@@ -91,9 +96,15 @@ class RecordingPolicy(Phase2Policy):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.samples = []
+        self.track_greedy = False
+        self.differs = []
 
     def record_decision(self, inputs, action):
         self.samples.append((inputs, ACTIONS.index(action)))
+        if self.track_greedy:
+            # Highest probability, ties to the lowest action index: the action greedy play would pick.
+            greedy = max(self.last_probabilities.items(), key=lambda item: (item[1], -ACTIONS.index(item[0])))[0]
+            self.differs.append(greedy != action)
 
 def training_seed(seed, match_id):
     """Assign a distinct deterministic seed to each training match."""
@@ -154,7 +165,9 @@ def _load_league_opponent(identity, member, category):
 def _league_block(args):
     if len(args) == 8:
         args = (*args, 20)
-    weights, seed, ids, target, random_start_share, spec, opponents, temperature, profile_prior = args
+    weights, seed, ids, target, random_start_share, spec, opponents, temperature, profile_prior, *extra = args
+    rollout = extra[0] if extra else None  # run 3: blended targets and greedy-disagreement counts
+    blend = rollout['blend'] if rollout else 0
     model = Phase2Network.from_state(weights)
     model.load_state_dict(weights)
     identity = spec['identity']
@@ -177,12 +190,17 @@ def _league_block(args):
         opponent = cls(opponent_model, seed=int(seeds[1]), temperature=temperature, profile_prior=profile_prior,
                        style=spec['style'], style_strength=spec['offset'],
                        adapt=not spec['neutral_profile'] if spec['category'] == 'self' else True)
+    if rollout and rollout.get('track_greedy'):
+        for policy in (learner, opponent):
+            if isinstance(policy, RecordingPolicy):
+                policy.track_greedy = True
     results = []
     for match_id in ids:
         policies = (learner, opponent) if match_id % 2 == 0 else (opponent, learner)
         for policy in policies:
             if isinstance(policy, RecordingPolicy):
                 policy.samples = []
+                policy.differs = []
             policy_seed = np.random.SeedSequence([seed, match_id, 1, policies.index(policy)])
             if is_reference and policy is opponent:
                 policy.agent.rng = random.Random(int(policy_seed.generate_state(1)[0]))
@@ -190,9 +208,16 @@ def _league_block(args):
                 policy.rng = np.random.default_rng(policy_seed)
         match_target, score = match_settings(seed, match_id, target, random_start_share)
         result = play_match(*policies, seed=training_seed(seed, match_id), target=match_target, starting_score=score, deal_partition=1)
-        samples = [(x, action, 1.0 if seat == result.winner else -1.0, seat)
-                   for seat, policy in enumerate(policies) if isinstance(policy, RecordingPolicy)
-                   for x, action in policy.samples]
+        if blend:
+            targets = {seat: decision_targets(result, seat, rollout['table'], blend)
+                       for seat, policy in enumerate(policies) if isinstance(policy, RecordingPolicy)}
+            samples = [(x, action, targets[seat][k], seat)
+                       for seat, policy in enumerate(policies) if isinstance(policy, RecordingPolicy)
+                       for k, (x, action) in enumerate(policy.samples)]
+        else:
+            samples = [(x, action, 1.0 if seat == result.winner else -1.0, seat)
+                       for seat, policy in enumerate(policies) if isinstance(policy, RecordingPolicy)
+                       for x, action in policy.samples]
         if hasattr(model, 'card_head'):
             decisions = [[d for d in result.decisions if d['player'] == seat] for seat in range(2)]
             offsets = [0, 0]
@@ -205,14 +230,18 @@ def _league_block(args):
                 ordered = tuple(sorted(hand, key=_CARD_IDS.__getitem__))
                 enriched.append((*sample, compact_evidence(decision['observation']), _HAND_IDS[ordered]))
             samples = enriched
-        results.append((match_id, samples))
+        if rollout and rollout.get('track_greedy'):
+            differs = [flag for policy in policies if isinstance(policy, RecordingPolicy) for flag in policy.differs]
+            results.append((match_id, samples, (sum(differs), len(differs))))
+        else:
+            results.append((match_id, samples))
     return results
 
 
 def _league_chunk(job):
-    weights, seed, blocks, target, random_start_share, opponents, temperature, profile_prior = job
+    weights, seed, blocks, target, random_start_share, opponents, temperature, profile_prior, *extra = job
     return [result for ids, spec in blocks for result in
-            _league_block((weights, seed, ids, target, random_start_share, spec, opponents, temperature, profile_prior))]
+            _league_block((weights, seed, ids, target, random_start_share, spec, opponents, temperature, profile_prior, *extra))]
 
 
 # Blocks against code or phase 1 opponents are cheaper; dispatch them last so
@@ -220,7 +249,7 @@ def _league_chunk(job):
 _LATE_CATEGORIES = frozenset(('phase1', *REFERENCE_IDENTITIES))
 
 
-def _play_round(pool, *, weights, seed, blocks, target, random_start_share, opponents, temperature, profile_prior):
+def _play_round(pool, *, weights, seed, blocks, target, random_start_share, opponents, temperature, profile_prior, rollout=None):
     """Play a round's league blocks; return (match_id, samples) sorted by match id.
 
     Each block is its own task so idle workers pick up the remaining blocks.
@@ -228,7 +257,8 @@ def _play_round(pool, *, weights, seed, blocks, target, random_start_share, oppo
     policies, so neither the split into tasks nor their order changes results.
     """
     order = sorted(range(len(blocks)), key=lambda i: (blocks[i][1]['category'] in _LATE_CATEGORIES, i))
-    jobs = [(weights, seed, [blocks[i]], target, random_start_share, opponents, temperature, profile_prior)
+    tail = () if rollout is None else (rollout,)
+    jobs = [(weights, seed, [blocks[i]], target, random_start_share, opponents, temperature, profile_prior, *tail)
             for i in order]
     batches = pool.map(_league_chunk, jobs, chunksize=1) if pool else list(map(_league_chunk, jobs))
     return sorted(result for batch in batches for result in batch)
@@ -247,7 +277,8 @@ def _check_pair(job, models=None):
                 # Keep the weights alive with the model so the id cannot be reused.
                 models[id(weights)] = (weights, model)
             model = models[id(weights)][1]
-            return Phase2Policy(model, seed=seed, temperature=spec.get('temperature', temperature), profile_prior=spec.get('profile_prior', 20))
+            return Phase2Policy(model, seed=seed, temperature=spec.get('temperature', temperature), profile_prior=spec.get('profile_prior', 20),
+                                greedy=spec.get('greedy', False))
         if spec['kind'] == 'reference':
             from engine_policies import reference_policy
             return reference_policy(spec['agent'], seed)
@@ -276,7 +307,7 @@ def _check_chunk(job):
     return [_check_pair((a, b, deal, target, action_seed, temperature), models)
             for deal, target, action_seed in deals]
 
-def _panel_jobs(panel, candidates, schedule_seed, pairs, target, temperature, workers):
+def _panel_jobs(panel, candidates, schedule_seed, pairs, target, temperature, workers, greedy=False):
     jobs, keys = [], []
     for member in panel['members']:
         opponent = {'kind': member['kind']}
@@ -287,6 +318,8 @@ def _panel_jobs(panel, candidates, schedule_seed, pairs, target, temperature, wo
             opponent['weights'] = (torch.load(member['resolved_path'], map_location='cpu', weights_only=True)
                                    if member['kind'] == 'phase2' else np.load(member['resolved_path']))
         if member['kind'] == 'phase2':
+            if greedy:
+                opponent['greedy'] = True
             opponent['profile_prior'] = member.get('profile_prior', 20)
             if 'temperature' in member:
                 opponent['temperature'] = member['temperature']
@@ -305,17 +338,21 @@ def _run_check_jobs(jobs, keys, pool):
         results.setdefault(key, []).extend(batch)
     return results
 
-def _champion_overlap(champion, panel, schedule_seed, pairs, target, temperature, pool, profile_prior=20):
+def _champion_overlap(champion, panel, schedule_seed, pairs, target, temperature, pool, profile_prior=20, greedy=False):
     incumbent = {'kind': 'phase2', 'weights': champion, 'profile_prior': profile_prior}
-    jobs, keys = _panel_jobs(panel, [('champion', incumbent)], schedule_seed, pairs, target, temperature, pool._processes if pool else 1)
+    if greedy:
+        incumbent['greedy'] = True
+    jobs, keys = _panel_jobs(panel, [('champion', incumbent)], schedule_seed, pairs, target, temperature, pool._processes if pool else 1, greedy)
     scores = _run_check_jobs(jobs, keys, pool)
     return {member['name']: scores[(member['name'], 'champion')] for member in panel['members']}
 
-def _selection_check(model, champion, panel, schedule_seed, pairs, direct_pairs, target, temperature, pool, min_gain, min_direct, profile_prior=20):
+def _selection_check(model, champion, panel, schedule_seed, pairs, direct_pairs, target, temperature, pool, min_gain, min_direct, profile_prior=20, greedy=False):
     current = {'kind': 'phase2', 'weights': model.state_dict(), 'profile_prior': profile_prior}
     incumbent = {'kind': 'phase2', 'weights': champion, 'profile_prior': profile_prior}
+    if greedy:
+        current['greedy'] = incumbent['greedy'] = True
     workers = pool._processes if pool else 1
-    jobs, keys = _panel_jobs(panel, [('challenger', current), ('champion', incumbent)], schedule_seed, pairs, target, temperature, workers)
+    jobs, keys = _panel_jobs(panel, [('challenger', current), ('champion', incumbent)], schedule_seed, pairs, target, temperature, workers, greedy)
     deals = [(deal, t, schedule_seed * 100000 + i * 2 + 1) for i, (deal, t) in enumerate(validation_schedule(schedule_seed, target, direct_pairs))]
     for chunk in np.array_split(np.arange(direct_pairs), min(workers, direct_pairs)):
         jobs.append((current, incumbent, [deals[int(i)] for i in chunk], temperature))
@@ -383,6 +420,14 @@ def _resolve_panel(panel, base):
         member['resolved_path'] = str(path)
     return panel
 
+def _initial_model(seed, auxiliary, encoder_version, warm_start):
+    """The seeded network, or the warm-start weights widened to the encoder (new columns zero)."""
+    model = Phase2Network(seed=seed, auxiliary=auxiliary, input_size=INPUT_SIZES[encoder_version])
+    if warm_start is not None:
+        model.load_state_dict(widen_state_dict(warm_start, encoder_version))
+    return model
+
+
 @dataclass
 class RoundResult:
     model: Phase2Network
@@ -396,11 +441,14 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                random_start_share=.3, checkpoint_dir=None, config=None, resume_state=None,
                stop_after_round=None, panel=None, champions_dir=None, panel_pairs=100, head_to_head_pairs=200,
                check_seed_base=10000, temperature=.1, profile_prior=20, min_gain=.01, min_direct=.475,
-               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress_path=None, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400, extension=None):
+               patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress_path=None, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400, extension=None,
+               encoder_version=1, warm_start=None, target_blend=0.0, equity_table=None, check_greedy=False):
     if not math.isfinite(profile_prior) or profile_prior <= 0:
         raise ValueError('profile_prior must be positive and finite')
     if not isinstance(card_prediction_situations, int) or card_prediction_situations < 1:
         raise ValueError('Invalid card prediction situation count')
+    if encoder_version not in INPUT_SIZES or not 0 <= target_blend <= 1 or (target_blend > 0 and equity_table is None):
+        raise ValueError('Invalid run 3 options')
     if not math.isfinite(auxiliary_weight) or auxiliary_weight < 0:
         raise ValueError('Invalid auxiliary loss weight')
     if (min(rounds, matches_per_round, workers, minibatch) < 1 or min(pool_recent, pool_diverse) < 0 or seed < 0
@@ -421,12 +469,16 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
     shares = validate_shares(league_shares)
     _configure_threads()
     torch.use_deterministic_algorithms(True)
-    model = Phase2Network(seed=seed, auxiliary=auxiliary)
+    model = _initial_model(seed, auxiliary, encoder_version, warm_start)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     rng = np.random.default_rng(seed)
     total = updates = 0
     last = []
     generation_samples = generation_updates = 0
+    generation_decisions = generation_differs = 0
+    # Run 3 options only: absent for run 1 and run 2 settings, so their results stay identical.
+    run3 = encoder_version > 1 or warm_start is not None or target_blend > 0 or check_greedy
+    rollout = {'blend': target_blend, 'table': equity_table, 'track_greedy': True} if run3 else None
     generation_training_seconds = 0.0
     league_mix = {}
     phase1_counts = {}
@@ -462,6 +514,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
         first_round = resume_state['round']
         total, updates = resume_state['samples'], resume_state['updates']
         generation_samples, generation_updates = resume_state['generation_samples'], resume_state['generation_updates']
+        generation_decisions = resume_state.get('generation_decisions', 0)
+        generation_differs = resume_state.get('generation_differs', 0)
         generation_training_seconds = resume_state.get('generation_training_seconds', 0.0)
         league_mix = resume_state.get('league_mix', {})
         phase1_counts = resume_state.get('phase1_counts', {})
@@ -517,12 +571,12 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                         path = Path(checkpoint_dir) / f"panel-v{panel['version']}.json"
                         path.write_text(json.dumps(_portable(panel), indent=2) + '\n', encoding='utf-8')
                         seed_for_overlap = check_seed(check_seed_base, generation - 2)
-                        old_overlap = _champion_overlap(champion, old_panel, seed_for_overlap, panel_pairs, None if target == 'mixed' else target, temperature, pool, profile_prior)
+                        old_overlap = _champion_overlap(champion, old_panel, seed_for_overlap, panel_pairs, None if target == 'mixed' else target, temperature, pool, profile_prior, greedy=check_greedy)
                         boundary = {'from': old_panel['version'], 'to': panel['version'], 'old_champion': old_overlap}
                         history = []
                 result = _selection_check(model, champion, panel, check_seed(check_seed_base, generation - 2),
                                           panel_pairs, head_to_head_pairs, None if target == 'mixed' else target,
-                                          temperature, pool, min_gain, min_direct, profile_prior)
+                                          temperature, pool, min_gain, min_direct, profile_prior, greedy=check_greedy)
                 if boundary is not None:
                     boundary['new_champion'] = {k: v['champion'] for k, v in result['members'].items()}
                     entry['panel_boundary'] = boundary
@@ -548,7 +602,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 league_pool = retain_snapshots(league_pool, pool_recent, pool_diverse, panel_exclusions(panel, panel_history))
                 entry['champion'] = champion_generation
                 if changed and champions_dir is not None:
-                    _export_champion(champions_dir, champion, champion_generation, temperature, profile_prior)
+                    _export_champion(champions_dir, champion, champion_generation, temperature, profile_prior,
+                                     'greedy' if check_greedy else None)
                 now = clock()
                 elapsed += now - run_tick
                 run_tick = now
@@ -614,8 +669,12 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 neutral_blocks += int(spec['neutral_profile'])
             results = _play_round(pool, weights=weights, seed=seed, blocks=blocks, target=target,
                                   random_start_share=random_start_share, opponents=opponents,
-                                  temperature=temperature, profile_prior=profile_prior)
-            last = [sample for _, samples in results for sample in samples]
+                                  temperature=temperature, profile_prior=profile_prior,
+                                  **({'rollout': rollout} if rollout else {}))
+            if rollout:
+                generation_differs += sum(row[2][0] for row in results)
+                generation_decisions += sum(row[2][1] for row in results)
+            last = [sample for row in results for sample in row[1]]
             total += len(last)
             generation_samples += len(last)
             for indices in (np.array_split(rng.permutation(len(last)), range(minibatch, len(last), minibatch)) if last else ()):
@@ -657,6 +716,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                              diversity=None, champion=None, example_hand=None)
                 if timing_log:
                     entry.update(training_seconds=generation_training_seconds, check_seconds=0.0)
+                if rollout:
+                    entry.update(decisions=generation_decisions,
+                                 greedy_disagreement=generation_differs / generation_decisions if generation_decisions else None)
                 if checkpoint_dir is not None:
                     generation = entry['generation']
                     snapshot = Path(checkpoint_dir) / f'generation_{generation:06d}.pt'
@@ -685,12 +747,12 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                                 path = Path(checkpoint_dir) / f"panel-v{panel['version']}.json"
                                 path.write_text(json.dumps(_portable(panel), indent=2) + '\n', encoding='utf-8')
                                 seed_for_overlap = check_seed(check_seed_base, generation - 2)
-                                old_overlap = _champion_overlap(champion, old_panel, seed_for_overlap, panel_pairs, None if target == 'mixed' else target, temperature, pool, profile_prior)
+                                old_overlap = _champion_overlap(champion, old_panel, seed_for_overlap, panel_pairs, None if target == 'mixed' else target, temperature, pool, profile_prior, greedy=check_greedy)
                                 boundary = {'from': old_panel['version'], 'to': panel['version'], 'old_champion': old_overlap}
                                 history = []
                         result = _selection_check(model, champion, panel, check_seed(check_seed_base, generation - 2),
                                                   panel_pairs, head_to_head_pairs, None if target == 'mixed' else target,
-                                                  temperature, pool, min_gain, min_direct, profile_prior)
+                                                  temperature, pool, min_gain, min_direct, profile_prior, greedy=check_greedy)
                         if boundary is not None:
                             boundary['new_champion'] = {k: v['champion'] for k, v in result['members'].items()}
                             entry['panel_boundary'] = boundary
@@ -724,7 +786,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     entry['phase_ended'] = entry['stop_reason'] is not None
                     round_stop = entry['stop_reason']
                     if changed and panel is not None and champions_dir is not None:
-                        _export_champion(champions_dir, champion, champion_generation, temperature, profile_prior)
+                        _export_champion(champions_dir, champion, champion_generation, temperature, profile_prior,
+                                     'greedy' if check_greedy else None)
                 if auxiliary:
                     from phase2_card_metrics import validation_predictions
                     entry['card_prediction'] = validation_predictions(model, schedule_seed=check_seed_base, target=target, temperature=temperature, situation_count=card_prediction_situations, profile_prior=profile_prior)
@@ -739,6 +802,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     log.write(json.dumps(entry) + '\n')
                 reporter.generation_done(entry, elapsed)
                 generation_samples = generation_updates = 0
+                generation_decisions = generation_differs = 0
                 generation_training_seconds = 0.0
                 league_mix = {}
                 phase1_counts = {}
@@ -756,6 +820,9 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                              champion=champion_generation, example_hand=None)
                 if timing_log:
                     entry.update(training_seconds=generation_training_seconds, check_seconds=0.0)
+                if rollout:
+                    entry.update(decisions=generation_decisions,
+                                 greedy_disagreement=generation_differs / generation_decisions if generation_decisions else None)
                 if auxiliary:
                     from phase2_card_metrics import validation_predictions
                     entry['card_prediction'] = validation_predictions(model, schedule_seed=check_seed_base, target=target, temperature=temperature, situation_count=card_prediction_situations, profile_prior=profile_prior)
@@ -781,6 +848,8 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                 if extension is not None:
                     state['extension'] = extension
                     state['promotions'] = reporter.promotions
+                if rollout:
+                    state.update(generation_decisions=generation_decisions, generation_differs=generation_differs)
                 if timing_log:
                     state['generation_training_seconds'] = generation_training_seconds
                 path = Path(checkpoint_dir) / f'checkpoint_{round_id + 1:06d}.pt'
@@ -813,8 +882,13 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
           random_start_share=.3, resume=None, stop_after_round=None, panel_path=Path(__file__).resolve().parent.parent / 'experiments/phase2-selection-panel/panel-v1.json',
           champions_dir="champions/phase2", panel_pairs=100, head_to_head_pairs=200,
           check_seed_base=10000, temperature=.1, profile_prior=20, min_gain=.01, min_direct=.475,
-          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400, extend_time_cap=None):
+          patience=40, time_cap_seconds=28800, clock=time.monotonic, saturation_checks=3, saturation_pairs=300, saturation_threshold=.7, pool_recent=8, pool_diverse=4, block_size=4, league_shares=None, phase1_manifest=None, style_target=.1, style_ramp_matches=20000, neutral_rate=.05, progress=True, console=None, auxiliary=False, auxiliary_weight=.1, card_prediction_situations=400, extend_time_cap=None,
+          encoder_version=1, warm_start=None, target_blend=0.0, equity_table=None, check_selection='sampled'):
     """Round match counts up to complete blocks and generations to complete rounds."""
+    if (encoder_version not in INPUT_SIZES or check_selection not in ('sampled', 'greedy')
+            or not isinstance(target_blend, numbers.Real) or not 0 <= target_blend <= 1
+            or (target_blend > 0 and equity_table is None)):
+        raise ValueError('Invalid run 3 options')
     if extend_time_cap is not None and not resume:
         raise ValueError("--extend-time-cap requires --resume")
     if extend_time_cap is not None and not math.isfinite(extend_time_cap):
@@ -884,13 +958,25 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         panel_config = {'version': panel['version'], 'measuring_only': bool(panel.get('measuring_only')), 'members': members}
     phase1_members = load_phase1_manifest(phase1_manifest)
     _reject_held_out(phase1_members, held_out)
-    config = dict(engine_version=ENGINE_VERSION, encoder_version=ENCODER_VERSION, block_size=block_size, league_shares=validate_shares(league_shares), phase1_manifest=[{k: m[k] for k in ('name', 'encoder', 'sha256')} for m in phase1_members], style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, pool_recent=pool_recent, pool_diverse=pool_diverse, patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=panel_config,
+    config = dict(engine_version=ENGINE_VERSION, encoder_version=encoder_version, block_size=block_size, league_shares=validate_shares(league_shares), phase1_manifest=[{k: m[k] for k in ('name', 'encoder', 'sha256')} for m in phase1_members], style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, pool_recent=pool_recent, pool_diverse=pool_diverse, patience=patience, time_cap_seconds=time_cap_seconds, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, panel_path=panel_config,
                   panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs,
                   check_seed_base=check_seed_base, temperature=temperature, min_gain=min_gain, min_direct=min_direct,
                   matches_per_generation=matches_per_generation,
                   matches_per_round=matches_per_round, seed=seed, target=target,
                   lr=lr, minibatch=minibatch, random_start_share=random_start_share)
     config.update(auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations)
+    warm_weights = table = None
+    if warm_start is not None:
+        warm_weights = torch.load(warm_start, map_location='cpu', weights_only=True)
+        config['warm_start_sha256'] = hashlib.sha256(Path(warm_start).read_bytes()).hexdigest()
+    if target_blend > 0:
+        table = EquityTable.load(equity_table)
+        config['target_blend'] = target_blend
+        config['equity_table_sha256'] = hashlib.sha256(Path(equity_table).read_bytes()).hexdigest()
+    if check_selection == 'greedy':
+        config['check_selection'] = 'greedy'
+    run3 = dict(encoder_version=encoder_version, warm_start=warm_weights, target_blend=target_blend,
+                equity_table=table, check_greedy=check_selection == 'greedy')
     # Absence encodes the historical default and preserves run 1 checkpoints byte-for-byte.
     if not panel_rotation:
         config['panel_rotation'] = False
@@ -957,9 +1043,10 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
         time_cap_seconds = extension['new_cap']
 
     if state is not None and state.get('panel') is not None and champions_dir is not None and state.get('champion_weights') is not None:
-        _reconcile_champion(champions_dir, state['champion_weights'], state['champion_generation'], temperature, profile_prior)
+        _reconcile_champion(champions_dir, state['champion_weights'], state['champion_generation'], temperature, profile_prior,
+                            'greedy' if check_selection == 'greedy' else None)
     if state is not None and state.get('phase_ended'):
-        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations, profile_prior=profile_prior)
+        return run_rounds(seed=seed, rounds=generations * generation_rounds, matches_per_round=matches_per_round, workers=workers, target=target, lr=lr, minibatch=minibatch, generation_rounds=generation_rounds, log_path=output / 'generations.jsonl', checkpoint_dir=output, resume_state=state, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations, profile_prior=profile_prior, **run3)
     output.mkdir(parents=True, exist_ok=True)
     log_path = output / 'generations.jsonl'
     if state is None:
@@ -974,7 +1061,7 @@ def train(directory, *, generations=1, matches_per_generation=120, matches_per_r
                       random_start_share=random_start_share, checkpoint_dir=output, config=config,
                       resume_state=state, stop_after_round=stop_after_round, panel=panel, champions_dir=champions_dir,
                       panel_pairs=panel_pairs, head_to_head_pairs=head_to_head_pairs, check_seed_base=check_seed_base,
-                      temperature=temperature, profile_prior=profile_prior, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations, extension=extension)
+                      temperature=temperature, profile_prior=profile_prior, min_gain=min_gain, min_direct=min_direct, patience=patience, time_cap_seconds=time_cap_seconds, clock=clock, saturation_checks=saturation_checks, saturation_pairs=saturation_pairs, saturation_threshold=saturation_threshold, pool_recent=pool_recent, pool_diverse=pool_diverse, block_size=block_size, league_shares=league_shares, phase1_manifest=phase1_manifest, style_target=style_target, style_ramp_matches=style_ramp_matches, neutral_rate=neutral_rate, progress_path=output / PROGRESS_FILE if progress else None, console=console, auxiliary=auxiliary, auxiliary_weight=auxiliary_weight, card_prediction_situations=card_prediction_situations, extension=extension, **run3)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1019,6 +1106,14 @@ def main():
     parser.add_argument('--resume')
     parser.add_argument('--extend-time-cap', type=float)
     parser.add_argument('--lr', type=float, default=3e-4)
+    parser.add_argument('--encoder-version', type=int, choices=sorted(INPUT_SIZES), default=1,
+                        help='phase 2 encoder: 1 original, 2 adds hand facts, 3 adds P(own tanto wins)')
+    parser.add_argument('--warm-start', help='weights file loaded into the (widened) network; new columns start at zero')
+    parser.add_argument('--target-blend', type=float, default=0.0,
+                        help='weight of the match equity in the target: (1 - b) * result + b * (2 * equity - 1)')
+    parser.add_argument('--equity-table', help='equity table JSON (phase2_equity.py build); required with --target-blend')
+    parser.add_argument('--check-selection', choices=('sampled', 'greedy'), default='sampled',
+                        help='greedy: promotion checks and panel play challenger and champion greedy; rollouts keep the temperature')
     parser.add_argument('--minibatch', type=int, default=512)
     args = vars(parser.parse_args())
     if args['league_shares'] is not None:
