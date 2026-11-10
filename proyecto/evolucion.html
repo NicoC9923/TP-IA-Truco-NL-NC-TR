@@ -497,11 +497,12 @@ function comparisonChart(title, series, maximum, ylabel) {
   const x=g=>L+(R-L)*(g-1)/Math.max(1,maxGen-1), y=v=>B-(B-T)*v/maximum;
   const graph=svg('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':`${title}. Datos completos en la tabla.`});
   for(let i=0;i<=4;i++){const v=maximum*i/4;graph.append(svg('line',{x1:L,y1:y(v),x2:R,y2:y(v),stroke:'#e3e6ea'}),svg('text',{x:L-8,y:y(v)+4,'text-anchor':'end','font-size':12,fill:'#5a626e'},`${Math.round(v)}${ylabel}`));}
-  const table=el('table',{},el('caption',{text:`Datos: ${title}`}),el('tr',{},...['Modo','Generación','Resultado'].map(t=>el('th',{scope:'col',text:t}))));
+  const table=el('table',{},el('caption',{text:`Datos: ${title}`}),el('tr',{},...['Modo','Generación','Resultado','Intervalo 95 %'].map(t=>el('th',{scope:'col',text:t}))));
   series.forEach(s=>{const rows=s.rows.filter(r=>num(r.generation)&&num(r.value)).sort((a,b)=>a.generation-b.generation);
     if(!rows.length)return;
     graph.append(svg('polyline',{points:rows.map(r=>`${x(r.generation)},${y(r.value)}`).join(' '),fill:'none',stroke:s.color,'stroke-width':2.5,'stroke-dasharray':s.dash||''}));
-    rows.forEach(r=>{const dot=svg('circle',{cx:x(r.generation),cy:y(r.value),r:4,fill:s.color,tabindex:'0'});dot.append(svg('title',{},`${s.name}, generación ${r.generation}: ${r.value.toFixed(1)}${ylabel}`));graph.append(dot);table.append(el('tr',{},...[s.name,r.generation,r.value.toFixed(1)+ylabel].map(v=>el('td',{text:String(v)}))));});
+    rows.filter(r=>num(r.lower)&&num(r.upper)).forEach(r=>graph.append(svg('line',{x1:x(r.generation),x2:x(r.generation),y1:y(r.lower),y2:y(r.upper),stroke:s.color,'stroke-width':1.2})));
+    rows.forEach(r=>{const dot=svg('circle',{cx:x(r.generation),cy:y(r.value),r:4,fill:s.color,tabindex:'0'});dot.append(svg('title',{},`${s.name}, generación ${r.generation}: ${r.value.toFixed(1)}${ylabel}`));graph.append(dot);table.append(el('tr',{},...[s.name,r.generation,r.value.toFixed(1)+ylabel,num(r.lower)&&num(r.upper)?`${r.lower.toFixed(1)} a ${r.upper.toFixed(1)}${ylabel}`:'No disponible'].map(v=>el('td',{text:String(v)}))));});
   });
   graph.append(svg('text',{x:L,y:H-8,'font-size':12,fill:'#5a626e'},'generación 1'),svg('text',{x:R,y:H-8,'text-anchor':'end','font-size':12,fill:'#5a626e'},`generación ${maxGen}`));
   box.append(el('div',{class:'legend'},...series.map(s=>el('span',{},el('span',{style:`width:18px;border-top:3px ${s.dash?'dashed':'solid'} ${s.color}`}),s.name))),graph,el('details',{},el('summary',{text:'Ver datos del gráfico'}),el('div',{class:'table-scroll'},table)));
@@ -514,9 +515,9 @@ function probeSnapshot(report) {
     el('p',{class:'small',text:'El error logarítmico mide qué probabilidad se asignó a la mano real: menor es mejor. El acierto top-N mide cuántas cartas ocultas aparecen entre las N más probables: mayor es mejor. Los intervalos al 95 % agrupan decisiones de una misma partida.'}));
   if(!report || !report.predictors || !report.test_scored){box.append(el('p',{class:'empty',text:'Todavía no hay una sonda compatible con la campeona publicada.'}));return box;}
   const labels={exact:'Filtro exacto',weighted:'Inferencia ponderada',champion:'Sonda de la campeona',control:'Sonda de red aleatoria'};
-  box.append(el('p',{class:'small',text:`Las cuatro predicciones usan las mismas ${report.test_scored} situaciones. Esta foto no es una curva de evolución ni demuestra mejor juego o superioridad sobre la fórmula.`}));
+  box.append(el('p',{class:'small',text:`Estado ${report.status}: las cuatro predicciones usan las mismas ${report.test_scored} de ${report.counts?.test ?? '—'} situaciones de prueba registradas. Esta foto no es una curva de evolución ni demuestra mejor juego o superioridad sobre la fórmula.`}));
   const table=el('table',{},el('tr',{},...['Predictor','Error logarítmico · intervalo','Acierto top-N · intervalo'].map(t=>el('th',{scope:'col',text:t}))));
-  const fmt=(m,percent)=>m&&num(m.mean)?(percent?pct(m.mean):m.mean.toFixed(3))+` (${percent?pct(m.lower):m.lower.toFixed(3)}–${percent?pct(m.upper):m.upper.toFixed(3)})`:'—';
+  const fmt=(m,percent)=>{if(!m||!num(m.mean))return '—';const mean=percent?pct(m.mean):m.mean.toFixed(3);if(!num(m.lower)||!num(m.upper))return mean+' (intervalo no disponible)';return mean+` (${percent?pct(m.lower):m.lower.toFixed(3)}–${percent?pct(m.upper):m.upper.toFixed(3)})`;};
   Object.entries(labels).forEach(([key,label])=>{const m=report.predictors[key]||{};table.append(el('tr',{},...[label,fmt(m.log_loss,false),fmt(m.hidden_card_accuracy,true)].map(v=>el('td',{text:v}))));});
   box.append(el('div',{class:'table-scroll',tabindex:'0',role:'region','aria-label':'Resultados de la sonda'},table));
   (report.examples||[]).slice(0,2).forEach((example,i)=>{
@@ -529,11 +530,11 @@ function probeSnapshot(report) {
 
 function comparison() {
   const data=state.comparison || {}, refs1=data.phase1_reference||[], refs2=data.phase2_reference||[];
-  const root=el('div',{class:'stack'},el('section',{class:'card'},el('h2',{text:'Neuroevolución vs Aprendizaje por refuerzo'}),el('p',{text:'Comparación de las corridas publicadas. En particular, la fase 2 entrenó también contra redes de la fase 1 y rivales de referencia: estas mediciones no aíslan los algoritmos ni demuestran superioridad general.'}),el('p',{class:'small',text:'Fase 1: corrida 1. Fase 2: corrida 1 publicada. Contra cada rival se muestra el porcentaje ganado; fase 2 solo tiene mediciones registradas en las generaciones 4, 10 y 28. Las líneas unen mediciones disponibles, no inventan otras.'})));
+  const root=el('div',{class:'stack'},el('section',{class:'card'},el('h2',{text:'Neuroevolución vs Aprendizaje por refuerzo'}),el('p',{text:'Comparación de las corridas publicadas. En particular, la fase 2 entrenó también contra redes de la fase 1 en la corrida publicada. Los rivales de referencia sirvieron para evaluarla, no participaron en su entrenamiento: estas mediciones no aíslan los algoritmos ni demuestran superioridad general.'}),el('p',{class:'small',text:'Fase 1: corrida 1. Fase 2: corrida 1 publicada. Contra cada rival se muestra el porcentaje ganado; fase 2 solo tiene mediciones registradas en las generaciones 4, 10 y 28. Las líneas unen mediciones disponibles, no inventan otras.'})));
   if (!refs2.length) root.append(el('p',{class:'empty',text:'Disponible cuando la fase 2 tenga campeona evaluada.'}));
   for(const opponent of ['reactive','adaptive_utility']) {
-    const p1=refs1.filter(r=>r.reference_opponent===opponent).map(r=>({generation:r.generation,value:r.win_rate*100}));
-    const p2=refs2.filter(r=>r.reference_opponent===opponent&&r.adaptation==='on').map(r=>({generation:r.generation,value:r.win_rate*100}));
+    const p1=refs1.filter(r=>r.reference_opponent===opponent).map(r=>({generation:r.generation,value:r.win_rate*100,lower:num(r.margin_of_error)?(r.win_rate-r.margin_of_error)*100:null,upper:num(r.margin_of_error)?(r.win_rate+r.margin_of_error)*100:null}));
+    const p2=refs2.filter(r=>r.reference_opponent===opponent&&r.adaptation==='on').map(r=>({generation:r.generation,value:r.win_rate*100,lower:num(r.lower)?r.lower*100:null,upper:num(r.upper)?r.upper*100:null}));
     root.append(comparisonChart(`Contra ${OPPONENTS[opponent]}`, [{name:'Neuroevolución',color:'#C2410C',rows:p1},{name:'Refuerzo · adaptación activa',color:'#1F5FBF',dash:'6 4',rows:p2}],100,' %'));
   }
   root.append(comparisonChart('Sucesión de campeonas · misma escala de generaciones',[
@@ -541,7 +542,7 @@ function comparison() {
     {name:'Refuerzo',color:'#1F5FBF',dash:'6 4',rows:(data.phase2_champions||[]).map(r=>({generation:r.generation,value:r.champion}))}],80,''));
   const adapt=el('section',{class:'card'},el('h2',{text:'Adaptación activa y desactivada · fase 2'}),el('p',{class:'small',text:'Evaluaciones registradas de las campeonas 4, 10 y 28 contra los mismos rivales; no se volvieron a jugar partidas.'}));
   const tbl=el('table',{},el('tr',{},...['Generación','Rival','Activa','Desactivada'].map(v=>el('th',{scope:'col',text:v}))));
-  for(const gen of [4,10,28])for(const opponent of ['reactive','adaptive_utility']){const on=refs2.find(r=>r.generation===gen&&r.reference_opponent===opponent&&r.adaptation==='on'),off=refs2.find(r=>r.generation===gen&&r.reference_opponent===opponent&&r.adaptation==='off');if(on&&off)tbl.append(el('tr',{},...[gen,OPPONENTS[opponent],pct(on.win_rate),pct(off.win_rate)].map(v=>el('td',{text:String(v)}))));}
+  for(const gen of [4,10,28])for(const opponent of ['reactive','adaptive_utility']){const on=refs2.find(r=>r.generation===gen&&r.reference_opponent===opponent&&r.adaptation==='on'),off=refs2.find(r=>r.generation===gen&&r.reference_opponent===opponent&&r.adaptation==='off');if(on&&off)tbl.append(el('tr',{},...[gen,OPPONENTS[opponent],`${pct(on.win_rate)} (${pct(on.lower)}–${pct(on.upper)})`,`${pct(off.win_rate)} (${pct(off.lower)}–${pct(off.upper)})`].map(v=>el('td',{text:String(v)}))));}
   adapt.append(el('div',{class:'table-scroll'},tbl));root.append(adapt,probeSnapshot(data.probe));return root;
 }
 

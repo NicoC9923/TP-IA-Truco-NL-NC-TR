@@ -115,9 +115,11 @@ class AgenteTrucoIA:
             if not (self.champions_dir / 'phase2/reigning_champion.pt').is_file():
                 return False
             try:
+                from phase2_loader import load_phase2_metadata
+                load_phase2_metadata(self.champions_dir / 'phase2/reigning_champion.pt')
                 import torch
                 return torch is not None
-            except ImportError:
+            except (ImportError, ValueError):
                 return False
         return mode in self.MODOS_DISPONIBLES
 

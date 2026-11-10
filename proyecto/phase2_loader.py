@@ -3,7 +3,8 @@ import json
 from pathlib import Path
 
 
-def load_phase2_policy(weights_path, *, seed, adapt=True, metadata=None):
+def load_phase2_metadata(weights_path, metadata=None):
+    import math
     if metadata is None:
         try:
             metadata = json.loads((Path(weights_path).parent / 'reigning_champion.json').read_text(encoding='utf-8'))
@@ -11,6 +12,15 @@ def load_phase2_policy(weights_path, *, seed, adapt=True, metadata=None):
             raise ValueError('champion metadata required') from exc
     if not isinstance(metadata, dict) or any(key not in metadata for key in ('temperature', 'profile_prior')):
         raise ValueError('temperature and profile_prior are required')
+    for key in ('temperature', 'profile_prior'):
+        value = metadata[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+            raise ValueError(f'{key} must be positive and finite')
+    return metadata
+
+
+def load_phase2_policy(weights_path, *, seed, adapt=True, metadata=None):
+    metadata = load_phase2_metadata(weights_path, metadata)
     from phase2_torch import Phase2Network, Phase2Policy
     model = Phase2Network.load(weights_path)
     model.eval()

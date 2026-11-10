@@ -172,6 +172,7 @@ class PartidaTruco:
         elif modo == 'refuerzo':
             from phase2_game_policy import GamePhase2Policy
             self.network = GamePhase2Policy.load(self.ia.champions_dir / 'phase2/reigning_champion.pt', seed=self.rng.randrange(2**32))
+            self.opponent_profile_phase2.prior_strength = self.network.profile.prior_strength
         info = self.ia.set_modo_agente(modo)
         self.registrar(f"🧠 Arquitectura IA cambiada a: {info['nombre']}")
         return self.estado_publico()

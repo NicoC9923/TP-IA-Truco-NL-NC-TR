@@ -1,5 +1,6 @@
 """Human-match adapter for the published frozen phase 2 policy."""
-from phase2_torch import Phase2Network, Phase2Policy
+from phase2_torch import Phase2Policy
+from phase2_loader import load_phase2_policy
 
 
 class GamePhase2Policy(Phase2Policy):
@@ -7,8 +8,9 @@ class GamePhase2Policy(Phase2Policy):
 
     @classmethod
     def load(cls, path, *, seed):
-        model = Phase2Network.load(path).eval()
-        return cls(model, seed=seed, temperature=.05, profile_prior=5)
+        policy = load_phase2_policy(path, seed=seed)
+        return cls(policy.model, seed=seed, temperature=policy.temperature,
+                   profile_prior=policy.profile.prior_strength)
 
     @property
     def inference(self):

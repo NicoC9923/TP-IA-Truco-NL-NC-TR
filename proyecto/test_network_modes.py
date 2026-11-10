@@ -65,6 +65,31 @@ class NetworkModesServerTests(unittest.TestCase):
                 match.cambiar_modo_ia('refuerzo')
                 self.assertEqual(match.ia.modo_agente, 'utilidad_adaptativa')
 
+    def test_phase2_sidecar_sets_sampling_and_profile_prior(self):
+        from phase2_torch import Phase2Network
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); phase2 = root / 'phase2'; phase2.mkdir()
+            Phase2Network().save(phase2 / 'reigning_champion.pt')
+            match = PartidaTruco(historial_path=str(root / 'history.json'), champions_dir=root)
+            self.assertFalse(match.ia.mode_available('refuerzo'))
+            sidecar = phase2 / 'reigning_champion.json'
+            for invalid in ('{}', '{"temperature": 0, "profile_prior": 9}', '{"temperature": "bad", "profile_prior": 9}'):
+                sidecar.write_text(invalid)
+                self.assertFalse(match.ia.mode_available('refuerzo'))
+                with self.assertRaises(ValueError):
+                    from phase2_game_policy import GamePhase2Policy
+                    GamePhase2Policy.load(phase2 / 'reigning_champion.pt', seed=1)
+            sidecar.write_text('{"temperature": 0.3, "profile_prior": 9}')
+            self.assertTrue(match.ia.mode_available('refuerzo'))
+            match.cambiar_modo_ia('refuerzo')
+            self.assertEqual(match.network.temperature, .3)
+            self.assertEqual(match.network.profile.prior_strength, 9)
+            self.assertEqual(match.network.neutral_profile.prior_strength, 9)
+            self.assertEqual(match.opponent_profile_phase2.prior_strength, 9)
+            match.adapt_to_opponent = False
+            match.jugar_carta_humano(match.cartas_humano_disponibles[0])
+            self.assertEqual(match.network.profile.prior_strength, 9)
+
     def test_truco_after_robot_plays_all_cards(self):
         with tempfile.TemporaryDirectory() as tmp:
             match = PartidaTruco(historial_path=str(Path(tmp) / 'history.json'), rng=random.Random(7))
