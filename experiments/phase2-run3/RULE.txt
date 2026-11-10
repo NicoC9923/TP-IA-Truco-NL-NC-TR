@@ -28,3 +28,6 @@ AFTER THE RUN
 
 CLAIMS
 - Reference opponents and the panel are familiar (run 2 league). Phase 1 g48 and the two held-out networks stay out of training and selection, so the exam can detect specialisation. Run 3 differs from run 2 in inputs, target, training temperature, check size, check selection and snapshot span per match; it is not an isolated comparison of any one change.
+
+OPERATIONAL NOTE (2026-11-10, not a settings change)
+- At the user's request the run was moved from a separate PowerShell window into an Orca terminal: stopped at 20:02:33 right after checkpoint_007270.pt (generation 15, round 7271; generations 1-14 logged), and resumed from that checkpoint with the same runner and flags (ADR 0042 deterministic resume). Downtime (~20 s) is excluded from the time cap. Not a retry.
