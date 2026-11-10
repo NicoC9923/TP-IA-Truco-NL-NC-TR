@@ -34,3 +34,11 @@ Three weaknesses were found after run 2:
 - **Training greedy or at a lower temperature:** narrows exploration; the advisor recommended keeping T = 0.05 or a mild epsilon-greedy.
 - **Starting from scratch:** cleaner to explain, but throws away twelve hours of learning.
 - **Some randomness against humans:** less predictable, but it cost more than 20 points against Adaptive Utility. Rejected for strength; it can be revisited if people find the network easy to read.
+
+## Amendment (2026-11-10): generation size and check size after the speed-ups
+
+Bit-exact speed-ups made training about 4 times faster (docs/perf/phase2-speed.md). Run 2's late generations took about 15 minutes each (12 hours for 49 generations), not the 7.5 minutes the measuring run predicted, because a trained network plays longer matches. Decisions (user, with a Claude Opus 5.5 advisor opinion):
+
+- **Matches per generation** are fixed from the pilot's measured throughput with the warm-started network, so one generation takes about 7.5 minutes (ADR 0044's 5–10 minute rule); probably 110,000–140,000. If the first 2–3 generations take more than 10 minutes, the size is adjusted once, by the same rule, and the change is logged.
+- **Checks:** 300 mirror pairs per panel member and 300 direct pairs, instead of 100 and 200. Checks are now cheap (about 5% of a generation). With 100 pairs a real 1–2 point gain could almost never pass the lower-bound rule, which in practice needed about 3 points. Thresholds are unchanged: gain ≥ 1 point with a paired 95% lower bound above 0, ≥ 47.5% direct, patience 40 checks (about 5 hours).
+- **Snapshot pool:** kept at 8 recent plus 4 diverse snapshots. Because a snapshot is saved per generation and generations are about twice as long, the pool covers about twice as many matches as in run 2, so league opponents are older and more varied. This is a deliberate difference from run 2.
