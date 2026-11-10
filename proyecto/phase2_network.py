@@ -19,8 +19,9 @@ import numpy as np
 import truco_reglas as rules
 from phase1_network import ACTIONS, encode_observation as encode_v3
 from opponent_inference import inference_from_observation
+from phase2_hand_facts import hand_facts
 
-ENCODER_VERSION = 1
+ENCODER_VERSION = 1  # the original layout; versions 2 and 3 append run 3 hand facts (phase2_hand_facts.py)
 
 EVENT_SIZE = 59
 MAX_EVENTS = 24
@@ -29,6 +30,14 @@ INDEX = {'summary': slice(0, 64), 'confidence': slice(64, 68),
          'legal_actions': slice(190, 202), 'events': slice(202, 1618),
          'exact_belief': slice(1618, 1623), 'weighted_belief': slice(1623, 1628)}
 INPUT_SIZE = 1628
+INPUT_SIZES = {1: INPUT_SIZE, 2: INPUT_SIZE + 6, 3: INPUT_SIZE + 7}
+
+
+def encoder_version_for_size(size):
+    for version, expected in INPUT_SIZES.items():
+        if expected == size:
+            return version
+    raise ValueError(f'No phase 2 encoder has {size} inputs')
 CATEGORIES = ('card',) + ACTIONS[3:]
 
 def _card_id(card):
@@ -42,13 +51,15 @@ class _FixedInference:
         return self.belief
 
 def encode_observation(obs, profile, legal_actions, *, weighted_beliefs=True,
-                       exact_inference=None, weighted_inference=None):
+                       exact_inference=None, weighted_inference=None, encoder_version=1):
+    if encoder_version not in INPUT_SIZES:
+        raise ValueError('Unknown phase 2 encoder version')
     if len(obs['history']) > MAX_EVENTS:
         raise ValueError('Current hand event capacity exceeded')
     exact = (exact_inference.update(obs, 1.0) if exact_inference is not None
              else inference_from_observation(obs, 1.0))
     summary = encode_v3(obs, profile, _FixedInference(exact), encoder='v3')
-    result = np.zeros(INPUT_SIZE, dtype=np.float32)
+    result = np.zeros(INPUT_SIZES[encoder_version], dtype=np.float32)
     result[INDEX['summary']] = summary
     result[INDEX['exact_belief']] = summary[50:55]
     if weighted_beliefs:
@@ -96,4 +107,6 @@ def encode_observation(obs, profile, legal_actions, *, weighted_beliefs=True,
                     else:
                         row[55 + relative] = declaration / 33
             pending_envido = False
+    if encoder_version > 1:
+        result[INPUT_SIZE:] = hand_facts(obs, legal_actions, exact if encoder_version == 3 else None)
     return result

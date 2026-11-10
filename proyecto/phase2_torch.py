@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from opponent_inference import IncrementalInference, exact_inference_from_observation, _CARD_IDS
 from opponent_profile import OpponentProfile
 from phase1_network import ACTIONS
-from phase2_network import INPUT_SIZE, encode_observation
+from phase2_network import INPUT_SIZE, INPUT_SIZES, encode_observation, encoder_version_for_size
 from symmetric_engine import bluff
 
 
@@ -35,11 +35,12 @@ def combination_scores(logits, ids):
 
 
 class Phase2Network(nn.Module):
-    def __init__(self, seed=0, auxiliary=False):
+    def __init__(self, seed=0, auxiliary=False, input_size=INPUT_SIZE):
         super().__init__()
+        self.encoder_version = encoder_version_for_size(input_size)
         with torch.random.fork_rng():
             torch.manual_seed(seed)
-            self.layers = nn.Sequential(nn.Linear(INPUT_SIZE, 256), nn.ReLU(),
+            self.layers = nn.Sequential(nn.Linear(input_size, 256), nn.ReLU(),
                                     nn.Linear(256, 128), nn.ReLU(), nn.Linear(128, len(ACTIONS)))
             nn.init.uniform_(self.layers[-1].weight, -0.001, 0.001)
             nn.init.zeros_(self.layers[-1].bias)
@@ -58,9 +59,25 @@ class Phase2Network(nn.Module):
     @classmethod
     def load(cls, path):
         weights = torch.load(path, map_location='cpu', weights_only=True)
-        model = cls(auxiliary='card_head.0.weight' in weights)
+        return cls.from_state(weights)
+
+    @classmethod
+    def from_state(cls, weights):
+        """A network shaped like ``weights`` (auxiliary head and encoder version included), loaded."""
+        model = cls(auxiliary='card_head.0.weight' in weights, input_size=weights['layers.0.weight'].shape[1])
         model.load_state_dict(weights)
         return model
+
+
+def widen_state_dict(weights, encoder_version):
+    """Copy of ``weights`` with the first layer widened to ``encoder_version``; new columns are zero."""
+    size = INPUT_SIZES[encoder_version]
+    first = weights['layers.0.weight']
+    if first.shape[1] > size:
+        raise ValueError('Cannot narrow the input layer')
+    wide = {key: value.clone() for key, value in weights.items()}
+    wide['layers.0.weight'] = torch.cat([first, first.new_zeros(first.shape[0], size - first.shape[1])], dim=1)
+    return wide
 
 def card_distribution(logits, observation):
     """Return compatible original hands, their probabilities and hidden-card marginals."""
@@ -135,6 +152,7 @@ class Phase2Policy:
 
     def encode(self, observation, legal_actions):
         return encode_observation(observation, self.profile if self.adapt else self.neutral_profile, legal_actions,
+                                  encoder_version=getattr(self.model, 'encoder_version', 1),
                                   weighted_beliefs=self.weighted_beliefs,
                                   exact_inference=self.exact_inference,
                                   weighted_inference=self.weighted_inference)

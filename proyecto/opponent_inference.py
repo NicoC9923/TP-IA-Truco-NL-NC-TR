@@ -191,6 +191,18 @@ class Inference:
         self._summary_cache = weights, ranks, counts, brava, strength
         return self._summary_cache
 
+    def tanto_win_probability(self, own_tantos, *, ties_win):
+        """P(own envido total beats the opponent's) under the posterior; ties go to ``ties_win`` (own seat is mano)."""
+        weights = self._summary_arrays()[0]
+        if not len(weights):
+            return 0.5
+        key = ('tanto', own_tantos, ties_win)
+        if key not in self._sums:
+            tantos = _hand_tantos()[self._ids]
+            beats = (tantos < own_tantos) | ((tantos == own_tantos) & ties_win)
+            self._sums[key] = _ordered_sum(weights * beats)
+        return self._sums[key]
+
     def summaries(self, card, *, ties_win=False):
         weights, ranks, counts, brava, strength = self._summary_arrays()
         rank = rules.valor_carta_truco(*card)

@@ -109,7 +109,7 @@ def match_settings(seed, match_id, target='mixed', random_start_share=.3):
 
 def _matches(args):
     weights, seed, ids, target, random_start_share = args
-    model = Phase2Network(auxiliary='card_head.0.weight' in weights)
+    model = Phase2Network.from_state(weights)
     model.load_state_dict(weights)
     results = []
     for match_id in ids:
@@ -155,7 +155,7 @@ def _league_block(args):
     if len(args) == 8:
         args = (*args, 20)
     weights, seed, ids, target, random_start_share, spec, opponents, temperature, profile_prior = args
-    model = Phase2Network(auxiliary='card_head.0.weight' in weights)
+    model = Phase2Network.from_state(weights)
     model.load_state_dict(weights)
     identity = spec['identity']
     opponent_model = model
@@ -242,7 +242,7 @@ def _check_pair(job, models=None):
         if spec['kind'] == 'phase2':
             weights = spec['weights']
             if id(weights) not in models:
-                model = Phase2Network(auxiliary='card_head.0.weight' in weights)
+                model = Phase2Network.from_state(weights)
                 model.load_state_dict(weights)
                 # Keep the weights alive with the model so the id cannot be reused.
                 models[id(weights)] = (weights, model)
