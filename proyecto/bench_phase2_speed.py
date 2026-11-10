@@ -126,12 +126,16 @@ def round_mode(args):
                 start = time.perf_counter()
                 samples = play(trainer, pool, weights, 57001, blocks, opponents)
                 rounds.append(time.perf_counter() - start)
+                if round_id == 1:
+                    # The timed updates and the check's challenger use round 1, so
+                    # the check digest does not depend on --rounds.
+                    first_samples = samples
                 digests.append(sample_digest(samples))
                 counts.append(len(samples))
         model = trainer.Phase2Network()
         model.load_state_dict(weights)
-        update = learner_seconds(trainer, model, samples)
-        payload = len(pickle.dumps(samples, protocol=pickle.HIGHEST_PROTOCOL))
+        update = learner_seconds(trainer, model, first_samples)
+        payload = len(pickle.dumps(first_samples, protocol=pickle.HIGHEST_PROTOCOL))
         check_start = time.perf_counter()
         if args.check_pairs:
             panel = trainer.load_panel(RUN2 / 'panel.json')
@@ -148,7 +152,7 @@ def round_mode(args):
     matches = args.matches * args.rounds
     out.update(workers=args.workers, matches_per_round=args.matches, rounds=args.rounds,
                round_seconds=rounds, matches_per_s=matches / sum(rounds), samples_per_s=sum(counts) / sum(rounds),
-               samples_per_round=counts, sample_digests=digests, last_round_pickle_bytes=payload,
+               samples_per_round=counts, sample_digests=digests, first_round_pickle_bytes=payload,
                update_seconds=update, check_pairs=args.check_pairs)
     print(json.dumps({k: v for k, v in out.items() if k != 'sample_digests'}, indent=1))
     args.output.parent.mkdir(parents=True, exist_ok=True)
