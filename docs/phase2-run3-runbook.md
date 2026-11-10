@@ -111,3 +111,7 @@ Fixed before any real run:
 - Pilot pass = the tool's `passes` (pilot greedy win rate vs fixed Adaptive Utility >= 68%) AND the paired difference pilot minus warm start (same 300 pairs, both in `evaluation`) >= -0.03.
 - After the table check: report visit counts and spot cells (0-0 mano near 0.5-0.55; 14-0 at target 15 near 1).
 - In the pilot entry, `greedy_disagreement` must be non-null; report it and the mean and SD of the blended targets against the plain match results.
+
+## Superseded settings
+
+The command above shows the pre-amendment `--temperature 0.05` and a placeholder `M`. The run actually uses `--temperature 0.02` and `--matches-per-generation 124560`; `experiments/phase2-run3/RULE.txt` and `run_run3.ps1` are authoritative.
