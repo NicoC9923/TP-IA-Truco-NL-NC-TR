@@ -52,6 +52,18 @@ class NetworkModesServerTests(unittest.TestCase):
             match.reiniciar_partido()
             self.assertTrue(match.adapt_to_opponent)
 
+    def test_greedy_champion_trace_does_not_claim_sampling_probabilities(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            match = PartidaTruco(historial_path=str(Path(tmp) / 'history.json'), rng=random.Random(7))
+            match.cambiar_modo_ia('refuerzo')
+            self.assertTrue(match.network.greedy)
+            match.jugar_carta_humano(match.cartas_humano_disponibles[0])
+            trace = match.ia.traza_razonamiento[-1]
+            self.assertEqual(trace['seleccion'], 'greedy')
+            self.assertNotIn('acciones_probables', trace)
+            self.assertNotIn('%', trace['metrica'])
+            self.assertIn('mayor valor', trace['metrica'])
+
     def test_phase2_mode_unavailable_without_torch_or_file(self):
         from unittest.mock import patch
         import sys

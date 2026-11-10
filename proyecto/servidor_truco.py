@@ -81,6 +81,40 @@ def _leer_jsonl(path):
     return records
 
 
+EXAM_OPPONENTS = ['adaptive_utility', 'reactive', 'phase1', 'held_out_1', 'held_out_2']
+
+
+def _retired_run1(root):
+    """Directory with the retired run 1 generation 28 weights, or the shipped folder before the move."""
+    retired = Path(root) / 'champions/phase2/retired/run1-g28'
+    return retired if (retired / 'reigning_champion.pt').is_file() else Path(root) / 'champions/phase2'
+
+
+def _red_publicada(root):
+    """The shipped phase 2 network and its recorded final exam; numbers are read, never recomputed."""
+    root = Path(root)
+    try:
+        sidecar = json.loads((root / 'champions/phase2/reigning_champion.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError, UnicodeDecodeError):
+        return None
+    if not isinstance(sidecar, dict):
+        return None
+    shipped = {k: sidecar.get(k) for k in ('run', 'generation', 'selection', 'temperature', 'profile_prior')}
+    shipped['selection'] = shipped['selection'] or 'sampled'
+    try:
+        exam = json.loads((root / 'experiments/phase2-final-exam/part-e/results.json').read_text(encoding='utf-8'))
+        part_t = json.loads((root / 'experiments/phase2-final-exam/part-t/results.json').read_text(encoding='utf-8'))
+        rates = exam['analysis']['win_rates']
+        candidate = exam['analysis']['decision']
+        shipped['exam'] = {'opponents': EXAM_OPPONENTS,
+                           'shipped': [r['mean'] for r in rates[candidate]],
+                           'retired': [r['mean'] for r in rates['B']],
+                           'temperature_mean': {k: part_t['analysis']['m'][k] for k in ('0.05', 'greedy')}}
+    except (OSError, ValueError, UnicodeDecodeError, KeyError, TypeError):
+        pass
+    return shipped
+
+
 def _comparacion_publicada(root):
     """Only the shipped run's recorded measurements; never replay a match."""
     root = Path(root)
@@ -91,7 +125,7 @@ def _comparacion_publicada(root):
                                     for r in _leer_jsonl(p1 / 'generations.jsonl')],
                'phase2_champions': [{'generation': r.get('generation'), 'champion': r.get('champion')}
                                     for r in _leer_jsonl(p2 / 'generations.jsonl')],
-               'phase2_reference': [], 'probe': None}
+               'phase2_reference': [], 'probe': None, 'shipped': _red_publicada(root)}
     try:
         archive = json.loads((root / 'experiments/phase2-run1/reference-eval/results.json').read_text(encoding='utf-8'))
         for generation, opponents in archive['summaries'].items():
@@ -110,7 +144,7 @@ def _comparacion_publicada(root):
         probe = json.loads((p2 / 'card-probe-report.json').read_text(encoding='utf-8'))
         if probe.get('champion_unchanged') and probe.get('champion_sha256'):
             import hashlib
-            if hashlib.sha256((p2 / 'reigning_champion.pt').read_bytes()).hexdigest() == probe['champion_sha256']:
+            if hashlib.sha256((_retired_run1(root) / 'reigning_champion.pt').read_bytes()).hexdigest() == probe['champion_sha256']:
                 payload['probe'] = {k: probe.get(k) for k in ('status', 'counts', 'test_scored', 'predictors', 'examples')}
     except (OSError, ValueError, UnicodeDecodeError, TypeError):
         pass
@@ -142,14 +176,14 @@ class Handler(BaseHTTPRequestHandler):
             self._responder(200, {"source": "live" if vivo else ("committed" if (origen / "generations.jsonl").is_file() else "empty")})
         elif ruta_limpia == "/evolucion/phase2/runs":
             root = self.server.evolution_root
-            self._responder(200, {"default": "run2" if (root / "training_output/phase2-run2").is_dir() else "run1"})
+            self._responder(200, {"default": "run2" if (root / "training_output/phase2-run2").is_dir() or (root / "champions/phase2-run2").is_dir() else "run1"})
         elif ruta_limpia.startswith("/evolucion/phase2/") and "run" in parse_qs(urlsplit(self.path).query, keep_blank_values=True):
             run = parse_qs(urlsplit(self.path).query, keep_blank_values=True)["run"]
             if len(run) != 1 or run[0] not in ("run1", "run2"):
                 self._responder(400, {"error": "invalid run"})
                 return
             root = self.server.evolution_root
-            directory = root / ("champions/phase2" if run[0] == "run1" else "training_output/phase2-run2")
+            directory = root / "champions/phase2" if run[0] == "run1" else self._origen_run2(root)
             endpoint = ruta_limpia.rsplit("/", 1)[-1]
             if endpoint in ("generations", "reference"):
                 name = "generations.jsonl" if endpoint == "generations" else "reference_evaluation.jsonl"
@@ -178,7 +212,7 @@ class Handler(BaseHTTPRequestHandler):
                 # Only the published run 1 model is stable; never load a live checkpoint.
                 if run[0] == "run1":
                     from phase2_example_hand import example_hand_payload
-                    self._responder(200, example_hand_payload(root, directory=directory))
+                    self._responder(200, example_hand_payload(root, directory=_retired_run1(root)))
                 else:
                     self._responder(200, {"available": False, "reason": "awaiting_stable_example"})
             else:
@@ -391,6 +425,14 @@ class Handler(BaseHTTPRequestHandler):
 
         else:
             return 404, None
+
+    @staticmethod
+    def _origen_run2(root):
+        """Live run 2 directory when it has data, else the committed copy next to the shipped champion."""
+        live = root / "training_output/phase2-run2"
+        if (live / "generations.jsonl").is_file() or (live / "progress.json").is_file():
+            return live
+        return root / "champions/phase2-run2"
 
     def _origen_evolucion(self, fase):
         """Live run directory when it has data, else the committed copies."""

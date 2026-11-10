@@ -17,8 +17,8 @@ from symmetric_engine import play_match
 NAMES = ('reactive', 'adaptive_utility', 'phase1', 'phase2')
 PAIRS = tuple(itertools.combinations(NAMES, 2))
 PHASE1 = ROOT / 'champions/phase1/reigning_champion.npy'
-PHASE2 = ROOT / 'champions/phase2/reigning_champion.pt'
-META = ROOT / 'champions/phase2/reigning_champion.json'
+PHASE2 = ROOT / 'champions/phase2/retired/run1-g28/reigning_champion.pt'
+META = ROOT / 'champions/phase2/retired/run1-g28/reigning_champion.json'
 HASHES = {PHASE1: '0b3e04fad09334f60d2d416b9c6848c7b3aabcfA6bb0d6593ac825feb32e47f7'.lower(),
           PHASE2: '05f189491a1d6ca7a4d7cebfa556a16e70d7512028e6bb224d61d87a35d4cdcd',
           META: '87b18d2cdd1414d324cc0a52f250978aa9298fa1519e1b32bc544a6fe704e75b'}
@@ -127,8 +127,8 @@ def provenance():
                                      'experiments/four-mode-round-robin/run_rr.py',
                                      'experiments/four-mode-round-robin/RULE.txt',
                                      'champions/phase1/reigning_champion.npy',
-                                     'champions/phase2/reigning_champion.pt',
-                                     'champions/phase2/reigning_champion.json'], cwd=ROOT, text=True)
+                                     'champions/phase2/retired/run1-g28/reigning_champion.pt',
+                                     'champions/phase2/retired/run1-g28/reigning_champion.json'], cwd=ROOT, text=True)
     if dirty:
         raise RuntimeError('Sources, rule, or models are not clean: ' + dirty)
     revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()

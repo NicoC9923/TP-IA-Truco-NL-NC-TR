@@ -384,7 +384,7 @@ function phaseView(phase) {
   const status = statusBlock(phase);
   const running = status.running;
   const wrap = el('div', {class:'stack'});
-  if (phase === 'p2') wrap.append(runSelector());
+  if (phase === 'p2') wrap.append(shippedNetwork(), runSelector());
   status.wrap.id = 'phase-status';
   const metrics = kpis(phase); metrics.id = 'phase-metrics';
   wrap.append(status.wrap, metrics, chart(phase, seriesFor(phase, state[phase].gens)));
@@ -393,9 +393,30 @@ function phaseView(phase) {
   return { node: wrap, running };
 }
 
+function shippedNetwork() {
+  const s = (state.comparison || {}).shipped;
+  const box = el('section',{class:'card'},el('h2',{text:'Red publicada en el juego · corrida 2, generación 38'}));
+  if (!s || s.run !== 'run2') { box.append(el('p',{class:'empty',text:'No hay datos de la red publicada.'})); return box; }
+  box.append(el('p',{text:'El modo «Red neuronal · Aprendizaje por refuerzo» usa la generación 38 de la corrida 2. Juega siempre la acción de mayor valor entre las permitidas (en empate, la primera de la lista); no sortea. La corrida 1 (generación 28) quedó retirada.'}));
+  const e = s.exam;
+  if (e && e.shipped && e.retired) {
+    const names = {adaptive_utility:'Utilidad adaptativa', reactive:'Reactivo', phase1:'Algoritmos genéticos (fase 1)'};
+    const table = el('table',{},el('caption',{text:'Examen final: partidas ganadas en 1000 pares de manos repartidas'}),el('tr',{},...['Rival','Generación 38, voraz','Generación 28 (retirada)'].map(t=>el('th',{scope:'col',text:t}))));
+    e.opponents.forEach((o,i)=>{ if (names[o]) table.append(el('tr',{},el('td',{text:names[o]}),el('td',{text:pct(e.shipped[i])}),el('td',{text:pct(e.retired[i])}))); });
+    box.append(el('div',{class:'table-scroll',tabindex:'0',role:'region','aria-label':'Resultados del examen final'},table));
+    const t = e.temperature_mean;
+    const caveats = ['La mayor parte de la mejora viene de jugar de forma voraz.' + (t ? ` En una prueba previa con la misma red, jugar voraz subió el promedio de victorias de ${pct(t['0.05'])} a ${pct(t.greedy)} frente a sortear con temperatura 0,05.` : ''),
+      'Utilidad adaptativa y Reactivo fueron rivales de entrenamiento de la corrida 2: son resultados contra rivales conocidos.',
+      'Las candidatas se nombraron después de ver sus controles de desarrollo.',
+      'El examen decide qué red se publica; no mide la fuerza general de la red.'];
+    box.append(el('ul',{class:'small'},...caveats.map(c=>el('li',{text:c}))));
+  }
+  return box;
+}
+
 function runSelector() {
   const select = el('select', {id:'run-select','aria-label':'Corrida de fase 2'});
-  [['run2','Corrida 2 · entrenamiento actual'],['run1','Corrida 1 · publicada']].forEach(([v,t]) => select.append(el('option',{value:v,text:t})));
+  [['run2','Corrida 2 · publicada (generación 38)'],['run1','Corrida 1 · retirada (generación 28)']].forEach(([v,t]) => select.append(el('option',{value:v,text:t})));
   select.value = state.run;
   select.addEventListener('change', async () => {
     state.run = select.value; state.hand.p2 = null; state.step = 0; state.showDecision = false;
@@ -434,7 +455,7 @@ const LAYERS = [
   ['Segunda capa · 128 neuronas', 'Cada neurona vuelve a combinar las salidas de la primera con sus propios pesos y sesgo, y aplica ReLU. Estas representaciones intermedias no tienen una interpretación conocida por separado.'],
   ['12 valores de acción', 'La red calcula un número por acción posible. Busca estimar el resultado final de la partida desde el lugar de quien juega: +1 si gana y −1 si pierde. Durante el entrenamiento se corrige el valor de la acción tomada hacia ese resultado; un valor no es una probabilidad ni garantiza ganar.'],
   ['Acciones permitidas', 'La máscara es un filtro: descarta las acciones que las reglas no permiten en esta situación. Por ejemplo, no se puede responder «quiero» si no hay un canto pendiente.'],
-  ['Probabilidades y elección', 'Softmax convierte los valores de las acciones permitidas en probabilidades que suman 100 %. La temperatura controla cuánto se concentran: una menor favorece más al valor mayor. Luego se sortea una acción según esas probabilidades; puede salir una que no sea la más probable.']
+  ['Probabilidades y elección', 'Softmax convierte los valores de las acciones permitidas en probabilidades que suman 100 %. La temperatura controla cuánto se concentran: una menor favorece más al valor mayor. Una red que sortea elige según esas probabilidades y puede jugar una que no sea la más probable. La red publicada en el juego no sortea: elige la acción permitida de mayor valor.']
 ];
 const INPUT_GROUPS = [['Estado y perfil',0,70],['Cartas propias',70,190],['Acciones legales',190,202],['Historia pública',202,1618],['Estimación compatible',1618,1623],['Estimación ponderada',1623,1628]];
 function architecture() {
@@ -510,10 +531,10 @@ function comparisonChart(title, series, maximum, ylabel) {
 }
 
 function probeSnapshot(report) {
-  const box=el('section',{class:'card'},el('h2',{text:'Sonda posterior al entrenamiento · foto final'}),
+  const box=el('section',{class:'card'},el('h2',{text:'Sonda posterior al entrenamiento · foto final · corrida 1, generación 28'}),
     el('p',{text:'Una sonda pequeña observa las características ya calculadas por la campeona, sin cambiarla. Intenta predecir las cartas que aún no se ven; las cartas reales se usan solamente como respuesta para comprobarla.'}),
     el('p',{class:'small',text:'El error logarítmico mide qué probabilidad se asignó a la mano real: menor es mejor. El acierto top-N mide cuántas cartas ocultas aparecen entre las N más probables: mayor es mejor. Los intervalos al 95 % agrupan decisiones de una misma partida.'}));
-  if(!report || !report.predictors || !report.test_scored){box.append(el('p',{class:'empty',text:'Todavía no hay una sonda compatible con la campeona publicada.'}));return box;}
+  if(!report || !report.predictors || !report.test_scored){box.append(el('p',{class:'empty',text:'Todavía no hay una sonda compatible con la campeona de la corrida 1 (generación 28).'}));return box;}
   const labels={exact:'Filtro exacto',weighted:'Inferencia ponderada',champion:'Sonda de la campeona',control:'Sonda de red aleatoria'};
   box.append(el('p',{class:'small',text:`Estado ${report.status}: las cuatro predicciones usan las mismas ${report.test_scored} de ${report.counts?.test ?? '—'} situaciones de prueba registradas. Esta foto no es una curva de evolución ni demuestra mejor juego o superioridad sobre la fórmula.`}));
   const table=el('table',{},el('tr',{},...['Predictor','Error logarítmico · intervalo','Acierto top-N · intervalo'].map(t=>el('th',{scope:'col',text:t}))));
@@ -530,17 +551,17 @@ function probeSnapshot(report) {
 
 function comparison() {
   const data=state.comparison || {}, refs1=data.phase1_reference||[], refs2=data.phase2_reference||[];
-  const root=el('div',{class:'stack'},el('section',{class:'card'},el('h2',{text:'Algoritmos genéticos vs Aprendizaje por refuerzo'}),el('p',{text:'Comparación de las corridas publicadas. En particular, la fase 2 entrenó también contra redes de la fase 1 en la corrida publicada. Los rivales de referencia sirvieron para evaluarla, no participaron en su entrenamiento: estas mediciones no aíslan los algoritmos ni demuestran superioridad general.'}),el('p',{class:'small',text:'Fase 1: corrida 1. Fase 2: corrida 1 publicada. Contra cada rival se muestra el porcentaje ganado; fase 2 solo tiene mediciones registradas en las generaciones 4, 10 y 28. Las líneas unen mediciones disponibles, no inventan otras.'})));
+  const root=el('div',{class:'stack'},el('section',{class:'card'},el('h2',{text:'Algoritmos genéticos vs Aprendizaje por refuerzo'}),el('p',{text:'Comparación de las corridas registradas. En particular, la fase 2 entrenó también contra redes de la fase 1 en la corrida 1. Los rivales de referencia sirvieron para evaluarla, no participaron en su entrenamiento: estas mediciones no aíslan los algoritmos ni demuestran superioridad general.'}),el('p',{class:'small',text:'Fase 1: corrida 1. Fase 2: corrida 1 (retirada; la red publicada ahora es la corrida 2, generación 38, ver la pestaña de fase 2). Contra cada rival se muestra el porcentaje ganado; fase 2 solo tiene mediciones registradas en las generaciones 4, 10 y 28. Las líneas unen mediciones disponibles, no inventan otras.'})));
   if (!refs2.length) root.append(el('p',{class:'empty',text:'Disponible cuando la fase 2 tenga campeona evaluada.'}));
   for(const opponent of ['reactive','adaptive_utility']) {
     const p1=refs1.filter(r=>r.reference_opponent===opponent).map(r=>({generation:r.generation,value:r.win_rate*100,lower:num(r.margin_of_error)?(r.win_rate-r.margin_of_error)*100:null,upper:num(r.margin_of_error)?(r.win_rate+r.margin_of_error)*100:null}));
     const p2=refs2.filter(r=>r.reference_opponent===opponent&&r.adaptation==='on').map(r=>({generation:r.generation,value:r.win_rate*100,lower:num(r.lower)?r.lower*100:null,upper:num(r.upper)?r.upper*100:null}));
-    root.append(comparisonChart(`Contra ${OPPONENTS[opponent]}`, [{name:'Algoritmos genéticos',color:'#C2410C',rows:p1},{name:'Refuerzo · adaptación activa',color:'#1F5FBF',dash:'6 4',rows:p2}],100,' %'));
+    root.append(comparisonChart(`Contra ${OPPONENTS[opponent]}`, [{name:'Algoritmos genéticos',color:'#C2410C',rows:p1},{name:'Refuerzo · corrida 1 · adaptación activa',color:'#1F5FBF',dash:'6 4',rows:p2}],100,' %'));
   }
   root.append(comparisonChart('Sucesión de campeonas · misma escala de generaciones',[
     {name:'Algoritmos genéticos',color:'#C2410C',rows:(data.phase1_champions||[]).map(r=>({generation:r.generation,value:r.champion}))},
-    {name:'Refuerzo',color:'#1F5FBF',dash:'6 4',rows:(data.phase2_champions||[]).map(r=>({generation:r.generation,value:r.champion}))}],80,''));
-  const adapt=el('section',{class:'card'},el('h2',{text:'Adaptación activa y desactivada · fase 2'}),el('p',{class:'small',text:'Evaluaciones registradas de las campeonas 4, 10 y 28 contra los mismos rivales; no se volvieron a jugar partidas.'}));
+    {name:'Refuerzo · corrida 1',color:'#1F5FBF',dash:'6 4',rows:(data.phase2_champions||[]).map(r=>({generation:r.generation,value:r.champion}))}],80,''));
+  const adapt=el('section',{class:'card'},el('h2',{text:'Adaptación activa y desactivada · fase 2, corrida 1'}),el('p',{class:'small',text:'Evaluaciones registradas de las campeonas 4, 10 y 28 contra los mismos rivales; no se volvieron a jugar partidas.'}));
   const tbl=el('table',{},el('tr',{},...['Generación','Rival','Activa','Desactivada'].map(v=>el('th',{scope:'col',text:v}))));
   for(const gen of [4,10,28])for(const opponent of ['reactive','adaptive_utility']){const on=refs2.find(r=>r.generation===gen&&r.reference_opponent===opponent&&r.adaptation==='on'),off=refs2.find(r=>r.generation===gen&&r.reference_opponent===opponent&&r.adaptation==='off');if(on&&off)tbl.append(el('tr',{},...[gen,OPPONENTS[opponent],`${pct(on.win_rate)} (${pct(on.lower)}–${pct(on.upper)})`,`${pct(off.win_rate)} (${pct(off.lower)}–${pct(off.upper)})`].map(v=>el('td',{text:String(v)}))));}
   adapt.append(el('div',{class:'table-scroll'},tbl));root.append(adapt,probeSnapshot(data.probe));return root;

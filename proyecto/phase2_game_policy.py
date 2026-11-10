@@ -10,7 +10,7 @@ class GamePhase2Policy(Phase2Policy):
     def load(cls, path, *, seed):
         policy = load_phase2_policy(path, seed=seed)
         return cls(policy.model, seed=seed, temperature=policy.temperature,
-                   profile_prior=policy.profile.prior_strength)
+                   profile_prior=policy.profile.prior_strength, greedy=policy.greedy)
 
     @property
     def inference(self):

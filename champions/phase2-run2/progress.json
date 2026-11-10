@@ -1,0 +1,30 @@
+{
+  "elapsed": 43203.20300000001,
+  "time_cap": 43200.0,
+  "generation": 49,
+  "round": 11663,
+  "matches": 2799120,
+  "samples": 84279677,
+  "updates": 170459,
+  "matches_per_s": 18.324807207753267,
+  "samples_per_s": 629.1669848055353,
+  "recent_loss": 0.7957529741175035,
+  "league_mix": {
+    "self": 0.23333333333333334,
+    "calculating": 0.03333333333333333,
+    "bluffer": 0.1,
+    "snapshot": 0.2,
+    "phase1": 0.05,
+    "adaptive_utility": 0.18333333333333332,
+    "reactive": 0.06666666666666667,
+    "aggressive": 0.08333333333333333,
+    "cautious": 0.05
+  },
+  "temperature": 0.05,
+  "profile_prior": 5.0,
+  "champion_generation": 38,
+  "promotions": 9,
+  "panel_version": 3,
+  "status": "ended",
+  "stop_reason": "time_cap"
+}

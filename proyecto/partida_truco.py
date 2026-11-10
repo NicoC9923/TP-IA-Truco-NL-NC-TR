@@ -471,15 +471,20 @@ class PartidaTruco:
         action = self.network(obs, tuple(actions))
         bluff = is_bluff(action, cards)
         self.ia.ultimo_canto_fue_farol = bool(bluff)
-        probabilities = sorted(self.network.last_probabilities.items(), key=lambda p: p[1], reverse=True)[:3]
         belief = self.network.last_belief
-        self.ia._registrar_razonamiento('Red neuronal', action.upper(),
-            ', '.join('%s: %.1f%%' % (a, p * 100) for a, p in probabilities),
+        greedy = getattr(self.network, 'greedy', False)
+        probabilities = sorted(self.network.last_probabilities.items(), key=lambda p: p[1], reverse=True)[:3]
+        # A greedy network picks the highest legal value; showing sampling percentages would be false.
+        metric = 'Elige la jugada de mayor valor' if greedy else ', '.join('%s: %.1f%%' % (a, p * 100) for a, p in probabilities)
+        self.ia._registrar_razonamiento('Red neuronal', action.upper(), metric,
             '', 'Farol' if bluff else 'Sin farol', '')
         trace = self.ia.traza_razonamiento[-1]
-        trace.update(acciones_probables=[{'accion': a, 'porcentaje': p * 100} for a, p in probabilities],
-                     inferencia=belief, es_farol=bluff,
+        trace.update(inferencia=belief, es_farol=bluff,
                      perfil_rival=profile.rates() if self.adapt_to_opponent else None)
+        if greedy:
+            trace['seleccion'] = 'greedy'
+        else:
+            trace['acciones_probables'] = [{'accion': a, 'porcentaje': p * 100} for a, p in probabilities]
         self._network_history.append((1, action))
         return action
 

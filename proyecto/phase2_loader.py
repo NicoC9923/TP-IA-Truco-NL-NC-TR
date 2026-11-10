@@ -2,6 +2,8 @@
 import json
 from pathlib import Path
 
+SELECTIONS = ('sampled', 'greedy')  # a sidecar without the field means 'sampled'
+
 
 def load_phase2_metadata(weights_path, metadata=None):
     import math
@@ -16,6 +18,8 @@ def load_phase2_metadata(weights_path, metadata=None):
         value = metadata[key]
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
             raise ValueError(f'{key} must be positive and finite')
+    if metadata.get('selection', 'sampled') not in SELECTIONS:
+        raise ValueError("selection must be 'sampled' or 'greedy'")
     return metadata
 
 
@@ -25,4 +29,5 @@ def load_phase2_policy(weights_path, *, seed, adapt=True, metadata=None):
     model = Phase2Network.load(weights_path)
     model.eval()
     return Phase2Policy(model, seed=seed, adapt=adapt, temperature=metadata['temperature'],
-                        profile_prior=metadata['profile_prior'])
+                        profile_prior=metadata['profile_prior'],
+                        greedy=metadata.get('selection', 'sampled') == 'greedy')

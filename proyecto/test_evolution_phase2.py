@@ -373,5 +373,40 @@ class PublishedComparisonTests(unittest.TestCase):
             self.assertIsNone(_comparacion_publicada(root)['probe'])
 
 
+class ShippedRun2Tests(unittest.TestCase):
+    def test_comparison_reports_the_shipped_network_and_exam(self):
+        from servidor_truco import _comparacion_publicada
+        shipped = _comparacion_publicada(REPO)['shipped']
+        self.assertEqual((shipped['run'], shipped['generation'], shipped['selection']), ('run2', 38, 'greedy'))
+        self.assertEqual(shipped['exam']['opponents'], ['adaptive_utility', 'reactive', 'phase1', 'held_out_1', 'held_out_2'])
+        self.assertEqual(shipped['exam']['shipped'][:3], [0.715, 0.993, 0.9245])
+        self.assertEqual(shipped['exam']['retired'][0], 0.346)
+        self.assertEqual(shipped['exam']['temperature_mean'], {'0.05': 0.6741666666666667, 'greedy': 0.83})
+
+    def test_comparison_probe_belongs_to_retired_run1_champion(self):
+        from servidor_truco import _comparacion_publicada
+        self.assertIsNotNone(_comparacion_publicada(REPO)['probe'])
+
+    def test_run2_falls_back_to_committed_copy_and_run1_example_uses_retired_model(self):
+        from phase2_torch import Phase2Network
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'champions/phase2-run2').mkdir(parents=True)
+            (root / 'champions/phase2-run2/generations.jsonl').write_text('{"generation": 38}\n')
+            (root / 'champions/phase1').mkdir(parents=True)
+            shutil.copy(REPO / 'champions/phase1/reigning_champion.npy', root / 'champions/phase1/reigning_champion.npy')
+            retired = root / 'champions/phase2/retired/run1-g28'
+            retired.mkdir(parents=True)
+            Phase2Network(seed=1).save(retired / 'reigning_champion.pt')
+            (retired / 'reigning_champion.json').write_text('{"generation": 28, "temperature": 0.05, "profile_prior": 5}')
+            Phase2Network(seed=2).save(root / 'champions/phase2/reigning_champion.pt')
+            with running(root) as get:
+                self.assertEqual(get('runs')['default'], 'run2')
+                self.assertEqual(get('generations?run=run2'), [{'generation': 38}])
+                hand = get('example-hand?run=run1')
+                self.assertTrue(hand['available'])
+                self.assertEqual(hand['generation'], 28)
+
+
 if __name__ == '__main__':
     unittest.main()

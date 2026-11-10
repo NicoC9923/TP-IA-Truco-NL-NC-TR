@@ -129,7 +129,8 @@ def example_hand_payload(root, seed=SEED, directory=None):
         champion_hash, opponent_hash = _digest(champion_path), _digest(opponent_path)
     except OSError:
         return unavailable('unreadable_champion')
-    key = (champion_hash, opponent_hash, temperature, profile_prior, metadata.get('generation'), seed)
+    selection = metadata.get('selection', 'sampled')
+    key = (champion_hash, opponent_hash, temperature, profile_prior, metadata.get('generation'), seed, selection)
     with _cache_lock:
         if key in _cache:
             return _cache[key]
@@ -141,7 +142,7 @@ def example_hand_payload(root, seed=SEED, directory=None):
     except ImportError:
         return unavailable('torch')
     try:
-        policy = load_phase2_policy(champion_path, seed=seed, metadata={'temperature': temperature, 'profile_prior': profile_prior})
+        policy = load_phase2_policy(champion_path, seed=seed, metadata={'temperature': temperature, 'profile_prior': profile_prior, 'selection': selection})
     except ImportError:
         return unavailable('torch')
     except Exception:
@@ -179,7 +180,7 @@ def example_hand_payload(root, seed=SEED, directory=None):
             step.update(next(own))
         steps.append(step)
     deal = result.deals[0]
-    payload = {'available': True, 'seed': seed, 'temperature': temperature, 'opponent': OPPONENT_NAME,
+    payload = {'available': True, 'seed': seed, 'temperature': temperature, 'selection': selection, 'opponent': OPPONENT_NAME,
             'model_sha256': champion_hash, 'generation': metadata.get('generation'), 'profile_prior': profile_prior, 'sample': 'illustrative',
             'champion_hand': [_card(c) for c in deal[0]],
             'steps': steps}
