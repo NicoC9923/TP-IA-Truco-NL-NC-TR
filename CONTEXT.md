@@ -224,6 +224,15 @@ The signed result of playing an available card against the opposing card in the 
 **Pending envido stakes**:
 The points payable if a pending envido is accepted or declined, including the winner-dependent falta envido amount.
 
+**Hand facts**:
+Explicit inputs of the run 3 phase 2 encoder (versions 2 and 3, ADR 0062): own envido total of the original three cards, flush-pair bit, truco strength percentile of the hand and of the unplayed cards, envido and real envido stakes, and (version 3) the probability that the own tanto beats the opponent's.
+
+**Match equity**:
+The probability that a player wins the match from a score, a target (15 or 30) and who is mano of the next hand, read from a fixed table built from greedy self-play. It is the second half of the run 3 training target, read after the decision's hand is scored.
+
+**Warm start**:
+Starting a training run from an existing network. The input layer is widened with zero-filled columns for new inputs, so the starting network plays exactly like the old one.
+
 ## Confirmed training-engine rule decisions
 
 - Truco and raises may be called only on the caller's own card turn, or as an answer to a pending bet. Calling between card turns, which the human game allows, is not modeled.

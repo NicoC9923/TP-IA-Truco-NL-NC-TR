@@ -63,11 +63,13 @@ def round_blocks(seed, round_id, matches, pool, phase1, shares, exclusions):
     return blocks
 
 
-def play(trainer, pool, weights, seed, blocks, opponents):
+def play(trainer, pool, weights, seed, blocks, opponents, rollout=None):
     args = dict(weights=weights, seed=seed, blocks=blocks, target='mixed', random_start_share=.3,
                 opponents=opponents, temperature=.05, profile_prior=5)
     if hasattr(trainer, '_play_round'):
-        return [sample for _, samples in trainer._play_round(pool, **args) for sample in samples]
+        if rollout:
+            args['rollout'] = rollout
+        return [sample for row in trainer._play_round(pool, **args) for sample in row[1]]
     import numpy as np
     workers = pool._processes if pool else 1
     chunks = [list(chunk) for chunk in np.array_split(np.arange(len(blocks)), min(workers, len(blocks)))]
@@ -115,19 +117,24 @@ def round_mode(args):
     torch.use_deterministic_algorithms(True)
     SCRATCH.mkdir(parents=True, exist_ok=True)
     out = {}
+    rollout = None
+    if args.target_blend:
+        # Prior-only equity table: only the cost of the blend and the greedy counting is measured.
+        import phase2_equity
+        rollout = {'blend': args.target_blend, 'table': phase2_equity.fit_equity_table([]), 'track_greedy': True}
     with tempfile.TemporaryDirectory(dir=SCRATCH) as directory:
         weights, pool_list, phase1, shares, exclusions, opponents = setup(args.weights, directory, args.encoder_version)
         context = trainer.mp.get_context('spawn')
         with context.Pool(args.workers, initializer=trainer._configure_threads) as pool:
             # Warm-up round: process start, imports, opponent caches.
             start = time.perf_counter()
-            play(trainer, pool, weights, 57001, round_blocks(57001, 0, args.matches, pool_list, phase1, shares, exclusions), opponents)
+            play(trainer, pool, weights, 57001, round_blocks(57001, 0, args.matches, pool_list, phase1, shares, exclusions), opponents, rollout)
             out['warmup_seconds'] = time.perf_counter() - start
             rounds, digests, counts = [], [], []
             for round_id in range(1, args.rounds + 1):
                 blocks = round_blocks(57001, round_id, args.matches, pool_list, phase1, shares, exclusions)
                 start = time.perf_counter()
-                samples = play(trainer, pool, weights, 57001, blocks, opponents)
+                samples = play(trainer, pool, weights, 57001, blocks, opponents, rollout)
                 rounds.append(time.perf_counter() - start)
                 if round_id == 1:
                     # The timed updates and the check's challenger use round 1, so
@@ -198,6 +205,7 @@ def main():
     parser.add_argument('--matches', type=int, default=240)
     parser.add_argument('--rounds', type=int, default=3)
     parser.add_argument('--encoder-version', type=int, default=1, choices=(1, 2, 3), help='widen the weights with zero columns')
+    parser.add_argument('--target-blend', type=float, default=0.0, help='time the run 3 blended target and greedy counting')
     parser.add_argument('--check-pairs', type=int, default=0)
     args = parser.parse_args()
     (round_mode if args.mode == 'round' else profile_mode)(args)
