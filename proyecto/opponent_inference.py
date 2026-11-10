@@ -58,6 +58,7 @@ class Inference:
         self._ids = np.flatnonzero(~_MEMBERSHIP[own].any(axis=0)) if own else np.arange(len(_HANDS))
         self._weights = np.ones(len(self._ids))
         self._scalars = False
+        self._unit = True  # every weight is exactly 1.0 (no truco update yet)
         self._summary_cache = None
 
     def _values(self):
@@ -65,6 +66,9 @@ class Inference:
         return list(self._weights) if self._scalars else self._weights.tolist()
 
     def _total(self):
+        if self._unit and not self._scalars and len(self._weights):
+            # Python's sum of n floats 1.0 is exactly float(n).
+            return float(len(self._weights))
         return sum(self._values())
 
     @property
@@ -76,6 +80,7 @@ class Inference:
     def weights(self, value):
         self._summary_cache = None
         self._scalars = any(type(w) is not float for w in value.values())
+        self._unit = False
         self._ids = np.fromiter((_HAND_IDS[h] for h in value), dtype=np.int64, count=len(value))
         self._weights = np.fromiter(value.values(), dtype=np.float64, count=len(value))
 
@@ -136,21 +141,27 @@ class Inference:
         elif isinstance(bluff_rate, np.generic) or not isinstance(bluff_rate, (float, int)):
             # Other scalar types promoted differently in the original loop.
             raise TypeError('Bluff rate must be a Python float or numpy.float64')
+        self._unit = False
         strength = _hand_strength()[self._ids]
         self._weights = self._weights * (bluff_rate + (1 - bluff_rate) * (0.1 + strength))
 
     def v3_summaries(self, cards, available, *, estimate_outcomes):
         """Compute v3 public summaries and slot outcomes in one posterior pass."""
         weights, ranks, counts, brava, strength = self._summary_arrays()
+        # Sums depend only on the posterior: memoized until the next mutation.
+        sums = self._sums
         outcomes = [0.0, 0.0, 0.0]
         if estimate_outcomes:
-            codes = self._code_cache
-            signs = _sign_table()
             for i in available:
                 rank = rules.valor_carta_truco(*cards[i])
-                # The per-hand sum of slot signs, as int64, read from a table.
-                outcomes[i] = _ordered_sum(weights * signs[rank][codes] / counts)
-        return _ordered_sum(weights * brava), _ordered_sum(weights * strength), outcomes
+                if rank not in sums:
+                    # The per-hand sum of slot signs, as int64, read from a table.
+                    sums[rank] = _ordered_sum(weights * _sign_table()[rank][self._code_cache] / counts)
+                outcomes[i] = sums[rank]
+        if 'brava' not in sums:
+            sums['brava'] = _ordered_sum(weights * brava)
+            sums['strength'] = _ordered_sum(weights * strength)
+        return sums['brava'], sums['strength'], outcomes
 
     def _summary_arrays(self):
         # All evidence and weight mutators invalidate this derived state.
@@ -176,6 +187,7 @@ class Inference:
         # _strength_table() indexed by the three (rank + 1) digits, flattened.
         strength = _strength_table().reshape(-1)[codes]
         self._code_cache = codes
+        self._sums = {}
         self._summary_cache = weights, ranks, counts, brava, strength
         return self._summary_cache
 

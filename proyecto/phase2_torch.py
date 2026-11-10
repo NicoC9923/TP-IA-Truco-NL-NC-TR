@@ -2,6 +2,7 @@
 import numpy as np
 import torch
 from torch import nn
+import torch.nn.functional as F
 from opponent_inference import IncrementalInference, exact_inference_from_observation, _CARD_IDS
 from opponent_profile import OpponentProfile
 from phase1_network import ACTIONS
@@ -77,6 +78,31 @@ def card_distribution(logits, observation):
         marginals = marginals.scatter(0, torch.tensor([_CARD_IDS[c] for c in played], device=logits.device), 0.0)
     return hands, probabilities, marginals
 
+def _q_values(model, inputs):
+    """model(inputs) for one decision without nn.Module dispatch.
+
+    A plain, hook-free Phase2Network runs the same linear and ReLU kernels in
+    the same order as nn.Sequential; anything else goes through model().
+    """
+    if type(model) is not Phase2Network or _hooked(model) or tuple(map(type, model.layers)) != _PLAIN_LAYERS:
+        return model(inputs)
+    first, _, second, _, third = model.layers
+    hidden = torch.relu(F.linear(inputs, first.weight, first.bias))
+    hidden = torch.relu(F.linear(hidden, second.weight, second.bias))
+    return F.linear(hidden, third.weight, third.bias)
+
+
+_PLAIN_LAYERS = (nn.Linear, nn.ReLU, nn.Linear, nn.ReLU, nn.Linear)
+
+
+def _hooked(model):
+    from torch.nn.modules import module as nn_module
+    if (nn_module._global_forward_hooks or nn_module._global_forward_pre_hooks
+            or nn_module._global_forward_hooks_always_called):
+        return True
+    return any(m._forward_hooks or m._forward_pre_hooks for m in (model, model.layers, *model.layers))
+
+
 _DEFAULT_PROFILE_PRIOR = object()
 
 
@@ -116,7 +142,7 @@ class Phase2Policy:
     def __call__(self, observation, legal_actions):
         inputs = self.encode(observation, legal_actions)
         with torch.no_grad():
-            values = self.model(torch.from_numpy(inputs)).numpy()
+            values = _q_values(self.model, torch.from_numpy(inputs)).numpy()
         scores = []
         for action in legal_actions:
             offset = 0.0
