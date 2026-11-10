@@ -32,7 +32,7 @@ PART E: EXAM (once, after Part T)
 - Opponent blocks k = 0..4 as listed, 1000 pairs each; C1, C2 (both at T*) and B (T = 0.05) each play every block.
 - Deal seed = 2*((91001 + k)*10^9 + i). Action seed = 2^130 + (((k*1000 + i)*2 + game)*2 + seat).
 - For candidate c and opponent k: d_ck(i) = pair score of c - pair score of B; gain g_ck = mean over i; SE = sample SD of d_ck / sqrt(1000).
-- Primary (AU, k=0): z_c = g_c0 / SE_c0, one-sided p_c = 1 - Phi(z_c). Holm over {C1, C2} at overall one-sided alpha 0.025: the smaller p is tested at 0.0125, and the larger at 0.025 only if the smaller passed. Primary passes for c if its Holm test rejects (gain > 0).
+- Primary (AU, k=0): z_c = g_c0 / SE_c0, one-sided p_c = 1 - Phi(z_c). Holm over {C1, C2} at overall one-sided alpha 0.025: the smaller p is tested at 0.0125, and the larger at 0.025 only if the smaller passed. A test rejects when p <= its level. Primary passes for c if its Holm test rejects (gain > 0).
 - Guardrails (k = 1..4): g_ck - 1.96*SE_ck > -0.02 for every k. A bound equal to the threshold fails.
 - Balance: equal-weight mean of g_ck over k = 0..4 > 0.
 - c passes if primary, all guardrails and balance hold.
