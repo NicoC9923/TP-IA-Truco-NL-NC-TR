@@ -38,17 +38,19 @@ class ProbeTests(unittest.TestCase):
         p.combination_loss(logits, mask, torch.tensor([0])).backward()
         self.assertIsNotNone(logits.grad)
 
-    def test_control_same_architecture_and_frozen_trunks(self):
+    def test_production_initialization_freezes_and_matches_heads(self):
         from phase2_torch import Phase2Network
-        a, b = Phase2Network(seed=1), Phase2Network(seed=39171)
-        for model in (a,b):
-            for param in model.parameters(): param.requires_grad_(False)
-        head = p.make_probe(); result = head(a.layers[:4](torch.zeros((1, 1628))))
-        result.sum().backward()
-        self.assertEqual(result.shape, (1,40))
-        self.assertTrue(all(x.grad is None for model in (a,b) for x in model.parameters()))
-        self.assertEqual([x.shape for x in a.parameters()], [x.shape for x in b.parameters()])
-        self.assertFalse(torch.equal(a.layers[0].weight,b.layers[0].weight))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'champion.pt'
+            Phase2Network(seed=1).save(path)
+            (a,b), (first, second) = p.initialize_models(path)
+            self.assertTrue(all(not x.requires_grad for model in (a,b) for x in model.parameters()))
+            self.assertEqual([x.shape for x in a.parameters()], [x.shape for x in b.parameters()])
+            self.assertFalse(torch.equal(a.layers[0].weight,b.layers[0].weight))
+            for x, y in zip(first.parameters(), second.parameters()):
+                self.assertTrue(torch.equal(x, y))
+            first(a.layers[:4](torch.zeros((1, 1628)))).sum().backward()
+            self.assertTrue(all(x.grad is None for model in (a,b) for x in model.parameters()))
 
     def test_loader_and_champion_unchanged(self):
         from phase2_network import ENCODER_VERSION
@@ -66,14 +68,49 @@ class ProbeTests(unittest.TestCase):
             payload['champion_sha256'] = p.digest(champion); payload['architecture'] = 'wrong'; torch.save(payload, path)
             with self.assertRaises(ValueError): p.load_probe(path, champion)
 
-    def test_private_labels_do_not_change_public_encoding_or_mask(self):
-        from opponent_profile import OpponentProfile
-        from opponent_inference import compact_evidence, compatible_mask
-        from phase2_network import encode_observation
-        obs = {'player': 0, 'hand': ((1, 'Espada'), (2, 'Oro'), (3, 'Copa')), 'available': (0, 1, 2), 'score': (0, 0), 'target': 15, 'mano': 0, 'table': (), 'tricks': (), 'truco': 1, 'pending': None, 'history': (), 'envido_done': False, 'envido_reveal': None, 'raise_owner': None}
-        other = dict(obs, opponent_hand=((4, 'Oro'), (5, 'Oro'), (6, 'Oro')))
-        np.testing.assert_array_equal(encode_observation(obs, OpponentProfile(), ('card_0',)), encode_observation(other, OpponentProfile(), ('card_0',)))
-        np.testing.assert_array_equal(compatible_mask([compact_evidence(obs)]), compatible_mask([compact_evidence(other)]))
+    def test_public_capture_and_label_attachment_are_separate(self):
+        from phase2_torch import Phase2Network
+        obs = self.observation()
+        features = np.zeros(1628, dtype=np.float32)
+        captured = p.capture_public(obs, features, .4)
+        original_evidence = captured['evidence']
+        obs['table'] = ((1, (7, 'Oro')),)
+        features[0] = 99
+        a, b = Phase2Network(seed=1), Phase2Network(seed=2)
+        one = p.attach_label(captured, ((4,'Oro'), (5,'Oro'), (6,'Oro')), 1, 'test', 0, a, b)
+        two = p.attach_label(captured, ((4,'Copa'), (5,'Copa'), (6,'Copa')), 1, 'test', 0, a, b)
+        self.assertEqual(one[1]['table'], ())
+        self.assertEqual(one[5], original_evidence)
+        self.assertEqual(one[5], two[5])
+        np.testing.assert_array_equal(one[7], two[7])
+        np.testing.assert_array_equal(one[8], two[8])
+        self.assertNotEqual(one[6], two[6])
+        self.assertEqual(one[9:], ('test', 0))
+
+    @staticmethod
+    def observation():
+        return {'player': 0, 'hand': ((1, 'Espada'), (2, 'Oro'), (3, 'Copa')), 'available': (0, 1, 2), 'score': (0, 0), 'target': 15, 'mano': 0, 'table': (), 'tricks': (), 'truco': 1, 'pending': None, 'history': (), 'envido_done': False, 'envido_reveal': None, 'raise_owner': None}
+
+    def test_common_evidence_recomputes_metrics_and_stable_log_loss(self):
+        from phase2_torch import Phase2Network
+        from opponent_inference import _CARD_IDS
+        capture = p.capture_public(self.observation(), np.zeros(1628, dtype=np.float32), .4)
+        row = p.attach_label(capture, ((4,'Oro'), (5,'Oro'), (6,'Oro')), 6, 'test', 3, Phase2Network(), Phase2Network(seed=2))
+        first, second = p.make_probe(), p.make_probe()
+        with torch.no_grad():
+            first.weight.zero_(); first.bias.zero_()
+            first.bias[_CARD_IDS[(4,'Oro')]] = -1000
+            second.load_state_dict(first.state_dict())
+        record, marginals = p.score_situation(row, (first, second))
+        self.assertGreater(record['metrics']['champion']['log_loss'], 900)
+        self.assertEqual(record['metrics']['champion'], record['metrics']['control'])
+        self.assertEqual(record['split'], 'test')
+        self.assertEqual(record['label']['hand_index'], row[6])
+        self.assertAlmostEqual(sum(marginals['exact']), 3)
+        rebuilt = p.summarize_evidence(json.loads(json.dumps([record])))
+        self.assertEqual(rebuilt['champion']['log_loss']['mean'], record['metrics']['champion']['log_loss'])
+        self.assertEqual(rebuilt['exact']['hidden_card_accuracy']['situations'], 1)
+        json.dumps(record, allow_nan=False)
 
     def test_cluster_interval(self):
         value = p.grouped_summary([(1,0), (1,0), (2,1), (2,1)])
@@ -91,6 +128,16 @@ class ProbeTests(unittest.TestCase):
                 self.assertEqual(report['predictors'], {})
                 self.assertTrue((Path(directory) / 'card-probe-started.lock').exists())
                 with self.assertRaises(FileExistsError): p.main()
+
+    def test_child_failure_preserves_champion_and_explicit_report(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(p, 'OUTPUT', Path(directory)), patch.object(p, 'verify_models'), patch.object(subprocess, 'check_output', return_value=''), patch.object(sys, 'argv', ['phase2_probe.py']), patch.object(subprocess, 'run', return_value=SimpleNamespace(returncode=9)):
+                with self.assertRaises(SystemExit): p.main()
+                report = json.loads((Path(directory) / 'card-probe-report.json').read_text())
+                self.assertIn('failed', report['status'])
+                self.assertTrue(report['champion_unchanged'])
+                self.assertEqual(report['champion_sha256_before'], report['champion_sha256_after'])
 
 
 if __name__ == '__main__': unittest.main()

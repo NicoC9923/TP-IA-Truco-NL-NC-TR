@@ -1,14 +1,15 @@
 """One-shot, bounded post-training card probe. See experiments/phase2-probe/RULE.txt."""
+import time
+COMMAND_START = time.monotonic()
+
 import copy
 import hashlib
 import json
 import math
 import os
 from pathlib import Path
-import statistics
 import subprocess
 import sys
-import time
 
 ROOT = Path(__file__).resolve().parents[1]
 CHAMPION = ROOT / 'champions/phase2/reigning_champion.pt'
@@ -16,8 +17,8 @@ OUTPUT = ROOT / 'champions/phase2'
 RULE = ROOT / 'experiments/phase2-probe/RULE.txt'
 MODELS = {
     'champion': ('champions/phase2/reigning_champion.pt', '05f189491a1d6ca7a4d7cebfa556a16e70d7512028e6bb224d61d87a35d4cdcd'),
-    'league1': ('experiments/phase1-seed1/reigning_champion.npy', '413542520b893418371fa0ff29b4b693d0675ef60cd4be55f8e782dd544db31c'),
-    'league2': ('experiments/phase1-seed2/reigning_champion.npy', '5f00bfbaa27d7ee9fcedd7610ca36b092c71b8e935218a8f337a7cc1e25a3e79'),
+    'league1': ('experiments/phase1-gate53-seed1/reigning_champion.npy', 'b00e64118ce54e8063b7eb61c8085ec6093f732c00112d61a26a608ee666f5fd'),
+    'league2': ('experiments/phase1-encoder-v3-seed1/reigning_champion.npy', '24773046ba6753f1f13614fda74d15a31b1756c2976a76cc6eb384504a311763'),
 }
 LIMITS = {'train': 10000, 'dev': 2000, 'test': 2000}
 MIXTURE = ('champion', 'league1', 'league2', 'reactive', 'adaptive')
@@ -53,6 +54,87 @@ def verify_models():
 def make_probe():
     import torch
     return torch.nn.Linear(128, 40)
+
+
+def initialize_models(champion_path=CHAMPION):
+    import torch
+    from phase2_torch import Phase2Network
+    champion = Phase2Network.load(champion_path).eval()
+    control = Phase2Network(seed=39171).eval()
+    for model in (champion, control):
+        for parameter in model.parameters():
+            parameter.requires_grad_(False)
+    torch.manual_seed(39172)
+    first = make_probe()
+    second = make_probe()
+    second.load_state_dict(copy.deepcopy(first.state_dict()))
+    return (champion, control), (first, second)
+
+
+def capture_public(observation, inputs, bluff_rate):
+    """Freeze only information available before the policy chooses its action."""
+    from opponent_inference import compact_evidence
+    return {'observation': copy.deepcopy(observation), 'features': inputs.copy(),
+            'bluff_rate': bluff_rate, 'evidence': compact_evidence(observation)}
+
+
+def attach_label(capture, original_hand, match_id, split, situation_index, champion, control):
+    """Attach simulation label after match, without feeding it to feature extraction."""
+    import torch
+    from opponent_inference import _CARD_IDS, _HAND_IDS
+    hand = tuple(sorted(original_hand, key=_CARD_IDS.__getitem__))
+    obs = capture['observation']
+    exposed = tuple(card for player, card in obs['table'] if player != obs['player'])
+    with torch.no_grad():
+        tensor = torch.from_numpy(capture['features'])
+        a = champion.layers[:4](tensor).numpy().copy()
+        b = control.layers[:4](tensor).numpy().copy()
+    return (match_id, obs, capture['bluff_rate'], hand, exposed, capture['evidence'],
+            _HAND_IDS[hand], a, b, split, situation_index)
+
+
+def score_situation(row, probes):
+    """Score four predictors with stable log probabilities and common evidence."""
+    import numpy as np
+    import torch
+    from opponent_inference import exact_inference_from_observation, inference_from_observation, _CARD_IDS
+    match, obs, rate, hand, exposed, evidence, label, a, b, split, index = row
+    exact = exact_inference_from_observation(obs).distribution()
+    weighted = inference_from_observation(obs, rate).distribution()
+    hands = tuple(exact)
+    true_index = next(i for i, h in enumerate(hands) if frozenset(h) == frozenset(hand))
+    ids = torch.tensor([[_CARD_IDS[c] for c in h] for h in hands])
+    log_probs = {'exact': np.log(np.asarray(list(exact.values()), dtype=np.float64)),
+                 'weighted': np.log(np.asarray([weighted[h] for h in hands], dtype=np.float64))}
+    with torch.no_grad():
+        for name, probe, features in zip(('champion', 'control'), probes, (a, b)):
+            logits = probe(torch.from_numpy(features)).double()
+            log_probs[name] = torch.log_softmax(logits[ids].sum(dim=1), dim=0).numpy()
+    hidden = set(hand).difference(exposed)
+    if not hidden:
+        raise ValueError('no hidden cards')
+    metrics, marginals = {}, {}
+    hand_ids = ids.numpy()
+    for name, logs in log_probs.items():
+        marginal = np.zeros(40, dtype=np.float64)
+        probs = np.exp(logs)
+        for column in range(3):
+            np.add.at(marginal, hand_ids[:, column], probs)
+        for card in exposed:
+            marginal[_CARD_IDS[card]] = 0
+        top = set(sorted(range(40), key=lambda c: (-marginal[c], c))[:len(hidden)])
+        metrics[name] = {'log_loss': float(-logs[true_index]),
+                         'hidden_card_accuracy': sum(_CARD_IDS[c] in top for c in hidden) / len(hidden)}
+        marginals[name] = marginal.tolist()
+    return {'match': match, 'split': split, 'index': index,
+            'public': {'observation': obs, 'bluff_rate': rate, 'compact_evidence': evidence},
+            'label': {'original_hand': hand, 'hand_index': label}, 'metrics': metrics}, marginals
+
+
+def summarize_evidence(records):
+    return {name: {metric: grouped_summary([(r['match'], r['metrics'][name][metric]) for r in records])
+                   for metric in ('log_loss', 'hidden_card_accuracy')}
+            for name in ('exact', 'weighted', 'champion', 'control')}
 
 
 def masked_scores(logits, mask):
@@ -101,24 +183,19 @@ def load_probe(path, champion=CHAMPION):
     return model
 
 
-def run_child(deadline):
+def run_child(command_start, deadline):
     import numpy as np
     import torch
     from engine_policies import ReactivePolicy, AdaptiveUtilityPolicy
     from phase1_network import NetworkPolicy
     from phase2_network import ENCODER_VERSION
-    from phase2_torch import Phase2Network, Phase2Policy
-    from opponent_inference import compact_evidence, compatible_mask, exact_inference_from_observation, inference_from_observation, _CARD_IDS, _HAND_IDS, _HANDS
-    from phase2_card_metrics import prediction_metrics
+    from phase2_torch import Phase2Policy
+    from opponent_inference import compatible_mask
     from symmetric_engine import play_match
     torch.set_num_threads(1)
     verify_models()
     before = digest(CHAMPION)
-    champion = Phase2Network.load(CHAMPION).eval()
-    control = Phase2Network(seed=39171).eval()
-    for model in (champion, control):
-        for parameter in model.parameters():
-            parameter.requires_grad_(False)
+    (champion, control), probes = initialize_models()
     league = {name: np.load(ROOT / MODELS[name][0]) for name in ('league1', 'league2')}
     class Collector(Phase2Policy):
         def __call__(self, obs, legal):
@@ -126,7 +203,7 @@ def run_child(deadline):
             self.rate = self.profile.rates()['bluff']
             return super().__call__(obs, legal)
         def record_decision(self, inputs, action):
-            self.records.append((self.obs, inputs.copy(), self.rate))
+            self.records.append(capture_public(self.obs, inputs, self.rate))
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.records = []
@@ -134,13 +211,13 @@ def run_child(deadline):
         if name == 'champion':
             return Phase2Policy(champion, seed=seed, temperature=.05, profile_prior=5)
         if name in league:
-            return NetworkPolicy(league[name], seed=seed, encoder='v1')
+            return NetworkPolicy(league[name], seed=seed, encoder={'league1': 'v1', 'league2': 'v3'}[name])
         return ReactivePolicy(seed) if name == 'reactive' else AdaptiveUtilityPolicy(seed)
     start = time.monotonic()
     rows = {key: [] for key in LIMITS}
     matches = []
     # Reserve half the total for fitting/evaluation; no reallocation or second run.
-    collect_until = min(deadline, start + 290)
+    collect_until = min(deadline, command_start + 290)
     for i in range(100000):
         if time.monotonic() >= collect_until or all(len(rows[k]) >= LIMITS[k] for k in rows):
             break
@@ -155,20 +232,15 @@ def run_child(deadline):
         if len(decisions) != len(policy.records):
             raise ValueError('decision mismatch')
         candidates = []
-        for d, (obs, x, rate) in zip(decisions, policy.records):
+        for d, capture in zip(decisions, policy.records):
+            obs = capture['observation']
             exposed = tuple(card for player, card in obs['table'] if player != seat)
             if len(exposed) < 3:
-                hand = tuple(sorted(result.deals[d['hand_index']][1-seat], key=_CARD_IDS.__getitem__))
-                candidates.append((obs, x, rate, hand, exposed))
+                candidates.append((capture, result.deals[d['hand_index']][1-seat]))
         count = min(8, len(candidates), LIMITS[split] - len(rows[split]))
         for j in np.linspace(0, len(candidates)-1, count, dtype=int):
-            obs, x, rate, hand, exposed = candidates[j]
-            # The label is attached only after the observation and profile are frozen.
-            with torch.no_grad():
-                tensor = torch.from_numpy(x)
-                a = champion.layers[:4](tensor).numpy().copy()
-                b = control.layers[:4](tensor).numpy().copy()
-            rows[split].append((i, obs, rate, hand, exposed, compact_evidence(obs), _HAND_IDS[hand], a, b))
+            capture, hand = candidates[j]
+            rows[split].append(attach_label(capture, hand, i, split, len(rows[split]), champion, control))
         matches.append({'index': i, 'split': split, 'deal_seed': deal, 'action_seeds': list(map(str, seeds)), 'seat': seat, 'target': target, 'opponent': name, 'situations': count})
         if time.monotonic() >= deadline:
             break
@@ -181,8 +253,6 @@ def run_child(deadline):
     atomic_json(OUTPUT / 'card-probe-report.json', report)
     if not all(rows.values()) or time.monotonic() >= deadline:
         return
-    torch.manual_seed(39172)
-    probes = [make_probe(), make_probe()]
     optimizers = [torch.optim.Adam(p.parameters(), lr=.001) for p in probes]
     best = [float('inf'), float('inf')]
     best_state = [None, None]
@@ -195,10 +265,11 @@ def run_child(deadline):
         labels = torch.tensor([r[6] for r in selected])
         return x, mask, labels
     fit_start = time.monotonic()
+    fit_deadline = min(deadline, command_start + 450)
     for epoch in range(10):
         order = rng.permutation(len(rows['train']))
         for start_index in range(0, len(order), 256):
-            if time.monotonic() >= deadline:
+            if time.monotonic() >= fit_deadline:
                 break
             inds = order[start_index:start_index+256]
             for k in range(2):
@@ -207,7 +278,7 @@ def run_child(deadline):
                 x, mask, labels = batch(rows['train'], inds, k)
                 loss = combination_loss(probes[k](x), mask, labels)
                 optimizers[k].zero_grad(); loss.backward(); optimizers[k].step()
-        if time.monotonic() >= deadline:
+        if time.monotonic() >= fit_deadline:
             break
         for k in range(2):
             if stale[k] >= 2:
@@ -215,7 +286,7 @@ def run_child(deadline):
             total = 0
             with torch.no_grad():
                 for offset in range(0, len(rows['dev']), 256):
-                    if time.monotonic() >= deadline:
+                    if time.monotonic() >= fit_deadline:
                         break
                     inds = range(offset, min(offset+256, len(rows['dev'])))
                     x, mask, labels = batch(rows['dev'], inds, k)
@@ -235,29 +306,34 @@ def run_child(deadline):
         report['status'] = 'budget_exhausted'; atomic_json(OUTPUT / 'card-probe-report.json', report); return
     for probe, state in zip(probes, best_state):
         probe.load_state_dict(state); probe.eval()
-    values = {name: {'log_loss': [], 'hidden_card_accuracy': []} for name in ('exact', 'weighted', 'champion', 'control')}
-    for row in rows['test']:
-        if time.monotonic() >= deadline:
-            report['status'] = 'budget_exhausted'; atomic_json(OUTPUT / 'card-probe-report.json', report); return
-        match, obs, rate, hand, exposed, evidence, label, a, b = row
-        exact = exact_inference_from_observation(obs).distribution()
-        weighted = inference_from_observation(obs, rate).distribution()
-        hands = tuple(exact)
-        ids = torch.tensor([[_CARD_IDS[c] for c in h] for h in hands])
-        distributions = {'exact': list(exact.values()), 'weighted': [weighted[h] for h in hands]}
-        with torch.no_grad():
-            for name, probe, features in zip(('champion', 'control'), probes, (a,b)):
-                logits = probe(torch.from_numpy(features))
-                distributions[name] = torch.softmax(logits[ids].sum(dim=1), dim=0).tolist()
-        for name, probabilities in distributions.items():
-            metrics = prediction_metrics(hands, probabilities, hand, exposed)
-            for key, value in metrics.items():
-                values[name][key].append((match, value))
-    report['predictors'] = {name: {metric: grouped_summary(v) for metric, v in metrics.items()} for name, metrics in values.items()}
-    report['status'] = 'complete' if all(len(rows[k]) == LIMITS[k] for k in rows) else 'underfilled'
-    report['elapsed_seconds'] = time.monotonic() - start
-    if digest(CHAMPION) != before:
-        raise ValueError('champion changed')
+    # Bounded cache: separate labels/evidence from frozen trunk features.
+    all_rows = [r for key in LIMITS for r in rows[key]]
+    np.savez_compressed(OUTPUT / 'card-probe-cache.npz',
+        match=np.asarray([r[0] for r in all_rows]), split=np.asarray([r[9] for r in all_rows]),
+        index=np.asarray([r[10] for r in all_rows]), labels=np.asarray([r[6] for r in all_rows]),
+        champion_features=np.asarray([r[7] for r in all_rows], dtype=np.float32),
+        control_features=np.asarray([r[8] for r in all_rows], dtype=np.float32))
+    records, examples = [], []
+    evidence = OUTPUT / 'card-probe-test.jsonl'
+    with evidence.open('w', encoding='utf8', buffering=1) as stream:
+        for row in rows['test']:
+            if time.monotonic() >= deadline:
+                break
+            record, marginals = score_situation(row, probes)
+            records.append(record)
+            stream.write(json.dumps(record, allow_nan=False, separators=(',', ':')) + '\n')
+            if len(examples) < 4:
+                examples.append({'match': record['match'], 'index': record['index'],
+                                 'public': record['public'], 'label': record['label'], 'marginals': marginals})
+    report['predictors'] = summarize_evidence(records)
+    report['examples'] = examples
+    report['test_scored'] = len(records)
+    report['evidence_file'] = evidence.name
+    report['evidence_sha256'] = digest(evidence)
+    report['cache_file'] = 'card-probe-cache.npz'
+    report['cache_sha256'] = digest(OUTPUT / report['cache_file'])
+    report['status'] = ('partial_test' if len(records) != len(rows['test']) else
+                        'complete' if all(len(rows[k]) == LIMITS[k] for k in rows) else 'underfilled')
     for name, probe in zip(('champion','control'), probes):
         torch.save({'schema': 1, 'champion_sha256': before, 'encoder_version': ENCODER_VERSION,
                     'architecture': 'linear128x40', 'weights': probe.state_dict()}, OUTPUT / ('card-probe-' + name + '.pt'))
@@ -265,11 +341,11 @@ def run_child(deadline):
 
 
 def main():
-    if len(sys.argv) == 3 and sys.argv[1] == '--child':
-        run_child(float(sys.argv[2])); return
+    if len(sys.argv) == 4 and sys.argv[1] == '--child':
+        run_child(float(sys.argv[2]), float(sys.argv[3])); return
     if len(sys.argv) != 1:
         raise SystemExit('Usage: python proyecto/phase2_probe.py')
-    start = time.monotonic()
+    start = COMMAND_START
     verify_models()
     dirty = subprocess.check_output(['git', 'status', '--porcelain', '--', 'proyecto',
                                      'experiments/phase2-probe/RULE.txt',
@@ -279,17 +355,30 @@ def main():
     marker = OUTPUT / 'card-probe-started.lock'
     with marker.open('x', encoding='utf8') as f:
         f.write('One attempt only; no automatic retry.\n')
+    before = digest(CHAMPION)
+    failure = None
     try:
         remaining = 595 - (time.monotonic() - start)
-        result = subprocess.run([sys.executable, __file__, '--child', str(start + 590)], timeout=max(0, remaining))
+        result = subprocess.run([sys.executable, __file__, '--child', str(start), str(start + 585)], timeout=max(0, remaining))
         if result.returncode:
             raise RuntimeError('probe child failed with exit code ' + str(result.returncode))
     except subprocess.TimeoutExpired:
+        failure = 'hard_timeout'
+    except Exception as exc:
+        failure = 'failed: ' + str(exc)
+    finally:
         report_path = OUTPUT / 'card-probe-report.json'
         report = json.loads(report_path.read_text(encoding='utf8')) if report_path.exists() else {'schema': 1, 'predictors': {}}
-        report['status'] = 'hard_timeout'; report['elapsed_seconds'] = time.monotonic() - start
+        after = digest(CHAMPION)
+        report['champion_sha256_before'] = before
+        report['champion_sha256_after'] = after
+        report['champion_unchanged'] = before == after
+        report['elapsed_seconds'] = time.monotonic() - start
+        if failure or before != after:
+            report['status'] = failure or 'champion_changed'
         atomic_json(report_path, report)
-        raise SystemExit('Probe exceeded watchdog budget; partial report retained')
+    if failure or before != after:
+        raise SystemExit(failure or 'champion changed')
 
 
 if __name__ == '__main__':
