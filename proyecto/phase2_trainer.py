@@ -234,12 +234,19 @@ def _play_round(pool, *, weights, seed, blocks, target, random_start_share, oppo
     return sorted(result for batch in batches for result in batch)
 
 
-def _check_pair(job):
+def _check_pair(job, models=None):
+    """Score one mirrored check pair; ``models`` reuses read-only networks per weights object."""
     challenger, opponent, deal_seed, target, action_seed, temperature = job
+    models = {} if models is None else models
     def policy(spec, seed):
         if spec['kind'] == 'phase2':
-            model = Phase2Network(auxiliary='card_head.0.weight' in spec['weights'])
-            model.load_state_dict(spec['weights'])
+            weights = spec['weights']
+            if id(weights) not in models:
+                model = Phase2Network(auxiliary='card_head.0.weight' in weights)
+                model.load_state_dict(weights)
+                # Keep the weights alive with the model so the id cannot be reused.
+                models[id(weights)] = (weights, model)
+            model = models[id(weights)][1]
             return Phase2Policy(model, seed=seed, temperature=spec.get('temperature', temperature), profile_prior=spec.get('profile_prior', 20))
         if spec['kind'] == 'reference':
             from engine_policies import reference_policy
@@ -264,7 +271,9 @@ def _check_pair(job):
 
 def _check_chunk(job):
     a, b, deals, temperature = job
-    return [_check_pair((a, b, deal, target, action_seed, temperature))
+    # Policies only read their network, so one model per weights serves the chunk.
+    models = {}
+    return [_check_pair((a, b, deal, target, action_seed, temperature), models)
             for deal, target, action_seed in deals]
 
 def _panel_jobs(panel, candidates, schedule_seed, pairs, target, temperature, workers):
