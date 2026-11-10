@@ -482,6 +482,7 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
     # Run 3 options only: absent for run 1 and run 2 settings, so their results stay identical.
     run3 = encoder_version > 1 or warm_start is not None or target_blend > 0 or check_greedy
     rollout = {'blend': target_blend, 'table': equity_table, 'track_greedy': True} if run3 else None
+    greedy_kwargs = {'greedy': True} if check_greedy else {}  # absent by default, as before run 3
     generation_training_seconds = 0.0
     league_mix = {}
     phase1_counts = {}
@@ -574,12 +575,12 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                         path = Path(checkpoint_dir) / f"panel-v{panel['version']}.json"
                         path.write_text(json.dumps(_portable(panel), indent=2) + '\n', encoding='utf-8')
                         seed_for_overlap = check_seed(check_seed_base, generation - 2)
-                        old_overlap = _champion_overlap(champion, old_panel, seed_for_overlap, panel_pairs, None if target == 'mixed' else target, temperature, pool, profile_prior, greedy=check_greedy)
+                        old_overlap = _champion_overlap(champion, old_panel, seed_for_overlap, panel_pairs, None if target == 'mixed' else target, temperature, pool, profile_prior, **greedy_kwargs)
                         boundary = {'from': old_panel['version'], 'to': panel['version'], 'old_champion': old_overlap}
                         history = []
                 result = _selection_check(model, champion, panel, check_seed(check_seed_base, generation - 2),
                                           panel_pairs, head_to_head_pairs, None if target == 'mixed' else target,
-                                          temperature, pool, min_gain, min_direct, profile_prior, greedy=check_greedy)
+                                          temperature, pool, min_gain, min_direct, profile_prior, **greedy_kwargs)
                 if boundary is not None:
                     boundary['new_champion'] = {k: v['champion'] for k, v in result['members'].items()}
                     entry['panel_boundary'] = boundary
@@ -752,12 +753,12 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                                 path = Path(checkpoint_dir) / f"panel-v{panel['version']}.json"
                                 path.write_text(json.dumps(_portable(panel), indent=2) + '\n', encoding='utf-8')
                                 seed_for_overlap = check_seed(check_seed_base, generation - 2)
-                                old_overlap = _champion_overlap(champion, old_panel, seed_for_overlap, panel_pairs, None if target == 'mixed' else target, temperature, pool, profile_prior, greedy=check_greedy)
+                                old_overlap = _champion_overlap(champion, old_panel, seed_for_overlap, panel_pairs, None if target == 'mixed' else target, temperature, pool, profile_prior, **greedy_kwargs)
                                 boundary = {'from': old_panel['version'], 'to': panel['version'], 'old_champion': old_overlap}
                                 history = []
                         result = _selection_check(model, champion, panel, check_seed(check_seed_base, generation - 2),
                                                   panel_pairs, head_to_head_pairs, None if target == 'mixed' else target,
-                                                  temperature, pool, min_gain, min_direct, profile_prior, greedy=check_greedy)
+                                                  temperature, pool, min_gain, min_direct, profile_prior, **greedy_kwargs)
                         if boundary is not None:
                             boundary['new_champion'] = {k: v['champion'] for k, v in result['members'].items()}
                             entry['panel_boundary'] = boundary
