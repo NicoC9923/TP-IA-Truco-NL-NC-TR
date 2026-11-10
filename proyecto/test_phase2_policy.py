@@ -89,3 +89,54 @@ class Phase2PolicyTests(unittest.TestCase):
         policy(obs, ('card_0', 'real_envido'))
         self.assertAlmostEqual(policy.last_probabilities['real_envido'] / policy.last_probabilities['card_0'], np.e, places=6)
         self.assertNotIn('card_1', policy.last_probabilities)
+
+
+_GREEDY_OBS = {'player': 0, 'hand': ((1, 'Espada'), (2, 'Oro'), (3, 'Copa')), 'available': (0, 1, 2), 'score': (0, 0), 'target': 15, 'mano': 0, 'table': (), 'tricks': (), 'truco': 1, 'pending': None, 'history': (), 'envido_done': False, 'envido_reveal': None, 'raise_owner': None}
+
+
+def _zero_model(**biases):
+    from phase1_network import ACTIONS
+    model = Phase2Network()
+    with torch.no_grad():
+        for p in model.parameters():
+            p.zero_()
+        for action, value in biases.items():
+            model.layers[-1].bias[ACTIONS.index(action)] = value
+    return model
+
+
+@unittest.skipUnless(torch is not None, 'PyTorch is optional')
+class Phase2GreedyTests(unittest.TestCase):
+    def test_greedy_picks_highest_legal_q_even_when_a_higher_illegal_one_exists(self):
+        policy = Phase2Policy(model=_zero_model(card_1=1.0, card_2=3.0, envido=0.5), greedy=True)
+        for _ in range(5):
+            self.assertEqual(policy(_GREEDY_OBS, ('card_0', 'card_1', 'envido')), 'card_1')
+
+    def test_greedy_ties_go_to_lowest_action_index_whatever_the_legal_order(self):
+        policy = Phase2Policy(model=_zero_model(), greedy=True)
+        self.assertEqual(policy(_GREEDY_OBS, ('envido', 'card_2', 'card_1')), 'card_1')
+        self.assertEqual(policy(_GREEDY_OBS, ('card_2', 'envido', 'card_1')), 'card_1')
+
+    def test_greedy_does_not_consume_the_rng_and_records_decisions(self):
+        policy = Phase2Policy(model=_zero_model(card_0=1.0), seed=7, greedy=True)
+        recorded = []
+        policy.record_decision = lambda inputs, action: recorded.append(action)
+        state = policy.rng.bit_generator.state
+        self.assertEqual(policy(_GREEDY_OBS, ('card_0', 'card_1')), 'card_0')
+        self.assertEqual(policy.rng.bit_generator.state, state)
+        self.assertEqual(recorded, ['card_0'])
+        self.assertEqual(policy.last_probabilities, {'card_0': 1.0, 'card_1': 0.0})
+
+    def test_sampling_still_uses_one_rng_choice_per_decision(self):
+        policy = Phase2Policy(model=_zero_model(card_0=1.0), seed=7, temperature=.5)
+        rng = np.random.default_rng(7)
+        weights = np.exp(np.array([1.0, 0.0]) / .5)
+        probabilities = weights / weights.sum()
+        for _ in range(6):
+            expected = ('card_0', 'card_1')[rng.choice(2, p=probabilities)]
+            self.assertEqual(policy(_GREEDY_OBS, ('card_0', 'card_1')), expected)
+
+    def test_greedy_still_validates_temperature_when_not_greedy(self):
+        with self.assertRaises(ValueError):
+            Phase2Policy(temperature=0)
+        Phase2Policy(greedy=True)  # greedy does not need a temperature

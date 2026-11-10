@@ -84,7 +84,7 @@ class Phase2Policy:
     """Sample with a seeded RNG that continues across matches."""
     def __init__(self, model=None, *, seed=0, temperature=0.1, profile=None,
                  weighted_beliefs=True, style=None, style_strength=0.1, adapt=True,
-                 profile_prior=_DEFAULT_PROFILE_PRIOR):
+                 profile_prior=_DEFAULT_PROFILE_PRIOR, greedy=False):
         if not np.isfinite(temperature) or temperature <= 0:
             raise ValueError('temperature must be positive and finite')
         if style not in (None, 'bluffer', 'calculating', 'cautious', 'aggressive'):
@@ -99,6 +99,7 @@ class Phase2Policy:
         self.profile = profile if profile is not None else OpponentProfile(prior_strength=profile_prior)
         self.rng = np.random.default_rng(seed)
         self.temperature = temperature
+        self.greedy = greedy
         self.weighted_beliefs = weighted_beliefs
         self.adapt = adapt
         self.neutral_profile = OpponentProfile(prior_strength=profile_prior)
@@ -126,6 +127,13 @@ class Phase2Policy:
             if self.style == 'aggressive' and action in ('retruco', 'vale_cuatro', 'real_envido', 'falta_envido'):
                 offset += self.style_strength
             scores.append(float(values[ACTIONS.index(action)]) + offset)
+        if self.greedy:
+            # Highest legal Q; ties go to the lowest action index. No RNG is consumed.
+            best = max(scores)
+            action = min((a for a, s in zip(legal_actions, scores) if s == best), key=ACTIONS.index)
+            self.last_probabilities = {a: float(a == action) for a in legal_actions}
+            self.record_decision(inputs, action)
+            return action
         logits = np.asarray(scores, dtype=np.float64) / self.temperature
         weights = np.exp(logits - logits.max())
         probabilities = weights / weights.sum()
