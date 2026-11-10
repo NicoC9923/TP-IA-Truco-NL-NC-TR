@@ -1,0 +1,69 @@
+{
+ "evaluation": {
+  "pairs": 300,
+  "pilot": {
+   "lower": 0.6535896013761234,
+   "mean": 0.6866666666666666,
+   "n": 300,
+   "se": 0.016876053719664892,
+   "upper": 0.7197437319572099
+  },
+  "warm_start": {
+   "lower": 0.6614159967731581,
+   "mean": 0.6933333333333334,
+   "n": 300,
+   "se": 0.016284355387844545,
+   "upper": 0.7252506698935086
+  }
+ },
+ "generation_sizing": {
+  "check_share": 0.05,
+  "matches_per_generation": 139200,
+  "matches_per_round": 240,
+  "matches_per_second": 325.8175394682211,
+  "target_generation_seconds": 450
+ },
+ "passes": true,
+ "seeds": {
+  "evaluation": {
+   "action_exp": 132,
+   "count": 300,
+   "deal_base": 92001,
+   "opponents": [
+    "AU"
+   ],
+   "part": "P",
+   "targets": [
+    15,
+    30
+   ]
+  },
+  "training": 63001
+ },
+ "settings": {
+  "check_selection": "greedy",
+  "encoder_version": 3,
+  "lr": 0.0003,
+  "minibatch": 512,
+  "profile_prior": 5,
+  "rounds": 61,
+  "target_blend": 0.5,
+  "temperature": 0.05,
+  "updates_requested": 1000,
+  "workers": 12
+ },
+ "threshold": 0.68,
+ "throughput": {
+  "basis": "matches / training seconds, actors and learner, warm start",
+  "matches_per_second": 325.8175394682211
+ },
+ "training": {
+  "decisions": 586087,
+  "greedy_disagreement": 0.5504762944750523,
+  "learner_samples": 586087,
+  "matches": 14640,
+  "mean_loss": 0.23590865436003727,
+  "training_seconds": 44.93312429985963,
+  "updates": 1176
+ }
+}
