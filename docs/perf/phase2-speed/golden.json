@@ -1,0 +1,141 @@
+{
+ "golden": {
+  "model": "dee1364b0950ce4d251779daad1fd1db5229dd2cb9dc0aa46ddc3d218a16e2fd",
+  "optimizer": "b5edafc2d67e5790effe15a4ca68f526cd9a366a3657052a3dbaebe9d49874b6",
+  "log": "65edbb609e76f0676317d687f13be5376323605535a4fc46ed37322af4067f4f",
+  "log_entries": [
+   "69900be1f5d9b843524302088b18e8e4f1a404aa86a2894ad9d589c36a25ead4",
+   "92d5b46beba32da53d85fcbe9e903c5b32705742b630769d4dc15e94c7b2945b",
+   "1e431c9a073b182e7466b37a5366f5ee71d5dd52e00a63bbd29894cad9fe64bf"
+  ],
+  "samples": 5579,
+  "updates": 25,
+  "round_samples": [
+   "c27214aee5b0d7bac22b748e79ce616cd39bafd2ed937715fcadc8efafd18d16",
+   "b7947b5b9a913d2e669cf3048f67866563a226508bfa0691445de5899b6d06c0",
+   "9a61716fe82ff2b1238ae2a977040ed5ae9f9c73690eefb48e5c0c04ba951277",
+   "280fa290ce9364b05df84d046fed06ec356586e053280d571395a1194e280d19",
+   "a58d1df8ca5f23027db2eb2f0278ab25311535d077a94665b250f6c4cd277833",
+   "8559d8244dda496fe8c12625b2e40cafcea670bfd29b7c417239e65b0ad591c1"
+  ],
+  "round_matches": [
+   48,
+   48,
+   48,
+   48,
+   48,
+   48
+  ],
+  "checkpoints": {
+   "checkpoint_000002.pt": {
+    "model": "8d61eec8950ba18b49978405b155183fc916840f3e3b412716e09c8854d9f0ef",
+    "optimizer": "18a8957b7e240ed57e226d668dd7f835af6c777bfe41bc659803057eaa042663",
+    "round": "65b81e0bfaa6b33355061a2b9c3982ea0407d4819f0c4d797e669dab3396bba5",
+    "generation": "2f527472a85c36571c69b281bdb6dc179fcad5660e0049423308a9fb166854a1",
+    "matches": "99db40c17b4a3e6f3a5e502588f1653efb1f79900fa3db3b0b40eae039f7c970",
+    "samples": "946677ed7870e4a4b9444ca4639e14ff86490bb635fb2ae0fa7bf01e236b095c",
+    "updates": "43101b8cf1128d88d2aa60913ce1649e557e788629a860f60b2eeec7dad5e4cf",
+    "generation_samples": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "generation_updates": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "losses": "cb92dd8102afa7783fd9e3d9dd3daf9b55d6eaf74672af6c8d4984123802d082",
+    "league_mix": "f010a28275d9f83e7ba2fae611682741adcc1889855644c00331ac09305d3ab8",
+    "phase1_counts": "f010a28275d9f83e7ba2fae611682741adcc1889855644c00331ac09305d3ab8",
+    "neutral_blocks": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "config": "bc182fb59d975500547e7aa5caa7a3a69c2484b5e59eb0f3a9f3513f208690ca",
+    "phase_ended": "52efab8aacf486e8c9057efe11c5309397d1dfb42c5b1f3d95625a246e995f0a",
+    "stop_reason": "7f4f7549b933020b59dee47aa680d7cbfaf35975165212aab5fc4d2292c0259b",
+    "stale": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "saturation_history": "cb92dd8102afa7783fd9e3d9dd3daf9b55d6eaf74672af6c8d4984123802d082",
+    "panel_snapshots": "cb92dd8102afa7783fd9e3d9dd3daf9b55d6eaf74672af6c8d4984123802d082",
+    "league_pool": "2bcf988aec77339a0b5df3ba33ad093e5cf5d3faea1b88d1f7fd6bdee9e8e46a",
+    "panel_history": "cb92dd8102afa7783fd9e3d9dd3daf9b55d6eaf74672af6c8d4984123802d082",
+    "panel": "afbabaf22fe7027d6bd526522fe2f53a9f1b702c177a7fbd33f1cc10689e2092",
+    "champion_weights": "8d61eec8950ba18b49978405b155183fc916840f3e3b412716e09c8854d9f0ef",
+    "champion_generation": "2f527472a85c36571c69b281bdb6dc179fcad5660e0049423308a9fb166854a1",
+    "python_rng": "e19e35c982dd786172379b84c101d845c84928d6c8b38297c06ddb8378478310",
+    "numpy_rng": "9066a0489f3317d3682e95b74d93bd53ec613d9a22f50033d841c22d61928969",
+    "torch_rng": "ff2e57bc21ef87d9dc2fa254531d95a393f74fa4cdcfcf1bc5a6628a78d3481d",
+    "shuffle_rng": "f853cb7c25bddbb07c9726d0834795a69505df22683fb3af9de2ee6d753362f8"
+   },
+   "checkpoint_000004.pt": {
+    "model": "2063aff1d6cf14e5e7b415aec58be570235703227511a507c8a330eb567bb689",
+    "optimizer": "878aa99efdf39aff5645ef4ae71c385ee6b6c8cd8775bb34c2994a4e94acb1e5",
+    "round": "e1c4c747718a00759280fc3b88ac1ebcaef8b8857b92716a5b43dedf75516e4a",
+    "generation": "65b81e0bfaa6b33355061a2b9c3982ea0407d4819f0c4d797e669dab3396bba5",
+    "matches": "3f1219d887e0cfe5255ff54e6748b4df49eef18e838bc6487cedab6a536a1cc2",
+    "samples": "fb93a03221cde70a25b968741116ba717f4754fbcd67671e74bc7f3a6298ad46",
+    "updates": "29ed27b1ff9b85442a08d79b013e5b0bf22c49687ceedf34842d4e5699dc9356",
+    "generation_samples": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "generation_updates": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "losses": "cb92dd8102afa7783fd9e3d9dd3daf9b55d6eaf74672af6c8d4984123802d082",
+    "league_mix": "f010a28275d9f83e7ba2fae611682741adcc1889855644c00331ac09305d3ab8",
+    "phase1_counts": "f010a28275d9f83e7ba2fae611682741adcc1889855644c00331ac09305d3ab8",
+    "neutral_blocks": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "config": "bc182fb59d975500547e7aa5caa7a3a69c2484b5e59eb0f3a9f3513f208690ca",
+    "phase_ended": "52efab8aacf486e8c9057efe11c5309397d1dfb42c5b1f3d95625a246e995f0a",
+    "stop_reason": "7f4f7549b933020b59dee47aa680d7cbfaf35975165212aab5fc4d2292c0259b",
+    "stale": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "saturation_history": "cb92dd8102afa7783fd9e3d9dd3daf9b55d6eaf74672af6c8d4984123802d082",
+    "panel_snapshots": "e907e9ddc27f0a69bf78f39a447aee3789b490b536c49df6ef0935046886f4fe",
+    "league_pool": "13d6016f4aa49547cdc2170245025051a3de8412db05acaed0d17b54d94dab29",
+    "panel_history": "cb92dd8102afa7783fd9e3d9dd3daf9b55d6eaf74672af6c8d4984123802d082",
+    "panel": "afbabaf22fe7027d6bd526522fe2f53a9f1b702c177a7fbd33f1cc10689e2092",
+    "champion_weights": "2063aff1d6cf14e5e7b415aec58be570235703227511a507c8a330eb567bb689",
+    "champion_generation": "65b81e0bfaa6b33355061a2b9c3982ea0407d4819f0c4d797e669dab3396bba5",
+    "python_rng": "e19e35c982dd786172379b84c101d845c84928d6c8b38297c06ddb8378478310",
+    "numpy_rng": "9066a0489f3317d3682e95b74d93bd53ec613d9a22f50033d841c22d61928969",
+    "torch_rng": "ff2e57bc21ef87d9dc2fa254531d95a393f74fa4cdcfcf1bc5a6628a78d3481d",
+    "shuffle_rng": "abda59d2c460e16d9317761bd5f8e5760d6a7c964087692205d4ae394ee18a31"
+   },
+   "checkpoint_000006.pt": {
+    "model": "dee1364b0950ce4d251779daad1fd1db5229dd2cb9dc0aa46ddc3d218a16e2fd",
+    "optimizer": "b5edafc2d67e5790effe15a4ca68f526cd9a366a3657052a3dbaebe9d49874b6",
+    "round": "05e737d33495ad2cee53aa34d874374c3d90fcc1ddb8e1b020351b1b8c6f232d",
+    "generation": "e8d9db29a8f8a445a26a535603a2200ea88116c6a39843b607e3b35fab2865ca",
+    "matches": "f9855fb2116408769a983d71888d82dd5fdad518ab01126d5ddb0b93e71c1d75",
+    "samples": "7d75fb222c7838cd36c73d115fa0d2560d432ac79ff34d55dd94386dd72a5989",
+    "updates": "ae43cf7e1370ae4c69da935b7c32530fcb8743abee168c7c877c6ed97c010061",
+    "generation_samples": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "generation_updates": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "losses": "cb92dd8102afa7783fd9e3d9dd3daf9b55d6eaf74672af6c8d4984123802d082",
+    "league_mix": "f010a28275d9f83e7ba2fae611682741adcc1889855644c00331ac09305d3ab8",
+    "phase1_counts": "f010a28275d9f83e7ba2fae611682741adcc1889855644c00331ac09305d3ab8",
+    "neutral_blocks": "300f5c4567a61b4e8fd85447be8c4b83e82ebe590a40e7530dcbb8ee072e1466",
+    "config": "bc182fb59d975500547e7aa5caa7a3a69c2484b5e59eb0f3a9f3513f208690ca",
+    "phase_ended": "52efab8aacf486e8c9057efe11c5309397d1dfb42c5b1f3d95625a246e995f0a",
+    "stop_reason": "7f4f7549b933020b59dee47aa680d7cbfaf35975165212aab5fc4d2292c0259b",
+    "stale": "2f527472a85c36571c69b281bdb6dc179fcad5660e0049423308a9fb166854a1",
+    "saturation_history": "cb92dd8102afa7783fd9e3d9dd3daf9b55d6eaf74672af6c8d4984123802d082",
+    "panel_snapshots": "c4ab5f4dc822cd1744213293dd2a322733650ce6d2896b60d9de515f4e8a6f4e",
+    "league_pool": "1956fea19cf5de83a7cabb18f30cfd0bb1cbf082309ec124991ea9170cd4a8b0",
+    "panel_history": "cb92dd8102afa7783fd9e3d9dd3daf9b55d6eaf74672af6c8d4984123802d082",
+    "panel": "afbabaf22fe7027d6bd526522fe2f53a9f1b702c177a7fbd33f1cc10689e2092",
+    "champion_weights": "2063aff1d6cf14e5e7b415aec58be570235703227511a507c8a330eb567bb689",
+    "champion_generation": "65b81e0bfaa6b33355061a2b9c3982ea0407d4819f0c4d797e669dab3396bba5",
+    "python_rng": "e19e35c982dd786172379b84c101d845c84928d6c8b38297c06ddb8378478310",
+    "numpy_rng": "9066a0489f3317d3682e95b74d93bd53ec613d9a22f50033d841c22d61928969",
+    "torch_rng": "ff2e57bc21ef87d9dc2fa254531d95a393f74fa4cdcfcf1bc5a6628a78d3481d",
+    "shuffle_rng": "998ff7417d839f215d9a806849c3348ba331aa63d0fdeeb27cc04ad5ae875546"
+   }
+  },
+  "snapshots": {
+   "generation_000001.pt": "8d61eec8950ba18b49978405b155183fc916840f3e3b412716e09c8854d9f0ef",
+   "generation_000002.pt": "2063aff1d6cf14e5e7b415aec58be570235703227511a507c8a330eb567bb689",
+   "generation_000003.pt": "dee1364b0950ce4d251779daad1fd1db5229dd2cb9dc0aa46ddc3d218a16e2fd"
+  },
+  "champion": {
+   "reigning_champion.json": "{\"generation\": 2, \"temperature\": 0.05, \"profile_prior\": 5}\n",
+   "reigning_champion.pt": "2063aff1d6cf14e5e7b415aec58be570235703227511a507c8a330eb567bb689"
+  },
+  "promotions": [
+   false,
+   true,
+   false
+  ],
+  "checks": [
+   null,
+   true,
+   false
+  ]
+ }
+}
