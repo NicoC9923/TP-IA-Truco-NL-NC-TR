@@ -170,6 +170,7 @@ def main(argv=None):
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--encoder-version', type=int, default=3)
     parser.add_argument('--generation-seconds', type=float, default=450)
+    parser.add_argument('--temperature', type=float, default=.05, help='training rollout temperature')
     args = parser.parse_args(argv)
     audit = audit_seeds(args.seed)
     if audit['conflicts']:

@@ -78,3 +78,23 @@ class PilotRunTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TemperatureFlagTest(unittest.TestCase):
+    def _captured(self, *extra):
+        from unittest import mock
+        seen = {}
+
+        def fake(**kwargs):
+            seen.update(kwargs)
+            return {'passes': True, 'threshold': .68, 'throughput': {}, 'generation_sizing': {},
+                    'evaluation': {'pilot': {'mean': .7}, 'warm_start': {'mean': .7}}}
+        with mock.patch.object(pilot, 'run_pilot', fake), self.assertRaises(SystemExit):
+            pilot.main(['--warm-start', 'w.pt', '--equity-table', 't.json', '--output', 'o', *extra])
+        return seen
+
+    def test_training_temperature_defaults_to_the_adr_value(self):
+        self.assertEqual(self._captured()['temperature'], .05)
+
+    def test_training_temperature_can_be_set(self):
+        self.assertEqual(self._captured('--temperature', '0.02')['temperature'], .02)
