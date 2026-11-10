@@ -215,12 +215,38 @@ def _league_chunk(job):
             _league_block((weights, seed, ids, target, random_start_share, spec, opponents, temperature, profile_prior))]
 
 
-def _check_pair(job):
+# Blocks against code or phase 1 opponents are cheaper; dispatch them last so
+# the round ends on short tasks. Order never affects results (see _play_round).
+_LATE_CATEGORIES = frozenset(('phase1', *REFERENCE_IDENTITIES))
+
+
+def _play_round(pool, *, weights, seed, blocks, target, random_start_share, opponents, temperature, profile_prior):
+    """Play a round's league blocks; return (match_id, samples) sorted by match id.
+
+    Each block is its own task so idle workers pick up the remaining blocks.
+    A block seeds every policy and match from its match ids and builds fresh
+    policies, so neither the split into tasks nor their order changes results.
+    """
+    order = sorted(range(len(blocks)), key=lambda i: (blocks[i][1]['category'] in _LATE_CATEGORIES, i))
+    jobs = [(weights, seed, [blocks[i]], target, random_start_share, opponents, temperature, profile_prior)
+            for i in order]
+    batches = pool.map(_league_chunk, jobs, chunksize=1) if pool else list(map(_league_chunk, jobs))
+    return sorted(result for batch in batches for result in batch)
+
+
+def _check_pair(job, models=None):
+    """Score one mirrored check pair; ``models`` reuses read-only networks per weights object."""
     challenger, opponent, deal_seed, target, action_seed, temperature = job
+    models = {} if models is None else models
     def policy(spec, seed):
         if spec['kind'] == 'phase2':
-            model = Phase2Network(auxiliary='card_head.0.weight' in spec['weights'])
-            model.load_state_dict(spec['weights'])
+            weights = spec['weights']
+            if id(weights) not in models:
+                model = Phase2Network(auxiliary='card_head.0.weight' in weights)
+                model.load_state_dict(weights)
+                # Keep the weights alive with the model so the id cannot be reused.
+                models[id(weights)] = (weights, model)
+            model = models[id(weights)][1]
             return Phase2Policy(model, seed=seed, temperature=spec.get('temperature', temperature), profile_prior=spec.get('profile_prior', 20))
         if spec['kind'] == 'reference':
             from engine_policies import reference_policy
@@ -245,7 +271,9 @@ def _check_pair(job):
 
 def _check_chunk(job):
     a, b, deals, temperature = job
-    return [_check_pair((a, b, deal, target, action_seed, temperature))
+    # Policies only read their network, so one model per weights serves the chunk.
+    models = {}
+    return [_check_pair((a, b, deal, target, action_seed, temperature), models)
             for deal, target, action_seed in deals]
 
 def _panel_jobs(panel, candidates, schedule_seed, pairs, target, temperature, workers):
@@ -584,11 +612,10 @@ def run_rounds(*, seed=0, rounds=1, matches_per_round=4, workers=1, target='mixe
                     name = opponents[spec['identity']]['name']
                     phase1_counts[name] = phase1_counts.get(name, 0) + len(ids)
                 neutral_blocks += int(spec['neutral_profile'])
-            chunks = [list(chunk) for chunk in np.array_split(np.arange(len(blocks)), min(workers, len(blocks)))]
-            jobs = [(weights, seed, [blocks[int(i)] for i in chunk], target, random_start_share, opponents, temperature, profile_prior) for chunk in chunks]
-            batches = pool.map(_league_chunk, jobs, chunksize=1) if pool else list(map(_league_chunk, jobs))
-            results = [result for batch in batches for result in batch]
-            last = [sample for _, samples in sorted(results) for sample in samples]
+            results = _play_round(pool, weights=weights, seed=seed, blocks=blocks, target=target,
+                                  random_start_share=random_start_share, opponents=opponents,
+                                  temperature=temperature, profile_prior=profile_prior)
+            last = [sample for _, samples in results for sample in samples]
             total += len(last)
             generation_samples += len(last)
             for indices in (np.array_split(rng.permutation(len(last)), range(minibatch, len(last), minibatch)) if last else ()):
