@@ -28,6 +28,7 @@ OFFSET_ART = 7            # qpos index of the first joint (after the free base)
 # Where the fan is held, in the seat's frame (x forward, y left, z up).
 MANO_ABANICO = (0.25, 0.13, 0.89)
 INCLINACION_ABANICO = math.radians(38)     # face tilted up toward the eyes
+GIRO_ABANICO = math.radians(75)            # fan turned toward the side camera, backs visible
 APERTURA_ABANICO = math.radians(24)        # angle between neighbouring cards
 ALTURA_SOBRE_MESA = 0.045                   # palm above the slot when laying a card
 ELEVACION_VIAJE = 0.07                      # extra lift halfway to the table
@@ -73,7 +74,8 @@ def orientacion_abanico(asiento: int) -> np.ndarray:
     normal = np.array([-s * math.cos(a), 0.0, math.sin(a)])     # toward the owner
     arriba = np.array([s * math.sin(a), 0.0, math.cos(a)])
     derecha = np.cross(arriba, normal)
-    return np.column_stack([derecha, arriba, normal])
+    base = np.column_stack([derecha, arriba, normal])
+    return _rot_z(-s * GIRO_ABANICO) @ base
 
 
 def orientacion_mesa(asiento: int, baza: int) -> np.ndarray:

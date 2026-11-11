@@ -25,6 +25,12 @@ from phase1_network import NetworkPolicy
 from symmetric_engine import bluff as is_bluff
 
 
+def _es_error_de_conexion(error: Exception) -> bool:
+    """True when `error` means the simulator connection is gone (by name, so
+    this module does not import the simulator)."""
+    return isinstance(error, OSError) or type(error).__name__ in ("ErrorTransporte", "NoHaySimulador")
+
+
 class PartidaTruco:
     def __init__(self, robot=None, meta_puntos: int = 15, historial_path: Optional[str] = None,
                  rng: random.Random | None = None, champions_dir=None):
@@ -171,8 +177,16 @@ class PartidaTruco:
                 robot = self.robot
                 if robot is not None:
                     getattr(robot, metodo)(*args)
-            except Exception:
-                pass
+            except Exception as error:
+                if _es_error_de_conexion(error):
+                    self._perder_robot()
+
+    def _perder_robot(self) -> None:
+        """The simulator went away: forget it so the next request reconnects."""
+        self.robot = None
+        aviso = getattr(self, "al_perder_robot", None)
+        if aviso is not None:
+            aviso()
 
     def sincronizar_mesa_3d(self) -> None:
         """Rebuilds the current hand on the 3D table (e.g. after connecting)."""

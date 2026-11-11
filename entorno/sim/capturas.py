@@ -86,6 +86,15 @@ def capturar(destino: str, camaras=C.CAMARAS, ancho: int = 960, alto: int = 540,
         f.mesa.jugar(2, humano[k])
         f.correr(r.alcanzar + r.llevar + r.volver + 0.6)
     momento("5_tres_bazas")
+
+    # Human vs robot: the only camera allowed is the overview, and from there
+    # the robot must visibly hold three cards (backs toward the human).
+    f.mesa.poner_modo(C.MODO_HUMANO)
+    f.mesa.repartir({1: robot})
+    f.correr(1.5)
+    ruta = os.path.join(destino, f"6_modo_humano_{C.CAMARA_GENERAL}.{extension}")
+    _guardar(f.foto(C.CAMARA_GENERAL), ruta)
+    rutas.append(ruta)
     return rutas
 
 

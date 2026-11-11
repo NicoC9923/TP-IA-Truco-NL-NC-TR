@@ -109,7 +109,7 @@
   <worldbody>
     <light pos="0.4 0 2.0" dir="0 0 -1" directional="true"/>
     <light pos="0.6 -0.6 1.8" dir="0 0.5 -1" diffuse="0.35 0.35 0.35" specular="0 0 0"/>
-    <camera name="general" pos="0.780 -1.100 1.620" xyaxes="0.9770 0.2132 -0.0000 -0.1331 0.6100 0.7811" fovy="50"/>
+    <camera name="general" pos="0.700 -0.950 1.450" xyaxes="0.9645 0.2640 -0.0000 -0.1454 0.5313 0.8346" fovy="50"/>
     <camera name="detras_robot_1" pos="-0.280 0.440 1.400" xyaxes="-0.5480 -0.8365 0.0000 0.5139 -0.3367 0.7890" fovy="50"/>
     <camera name="detras_robot_2" pos="1.480 -0.440 1.400" xyaxes="0.5480 0.8365 -0.0000 -0.5139 0.3367 0.7890" fovy="50"/>
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>

@@ -149,7 +149,7 @@ def _camara_detras(asiento: int) -> tuple[tuple, tuple]:
 
 
 POSICION_CAMARAS = {
-    CAMARA_GENERAL: ((MESA_X + 0.18, -1.10, 1.62), (MESA_X - 0.06, 0.0, 0.72)),
+    CAMARA_GENERAL: ((MESA_X + 0.10, -0.95, 1.45), (MESA_X - 0.16, 0.0, 0.80)),
     CAMARA_DETRAS[1]: _camara_detras(1),
     CAMARA_DETRAS[2]: _camara_detras(2),
 }

@@ -42,6 +42,16 @@ class ServidorTruco(ThreadingHTTPServer):
         self.agente = AgenteRobot(self.robot)
         self.detector = DetectorCartas()
         self.error_conexion = None
+        partida.al_perder_robot = self.perder_robot
+
+    def perder_robot(self):
+        """The simulator connection died: drop it so the next request reconnects."""
+        with self.lock:
+            self.robot = None
+            self.partida.robot = None
+            self.agente.robot = None
+            self.agente.ejecutor.robot = None
+            self.error_conexion = None
 
     def asegurar_robot(self):
         with self.lock:

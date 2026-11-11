@@ -1,18 +1,18 @@
-# A project-owned deck, and kinematic Truco cards on the 3D table
+# Kinematic Truco cards on the 3D table
 
 Status: accepted (2026-11-11). Step 1 of the 3D card and arm work; step 2 adds a second G1 in seat 2, step 3 tunes pacing.
 
 ## Context
 
-The web's 40 card images were cut from a template image of unknown origin (`template_naipes.jpg`), so the project could not say it owned them. The MuJoCo scene showed the robot at the table, but the cards on it were two plain white boxes that never changed: the 3D view did not show the match being played.
+The MuJoCo scene showed the robot at the table, but the cards on it were two plain white boxes that never changed: the 3D view did not show the match being played.
 
 ## Decision
 
-**Deck.** `proyecto/generar_baraja.py` draws all 40 cards and a card back with Pillow from code alone: no template, no font files (the index digits are a small stroke font). Traditional Spanish layout: pip layouts for 1-7, simple original figures for sota, caballo and rey, corner indices, and the broken frame that tells the suit (oros none, copas one break, espadas two, bastos three). Output is 524 x 800, the web's 262/400 ratio, under the same file names, so the web is unchanged. The template image is deleted.
+**Deck.** Builds on ADR 0065 (project-owned deck). Implementation specifics: `proyecto/generar_baraja.py` uses Pillow only, with no font files (a small stroke font draws the indices), and writes 524 x 800 PNGs under the web's existing file names, so the web is unchanged.
 
 **Cards in 3D.** The same PNGs texture thin card meshes in the scene. Cards are mocap bodies moved kinematically every frame, never grasped physically:
 
-- the robot holds its three cards fanned in the left hand, faces toward itself;
+- the robot holds its three cards fanned in the left hand, faces toward itself and the fan turned about 75 degrees toward the overview camera, so a human at the table sees three card backs rather than edge-on slivers (the overview camera sits closer to the table for the same reason);
 - to play, the right hand reaches the chosen card, the card rides on the right palm, and it is laid face up in the next table slot of the robot's side; earlier bazas stay in a row;
 - a human's card (there is no human body) slides in from the human's edge to that side's slot;
 - a new hand resets every card.
@@ -27,7 +27,7 @@ Arm poses come from a small damped least-squares IK solved once at startup, then
 
 ## Consequences
 
-- The deck is the project's own and can be regenerated on any machine with the same pixels. Pillow joins `requirements.txt`, only to redraw the deck and to take screenshots; the PNGs are committed.
+- Pillow joins `requirements.txt`, only to redraw the deck and to take screenshots; the PNGs are committed.
 - `py -3 -m sim.capturas <dir> jpg` (from `entorno/`) renders each camera at key moments offscreen with the live pose code; `docs/screenshots/step1/` holds the reviewed set.
 - The robot's left arm keeps the holding pose while it has cards, so gestures only move the right arm then.
 - Card faces in the robot's hand are hidden in human mode even from a camera behind the robot that a later mode might allow; robot-vs-robot mode shows them.

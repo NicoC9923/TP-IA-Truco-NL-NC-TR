@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import random
 import tempfile
 import time
 import unittest
@@ -358,9 +359,9 @@ class TestPartidaMueveLasCartas3D(unittest.TestCase):
     def test_reparto_y_jugadas_llegan_a_la_mesa_en_orden(self):
         with tempfile.TemporaryDirectory() as tmp:
             robot_falso = MagicMock()
+            random.seed(1)
             partida = PartidaTruco(robot=robot_falso, historial_path=str(Path(tmp) / "h.json"))
-            if not partida.es_mano_humano or partida.turno_carta != "humano":
-                self.skipTest("la primera mano siempre es del humano")
+            self.assertTrue(partida.es_mano_humano and partida.turno_carta == "humano")
             carta = partida.cartas_humano_disponibles[0]
             partida.jugar_carta_humano({"valor": carta["valor"], "palo": carta["palo"]})
             esperadas = 2 + (1 if any(m["quien"] == "robot" for m in partida.mesa) else 0)
@@ -390,3 +391,38 @@ class TestPartidaMueveLasCartas3D(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestServidorSeReconectaAlSimulador(unittest.TestCase):
+    def test_reiniciar_el_simulador_reconstruye_la_mesa_3d(self):
+        import servidor_truco
+
+        class SimCaido(Exception):
+            pass
+        SimCaido.__name__ = "ErrorTransporte"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            viejo = MagicMock()
+            viejo.tirar_carta.side_effect = SimCaido("socket cerrado")
+            partida = PartidaTruco(robot=viejo, historial_path=str(Path(tmp) / "h.json"))
+            servidor = servidor_truco.ServidorTruco(("127.0.0.1", 0), partida, False)
+            try:
+                self.assertIs(servidor.asegurar_robot(), viejo)
+                partida._mesa_3d("tirar_carta", {"valor": 1, "palo": "Espada"}, 2)
+                limite = time.monotonic() + 5
+                while servidor.robot is not None and time.monotonic() < limite:
+                    time.sleep(0.02)
+                self.assertIsNone(servidor.robot)
+                self.assertIsNone(partida.robot)
+
+                nuevo = MagicMock()
+                with patch.object(servidor_truco, "Robot", return_value=nuevo):
+                    self.assertIs(servidor.asegurar_robot(), nuevo)
+                self.assertIs(partida.robot, nuevo)
+                limite = time.monotonic() + 5
+                while not nuevo.repartir_cartas.called and time.monotonic() < limite:
+                    time.sleep(0.02)
+                nuevo.modo_mesa.assert_called_with("humano")
+                nuevo.repartir_cartas.assert_called_once()
+            finally:
+                servidor.server_close()
