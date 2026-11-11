@@ -1,0 +1,115 @@
+{
+  "name": "phase2-final-exam-run2",
+  "rule": "experiments/phase2-final-exam/RULE.txt",
+  "seed_audit": "run2",
+  "part_t": {
+    "deal_base": 90001,
+    "action_exp": 131,
+    "count": 300,
+    "targets": [
+      15,
+      30
+    ],
+    "opponents": [
+      "AU",
+      "P1"
+    ]
+  },
+  "part_e": {
+    "deal_base": 91001,
+    "action_exp": 130,
+    "count": 1000,
+    "targets": [
+      15,
+      30
+    ],
+    "opponents": [
+      "AU",
+      "R",
+      "P1",
+      "H1",
+      "H2"
+    ]
+  },
+  "output_t": "experiments/phase2-final-exam/part-t",
+  "output_e": "experiments/phase2-final-exam/part-e",
+  "evaluated": [
+    {
+      "name": "C1",
+      "model": "C1",
+      "temperature": "tstar"
+    },
+    {
+      "name": "C2",
+      "model": "C2",
+      "temperature": "tstar"
+    },
+    {
+      "name": "B",
+      "model": "B",
+      "temperature": 0.05
+    }
+  ],
+  "models": {
+    "C1": {
+      "kind": "phase2",
+      "path": "champions/phase2-run2/reigning_champion.pt",
+      "sha256": "95eee708e8839233c27e4b3d710b6b5da74f3a149f7fe5ce8deef4cb720b60bf",
+      "profile_prior": 5,
+      "equals": {
+        "path": "training_output/phase2-run2/generation_000038.pt",
+        "sha256": "927f462178ab03048b3c9e76567d5a9226d3fe329f0bd673e842a8aa067790e7"
+      },
+      "sidecar": {
+        "path": "champions/phase2-run2/reigning_champion.json",
+        "sha256": null,
+        "require": {
+          "generation": 38,
+          "profile_prior": 5
+        }
+      }
+    },
+    "C2": {
+      "kind": "phase2",
+      "path": "training_output/phase2-run2/generation_000049.pt",
+      "sha256": "e789d7b1a171ab73e33766101f8bbf62204649d79db0cb9b20052acfd5264f44",
+      "profile_prior": 5
+    },
+    "B": {
+      "kind": "phase2",
+      "path": "champions/phase2/reigning_champion.pt",
+      "sha256": "05f189491a1d6ca7a4d7cebfa556a16e70d7512028e6bb224d61d87a35d4cdcd",
+      "profile_prior": 5,
+      "temperature": 0.05,
+      "sidecar": {
+        "path": "champions/phase2/reigning_champion.json",
+        "sha256": null,
+        "require": {
+          "temperature": 0.05,
+          "profile_prior": 5
+        }
+      }
+    },
+    "AU": {
+      "kind": "au"
+    },
+    "R": {
+      "kind": "reactive"
+    },
+    "P1": {
+      "kind": "phase1",
+      "path": "champions/phase1/reigning_champion.npy",
+      "sha256": "0b3e04fad09334f60d2d416b9c6848c7b3aabcfa6bb0d6593ac825feb32e47f7"
+    },
+    "H1": {
+      "kind": "phase1",
+      "path": "experiments/phase1-seed1/reigning_champion.npy",
+      "sha256": "413542520b893418371fa0ff29b4b693d0675ef60cd4be55f8e782dd544db31c"
+    },
+    "H2": {
+      "kind": "phase1",
+      "path": "experiments/phase1-seed2/reigning_champion.npy",
+      "sha256": "5f00bfbaa27d7ee9fcedd7610ca36b092c71b8e935218a8f337a7cc1e25a3e79"
+    }
+  }
+}

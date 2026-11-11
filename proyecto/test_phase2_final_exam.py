@@ -635,3 +635,38 @@ class PartERunTests(RunnerTestCase):
         with self.assertRaises(ValueError):
             self.part_e()
         self.assertFalse((self.out / 'part-e').exists())
+
+
+# ---------------------------------------------------------------- exam configs (run 2 reproduction, run 3 support)
+
+REPO = Path(__file__).resolve().parent.parent
+RUN2_CONFIG = REPO / 'experiments/phase2-final-exam/config.json'
+RUN3_CONFIG = REPO / 'experiments/phase2-run3-exam/config.json'
+
+
+class Run2ConfigReproductionTests(unittest.TestCase):
+    def setUp(self):
+        self.exam = fx.load_exam_config(RUN2_CONFIG, root=REPO)
+
+    def test_plans_equal_the_hardcoded_run_2_plans(self):
+        self.assertEqual(self.exam['part_t'], fx.PART_T_PLAN)
+        self.assertEqual(self.exam['part_e'], fx.PART_E_PLAN)
+
+    def test_seed_ranges_equal_the_recorded_run_2_ranges(self):
+        self.assertEqual(fx.seed_ranges(self.exam['part_t']),
+                         ((180002000000000, 180004000000598), (2 ** 131, 2 ** 131 + 2399)))
+        self.assertEqual(fx.seed_ranges(self.exam['part_e']),
+                         ((182002000000000, 182010000001998), (2 ** 130, 2 ** 130 + 19999)))
+
+    def test_identities_equal_the_hardcoded_run_2_identities(self):
+        training = REPO / 'training_output/phase2-run2'
+        self.assertEqual(self.exam['models'], fx.real_models(REPO, training))
+
+    def test_evaluated_networks_follow_tstar_like_the_old_part_e(self):
+        models = self.exam['models']
+        for tstar in fx.TEMPERATURES:
+            self.assertEqual(fx.resolve_evaluated(self.exam['evaluated'], tstar),
+                             fx.part_e_evaluated(tstar, models))
+
+    def test_run_2_audit_still_passes_against_the_run_2_namespaces(self):
+        fx.audit_exam_seeds(self.exam)

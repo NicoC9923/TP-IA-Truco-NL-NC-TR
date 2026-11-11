@@ -174,6 +174,35 @@ EARLIER_ACTION_RANGES = ((0, 2 ** 32 - 1),                    # small seeds and 
                          (2 ** 129, 2 ** 129 + 2 ** 20))      # probe
 
 
+# Namespaces used after the run 2 exam was frozen (run 3 audit): equity 67001/67002, pilot 63001, run 3 training 65001
+# (+999 allowance), run 3 checks 66000-66999, run 3 pilot deal base 92001, the run 2 exam's own schedule seeds, and the
+# action exponents 130-132 (experiments 130/131 = run 2 exam parts, 132 = run 3 pilot).
+SINCE_RUN2_SCHEDULE_SEEDS = frozenset({63001, 67001, 67002, 92001, 90001, 90002, *range(91001, 91006),
+                                       *range(65001, 66000), *range(66000, 67000)})
+SINCE_RUN2_ACTION_RANGES = ((2 ** 130, 2 ** 130 + 19999), (2 ** 131, 2 ** 131 + 2399), (2 ** 132, 2 ** 132 + 1199))
+SEED_AUDITS = {'run2': (EARLIER_SCHEDULE_SEEDS, EARLIER_ACTION_RANGES),
+               'since_run2': (EARLIER_SCHEDULE_SEEDS | SINCE_RUN2_SCHEDULE_SEEDS,
+                              EARLIER_ACTION_RANGES + SINCE_RUN2_ACTION_RANGES)}
+
+
+def audit_exam_seeds(exam):
+    """Refuse if a plan's deal ids or action seeds overlap an earlier namespace or another plan of the same exam."""
+    schedule_seeds, action_ranges = SEED_AUDITS[exam['seed_audit']]
+    plans = [plan for plan in (exam['part_t'], exam['part_e']) if plan]
+    for plan in plans:
+        (deal_lo, deal_hi), (action_lo, action_hi) = seed_ranges(plan)
+        for seed in sorted(schedule_seeds):
+            if not (2 * (seed * 10 ** 9 + 10 ** 9 - 1) < deal_lo or 2 * seed * 10 ** 9 > deal_hi):
+                raise ValueError(f'plan {plan["part"]}: deal ids overlap earlier schedule seed {seed}')
+        for lo, hi in action_ranges:
+            if not (hi < action_lo or lo > action_hi):
+                raise ValueError(f'plan {plan["part"]}: action seeds overlap earlier range {lo}-{hi}')
+    for first, second in zip(plans, plans[1:]):
+        (a_deals, a_actions), (b_deals, b_actions) = all_seeds(first), all_seeds(second)
+        if a_deals & b_deals or a_actions & b_actions:
+            raise ValueError('the exam parts share seeds')
+
+
 def expected_record(plan, block, i):
     return {'block': block, 'i': i, 'deal_seed': deal_seed(plan, block, i), 'target': pair_target(plan, i),
             'action_seeds': [[str(action_seed(plan, block, i, g, s)) for s in range(2)] for g in range(2)]}
@@ -279,6 +308,88 @@ def real_models(root, training_dir):
     }
 
 
+_HEX64 = frozenset('0123456789abcdef')
+
+
+def _resolve(root, relative):
+    return str(Path(root) / relative)
+
+
+def _check_hash(where, value, allow_none=False):
+    if value is None and allow_none:
+        return
+    if not (isinstance(value, str) and len(value) == 64 and set(value) <= _HEX64):
+        raise ValueError(f'{where}: sha256 is not a filled-in 64-digit hash ({value!r})')
+
+
+def load_exam_config(path, root=REAL_ROOT):
+    """An exam config (JSON, paths relative to `root`) as plans, resolved model identities and evaluated networks.
+    Refuses placeholder hashes and evaluated networks without an explicit temperature (null = greedy)."""
+    raw = json.loads(Path(path).read_text(encoding='utf-8'))
+    root = Path(root)
+    plans = {}
+    for key, part in (('part_t', 'T'), ('part_e', 'E')):
+        spec = raw.get(key)
+        plans[key] = (make_plan(part, spec['deal_base'], spec['action_exp'], spec['count'], spec['opponents'],
+                                tuple(spec['targets'])) if spec else None)
+    if plans['part_e'] is None:
+        raise ValueError('config has no part_e')
+    models = json.loads(json.dumps(raw['models']))
+    for name, entry in models.items():
+        if 'path' in entry:
+            _check_hash(name, entry.get('sha256'))
+            entry['path'] = _resolve(root, entry['path'])
+        if 'equals' in entry:
+            _check_hash(name + ' equals', entry['equals'].get('sha256'))
+            entry['equals']['path'] = _resolve(root, entry['equals']['path'])
+        if 'sidecar' in entry:
+            _check_hash(name + ' sidecar', entry['sidecar'].get('sha256'), allow_none=True)
+            entry['sidecar']['path'] = _resolve(root, entry['sidecar']['path'])
+        if 'last_checked' in entry:
+            entry['last_checked']['log'] = _resolve(root, entry['last_checked']['log'])
+    evaluated = raw['evaluated']
+    for item in evaluated:
+        if set(item) != {'name', 'model', 'temperature'}:
+            raise ValueError('evaluated networks need name, model and an explicit temperature (null = greedy)')
+        if item['model'] not in models:
+            raise ValueError(f'unknown model {item["model"]}')
+        t = item['temperature']
+        if t == 'tstar' and plans['part_t'] is None:
+            raise ValueError('temperature "tstar" needs a Part T')
+        if not (t is None or t == 'tstar' or (type(t) in (int, float) and t > 0)):
+            raise ValueError('temperature must be a positive number, null (greedy) or "tstar"')
+    if raw.get('seed_audit') not in SEED_AUDITS:
+        raise ValueError('seed_audit must name a known namespace set')
+    return {'name': raw['name'], 'rule_path': _resolve(root, raw['rule']), 'seed_audit': raw['seed_audit'],
+            'part_t': plans['part_t'], 'part_e': plans['part_e'], 'models': models, 'evaluated': evaluated,
+            'output_t': _resolve(root, raw['output_t']) if raw.get('output_t') else None,
+            'output_e': _resolve(root, raw['output_e'])}
+
+
+def resolve_evaluated(evaluated, tstar=None):
+    """Evaluated networks with "tstar" replaced by Part T's temperature (None = greedy)."""
+    t = None if tstar is None else temperature_value(tstar)
+    return [{**item, 'temperature': t if item['temperature'] == 'tstar' else item['temperature']}
+            for item in evaluated]
+
+
+def _input_width(path):
+    import torch
+    return torch.load(path, map_location='cpu', weights_only=True)['layers.0.weight'].shape[1]
+
+
+def last_checked_generation(log_path):
+    """Generation number of the last row of a trainer generations.jsonl that carries a check."""
+    try:
+        rows = [json.loads(line) for line in Path(log_path).read_text(encoding='utf-8').splitlines() if line.strip()]
+    except (OSError, ValueError) as exc:
+        raise ValueError('generations log unreadable') from exc
+    checked = [row['generation'] for row in rows if row.get('check')]
+    if not checked:
+        raise ValueError('generations log has no check')
+    return checked[-1]
+
+
 def _hash(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
@@ -301,6 +412,13 @@ def verify_models(models, names):
         if 'path' in entry:
             if not Path(entry['path']).is_file() or _hash(entry['path']) != entry['sha256']:
                 raise ValueError(f'{name}: model hash mismatch')
+        if 'input_size' in entry and _input_width(entry['path']) != entry['input_size']:
+            raise ValueError(f'{name}: network input width must be {entry["input_size"]}')
+        if 'last_checked' in entry:
+            expected = entry['last_checked']['generation']
+            if (last_checked_generation(entry['last_checked']['log']) != expected
+                    or Path(entry['path']).name != f'generation_{expected:06d}.pt'):
+                raise ValueError(f'{name}: not the last generation with a check ({expected})')
         if 'equals' in entry:
             other = entry['equals']
             if not Path(other['path']).is_file() or _hash(other['path']) != other['sha256']:
@@ -551,22 +669,46 @@ def resolve_tstar(part_t_output, plan_t, temperature=None):
     return analysis['tstar'], results['raw_sha256'], saved
 
 
-def run_part_e(*, root=REAL_ROOT, output, part_t_output, workers, resume=False, models=None, plan=PART_E_PLAN,
-               plan_t=PART_T_PLAN, rule_path=None, temperature=None, training_dir=None):
+def run_part_e(*, root=REAL_ROOT, output, part_t_output=None, workers, resume=False, models=None, plan=PART_E_PLAN,
+               plan_t=PART_T_PLAN, rule_path=None, temperature=None, training_dir=None, evaluated=None):
+    """Part E. With a Part T folder, T* is recomputed from its raw records; without one (ADR 0062: every network
+    greedy) `evaluated` must give each network's temperature explicitly (null = greedy)."""
     root = Path(root)
     models = models or real_models(root, training_dir or root / 'training_output/phase2-run2')
-    tstar, t_digest, t_config = resolve_tstar(part_t_output, plan_t, temperature)
+    if part_t_output is None:
+        if evaluated is None:
+            raise ValueError('without a Part T the evaluated networks must be given explicitly')
+        if any(item['temperature'] == 'tstar' for item in evaluated):
+            raise ValueError('temperature "tstar" needs a Part T')
+        extra, check, run_evaluated = None, None, evaluated
+    else:
+        tstar, t_digest, t_config = resolve_tstar(part_t_output, plan_t, temperature)
+        run_evaluated = (resolve_evaluated(evaluated, tstar) if evaluated is not None
+                         else part_e_evaluated(tstar, models))
+        extra = {'tstar': tstar, 'part_t_raw_sha256': t_digest, 'part_t_revision': t_config['git_revision']}
 
-    def check(config):
-        if (t_config['sha256'], t_config['rule_sha256']) != (config['sha256'], config['rule_sha256']):
-            raise ValueError('project sources or the rule changed since Part T')
-        if any(t_config['models'][n] != config['models'][n] for n in ('C1', 'AU', 'P1') if n in config['models']):
-            raise ValueError('model identities changed since Part T')
-    return _run_part(part='E', plan=plan, evaluated=part_e_evaluated(tstar, models), models=models,
-                     needed=['C1', 'C2', 'B', *plan['opponents']], root=root, output=output, workers=workers,
-                     resume=resume, rule_path=rule_path or root / RULE_RELATIVE, analyze=analyze_exam,
-                     extra={'tstar': tstar, 'part_t_raw_sha256': t_digest, 'part_t_revision': t_config['git_revision']},
-                     check=check)
+        def check(config):
+            if (t_config['sha256'], t_config['rule_sha256']) != (config['sha256'], config['rule_sha256']):
+                raise ValueError('project sources or the rule changed since Part T')
+            if any(t_config['models'][n] != config['models'][n] for n in ('C1', 'AU', 'P1') if n in config['models']):
+                raise ValueError('model identities changed since Part T')
+    needed = list(dict.fromkeys([item['model'] for item in run_evaluated] + list(plan['opponents'])))
+    return _run_part(part='E', plan=plan, evaluated=run_evaluated, models=models, needed=needed, root=root,
+                     output=output, workers=workers, resume=resume, rule_path=rule_path or root / RULE_RELATIVE,
+                     analyze=analyze_exam, extra=extra, check=check)
+
+
+def run_configured_part(exam, part, *, root=REAL_ROOT, workers, resume=False, output=None):
+    """Run Part T or Part E of a loaded exam config after its seed audit."""
+    audit_exam_seeds(exam)
+    common = dict(root=root, workers=workers, resume=resume, models=exam['models'], rule_path=exam['rule_path'])
+    if part == 'part-t':
+        if exam['part_t'] is None:
+            raise ValueError('this exam has no Part T')
+        return run_part_t(output=output or exam['output_t'], plan=exam['part_t'], **common)
+    return run_part_e(output=output or exam['output_e'], plan=exam['part_e'], plan_t=exam['part_t'],
+                      part_t_output=exam['output_t'] if exam['part_t'] else None, evaluated=exam['evaluated'],
+                      **common)
 
 
 def main(argv=None):
@@ -579,10 +721,18 @@ def main(argv=None):
         p.add_argument('--resume', action='store_true', help='finish only the missing pairs of an interrupted part')
         p.add_argument('--training-dir', default=None)
         p.add_argument('--output', default=None)
+        p.add_argument('--config', default=None, help='exam config JSON (default: the hardcoded run 2 exam)')
     exam = Path(REAL_ROOT) / 'experiments/phase2-final-exam'
     sub.choices['part-e'].add_argument('--temperature', default=None,
                                        help='optional check: must equal the T* recomputed from Part T')
     args = parser.parse_args(argv)
+    if args.config:
+        if args.training_dir or getattr(args, 'temperature', None):
+            parser.error('--training-dir and --temperature do not apply with --config')
+        result = run_configured_part(load_exam_config(args.config), args.part, workers=args.workers,
+                                     resume=args.resume, output=args.output)
+        print(json.dumps(result['analysis'], indent=2, sort_keys=True))
+        return
     common = dict(workers=args.workers, resume=args.resume, training_dir=args.training_dir)
     if args.part == 'part-t':
         result = run_part_t(output=args.output or exam / 'part-t', **common)
