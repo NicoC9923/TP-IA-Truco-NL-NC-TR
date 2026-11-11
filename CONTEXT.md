@@ -1,6 +1,6 @@
 # Truco with Ottoman
 
-A 1-vs-1 Argentine truco match (no flor, to 15 or 30 points) between a human and Ottoman, an AI agent, plus the training of agents that learn to play it.
+A 1-vs-1 Argentine truco match (no flor, to 15 or 30 points, or a set number of hands) between a human and Ottoman, an AI agent, or between two AI agents, plus the training of agents that learn to play it.
 
 Docs and code are in English; only the UI is in Spanish. Where a term appears in the UI, its Spanish label is given as **UI:**. Truco's own game vocabulary (truco, retruco, vale cuatro, envido, real envido, falta envido, quiero / no quiero, "son buenas", brava, pardas, tantos, mano / pie) has no English equivalent and is used as-is.
 
@@ -9,8 +9,16 @@ Docs and code are in English; only the UI is in Spanish. Where a term appears in
 ### Game
 
 **Match**:
-A complete game between two players, ending when one reaches the target of 15 or 30 points. UI: "partida".
+A complete game between two players, ending when one reaches the target of 15 or 30 points, or after a chosen number of hands (see **Short match**). UI: "partida".
 _Avoid_: game, partido
+
+**Short match**:
+A match that lasts a chosen number of hands (1 to 10) instead of a points target. The player with more points after the last hand wins; if points are level, one extra hand decides. UI: "partida corta".
+_Avoid_: quick game, demo match
+
+**Spectator mode**:
+A match between two AI agents that the user only watches, choosing which agent plays each side and controlling the pace. The user may see both players' cards and what each agent is considering. UI: "modo espectador".
+_Avoid_: AI vs AI, demo mode, simulation
 
 **Hand**:
 One deal: from dealing the cards until its points are scored. UI: "mano".
