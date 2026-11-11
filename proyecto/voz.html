@@ -1391,11 +1391,14 @@
       ultimoCantoKey = key;
       const pts = (cp.puntos_quiero !== undefined && cp.puntos_no_quiero !== undefined)
         ? `<span class="canto-pts">Si querés se juega ${cp.por_el_partido ? 'por el partido' : esc(cp.puntos_quiero)} · si no, Ottoman suma ${esc(cp.puntos_no_quiero)}</span>` : '';
+      const re = cp.reanudado_tras_envido && data.resultado_envido;
+      const resultadoEnvido = re ? `<span class="canto-pts">${re.motivo ? esc(re.motivo) + ' · ' : 'Envido querido · '}${re.ganador === 'humano' ? 'Ganaste' : 'Ganó Ottoman'} ${esc(re.puntos_ganados)} ${re.puntos_ganados === 1 ? 'punto' : 'puntos'}${re.pts_humano !== undefined && re.pts_robot !== undefined ? ` · Tus tantos: ${esc(re.pts_humano)} · Ottoman: ${esc(re.pts_robot)}` : ''}</span>` : '';
       zona.innerHTML = `
         <div class="canto ${nuevo ? 'entra' : ''}" role="alert">
-          <span class="canto-quien">Ottoman te canta</span>
+          <span class="canto-quien">${cp.reanudado_tras_envido ? 'Envido resuelto · Respondé al truco pendiente' : 'Ottoman te canta'}</span>
           <p class="canto-que">¡${esc(nombreCanto(cp.canto))}!</p>
           <div class="canto-resp">
+            ${resultadoEnvido}
             ${pts}
             <div class="canto-btns" id="alerta-botones">
               ${cp.opciones.map(op => `<button type="button" class="btn-resp ${op === 'QUIERO' ? 'quiero' : op === 'NO_QUIERO' ? 'noquiero' : ''}" data-resp="${esc(op)}">${esc(ETIQUETA_RESPUESTA[op] || op)}</button>`).join('')}
