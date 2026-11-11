@@ -1,4 +1,4 @@
-DRAFT for the coordinator to freeze. All-vs-all round robin, descriptive only.
+FROZEN 2026-11-11 by the coordinator before any game (user-requested descriptive comparison). All-vs-all round robin, descriptive only.
 
 PURPOSE AND LIMITS
 - Describe how 8 playable agents do against each other. No selection, ranking-based decision, shipping decision, rerun, extension or threshold. One run; an interrupted run may only be resumed to finish its missing pairs.

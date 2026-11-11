@@ -1,4 +1,4 @@
-DRAFT for the coordinator to freeze. Per-run evolution of the phase 2 reinforcement-learning runs, descriptive only.
+FROZEN 2026-11-11 by the coordinator before any game (user-requested descriptive comparison).
 
 PURPOSE AND LIMITS
 - Describe how selected generations of each phase 2 run do against fixed reference agents and against each other. No selection, shipping decision, rerun, extension or threshold. One run; an interrupted run may only be resumed to finish missing pairs.

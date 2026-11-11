@@ -108,8 +108,11 @@ class Run3ConfigTests(unittest.TestCase):
             return fx.load_exam_config(path, root=REPO)
 
     def test_draft_config_is_refused_while_hashes_are_placeholders(self):
+        # The committed run 3 config is filled now; a placeholder hash must still be refused.
+        raw = self.filled()
+        raw['models']['C1']['sha256'] = 'TODO-coordinator-fills-after-training'
         with self.assertRaises(ValueError) as caught:
-            fx.load_exam_config(RUN3_CONFIG, root=REPO)
+            self.load(raw)
         self.assertIn('sha256', str(caught.exception))
 
     def test_other_placeholders_are_refused_too(self):
