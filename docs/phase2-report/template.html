@@ -1,0 +1,375 @@
+<title>Fase 2 · aprendizaje por refuerzo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/*CSS*/
+</style>
+<div class="wrap">
+<header class="top">
+  <p class="eyebrow">Truco · Fase 2 · informe de resultados</p>
+  <h1>Fase 2: una red que aprende jugando al Truco</h1>
+  <p class="lede">Tres corridas de entrenamiento por refuerzo, qué cambió entre ellas, cómo se midieron y qué red quedó en el juego. Cada número sale de un archivo del proyecto.</p>
+  <nav class="toc" aria-label="Contenido"><a href="#resumen">1 Resumen</a><a href="#fase2">2 De qué se trata</a><a href="#participantes">3 Participantes</a><a href="#cambios">4 Qué cambió</a><a href="#avance">5 Cómo avanzó cada corrida</a><a href="#velocidad">6 Velocidad</a><a href="#problemas">7 Descubrimientos</a><a href="#examenes">8 Exámenes finales</a><a href="#todos">9 Todos contra todos</a><a href="#juego">10 Qué está en el juego</a><a href="#proximos">11 Próximos pasos</a><a href="#leer">12 Cómo leer los números</a><a href="#color">Cifras sueltas</a></nav>
+</header>
+
+<!-- ============================================================ 1 -->
+<section id="resumen">
+  <div class="sechead"><span class="k">1 · Resumen</span><h2>Lo que hay que saber en una pantalla</h2></div>
+  <p>En el juego juega hoy <b>Refuerzo corrida 3 · gen 73</b>: la mejor red de la tercera corrida, elegida por decisión del usuario (ADR 0063). Gana el <b>[[pc1:avs.pairs@phase2_run3_g73|phase2_run2_g38#0]]</b> de las partidas directas contra la red que estaba antes (Refuerzo corrida 2 · gen 38) y el <b>[[pc1:e3.wr.C1.AU]]</b> contra Utilidad adaptativa, la estrategia escrita a mano más fuerte del juego (y uno de sus rivales de entrenamiento). Antes de ella estuvo la gen 38 de la corrida 2, y antes la gen 28 de la corrida 1.</p>
+  <div class="tiles">
+    <div class="tile"><div class="v">[[mil:tot.matches]] M</div><div class="l">partidas jugadas para entrenar</div><div class="s">[[i:tot.matches]] en las tres corridas</div></div>
+    <div class="tile"><div class="v">[[f0:tot.hours]] h</div><div class="l">de entrenamiento</div><div class="s">12 h por corrida (tope de tiempo)</div></div>
+    <div class="tile"><div class="v">[[f0:r3.hours_avg_rate]] / s</div><div class="l">partidas por segundo en la corrida 3</div><div class="s">corrida 1: [[f0:r1.hours_avg_rate]] / s · corrida 2: [[f0:r2.hours_avg_rate]] / s</div></div>
+    <div class="tile"><div class="v">[[pc1:avs.pairs@phase2_run3_g73|adaptive_utility#0]]</div><div class="l">gen 73 contra Utilidad adaptativa</div><div class="s">todos contra todos, 1,000 pares espejo</div></div>
+  </div>
+  <h3 style="margin-bottom:10px">Una línea por corrida</h3>
+  <div class="runs">
+    <div class="runrow"><span class="dot d1"></span><p><b class="t1">Corrida 1.</b> Empezó de cero y entrenó casi solo contra redes parecidas a ella. Mejoró rápido al principio, se estancó contra Utilidad adaptativa y se quedó con la gen 28. Contra Utilidad adaptativa ganaba solo [[f1:r1.eval.g28.au]]% de las partidas, medido jugando como jugaba entonces (con azar).</p></div>
+    <div class="runrow"><span class="dot d2"></span><p><b class="t2">Corrida 2.</b> Sumó a Reactivo y a Utilidad adaptativa como rivales de entrenamiento. Su gen 38, jugando con azar, ganó [[pc2:acc.direct#0]] de los duelos contra la gen 28: no alcanzó para concluir. En el examen final, la gen 38 sin azar superó a la gen 28 con azar contra los cinco rivales ([[pc1:e2.wr.C1.AU]] contra [[pc1:e2.wr.B.AU]] frente a Utilidad adaptativa) y pasó a ser la red del juego.</p></div>
+    <div class="runrow"><span class="dot d3"></span><p><b class="t3">Corrida 3.</b> Arrancó desde la gen 38, con datos nuevos de cada mano, un objetivo menos ruidoso y evaluación sin azar. Entrenó [[i:r3.matches]] partidas, a una velocidad media [[f1:r3.rate_x_r1]] veces la de la corrida 1. Subió contra Utilidad adaptativa de [[pc1:e3.wr.B.AU]] a [[pc1:e3.wr.C1.AU]], pero perdió algo contra Genético semilla 2, una red débil y rara que nunca vio al entrenar.</p></div>
+  </div>
+  <div class="note"><p><b>Qué no dice este informe.</b> Las cifras describen estos rivales y estos protocolos; no prueban que la red sea fuerte contra cualquier jugador, incluidas las personas. Contra Reactivo y Utilidad adaptativa las redes entrenaron, así que esos resultados son contra rivales conocidos.</p></div>
+</section>
+
+<!-- ============================================================ 2 -->
+<section id="fase2">
+  <div class="sechead"><span class="k">2 · De qué se trata la fase 2</span><h2>Aprender de los resultados, no copiar jugadas</h2></div>
+  <div class="cols">
+    <div>
+      <h3>Aprendizaje por refuerzo, en palabras simples</h3>
+      <p>La red juega partidas completas contra distintos rivales. Nadie le dice qué jugada era buena. Solo se entera al final si <b>ganó (+1)</b> o <b>perdió (−1)</b>. Con ese resultado corrige la estimación que había hecho de cada decisión de esa partida: si cantó envido y terminó ganando, el envido sube un poco; si perdió, baja. Repetido millones de veces, las estimaciones mejoran.</p>
+      <p>Este método se llama Monte Carlo profundo: es el enfoque de DouZero, un programa publicado que aprendió así un juego de cartas. Para elegir, la red pasa sus estimaciones por una regla de azar con una «temperatura»: temperatura alta es jugar más al azar, temperatura baja es elegir casi siempre la mejor. «Sin azar» (en inglés <i>greedy</i>) elige siempre la de mayor valor.</p>
+    </div>
+    <div>
+      <h3>Diferencia con los algoritmos genéticos (fase 1)</h3>
+      <p>En la fase 1 una población de redes se copia con pequeños cambios al azar y se conservan las que ganan más. No hay una corrección por cada decisión: se prueba, se mide y se queda lo que funciona.</p>
+      <p>En la fase 2 una sola red aprende por gradiente: después de cada tanda de partidas ajusta sus pesos (los números internos de la red) en la dirección que reduce el error de su estimación. Saca más información de cada partida, pero necesita rivales variados, porque aprende sobre todo a ganarle a lo que ve.</p>
+    </div>
+  </div>
+  <div class="steps">
+    <div><b>1 · Jugar</b>La red juega partidas contra su liga de rivales.</div>
+    <div><b>2 · Anotar</b>Cada decisión suya queda guardada con el resultado final.</div>
+    <div><b>3 · Corregir</b>Ajusta sus pesos para acercar su estimación al resultado.</div>
+    <div><b>4 · Medir</b>Cada generación se compara con la campeona; solo sube si mejora de forma clara.</div>
+  </div>
+  <div class="panel">
+    <h3>La red</h3>
+    <p class="sub">Una sola red. No recuerda las manos anteriores, salvo por un perfil del rival: un resumen de cómo viene jugando ese rival.</p>
+    <div class="tw"><table class="cmp">
+      <thead><tr><th>Parte</th><th>Qué es</th></tr></thead>
+      <tbody>
+      <tr><td>Entradas</td><td><span class="num">[[i:net.in_r12]]</span> números en las corridas 1 y 2; <span class="num">[[i:net.in_r3]]</span> en la corrida 3 (se sumaron [[raw:net.new_cols]] números: seis datos explícitos de la mano, uno de ellos con dos números). Incluyen las cartas propias, qué acciones están permitidas ([[raw:actions_n]] casillas de sí o no), hasta [[raw:events_max]] hechos ordenados de la mano actual, creencias sobre las cartas del rival y un perfil de cómo juega ese rival.</td></tr>
+      <tr><td>Capas</td><td><span class="num">[[raw:net.h1]]</span> neuronas, luego <span class="num">[[raw:net.h2]]</span>, luego una salida de <span class="num">[[raw:net.out]]</span> valores, uno por acción posible (cantar, aceptar, tirar una carta, irse al mazo…).</td></tr>
+      <tr><td>Tamaño</td><td>aprox. 450 mil pesos: <span class="num">[[i:net.params_r12]]</span> con [[i:net.in_r12]] entradas y <span class="num">[[i:net.params_r3]]</span> con [[i:net.in_r3]] (contados sobre los pesos guardados). El diseño original hablaba de «unos 470,000»; es una estimación previa.</td></tr>
+      <tr><td>Qué aprende</td><td>El valor esperado de cada acción: +1 si de esa decisión salía la victoria, −1 si salía la derrota. En la corrida 3 el objetivo mezcla ese resultado con una estimación de las chances después de cada mano (sección 7).</td></tr>
+      </tbody></table></div>
+    <span class="src">fuente: champions/phase2-run3/reigning_champion.pt (formas de las matrices), docs/adr/0040, 0062</span>
+  </div>
+</section>
+
+<!-- ============================================================ 3 -->
+<section id="participantes">
+  <div class="sechead"><span class="k">3 · Participantes</span><h2>Quién juega contra quién</h2></div>
+  <p>En todo el informe se usan siempre estos nombres.</p>
+  <div class="panel"><div class="tw"><table>
+    <thead><tr><th>Nombre</th><th>Qué es</th></tr></thead>
+    <tbody>
+    <tr><td><b>Reactivo</b></td><td>Estrategia escrita a mano, sencilla: responde a lo que ve en la mesa.</td></tr>
+    <tr><td><b>Utilidad adaptativa</b></td><td>Estrategia escrita a mano, la más fuerte del juego. Calcula el valor de cada jugada con su cuenta exacta de tantos. En estas pruebas juega siempre igual (no se adapta durante la partida, ADR 0059).</td></tr>
+    <tr><td><b>Genético publicado (gen 48)</b></td><td>La red de la fase 1 que estaba publicada en el juego, generación 48. Formó parte del panel de control de la corrida 1 hasta la gen 13; nunca entró en el entrenamiento ni en la selección de las corridas 2 y 3.</td></tr>
+    <tr><td><b>Genético semilla 1 (gen 23)</b></td><td>Otra red de la fase 1, generación 23. Reservada: jamás entró en un entrenamiento ni en una selección.</td></tr>
+    <tr><td><b>Genético semilla 2 (gen 2)</b></td><td>Red de la fase 1 casi sin entrenar (generación 2). También reservada. Juega de forma rara y débil, y por eso sirve para detectar si una red perdió juego general.</td></tr>
+    <tr><td><b class="t1">Refuerzo corrida 1 · gen N</b></td><td>Redes de la primera corrida. La gen 28 fue la campeona de esa corrida.</td></tr>
+    <tr><td><b class="t2">Refuerzo corrida 2 · gen N</b></td><td>Redes de la segunda corrida. La gen 38 fue su campeona y estuvo en el juego.</td></tr>
+    <tr><td><b class="t3">Refuerzo corrida 3 · gen N</b></td><td>Redes de la tercera corrida. <b>La gen 73 es la que está en el juego ahora.</b></td></tr>
+    </tbody></table></div>
+    <span class="src">fuente: docs/adr/0057, 0060, 0061, 0063, experiments/phase2-run1/README.md</span></div>
+</section>
+
+<!-- ============================================================ 4 -->
+<section id="cambios">
+  <div class="sechead"><span class="k">4 · Qué cambió entre corridas</span><h2>Tres corridas, un problema nuevo cada vez</h2></div>
+  <div class="panel"><div class="tw"><table class="cmp">
+    <thead><tr><th></th><th class="c1">Corrida 1</th><th class="c2">Corrida 2</th><th class="c3">Corrida 3</th></tr></thead>
+    <tbody>
+    <tr><td>Punto de partida</td><td>Red nueva</td><td>Red nueva</td><td>Arranca de Refuerzo corrida 2 · gen 38. Los [[raw:net.new_cols]] números nuevos empiezan con peso cero, así que al principio juega igual que la gen 38</td></tr>
+    <tr><td>Rivales de entrenamiento</td><td>[[raw:r1.share_self]]% ella misma · [[raw:r1.share_snap]]% copias congeladas (unos [[raw:r1.share_p1]] puntos de redes de la fase 1) · [[raw:r1.share_style]]% estilos (bluff, cauta, agresiva, calculadora)</td><td>[[raw:r2.share_self]]% ella misma · [[raw:r2.share_snap]]% copias · [[raw:r2.share_p1]]% fase 1 · [[raw:r2.share_style]]% × [[raw:styles_n]] estilos · [[raw:r2.share_re]]% Reactivo · [[raw:r2.share_au]]% Utilidad adaptativa</td><td>Los mismos porcentajes que la corrida 2. Como cada generación tiene el doble de partidas, las copias congeladas de sí misma son más viejas y variadas</td></tr>
+    <tr><td>Entradas</td><td class="n">[[i:net.in_r12]]</td><td class="n">[[i:net.in_r12]]</td><td class="n">[[i:net.in_r3]] (+[[raw:net.new_cols]] números)</td></tr>
+    <tr><td>Objetivo</td><td>Resultado de la partida (+1/−1)</td><td>Igual</td><td>[[raw:e.mix_pct]]% resultado + [[raw:e.mix_pct]]% chances tras la mano (tabla de equidad)</td></tr>
+    <tr><td>Temperatura</td><td>[[raw:m.T]] al entrenar y al medir</td><td>[[raw:m.T]] al entrenar y al medir</td><td>[[raw:T.run3_train]] al entrenar; los controles y el juego, sin azar</td></tr>
+    <tr><td>Controles por generación</td><td>Panel de [[raw:r1.panel_n]] redes (rotó a otro panel en la gen [[raw:r1.panel_rot_gen]]); [[raw:r1.pairs_member]] pares espejo contra cada rival del panel y [[raw:r1.pairs_direct]] contra la campeona</td><td>Panel fijo de [[raw:r2.panel_n]]: 2 redes de la fase 1, gen 12 y gen 28 de la corrida 1, Reactivo y Utilidad adaptativa; [[raw:r1.pairs_member]] y [[raw:r1.pairs_direct]] pares</td><td>El mismo panel de [[raw:r2.panel_n]]; [[raw:r3.pairs_member]] pares contra cada rival y [[raw:r3.pairs_member]] contra la campeona, todos sin azar</td></tr>
+    <tr><td>Partidas por generación</td><td class="n">[[i:r1.matches_per_gen]]</td><td class="n">[[i:r2.matches_per_gen]]</td><td class="n">[[i:r3.matches_per_gen]]</td></tr>
+    <tr><td>Velocidad media</td><td class="n">[[f1:r1.hours_avg_rate]] partidas/s</td><td class="n">[[f1:r2.hours_avg_rate]] partidas/s</td><td class="n">[[f1:r3.hours_avg_rate]] partidas/s</td></tr>
+    <tr><td>Duración</td><td>[[f0:r1.elapsed_h]] h ([[f0:r1.cap_first_h]] h previstas más una extensión aprobada de 4 h)</td><td>[[f0:r2.elapsed_h]] h (tope)</td><td>[[f0:r3.elapsed_h]] h (tope)</td></tr>
+    <tr><td>Partidas totales</td><td class="n">[[i:r1.matches]]</td><td class="n">[[i:r2.matches]]</td><td class="n">[[i:r3.matches]]</td></tr>
+    <tr><td>Promociones</td><td class="n">[[raw:r1.n_promoted]]: gen [[LIST:r1.promoted]]</td><td class="n">[[raw:r2.n_promoted]]: gen [[LIST:r2.promoted]]</td><td class="n">[[raw:r3.n_promoted]]: gen [[LIST:r3.promoted]]</td></tr>
+    <tr><td>Campeona</td><td><b>gen [[raw:r1.champion_generation]]</b></td><td><b>gen [[raw:r2.champion_generation]]</b></td><td><b>gen [[raw:r3.champion_generation]]</b></td></tr>
+    <tr><td>Problema que motivó el cambio siguiente</td><td>Entrenó con redes parecidas y se estancó contra Utilidad adaptativa ([[f1:r1.eval.g28.au]]% medido con su azar de entonces). Perdía puntos en envidos aceptados y en no querer el truco.</td><td>Se medía con azar (temperatura [[raw:m.T]]), y eso escondía su fuerza: [[pc0:pt.au.greedy@mean]] sin azar contra [[pc0:pt.au.0.05@mean]] con azar frente a Utilidad adaptativa. Además la red no veía su propio tanto y el objetivo era ruidoso. Su pérdida dejó de bajar cerca de [[f2:loss_stuck]] desde la gen [[raw:loss_stuck_gen]].</td><td>Perdió algo contra Genético semilla 2 (gen 2): un rival débil y raro que nunca vio. Como cambió varias cosas a la vez, no se sabe cuál lo causó.</td></tr>
+    </tbody></table></div>
+    <p class="sub">«Panel» es el grupo fijo de rivales con el que se controla cada generación. «Promoción» es cuando una generación mejora lo suficiente a la campeona y la reemplaza. Fuente: progress.json y generations.jsonl de cada corrida, ADR 0043, 0047, 0056, 0057, 0062 y sus enmiendas.</p></div>
+</section>
+
+<!-- ============================================================ 5 -->
+<section id="avance">
+  <div class="sechead"><span class="k">5 · Cómo avanzó cada corrida</span><h2>Mejora medida, pérdida y comparación con rivales fijos</h2></div>
+
+  <div class="panel">
+    <h3>Ganancia de cada generación frente a la campeona de ese momento</h3>
+    <p class="sub">Cada barra es una generación con control. Mide cuánto más gana que la campeona contra los mismos rivales del panel, en puntos porcentuales (pp). La línea fina es el intervalo de 95%. <b>Las barras de color son promociones</b> (con el número de generación); las grises no alcanzaron el umbral: ganancia de al menos [[raw:gain_min]] pp con el límite inferior del intervalo por encima de cero, y al menos 47.5% en el duelo directo contra la campeona. Cada corrida tiene su propio panel y su propio tamaño de control, por eso las alturas no se comparan entre gráficos.</p>
+    <div class="legend"><span><i class="sw c1"></i>Corrida 1</span><span><i class="sw c2"></i>Corrida 2</span><span><i class="sw c3"></i>Corrida 3</span><span><i class="sw off"></i>sin promoción</span></div>
+    <h4>Corrida 1 · [[raw:r1.n_checks]] controles, [[raw:r1.n_promoted]] promociones</h4>
+    <div class="chart">{{chart:gain1}}</div>
+    <h4>Corrida 2 · [[raw:r2.n_checks]] controles, [[raw:r2.n_promoted]] promociones</h4>
+    <div class="chart">{{chart:gain2}}</div>
+    <h4>Corrida 3 · [[raw:r3.n_checks]] controles, [[raw:r3.n_promoted]] promociones</h4>
+    <div class="chart">{{chart:gain3}}</div>
+    <p>La corrida 1 mejoró en las primeras diez generaciones y después solo la gen 28 pasó el umbral; tras ella hubo [[raw:r1.checks_after_last_promo]] controles seguidos sin promoción. La corrida 2 promovió nueve veces y la última fue la gen 38. La corrida 3 promovió siete veces; tras la gen 73 hubo [[raw:r3.checks_after_last_promo]] controles sin promoción y el tope de tiempo cortó el entrenamiento antes de llegar al límite de [[raw:patience]].</p>
+    <span class="src">fuente: generations.jsonl de cada corrida (campo check: gain, lower_bound, upper_bound, promoted)</span>
+  </div>
+
+  <div class="panel">
+    <h3>Pérdida de entrenamiento por generación</h3>
+    <p class="sub">La «pérdida» es el error medio entre lo que la red estimaba y lo que después pasó. Más baja es mejor para esa red, <b>pero la corrida 3 no es comparable con las otras dos</b>: aprende un objetivo distinto (mezcla con las chances tras cada mano) y por eso su escala es mucho menor.</p>
+    <div>
+      <div><h4>Corridas 1 y 2 · objetivo: resultado de la partida</h4>
+      <div class="legend"><span><i class="sw c1"></i>Corrida 1</span><span><i class="sw c2"></i>Corrida 2</span></div>
+      <div class="chart">{{chart:loss12}}</div></div>
+      <div><h4>Corrida 3 · objetivo mezclado</h4>
+      <div class="legend"><span><i class="sw c3"></i>Corrida 3</span></div>
+      <div class="chart">{{chart:loss3}}</div></div>
+    </div>
+    <p>Corrida 1: de [[f2:r1.loss_first]] a [[f2:r1.loss_last]]. Corrida 2: de [[f2:r2.loss_first]] a [[f2:r2.loss_last]], con mínimo de [[f2:r2.loss_min]]. Corrida 3: de [[f2:r3.loss_first]] a [[f2:r3.loss_last]]. Que la pérdida se aplane no significa que la red deje de jugar mejor: en la corrida 2 la pérdida casi no se movía mientras las promociones seguían apareciendo.</p>
+    <span class="src">fuente: generations.jsonl (mean_loss)</span>
+  </div>
+
+  <div class="panel">
+    <h3>Corrida 3: cuánto cambia la acción elegida si se juega con azar</h3>
+    <p class="sub">«Desacuerdo con la elegida sin azar» es la fracción de decisiones de entrenamiento donde la acción sorteada con temperatura [[raw:T.run3_train]] fue distinta de la que elegiría la red sin azar. Probablemente es alta porque en muchos momentos varias acciones valen casi lo mismo, y entonces el sorteo cambia la elección sin costar mucho.</p>
+    <div class="chart">{{chart:gd}}</div>
+    <p>Se mantuvo entre [[pc1:r3.gd_min]] y [[pc1:r3.gd_max]] durante toda la corrida. En el piloto previo, con temperatura [[raw:m.T]], ese valor era [[pc1:pilot.t005.gd]]; con [[raw:T.run3_train]] bajó a [[pc1:pilot.t002.gd]] (sección 7).</p>
+    <span class="src">fuente: training_output/phase2-run3/generations.jsonl (greedy_disagreement); experiments/phase2-run3/pilots/*.json</span>
+  </div>
+
+  <div class="panel">
+    <h3>Cinco generaciones de cada corrida contra rivales fijos</h3>
+    <p class="sub">Cada gráfico chico muestra el porcentaje de partidas ganadas (eje 0–100, línea de trazos en 50) por cinco generaciones de una corrida contra un mismo rival, con el intervalo de 95%. 1,000 pares espejo por punto, todas sin azar. «Corrida 2 · gen 38» fue la red del juego antes de la gen 73. Falta el punto donde Refuerzo corrida 2 · gen 38 se enfrentaría a sí misma.</p>
+    {{chart:evo}}
+    <span class="src">fuente: experiments/run-evolution/output/results.json (analysis.runs[*].table)</span>
+  </div>
+
+  <div class="panel">
+    <h3>Dentro de cada corrida: quién le gana a quién</h3>
+    <p class="sub">Cada celda es el porcentaje de partidas que gana la red de la fila contra la de la columna. Azul: gana la fila; rojo: gana la columna. Es el mismo protocolo, sin azar.</p>
+    {{chart:within}}
+    <span class="src">fuente: experiments/run-evolution/output/results.json (analysis.runs[*].within)</span>
+  </div>
+</section>
+
+<!-- ============================================================ 6 -->
+<section id="velocidad">
+  <div class="sechead"><span class="k">6 · Velocidad</span><h2>Más partidas por hora sin cambiar ningún resultado</h2></div>
+  <div class="tiles">
+    <div class="tile"><div class="v">[[f1:r1.hours_avg_rate]]</div><div class="l">partidas/s, corrida 1</div><div class="s">promedio de las 12 h</div></div>
+    <div class="tile"><div class="v">[[f1:r2.hours_avg_rate]]</div><div class="l">partidas/s, corrida 2</div><div class="s">promedio de las 12 h</div></div>
+    <div class="tile"><div class="v">[[f1:r3.hours_avg_rate]]</div><div class="l">partidas/s, corrida 3</div><div class="s">[[f1:r3.rate_x_r1]] veces la corrida 1</div></div>
+    <div class="tile"><div class="v">[[f1:speed.e2e_x]]×</div><div class="l">mejora medida de la optimización</div><div class="s">[[f1:speed.e2e_base]] → [[f1:speed.e2e_final]] partidas/s en una prueba corta del entrenamiento completo</div></div>
+  </div>
+  <div class="panel">
+    <h3>Partidas por segundo, generación por generación</h3>
+    <p class="sub">Partidas de la generación dividido el tiempo de la generación (incluye el control). Al comienzo las partidas son cortas y rápidas; a medida que la red mejora juega partidas más largas y la velocidad baja. En la corrida 3 la velocidad es casi pareja de punta a punta; una explicación probable es que arrancó desde una red ya entrenada, así que no tuvo la etapa inicial de partidas cortas.</p>
+    <div class="chart">{{chart:speed}}</div>
+    <p>Tiempo por generación al final: corrida 1, [[f0:r1.secs_late]] s; corrida 2, [[f0:r2.secs_late]] s (alrededor de [[raw:speed.run2_gen_min]] minutos); corrida 3, [[f0:r3.secs_late]] s, con una generación de más del doble de partidas ([[i:r3.matches_per_gen]]).</p>
+    <span class="src">fuente: generations.jsonl (matches / elapsed_seconds); docs/adr/0062</span>
+  </div>
+  <div class="panel">
+    <h3>La optimización «bit a bit»</h3>
+    <p>Entre la corrida 2 y la 3 se aceleró el código de entrenamiento unas 4 veces con una regla estricta: <b>una mejora solo se acepta si no cambia nada de lo que se calcula</b>. Se usaron las mismas partidas, los mismos ganadores, las mismas muestras de aprendizaje, los mismos pesos y los mismos archivos guardados, comparados byte por byte.</p>
+    <ul class="clean">
+      <li><b>Cómo se probó:</b> una corrida de referencia fija («prueba dorada»): [[raw:speed.golden_gens]] generaciones de [[raw:speed.golden_matches]] partidas, con [[i:speed.golden_samples]] muestras y [[raw:speed.golden_updates]] actualizaciones. Se grabó con el código viejo y 1 trabajador; cada cambio tuvo que reproducirla igual con 1 y con 12 trabajadores. Un cambio de una millonésima en una entrada hace fallar la prueba, así que se sabe que puede detectar diferencias.</li>
+      <li><b>Qué se aceleró:</b> el cálculo de las creencias sobre las cartas del rival, que era casi todo el tiempo ([[f2:speed.actor_profile_base]] s → [[f2:speed.actor_profile_final]] s por bloque de 40 partidas). En total se aceptaron [[raw:speed.opt_count]] cambios (los demás reparten mejor el trabajo entre procesos), uno por commit, cada uno con su argumento de por qué da exactamente lo mismo.</li>
+      <li><b>Resultado medido:</b> [[f1:speed.base_mps]] → [[f1:speed.final_mps]] partidas/s en rondas de actores ([[f1:speed.actor_x]]×); control de generación [[f1:speed.check_base]] s → [[f1:speed.check_final]] s ([[f1:speed.check_x]]×); entrenamiento completo [[f1:speed.e2e_base]] → [[f1:speed.e2e_final]] partidas/s ([[f1:speed.e2e_x]]×). El aprendizaje en sí (la actualización de pesos) no cambió. Esa prueba corta parte de una red nueva, que juega partidas más cortas; en la corrida 3 real, con una red entrenada, el promedio fue [[f1:r3.hours_avg_rate]] partidas/s.</li>
+      <li><b>Sin ganancia con más trabajadores</b> (procesos que juegan en paralelo)<b>:</b> con 12 se miden [[f1:speed.workers_12]] partidas/s y con más no sube; los resultados tampoco dependen del número de trabajadores.</li>
+      <li>La suite completa de pruebas del proyecto pasó ([[raw:speed.tests]] pruebas).</li>
+    </ul>
+    <span class="src">fuente: docs/perf/phase2-speed.md</span>
+  </div>
+  <div class="panel">
+    <h3>Partidas totales por corrida</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Corrida</th><th class="n">Partidas</th><th class="n">Muestras de aprendizaje</th><th class="n">Actualizaciones</th></tr></thead>
+      <tbody>
+      <tr><td><span class="t1"><b>Corrida 1</b></span></td><td class="n">[[i:r1.matches]]</td><td class="n">[[i:r1.samples]]</td><td class="n">[[i:r1.updates]]</td></tr>
+      <tr><td><span class="t2"><b>Corrida 2</b></span></td><td class="n">[[i:r2.matches]]</td><td class="n">[[i:r2.samples]]</td><td class="n">[[i:r2.updates]]</td></tr>
+      <tr><td><span class="t3"><b>Corrida 3</b></span></td><td class="n">[[i:r3.matches]]</td><td class="n">[[i:r3.samples]]</td><td class="n">[[i:r3.updates]]</td></tr>
+      </tbody></table></div>
+    <p class="sub" style="margin-top:8px">Una «muestra» es una decisión de la red con su resultado, lista para aprender. Fuente: progress.json de cada corrida.</p>
+  </div>
+</section>
+
+<!-- ============================================================ 7 -->
+<section id="problemas">
+  <div class="sechead"><span class="k">7 · Descubrimientos y problemas</span><h2>Lo que salió mal, cómo se vio y qué se hizo</h2></div>
+  <div class="find">
+    <article><span class="tag">Corrida 1 · intento abortado</span><h3>Un error en las reglas del motor</h3>
+      <p>El primer intento de la corrida 1 se detuvo a los [[raw:abort.mins]] minutos y [[raw:abort.gens]] generaciones. Al responder un truco con retruco (o un retruco con vale cuatro) el motor no aceptaba la apuesta anterior. Por eso seguía permitiendo cantar envido después del retruco, y un «no quiero» posterior sumaba un punto de menos. Ocurría en alrededor del [[raw:abort.pct]]% de las decisiones, una vez cada [[raw:abort.per]] partidas más o menos (ADR 0055).</p>
+      <p>Se corrigió el motor y la revisión completa encontró [[raw:abort.extra]] problemas más (por ejemplo, que las manos de entrenamiento y de control podían repetirse). Los resultados del intento abortado no se usaron para nada, y no cuenta como reintento.</p></article>
+    <article><span class="tag">Corrida 1</span><h3>Entrenó casi solo contra redes parecidas</h3>
+      <p>Cerca del [[raw:r1.net_share]]% de sus rivales eran redes parecidas: ella misma, sus copias y redes de la fase 1. Su panel de control también eran solo redes. Aprendió a ganarles a las redes como ella y dejó de mejorar contra las estrategias escritas a mano después de la gen 10. Contra Utilidad adaptativa ganaba solo alrededor del [[raw:r1.vs_au]]%. Según un diagnóstico posterior (no una prueba fijada de antemano), perdía puntos sobre todo en envidos aceptados y al no querer el truco.</p>
+      <p>La lección: la red aprende sobre todo a ganarle a lo que enfrenta. De ahí salió la corrida 2.</p></article>
+    <article><span class="tag">Examen de la corrida 2</span><h3>La temperatura escondía la fuerza de la red</h3>
+      <p>La red jugaba sorteando entre sus acciones con temperatura [[raw:m.T]]. Esa temperatura se había fijado con apenas 34 decisiones de una red de ocho minutos. En el examen final, la misma red (Refuerzo corrida 2 · gen 38) ganaba [[pc0:pt.au.0.05@mean]] contra Utilidad adaptativa con azar, y [[pc0:pt.au.greedy@mean]] <b>sin azar</b>, sin entrenar nada más. Con temperatura [[raw:T.run3_train]] daba [[pc0:pt.au.0.02@mean]].</p>
+      <p>La red ya ordenaba bien las acciones; el sorteo tiraba partidas ganadas. Desde ese examen, la red publicada juega sin azar. A cambio, una persona que juegue muchas veces contra una red sin azar puede aprender a leerla.</p></article>
+    <article><span class="tag">Corrida 2</span><h3>La red no veía su propio tanto</h3>
+      <p>La red recibía el palo y el número de cada carta, y debía reconstruir por sí misma la regla «mismo palo + 20» para saber cuánto vale su envido. Utilidad adaptativa usa el tanto exacto. En la corrida 3 se agregaron [[raw:net.new_cols]] números de entrada, que expresan seis datos de la mano: el tanto propio, si tiene dos cartas del mismo palo, la fuerza de la mano para el truco, la fuerza de las cartas que quedan sin jugar, los puntos en juego (envido y real envido, dos números) y la probabilidad de que su tanto le gane al del rival.</p></article>
+    <article><span class="tag">Corrida 2</span><h3>Un objetivo ruidoso y la tabla de equidad</h3>
+      <p>Cada decisión recibía como objetivo el resultado de toda la partida. Un envido a 0–0 en una partida a 30 puntos casi no cambia quién gana, así que su señal se perdía en el ruido. La pérdida de la corrida 2 dejó de mejorar cerca de [[f2:loss_stuck]] desde la gen [[raw:loss_stuck_gen]].</p>
+      <p>La corrida 3 mezcla [[raw:e.mix_pct]]% del resultado de la partida con [[raw:e.mix_pct]]% de una «equidad»: la probabilidad de ganar la partida según el puntaje después de la mano, para partidas a 15 o 30 y según quién es mano. La tabla sale de <b>[[i:eq.matches]] partidas</b> de la gen 38 contra sí misma, sin azar ([[i:eq.obs]] observaciones). Se la revisó antes de usarla, con partidas aparte: sube con el puntaje propio y predice el ganador mejor que la simple diferencia de puntaje. El error de Brier (el error medio al cuadrado de una probabilidad; más bajo es mejor) fue [[f4:eq.brier_table]] contra [[f4:eq.brier_diff]]. Al empezar 0–0 da cerca de 50% para quien es mano y para quien es pie ([[pc1:eq.mano15]] y [[pc1:eq.pie15]] a 15 puntos).</p></article>
+    <article><span class="tag">Corrida 3 · pilotos</span><h3>Con temperatura 0.05, más de la mitad de las decisiones no era la que la red consideraba mejor</h3>
+      <p>Antes de la corrida de 12 horas se corrió un piloto corto (una prueba de pocos minutos) desde la red de arranque. Con temperatura [[raw:m.T]] el desacuerdo con la acción sin azar fue de [[pc0:pilot.t005.gd]] (la red ganaba [[pc1:pilot.t005.greedy]] contra Utilidad adaptativa; la de arranque, [[pc1:pilot.t005.warm]] en los mismos 300 pares). Con temperatura [[raw:T.run3_train]], el desacuerdo bajó a [[pc0:pilot.t002.gd]] y la red ganó [[pc1:pilot.t002.greedy]]. Se eligió [[raw:T.run3_train]] por el desacuerdo, no por las victorias: con solo 300 pares, los intervalos de los dos pilotos se pisan. Temperaturas más bajas se descartaron porque solo se corrige el valor de la acción efectivamente tomada, y una acción casi nunca elegida no se revisaría jamás.</p>
+      <p>El piloto también fijó el tamaño de la generación: [[f1:pilot.t002.mps]] partidas por segundo medidas daban [[i:r3.matches_per_gen]] partidas para generaciones de unos 7.5 minutos.</p></article>
+    <article><span class="tag">Corrida 2 · aceptación</span><h3>«No concluyente» por [[ppu3:acc.gap_pp]] puntos porcentuales</h3>
+      <p>La gen 38 jugó contra la gen 28 en una prueba única, fijada de antemano: debía ganar con el límite inferior del intervalo estrictamente por encima de 50%. Sacó [[pc2:acc.direct#0]], con intervalo [[pc2:acc.direct#1]]–[[pc2:acc.direct#2]]. El límite inferior quedó [[ppu3:acc.gap_pp]] puntos porcentuales por debajo de 50%: por la regla, <b>no concluyente</b>, y la gen 28 siguió en el juego. En esa misma prueba, contra las dos redes reservadas, la diferencia promedio con la gen 28 fue [[pp1:acc.held#0]] pp (intervalo [[pp1:acc.held#1]] a [[pp1:acc.held#2]]).</p>
+      <p>Esa prueba pregunta algo estrecho (un duelo contra la gen 28) y nunca midió a Utilidad adaptativa, contra la que la gen 28 ganaba apenas [[raw:fm.rl_vs_au]]% de las veces en una comparación anterior entre los cuatro modos de juego ([[f1:r1.eval.g28.au]]% en la evaluación de la corrida 1). Por eso se la reemplazó por un examen final con cinco rivales, que cerró la discusión sin repetir la prueba ni mover umbrales (sección 8).</p></article>
+    <article><span class="tag">Corrida 3 · examen</span><h3>Falló una salvaguarda y se publicó por decisión del usuario</h3>
+      <p>La gen 73 mejoró mucho contra Utilidad adaptativa ([[pp1:e3.gain.C1.AU#0]] pp), pero contra Genético semilla 2 (gen 2) bajó [[pp1:e3.gain.C1.H2#0]] pp (intervalo [[pp1:e3.gain.C1.H2#1]], [[pp1:e3.gain.C1.H2#2]]), más allá del margen de −2. Por la regla, la gen 38 seguía en el juego. Con el examen a la vista, el usuario consideró que en la práctica la gen 73 era mejor red para el juego y decidió publicarla (ADR 0063). Fue una decisión de criterio, no un aprobado de la regla fijada de antemano, y así se informa.</p></article>
+    <article><span class="tag">Corrida 3 · operación</span><h3>Se mudó a otra terminal a mitad de camino</h3>
+      <p>Por pedido del usuario, la corrida 3 se pasó de una ventana de PowerShell a una terminal de Orca justo después del punto de control de la generación [[raw:orca.gen]]. Se retomó con los mismos parámetros por la reanudación determinista (ADR 0042): da exactamente los mismos resultados que si no se hubiera cortado. La pausa fue de unos [[raw:orca.down]] segundos, que no cuentan para el tope de 12 horas. No es un reintento ni un cambio de configuración.</p></article>
+  </div>
+</section>
+
+<!-- ============================================================ 8 -->
+<section id="examenes">
+  <div class="sechead"><span class="k">8 · Exámenes finales</span><h2>Un examen fijo decide qué red se publica</h2></div>
+  <div class="panel">
+    <h3>Los tres criterios, en simple</h3>
+    <p class="sub">Todo se juega en manos de validación (repartos reservados para medir, que nunca se usan para entrenar), con cinco rivales y 1,000 pares espejo por rival, contra una línea base (la red del juego en ese momento). Cada candidata y la línea base juegan las mismas manos.</p>
+    <ul class="clean">
+      <li><b>Principal:</b> contra Utilidad adaptativa, la candidata tiene que ganar más que la línea base. Cuando hay varias candidatas se usa la corrección de Holm, que exige más evidencia para no aprobar a una por suerte.</li>
+      <li><b>Salvaguardas:</b> contra cada uno de los otros cuatro rivales, el extremo inferior del intervalo de la ganancia tiene que quedar por encima de −2 pp. Sirve para detectar si la red solo se especializó en ganarle a su rival de entrenamiento.</li>
+      <li><b>Balance:</b> la ganancia promedio entre los cinco rivales (con el mismo peso) tiene que ser positiva.</li>
+    </ul>
+    <p class="sub">Las candidatas y su orden se fijan antes de jugar; se publica la primera que aprueba. Fuente: ADR 0061.</p>
+  </div>
+
+  <div class="panel">
+    <h3>Corrida 2, paso previo: ¿con o sin azar? (Parte T)</h3>
+    <p class="sub">Refuerzo corrida 2 · gen 38 jugó [[raw:pt.pairs]] pares espejo contra cada rival con tres formas de elegir la acción. Barras: porcentaje de partidas ganadas; línea: intervalo de 95%.</p>
+    <div class="legend"><span><i class="sw c2"></i>Utilidad adaptativa</span><span><i class="sw hol" style="border-color:var(--r2)"></i>Genético publicado (gen 48)</span></div>
+    <div class="chart small">{{chart:partT}}</div>
+    <p>Sin azar ganó en promedio [[pp1:pt.diff_greedy@mean]] pp más que con temperatura [[raw:m.T]] (intervalo [[pp1:pt.diff_greedy@lower]] a [[pp1:pt.diff_greedy@upper]]). Superó por mucho el umbral fijado de 2 pp, por eso en el examen las candidatas jugaron sin azar. La línea base siguió con su temperatura de siempre.</p>
+    <span class="src">fuente: experiments/phase2-final-exam/part-t/results.json</span>
+  </div>
+
+  <div class="panel">
+    <h3>Corrida 2: el examen (Parte E)</h3>
+    <p class="sub">Línea base: Refuerzo corrida 1 · gen 28, con su temperatura de siempre. Candidatas: Refuerzo corrida 2 · gen 38 (primera en el orden) y gen 49, ambas sin azar. Punto lleno: gen 38; punto hueco: gen 49. Las dos eran candidatas nombradas después de ver sus controles de desarrollo; con partidas nuevas el examen sigue siendo imparcial para esas dos.</p>
+    <div class="chart">{{chart:forest2}}</div>
+    {{chart:tbl2}}
+    <p>Las dos aprobaron los tres criterios y se publicó la gen 38. <b>Cuidado con qué prueba esto:</b> el examen mezcla dos cambios, el entrenamiento de la corrida 2 y jugar sin azar (la gen 28 jugó con azar), y no separa cuánto aporta cada uno. Una medición posterior con las dos sin azar (sección 9) sugiere que pesan los dos: contra Utilidad adaptativa la gen 38 sacó [[pc1:avs.pairs@phase2_run2_g38|adaptive_utility#0]] y la gen 28 [[pc1:avs.pairs@phase2_run1_g28|adaptive_utility#0]], pero en el duelo directo quedaron parejas ([[pc1:avs.pairs@phase2_run2_g38|phase2_run1_g28#0]]). Los resultados contra Utilidad adaptativa y Reactivo son contra rivales conocidos; Genético publicado y las dos semillas nunca entraron en el entrenamiento de la corrida 2.</p>
+    <span class="src">fuente: experiments/phase2-final-exam/part-e/ (results.json, partial.jsonl)</span>
+  </div>
+
+  <div class="panel">
+    <h3>Corrida 3: examen</h3>
+    <p class="sub">Línea base: Refuerzo corrida 2 · gen 38, sin azar. Candidatas: Refuerzo corrida 3 · gen 73 (la campeona de la corrida, punto lleno) y gen 100 (la última generación controlada, punto hueco). Todos sin azar. La línea de trazos marca el límite de −2 pp de las salvaguardas.</p>
+    <div class="chart">{{chart:forest3}}</div>
+    {{chart:tbl3}}
+    <div class="legend" style="margin-top:12px">Resultado de la regla: gen 73 {{pill:e3.C1}} gen 100 {{pill:e3.C2}}</div>
+    <p>Las dos aprobaron el criterio principal y el balance (ganancia promedio de [[pp1:e3.balance.C1]] y [[pp1:e3.balance.C2]] pp), pero <b>las dos fallaron salvaguardas</b>. La gen 73 falló una: contra Genético semilla 2 (gen 2). La gen 100 falló dos: contra Genético semilla 2 y, por poco, contra Genético semilla 1 (límite inferior [[pp1:e3.gain.C2.H1#1]] pp). Por la regla, la gen 38 seguía en el juego; el usuario decidió publicar la gen 73 (sección 10). Contra Reactivo, Genético publicado y Genético semilla 1 la gen 73 quedó sin diferencia clara con la gen 38 (los intervalos incluyen el 0).</p>
+    <span class="src">fuente: experiments/phase2-run3-exam/part-e/ (results.json, partial.jsonl)</span>
+  </div>
+</section>
+
+<!-- ============================================================ 9 -->
+<section id="todos">
+  <div class="sechead"><span class="k">9 · Todos contra todos</span><h2>Ocho participantes, 28 enfrentamientos</h2></div>
+  <p>Una comparación descriptiva, fijada antes de jugar: cada par de participantes juega [[i:avs.pairs_each]] pares espejo (2,000 partidas, mitad a 15 y mitad a 30 puntos). <b>Todas las redes de refuerzo juegan sin azar.</b> Las corridas 1 y 2 originalmente jugaban con azar, así que sus números acá son más altos que los de su época: por ejemplo, la gen 28 sacaba [[f1:r1.eval.g28.au]]% contra Utilidad adaptativa con azar y [[pc1:avs.pairs@phase2_run1_g28|adaptive_utility#0]] sin azar.</p>
+  <div class="panel">
+    <h3>Porcentaje de partidas que gana la fila contra la columna</h3>
+    <p class="sub">En las columnas, «C1 · 28» significa Refuerzo corrida 1 · gen 28, y así con las demás.</p>
+    {{chart:avs}}
+    <span class="src">fuente: experiments/all-vs-all/output/results.json (analysis.pairs; 28,000 pares). Intervalos de 95% sin ajuste por comparaciones múltiples.</span>
+  </div>
+  <div class="panel">
+    <h3>Ranking</h3>
+    <p class="sub">Media: promedio con el mismo peso del porcentaje que gana contra los otros siete. Puntaje tipo Elo: el mismo tipo de puntaje del ajedrez, ajustado con todas las partidas y centrado en 0; 100 puntos de diferencia equivalen a ganar cerca del 64% de las partidas. El puntaje supone que la fuerza se ordena en una sola línea, lo cual no siempre pasa en el Truco; es solo descriptivo.</p>
+    {{chart:rank}}
+    <span class="src">fuente: experiments/all-vs-all/output/results.json (analysis.agents)</span>
+  </div>
+  <div class="note"><p><b>El duelo directo.</b> Refuerzo corrida 3 · gen 73 le ganó a Refuerzo corrida 2 · gen 38 el <b>[[pc1:avs.pairs@phase2_run3_g73|phase2_run2_g38#0]]</b> de las partidas (intervalo de 95%: [[pc1:avs.pairs@phase2_run3_g73|phase2_run2_g38#1]]–[[pc1:avs.pairs@phase2_run3_g73|phase2_run2_g38#2]]) y tuvo la mejor media contra los otros siete: [[pc1:avs.rank@phase2_run3_g73#0]]. Publicar la gen 73 dependía de que no perdiera ese duelo.</p></div>
+</section>
+
+<!-- ============================================================ 10 -->
+<section id="juego">
+  <div class="sechead"><span class="k">10 · Qué está en el juego</span><h2>Refuerzo corrida 3 · gen 73, y sus límites</h2></div>
+  <div class="cols">
+    <div>
+      <h3>Qué se publicó</h3>
+      <ul class="clean">
+        <li>La red de la gen 73 de la corrida 3, <b>sin azar</b>, con [[i:net.in_r3]] entradas y el perfil del rival configurado igual que al entrenar (ADR 0063).</li>
+        <li>Contra Utilidad adaptativa (rival conocido) gana [[pc1:e3.wr.C1.AU]] (examen) y [[pc1:avs.pairs@phase2_run3_g73|adaptive_utility#0]] (todos contra todos).</li>
+        <li>Contra Reactivo gana [[pc1:e3.wr.C1.R]]; contra Genético publicado, [[pc1:e3.wr.C1.P1]].</li>
+        <li>Gana [[pc1:avs.pairs@phase2_run3_g73|phase2_run2_g38#0]] de los duelos contra la red que reemplazó.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Límites, sin adornos</h3>
+      <ul class="clean">
+        <li>Falló una salvaguarda: contra Genético semilla 2 (gen 2) bajó [[pp1:e3.gain.C1.H2#0]] pp ([[pc1:e3.wr.B.H2]] → [[pc1:e3.wr.C1.H2]]). Sigue ganando casi todo, pero es una pérdida clara.</li>
+        <li>La decisión de publicarla se tomó después de ver el examen. Es un criterio del usuario, no un aprobado de la regla.</li>
+        <li>Utilidad adaptativa y Reactivo son rivales conocidos: la red entrenó contra ellos. La mejora contra Utilidad adaptativa puede ser en parte especialización.</li>
+        <li>Utilidad adaptativa juega siempre igual aquí; un rival que se adapta sería otra prueba.</li>
+        <li>Sin azar, la red es predecible: quien juegue muchas veces contra ella puede aprender a leerla.</li>
+        <li>No hay todavía partidas contra personas. Todo se midió contra programas.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 11 -->
+<section id="proximos">
+  <div class="sechead"><span class="k">11 · Próximos pasos</span><h2>Ideas para la corrida 4</h2></div>
+  <p>Son ideas, no decisiones. Salen de lo que mostraron las corridas 1 a 3.</p>
+  <div class="cols">
+    <div class="panel"><h3>Una liga más variada</h3><p>Sumar rivales raros y débiles al entrenamiento, incluidos estilos como el de Genético semilla 2 (gen 2). Hoy esas redes están reservadas para el examen; habría que conseguir otros rivales parecidos para seguir teniendo una medida sin contaminar.</p></div>
+    <div class="panel"><h3>Diagnosticar la pérdida frente al rival raro</h3><p>La corrida 3 cambió varias cosas a la vez (entradas, objetivo, temperatura, tamaño del control), así que no se sabe cuál causó la pérdida. Hay que mirar qué decisiones cambian contra esa red, antes de gastar otra noche.</p></div>
+    <div class="panel"><h3>Un cambio por vez</h3><p>Cambiar una sola cosa por corrida, con el mismo presupuesto y con el examen final fijo, para poder atribuir cada resultado. Repetir con otras semillas para saber cuánto varía una corrida respecto de sí misma.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 12 -->
+<section id="leer">
+  <div class="sechead"><span class="k">12 · Cómo leer los números</span><h2>Seis ideas para no malinterpretar nada</h2></div>
+  <div class="find">
+    <article><h3>Par espejo</h3><p>Cada reparto se juega dos veces con las mismas cartas: una vez la red recibe las cartas de un asiento y la otra vez las del otro. Así la suerte de repartir cartas se cancela. Cada par vale 0, medio o 1 punto, y los intervalos se calculan sobre los pares.</p></article>
+    <article><h3>Intervalo de 95%</h3><p>Es el rango donde probablemente cae el valor real si se repitiera la medición con otras manos. Si dos intervalos no se pisan, la diferencia es clara. Si uno cruza el 50% (o el 0 en una ganancia), no se puede afirmar quién es mejor. Los intervalos de este informe no están corregidos para muchas comparaciones a la vez.</p></article>
+    <article><h3>Rivales conocidos y desconocidos</h3><p>Reactivo y Utilidad adaptativa entrenaron junto a las corridas 2 y 3; ganarles muestra que aprendió a jugar contra ellos, no que juegue bien contra cualquiera. Genético publicado y las dos semillas nunca entraron en el entrenamiento ni en la selección de las corridas 2 y 3, y por eso pueden revelar especialización (Genético publicado sí estuvo al principio en el panel de la corrida 1). Son solo tres redes de la fase 1, así que es un control limitado.</p></article>
+    <article><h3>Pocos pares o muchos</h3><p>Los controles durante el entrenamiento usan [[raw:r1.pairs_member]] (corridas 1 y 2) o [[raw:r3.pairs_member]] (corrida 3) pares por rival; los exámenes y el todos contra todos usan 1,000. Menos pares, intervalos más anchos.</p></article>
+    <article><h3>Por qué los números internos no se comparan con los del examen</h3><p>El control interno compara una generación con la campeona de ese momento, en un panel propio de cada corrida, con otro tamaño y a veces con azar. El examen usa otros rivales, otras manos y todas las redes sin azar. Por eso una ganancia de 5 pp en un control no equivale a 5 pp en el examen.</p></article>
+    <article><h3>Los nombres de las redes de la fase 1</h3><p>«Genético» siempre designa a la fase 1 (algoritmos genéticos), y «Refuerzo» a la fase 2, con la corrida y la generación.</p></article>
+  </div>
+</section>
+
+<!-- ============================================================ color -->
+<section id="color">
+  <div class="sechead"><span class="k">Extra</span><h2>Cifras sueltas del proyecto</h2></div>
+  <div class="panel">
+    <dl class="facts">
+      <div><dt>Partidas de entrenamiento</dt><dd>[[mil:r1.matches]] M · [[mil:r2.matches]] M · [[mil:r3.matches]] M<small>corridas 1, 2 y 3 (aprox., en millones)</small></dd></div>
+      <div><dt>Total de partidas</dt><dd>[[i:tot.matches]]<small>sumando las tres corridas</small></dd></div>
+      <div><dt>Horas de entrenamiento</dt><dd>[[f0:tot.hours]] h<small>12 h por corrida</small></dd></div>
+      <div><dt>Muestras de aprendizaje</dt><dd>[[i:tot.samples]]<small>decisiones con su resultado, todas las corridas</small></dd></div>
+      <div><dt>Tamaño de la red</dt><dd>[[i:net.params_r3]] pesos<small>[[i:net.in_r3]] entradas · [[raw:net.h1]] · [[raw:net.h2]] · [[raw:net.out]] salidas</small></dd></div>
+      <div><dt>Tabla de equidad</dt><dd>[[i:eq.matches]] partidas<small>[[i:eq.obs]] observaciones de autojuego</small></dd></div>
+      <div><dt>Aceleración de la optimización</dt><dd>[[f1:speed.e2e_x]]× entrenando, [[f1:speed.actor_x]]× en las rondas de partidas<small>control de generación: [[f1:speed.check_x]]×</small></dd></div>
+      <div><dt>Promociones</dt><dd>[[raw:r1.n_promoted]] · [[raw:r2.n_promoted]] · [[raw:r3.n_promoted]]<small>corridas 1, 2 y 3</small></dd></div>
+      <div><dt>Actualizaciones de la red</dt><dd>[[i:r3.updates]]<small>solo la corrida 3 (aprox. [[mil:r3.updates]] M)</small></dd></div>
+      <div><dt>Partidas por generación</dt><dd>[[i:r1.matches_per_gen]] → [[i:r3.matches_per_gen]]<small>de la corrida 1 a la 3</small></dd></div>
+      <div><dt>Prueba dorada de la optimización</dt><dd>[[raw:speed.golden_gens]] × [[raw:speed.golden_matches]] partidas<small>idénticas bit a bit en 1 y 12 trabajadores</small></dd></div>
+      <div><dt>Pruebas del proyecto</dt><dd>[[raw:speed.tests]]<small>pasan con el código final</small></dd></div>
+    </dl>
+  </div>
+</section>
+<footer>Informe generado a partir de los archivos del repositorio y del archivo de entrenamiento. Los valores y su fuente están en <code>data.json</code>; <code>verify.py</code> los vuelve a calcular desde los archivos de origen y comprueba que coincidan con esta página.</footer>
+</div>

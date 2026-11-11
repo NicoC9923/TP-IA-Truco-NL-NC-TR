@@ -1,0 +1,1674 @@
+<title>Fase 2 · aprendizaje por refuerzo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one calm reading column (max 1080px) with a contents strip; sections are flat bands separated by hairlines,
+   charts and tables sit on white "panels"; run identity = fixed categorical colour (run 1 blue, run 2 orange, run 3 aqua). */
+:root{
+  --bg:#f3f5f8; --panel:#ffffff; --ink:#111821; --ink2:#47515e; --muted:#667180;
+  --line:#dbe0e7; --grid:#e8ecf1; --axis:#c3cad4; --soft:#eaeef3;
+  --r1:#2a78d6; --r2:#eb6834; --r3:#1baf7a;
+  --r1t:#1c5cab; --r2t:#b5441b; --r3t:#0f7a55;
+  --off:#c9d0da;
+  --dv-hi:#2a78d6; --dv-lo:#e34948; --dv-mid:#eef1f5;
+  --good:#006300; --bad:#b32d2d; --goodbg:#e3f2e3; --badbg:#fbe6e6;
+  --note:#eef3fa; --noteline:#b9cde8;
+  --font:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1318; --panel:#171c23; --ink:#e8ecf1; --ink2:#b4bcc7; --muted:#8d97a4;
+  --line:#2a313b; --grid:#232a33; --axis:#3a424d; --soft:#1e252d;
+  --r1:#3987e5; --r2:#d95926; --r3:#199e70;
+  --r1t:#7db3f2; --r2t:#f09a78; --r3t:#58cfa2;
+  --off:#3a424d;
+  --dv-hi:#3987e5; --dv-lo:#e66767; --dv-mid:#2b323b;
+  --good:#5fd35f; --bad:#f08a8a; --goodbg:#16301a; --badbg:#3a1c1c;
+  --note:#18222f; --noteline:#2f4560;
+  color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0f1318; --panel:#171c23; --ink:#e8ecf1; --ink2:#b4bcc7; --muted:#8d97a4;
+  --line:#2a313b; --grid:#232a33; --axis:#3a424d; --soft:#1e252d;
+  --r1:#3987e5; --r2:#d95926; --r3:#199e70;
+  --r1t:#7db3f2; --r2t:#f09a78; --r3t:#58cfa2;
+  --off:#3a424d;
+  --dv-hi:#3987e5; --dv-lo:#e66767; --dv-mid:#2b323b;
+  --good:#5fd35f; --bad:#f08a8a; --goodbg:#16301a; --badbg:#3a1c1c;
+  --note:#18222f; --noteline:#2f4560;
+  color-scheme:dark;}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.6 var(--font);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:1080px;margin:0 auto;padding-block:32px 72px}
+h1,h2,h3,h4{font-family:var(--font);text-wrap:balance;line-height:1.2;margin:0;color:var(--ink)}
+h1{font-size:clamp(1.9rem,4.6vw,2.7rem);font-weight:600;letter-spacing:-.02em}
+h2{font-size:clamp(1.35rem,2.6vw,1.75rem);font-weight:600;letter-spacing:-.01em}
+h3{font-size:1.06rem;font-weight:600}
+h4{font-size:.95rem;font-weight:600;color:var(--ink2)}
+p{margin:0 0 .9em;max-width:70ch}
+a{color:inherit}
+code,.mono{font-family:var(--mono);font-size:.88em}
+.num{font-variant-numeric:tabular-nums}
+header.top{padding-block:8px 28px;border-bottom:1px solid var(--line)}
+.eyebrow{font:500 .76rem/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+.lede{font-size:1.1rem;color:var(--ink2);max-width:62ch;margin:14px 0 0}
+nav.toc{display:flex;flex-wrap:wrap;gap:6px 6px;margin-top:22px;padding:0;list-style:none}
+nav.toc a{display:inline-block;padding:5px 11px;border:1px solid var(--line);border-radius:6px;background:var(--panel);
+  font-size:.84rem;text-decoration:none;color:var(--ink2)}
+nav.toc a:hover,nav.toc a:focus-visible{border-color:var(--ink2);color:var(--ink);outline:none}
+nav.toc a:focus-visible{outline:2px solid var(--ink2);outline-offset:1px}
+section{padding-block:44px 8px;border-bottom:1px solid var(--line)}
+section:last-of-type{border-bottom:0}
+.sechead{display:flex;flex-direction:column;gap:6px;margin-bottom:20px}
+.sechead .k{font:500 .76rem/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:0 0 22px}
+.panel>h3,.panel>h4{margin-bottom:4px}
+.sub{font-size:.88rem;color:var(--muted);margin:0 0 12px;max-width:80ch}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
+.cols>*{min-width:0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:12px;margin:0 0 22px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.tile .v{font:600 1.7rem/1.1 var(--font);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.tile .l{font-size:.84rem;color:var(--ink2);margin-top:6px}
+.tile .s{font-size:.76rem;color:var(--muted);margin-top:4px}
+.tile.big{grid-column:span 2}
+@media (max-width:480px){.tile.big{grid-column:auto}}
+.runs{display:grid;gap:10px;margin:0 0 22px}
+.runrow{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:start;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 16px}
+.dot{width:12px;height:12px;border-radius:50%;margin-top:6px;display:inline-block}
+.d1{background:var(--r1)}.d2{background:var(--r2)}.d3{background:var(--r3)}
+.t1{color:var(--r1t)}.t2{color:var(--r2t)}.t3{color:var(--r3t)}
+.runrow p{margin:0;max-width:none;font-size:.95rem}
+.runrow b{font-weight:600}
+.note{background:var(--note);border:1px solid var(--noteline);border-radius:8px;padding:12px 16px;margin:0 0 22px;font-size:.93rem;max-width:80ch}
+.note p:last-child{margin-bottom:0}
+.note b{font-weight:600}
+.src{display:block;font:400 .74rem/1.4 var(--mono);color:var(--muted);margin-top:8px;overflow-wrap:anywhere}
+.term{border-bottom:1px dotted var(--muted)}
+.tw{overflow-x:auto;margin:0 0 6px;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{padding:8px 10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+th{font-weight:600;font-size:.82rem;color:var(--ink2);background:transparent;white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+table.cmp td:first-child,table.cmp th:first-child{font-weight:600;color:var(--ink2);min-width:150px}
+table.cmp th.c1{color:var(--r1t)}table.cmp th.c2{color:var(--r2t)}table.cmp th.c3{color:var(--r3t)}
+table.cmp td{min-width:170px}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;font-size:.78rem;font-weight:500;white-space:nowrap}
+.pill.ok{background:var(--goodbg);color:var(--good)}
+.pill.no{background:var(--badbg);color:var(--bad)}
+.pill svg{width:12px;height:12px}
+.chart{overflow-x:auto;margin:0 0 6px}
+.chart svg{display:block;width:100%;height:auto;min-width:520px}
+.chart.small svg{min-width:0}
+svg text{font-family:var(--font);fill:var(--muted);font-size:11px}
+svg .tk{font-size:11px}
+svg .lab{fill:var(--ink2);font-size:11.5px}
+svg .labb{fill:var(--ink);font-size:11.5px;font-weight:600}
+svg .grid{stroke:var(--grid);stroke-width:1;fill:none}
+svg .ax{stroke:var(--axis);stroke-width:1;fill:none}
+svg .zero{stroke:var(--ink2);stroke-width:1;fill:none}
+svg .ref{stroke:var(--muted);stroke-width:1;stroke-dasharray:4 3;fill:none}
+svg .wh{stroke:var(--muted);stroke-width:1;fill:none}
+svg .off{fill:var(--off)}
+svg .whp{stroke-width:1.4;fill:none}
+svg .ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+svg .c1{stroke:var(--r1);fill:var(--r1)}svg .c2{stroke:var(--r2);fill:var(--r2)}svg .c3{stroke:var(--r3);fill:var(--r3)}
+svg .ln.c1,svg .ln.c2,svg .ln.c3{fill:none}
+svg .hol{fill:var(--panel)}
+svg text.c1{fill:var(--r1t);stroke:none}svg text.c2{fill:var(--r2t);stroke:none}svg text.c3{fill:var(--r3t);stroke:none}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.84rem;color:var(--ink2);margin:6px 0 8px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.sw.c1{background:var(--r1)}.sw.c2{background:var(--r2)}.sw.c3{background:var(--r3)}.sw.off{background:var(--off)}
+.sw.hol{background:var(--panel);border:2px solid var(--ink2)}
+.sw.sol{background:var(--ink2)}
+.evo{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.evo{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.evo figure{margin:0;border:1px solid var(--line);border-radius:6px;padding:8px 8px 4px;background:var(--panel);min-width:0}
+.evo figcaption{font-size:.8rem;font-weight:600;color:var(--ink2);margin-bottom:2px}
+.evo svg{width:100%;height:auto;display:block}
+.hm td,.hm th{padding:0;border:0}
+table.hm{border-collapse:separate;border-spacing:2px;font-size:.78rem;width:auto;min-width:100%}
+.hm th{font-size:.74rem;font-weight:500;color:var(--ink2);padding:4px 6px;white-space:normal;vertical-align:bottom;text-align:center;line-height:1.25;min-width:64px}
+.hm th.rl{text-align:right;white-space:nowrap;vertical-align:middle;padding-right:8px;font-size:.8rem;color:var(--ink)}
+.hm td{width:64px;height:40px;text-align:center;vertical-align:middle;font-variant-numeric:tabular-nums;border-radius:3px;color:var(--ink);
+  background:color-mix(in oklab,var(--dv-hi) calc(var(--hi,0)*62%),color-mix(in oklab,var(--dv-lo) calc(var(--lo,0)*62%),var(--dv-mid)))}
+.hm td.self{background:transparent;color:var(--muted)}
+.scale{display:flex;align-items:center;gap:8px;font-size:.78rem;color:var(--muted);margin-top:8px}
+.scale i{display:block;width:160px;height:10px;border-radius:3px;background:linear-gradient(90deg,color-mix(in oklab,var(--dv-lo) 62%,var(--dv-mid)),var(--dv-mid),color-mix(in oklab,var(--dv-hi) 62%,var(--dv-mid)))}
+.bar{display:inline-block;height:9px;border-radius:2px;background:var(--r3);vertical-align:middle}
+.barcell{min-width:140px}
+.barcell .bar{margin-right:8px}
+dl.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:10px 22px;margin:0}
+dl.facts>div{border-top:1px solid var(--line);padding-top:8px;min-width:0}
+dl.facts dt{font-size:.82rem;color:var(--ink2)}
+dl.facts dd{margin:2px 0 0;font:600 1.15rem/1.3 var(--font);font-variant-numeric:tabular-nums}
+dl.facts dd small{font-weight:400;font-size:.78rem;color:var(--muted);display:block}
+.find{display:grid;gap:14px;margin:0 0 20px}
+.find article{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 18px;min-width:0}
+.find h3{margin-bottom:6px}
+.find p{margin:0 0 .6em;max-width:75ch;font-size:.95rem}
+.find p:last-child{margin-bottom:0}
+.tag{font:500 .7rem/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+ul.clean{margin:0 0 1em;padding-left:1.2em;max-width:72ch}
+ul.clean li{margin-bottom:.4em}
+details{margin:6px 0 0}
+summary{cursor:pointer;font-size:.86rem;color:var(--ink2)}
+summary:focus-visible{outline:2px solid var(--ink2);outline-offset:2px}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;margin:0 0 18px}
+.steps div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:.9rem;min-width:0}
+.steps b{display:block;font-weight:600;margin-bottom:3px}
+footer{padding-top:28px;font-size:.82rem;color:var(--muted)}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+
+</style>
+<div class="wrap">
+<header class="top">
+  <p class="eyebrow">Truco · Fase 2 · informe de resultados</p>
+  <h1>Fase 2: una red que aprende jugando al Truco</h1>
+  <p class="lede">Tres corridas de entrenamiento por refuerzo, qué cambió entre ellas, cómo se midieron y qué red quedó en el juego. Cada número sale de un archivo del proyecto.</p>
+  <nav class="toc" aria-label="Contenido"><a href="#resumen">1 Resumen</a><a href="#fase2">2 De qué se trata</a><a href="#participantes">3 Participantes</a><a href="#cambios">4 Qué cambió</a><a href="#avance">5 Cómo avanzó cada corrida</a><a href="#velocidad">6 Velocidad</a><a href="#problemas">7 Descubrimientos</a><a href="#examenes">8 Exámenes finales</a><a href="#todos">9 Todos contra todos</a><a href="#juego">10 Qué está en el juego</a><a href="#proximos">11 Próximos pasos</a><a href="#leer">12 Cómo leer los números</a><a href="#color">Cifras sueltas</a></nav>
+</header>
+
+<!-- ============================================================ 1 -->
+<section id="resumen">
+  <div class="sechead"><span class="k">1 · Resumen</span><h2>Lo que hay que saber en una pantalla</h2></div>
+  <p>En el juego juega hoy <b>Refuerzo corrida 3 · gen 73</b>: la mejor red de la tercera corrida, elegida por decisión del usuario (ADR 0063). Gana el <b>65.5%</b> de las partidas directas contra la red que estaba antes (Refuerzo corrida 2 · gen 38) y el <b>85.8%</b> contra Utilidad adaptativa, la estrategia escrita a mano más fuerte del juego (y uno de sus rivales de entrenamiento). Antes de ella estuvo la gen 38 de la corrida 2, y antes la gen 28 de la corrida 1.</p>
+  <div class="tiles">
+    <div class="tile"><div class="v">18.0 M</div><div class="l">partidas jugadas para entrenar</div><div class="s">18,022,080 en las tres corridas</div></div>
+    <div class="tile"><div class="v">36 h</div><div class="l">de entrenamiento</div><div class="s">12 h por corrida (tope de tiempo)</div></div>
+    <div class="tile"><div class="v">289 / s</div><div class="l">partidas por segundo en la corrida 3</div><div class="s">corrida 1: 63 / s · corrida 2: 65 / s</div></div>
+    <div class="tile"><div class="v">86.9%</div><div class="l">gen 73 contra Utilidad adaptativa</div><div class="s">todos contra todos, 1,000 pares espejo</div></div>
+  </div>
+  <h3 style="margin-bottom:10px">Una línea por corrida</h3>
+  <div class="runs">
+    <div class="runrow"><span class="dot d1"></span><p><b class="t1">Corrida 1.</b> Empezó de cero y entrenó casi solo contra redes parecidas a ella. Mejoró rápido al principio, se estancó contra Utilidad adaptativa y se quedó con la gen 28. Contra Utilidad adaptativa ganaba solo 34.6% de las partidas, medido jugando como jugaba entonces (con azar).</p></div>
+    <div class="runrow"><span class="dot d2"></span><p><b class="t2">Corrida 2.</b> Sumó a Reactivo y a Utilidad adaptativa como rivales de entrenamiento. Su gen 38, jugando con azar, ganó 51.85% de los duelos contra la gen 28: no alcanzó para concluir. En el examen final, la gen 38 sin azar superó a la gen 28 con azar contra los cinco rivales (71.5% contra 34.6% frente a Utilidad adaptativa) y pasó a ser la red del juego.</p></div>
+    <div class="runrow"><span class="dot d3"></span><p><b class="t3">Corrida 3.</b> Arrancó desde la gen 38, con datos nuevos de cada mano, un objetivo menos ruidoso y evaluación sin azar. Entrenó 12,487,920 partidas, a una velocidad media 4.6 veces la de la corrida 1. Subió contra Utilidad adaptativa de 72.2% a 85.8%, pero perdió algo contra Genético semilla 2, una red débil y rara que nunca vio al entrenar.</p></div>
+  </div>
+  <div class="note"><p><b>Qué no dice este informe.</b> Las cifras describen estos rivales y estos protocolos; no prueban que la red sea fuerte contra cualquier jugador, incluidas las personas. Contra Reactivo y Utilidad adaptativa las redes entrenaron, así que esos resultados son contra rivales conocidos.</p></div>
+</section>
+
+<!-- ============================================================ 2 -->
+<section id="fase2">
+  <div class="sechead"><span class="k">2 · De qué se trata la fase 2</span><h2>Aprender de los resultados, no copiar jugadas</h2></div>
+  <div class="cols">
+    <div>
+      <h3>Aprendizaje por refuerzo, en palabras simples</h3>
+      <p>La red juega partidas completas contra distintos rivales. Nadie le dice qué jugada era buena. Solo se entera al final si <b>ganó (+1)</b> o <b>perdió (−1)</b>. Con ese resultado corrige la estimación que había hecho de cada decisión de esa partida: si cantó envido y terminó ganando, el envido sube un poco; si perdió, baja. Repetido millones de veces, las estimaciones mejoran.</p>
+      <p>Este método se llama Monte Carlo profundo: es el enfoque de DouZero, un programa publicado que aprendió así un juego de cartas. Para elegir, la red pasa sus estimaciones por una regla de azar con una «temperatura»: temperatura alta es jugar más al azar, temperatura baja es elegir casi siempre la mejor. «Sin azar» (en inglés <i>greedy</i>) elige siempre la de mayor valor.</p>
+    </div>
+    <div>
+      <h3>Diferencia con los algoritmos genéticos (fase 1)</h3>
+      <p>En la fase 1 una población de redes se copia con pequeños cambios al azar y se conservan las que ganan más. No hay una corrección por cada decisión: se prueba, se mide y se queda lo que funciona.</p>
+      <p>En la fase 2 una sola red aprende por gradiente: después de cada tanda de partidas ajusta sus pesos (los números internos de la red) en la dirección que reduce el error de su estimación. Saca más información de cada partida, pero necesita rivales variados, porque aprende sobre todo a ganarle a lo que ve.</p>
+    </div>
+  </div>
+  <div class="steps">
+    <div><b>1 · Jugar</b>La red juega partidas contra su liga de rivales.</div>
+    <div><b>2 · Anotar</b>Cada decisión suya queda guardada con el resultado final.</div>
+    <div><b>3 · Corregir</b>Ajusta sus pesos para acercar su estimación al resultado.</div>
+    <div><b>4 · Medir</b>Cada generación se compara con la campeona; solo sube si mejora de forma clara.</div>
+  </div>
+  <div class="panel">
+    <h3>La red</h3>
+    <p class="sub">Una sola red. No recuerda las manos anteriores, salvo por un perfil del rival: un resumen de cómo viene jugando ese rival.</p>
+    <div class="tw"><table class="cmp">
+      <thead><tr><th>Parte</th><th>Qué es</th></tr></thead>
+      <tbody>
+      <tr><td>Entradas</td><td><span class="num">1,628</span> números en las corridas 1 y 2; <span class="num">1,635</span> en la corrida 3 (se sumaron 7 números: seis datos explícitos de la mano, uno de ellos con dos números). Incluyen las cartas propias, qué acciones están permitidas (12 casillas de sí o no), hasta 24 hechos ordenados de la mano actual, creencias sobre las cartas del rival y un perfil de cómo juega ese rival.</td></tr>
+      <tr><td>Capas</td><td><span class="num">256</span> neuronas, luego <span class="num">128</span>, luego una salida de <span class="num">12</span> valores, uno por acción posible (cantar, aceptar, tirar una carta, irse al mazo…).</td></tr>
+      <tr><td>Tamaño</td><td>aprox. 450 mil pesos: <span class="num">451,468</span> con 1,628 entradas y <span class="num">453,260</span> con 1,635 (contados sobre los pesos guardados). El diseño original hablaba de «unos 470,000»; es una estimación previa.</td></tr>
+      <tr><td>Qué aprende</td><td>El valor esperado de cada acción: +1 si de esa decisión salía la victoria, −1 si salía la derrota. En la corrida 3 el objetivo mezcla ese resultado con una estimación de las chances después de cada mano (sección 7).</td></tr>
+      </tbody></table></div>
+    <span class="src">fuente: champions/phase2-run3/reigning_champion.pt (formas de las matrices), docs/adr/0040, 0062</span>
+  </div>
+</section>
+
+<!-- ============================================================ 3 -->
+<section id="participantes">
+  <div class="sechead"><span class="k">3 · Participantes</span><h2>Quién juega contra quién</h2></div>
+  <p>En todo el informe se usan siempre estos nombres.</p>
+  <div class="panel"><div class="tw"><table>
+    <thead><tr><th>Nombre</th><th>Qué es</th></tr></thead>
+    <tbody>
+    <tr><td><b>Reactivo</b></td><td>Estrategia escrita a mano, sencilla: responde a lo que ve en la mesa.</td></tr>
+    <tr><td><b>Utilidad adaptativa</b></td><td>Estrategia escrita a mano, la más fuerte del juego. Calcula el valor de cada jugada con su cuenta exacta de tantos. En estas pruebas juega siempre igual (no se adapta durante la partida, ADR 0059).</td></tr>
+    <tr><td><b>Genético publicado (gen 48)</b></td><td>La red de la fase 1 que estaba publicada en el juego, generación 48. Formó parte del panel de control de la corrida 1 hasta la gen 13; nunca entró en el entrenamiento ni en la selección de las corridas 2 y 3.</td></tr>
+    <tr><td><b>Genético semilla 1 (gen 23)</b></td><td>Otra red de la fase 1, generación 23. Reservada: jamás entró en un entrenamiento ni en una selección.</td></tr>
+    <tr><td><b>Genético semilla 2 (gen 2)</b></td><td>Red de la fase 1 casi sin entrenar (generación 2). También reservada. Juega de forma rara y débil, y por eso sirve para detectar si una red perdió juego general.</td></tr>
+    <tr><td><b class="t1">Refuerzo corrida 1 · gen N</b></td><td>Redes de la primera corrida. La gen 28 fue la campeona de esa corrida.</td></tr>
+    <tr><td><b class="t2">Refuerzo corrida 2 · gen N</b></td><td>Redes de la segunda corrida. La gen 38 fue su campeona y estuvo en el juego.</td></tr>
+    <tr><td><b class="t3">Refuerzo corrida 3 · gen N</b></td><td>Redes de la tercera corrida. <b>La gen 73 es la que está en el juego ahora.</b></td></tr>
+    </tbody></table></div>
+    <span class="src">fuente: docs/adr/0057, 0060, 0061, 0063, experiments/phase2-run1/README.md</span></div>
+</section>
+
+<!-- ============================================================ 4 -->
+<section id="cambios">
+  <div class="sechead"><span class="k">4 · Qué cambió entre corridas</span><h2>Tres corridas, un problema nuevo cada vez</h2></div>
+  <div class="panel"><div class="tw"><table class="cmp">
+    <thead><tr><th></th><th class="c1">Corrida 1</th><th class="c2">Corrida 2</th><th class="c3">Corrida 3</th></tr></thead>
+    <tbody>
+    <tr><td>Punto de partida</td><td>Red nueva</td><td>Red nueva</td><td>Arranca de Refuerzo corrida 2 · gen 38. Los 7 números nuevos empiezan con peso cero, así que al principio juega igual que la gen 38</td></tr>
+    <tr><td>Rivales de entrenamiento</td><td>50% ella misma · 30% copias congeladas (unos 10 puntos de redes de la fase 1) · 20% estilos (bluff, cauta, agresiva, calculadora)</td><td>30% ella misma · 20% copias · 10% fase 1 · 5% × 4 estilos · 10% Reactivo · 10% Utilidad adaptativa</td><td>Los mismos porcentajes que la corrida 2. Como cada generación tiene el doble de partidas, las copias congeladas de sí misma son más viejas y variadas</td></tr>
+    <tr><td>Entradas</td><td class="n">1,628</td><td class="n">1,628</td><td class="n">1,635 (+7 números)</td></tr>
+    <tr><td>Objetivo</td><td>Resultado de la partida (+1/−1)</td><td>Igual</td><td>50% resultado + 50% chances tras la mano (tabla de equidad)</td></tr>
+    <tr><td>Temperatura</td><td>0.05 al entrenar y al medir</td><td>0.05 al entrenar y al medir</td><td>0.02 al entrenar; los controles y el juego, sin azar</td></tr>
+    <tr><td>Controles por generación</td><td>Panel de 4 redes (rotó a otro panel en la gen 14); 100 pares espejo contra cada rival del panel y 200 contra la campeona</td><td>Panel fijo de 6: 2 redes de la fase 1, gen 12 y gen 28 de la corrida 1, Reactivo y Utilidad adaptativa; 100 y 200 pares</td><td>El mismo panel de 6; 300 pares contra cada rival y 300 contra la campeona, todos sin azar</td></tr>
+    <tr><td>Partidas por generación</td><td class="n">57,120</td><td class="n">57,120</td><td class="n">124,560</td></tr>
+    <tr><td>Velocidad media</td><td class="n">63.3 partidas/s</td><td class="n">64.8 partidas/s</td><td class="n">289.1 partidas/s</td></tr>
+    <tr><td>Duración</td><td>12 h (8 h previstas más una extensión aprobada de 4 h)</td><td>12 h (tope)</td><td>12 h (tope)</td></tr>
+    <tr><td>Partidas totales</td><td class="n">2,735,040</td><td class="n">2,799,120</td><td class="n">12,487,920</td></tr>
+    <tr><td>Promociones</td><td class="n">6: gen 3, 4, 7, 8, 10, 28</td><td class="n">9: gen 2, 3, 5, 6, 10, 13, 20, 25, 38</td><td class="n">7: gen 2, 11, 19, 22, 56, 61, 73</td></tr>
+    <tr><td>Campeona</td><td><b>gen 28</b></td><td><b>gen 38</b></td><td><b>gen 73</b></td></tr>
+    <tr><td>Problema que motivó el cambio siguiente</td><td>Entrenó con redes parecidas y se estancó contra Utilidad adaptativa (34.6% medido con su azar de entonces). Perdía puntos en envidos aceptados y en no querer el truco.</td><td>Se medía con azar (temperatura 0.05), y eso escondía su fuerza: 73% sin azar contra 52% con azar frente a Utilidad adaptativa. Además la red no veía su propio tanto y el objetivo era ruidoso. Su pérdida dejó de bajar cerca de 0.73 desde la gen 13.</td><td>Perdió algo contra Genético semilla 2 (gen 2): un rival débil y raro que nunca vio. Como cambió varias cosas a la vez, no se sabe cuál lo causó.</td></tr>
+    </tbody></table></div>
+    <p class="sub">«Panel» es el grupo fijo de rivales con el que se controla cada generación. «Promoción» es cuando una generación mejora lo suficiente a la campeona y la reemplaza. Fuente: progress.json y generations.jsonl de cada corrida, ADR 0043, 0047, 0056, 0057, 0062 y sus enmiendas.</p></div>
+</section>
+
+<!-- ============================================================ 5 -->
+<section id="avance">
+  <div class="sechead"><span class="k">5 · Cómo avanzó cada corrida</span><h2>Mejora medida, pérdida y comparación con rivales fijos</h2></div>
+
+  <div class="panel">
+    <h3>Ganancia de cada generación frente a la campeona de ese momento</h3>
+    <p class="sub">Cada barra es una generación con control. Mide cuánto más gana que la campeona contra los mismos rivales del panel, en puntos porcentuales (pp). La línea fina es el intervalo de 95%. <b>Las barras de color son promociones</b> (con el número de generación); las grises no alcanzaron el umbral: ganancia de al menos 1 pp con el límite inferior del intervalo por encima de cero, y al menos 47.5% en el duelo directo contra la campeona. Cada corrida tiene su propio panel y su propio tamaño de control, por eso las alturas no se comparan entre gráficos.</p>
+    <div class="legend"><span><i class="sw c1"></i>Corrida 1</span><span><i class="sw c2"></i>Corrida 2</span><span><i class="sw c3"></i>Corrida 3</span><span><i class="sw off"></i>sin promoción</span></div>
+    <h4>Corrida 1 · 46 controles, 6 promociones</h4>
+    <div class="chart"><svg viewBox="0 0 640 230" role="img" aria-label="Ganancia por generación, corrida 1">
+<line class="grid" x1="46" x2="630" y1="192.0" y2="192.0"/>
+<text class="tk" x="39" y="196.0" text-anchor="end">−10</text>
+<line class="grid" x1="46" x2="630" y1="157.6" y2="157.6"/>
+<text class="tk" x="39" y="161.6" text-anchor="end">−5</text>
+<line class="grid" x1="46" x2="630" y1="123.2" y2="123.2"/>
+<text class="tk" x="39" y="127.2" text-anchor="end">0</text>
+<line class="grid" x1="46" x2="630" y1="88.8" y2="88.8"/>
+<text class="tk" x="39" y="92.8" text-anchor="end">+5</text>
+<line class="grid" x1="46" x2="630" y1="54.4" y2="54.4"/>
+<text class="tk" x="39" y="58.4" text-anchor="end">+10</text>
+<line class="grid" x1="46" x2="630" y1="20.0" y2="20.0"/>
+<text class="tk" x="39" y="24.0" text-anchor="end">+15</text>
+<line class="ax" x1="46" x2="630" y1="192" y2="192"/>
+<line class="ax" x1="164.0" x2="164.0" y1="192" y2="196"/>
+<text class="tk" x="164.0" y="209" text-anchor="middle">10</text>
+<line class="ax" x1="288.3" x2="288.3" y1="192" y2="196"/>
+<text class="tk" x="288.3" y="209" text-anchor="middle">20</text>
+<line class="ax" x1="412.6" x2="412.6" y1="192" y2="196"/>
+<text class="tk" x="412.6" y="209" text-anchor="middle">30</text>
+<line class="ax" x1="536.8" x2="536.8" y1="192" y2="196"/>
+<text class="tk" x="536.8" y="209" text-anchor="middle">40</text>
+<text class="tk" x="338.0" y="227" text-anchor="middle">generación</text>
+<line class="zero" x1="46" x2="630" y1="123.2" y2="123.2"/>
+<rect class="off" x="60.8" y="120.6" width="7.7" height="2.6"><title>gen 2: +0.4 pp [-3.6, +4.3]</title></rect>
+<line class="wh" x1="64.6" x2="64.6" y1="147.9" y2="93.4"/>
+<rect class="c1" x="73.2" y="77.6" width="7.7" height="45.6"><title>gen 3: +6.6 pp [+2.5, +10.8] · promovida</title></rect>
+<line class="wh" x1="77.1" x2="77.1" y1="106.0" y2="49.2"/>
+<rect class="c1" x="85.6" y="75.0" width="7.7" height="48.2"><title>gen 4: +7.0 pp [+3.0, +11.0] · promovida</title></rect>
+<line class="wh" x1="89.5" x2="89.5" y1="102.3" y2="47.8"/>
+<rect class="off" x="98.1" y="123.2" width="7.7" height="6.9"><title>gen 5: -1.0 pp [-4.9, +2.9]</title></rect>
+<line class="wh" x1="101.9" x2="101.9" y1="156.9" y2="103.2"/>
+<rect class="off" x="110.5" y="106.0" width="7.7" height="17.2"><title>gen 6: +2.5 pp [-1.5, +6.5]</title></rect>
+<line class="wh" x1="114.3" x2="114.3" y1="133.7" y2="78.3"/>
+<rect class="c1" x="122.9" y="85.4" width="7.7" height="37.8"><title>gen 7: +5.5 pp [+1.3, +9.7] · promovida</title></rect>
+<line class="wh" x1="126.8" x2="126.8" y1="114.4" y2="56.3"/>
+<rect class="c1" x="135.3" y="87.9" width="7.7" height="35.3"><title>gen 8: +5.1 pp [+1.1, +9.1] · promovida</title></rect>
+<line class="wh" x1="139.2" x2="139.2" y1="115.5" y2="60.4"/>
+<rect class="off" x="147.8" y="115.5" width="7.7" height="7.7"><title>gen 9: +1.1 pp [-3.3, +5.6]</title></rect>
+<line class="wh" x1="151.6" x2="151.6" y1="146.1" y2="84.9"/>
+<rect class="c1" x="160.2" y="94.0" width="7.7" height="29.2"><title>gen 10: +4.2 pp [+0.1, +8.4] · promovida</title></rect>
+<line class="wh" x1="164.0" x2="164.0" y1="122.5" y2="65.4"/>
+<rect class="off" x="172.6" y="122.3" width="7.7" height="0.9"><title>gen 11: +0.1 pp [-4.0, +4.2]</title></rect>
+<line class="wh" x1="176.5" x2="176.5" y1="150.6" y2="94.0"/>
+<rect class="off" x="185.0" y="110.3" width="7.7" height="12.9"><title>gen 12: +1.9 pp [-2.4, +6.1]</title></rect>
+<line class="wh" x1="188.9" x2="188.9" y1="139.5" y2="81.1"/>
+<rect class="off" x="197.5" y="123.2" width="7.7" height="5.2"><title>gen 13: -0.8 pp [-5.1, +3.6]</title></rect>
+<line class="wh" x1="201.3" x2="201.3" y1="158.4" y2="98.4"/>
+<rect class="off" x="209.9" y="123.2" width="7.7" height="0.9"><title>gen 14: -0.1 pp [-3.9, +3.7]</title></rect>
+<line class="wh" x1="213.7" x2="213.7" y1="150.2" y2="97.9"/>
+<rect class="off" x="222.3" y="104.3" width="7.7" height="18.9"><title>gen 15: +2.8 pp [-1.1, +6.6]</title></rect>
+<line class="wh" x1="226.2" x2="226.2" y1="130.5" y2="78.1"/>
+<rect class="off" x="234.7" y="118.9" width="7.7" height="4.3"><title>gen 16: +0.6 pp [-3.3, +4.6]</title></rect>
+<line class="wh" x1="238.6" x2="238.6" y1="146.2" y2="91.6"/>
+<rect class="off" x="247.2" y="116.3" width="7.7" height="6.9"><title>gen 17: +1.0 pp [-3.2, +5.2]</title></rect>
+<line class="wh" x1="251.0" x2="251.0" y1="145.2" y2="87.4"/>
+<rect class="off" x="259.6" y="100.0" width="7.7" height="23.2"><title>gen 18: +3.4 pp [-0.0, +6.8]</title></rect>
+<line class="wh" x1="263.4" x2="263.4" y1="123.4" y2="76.5"/>
+<rect class="off" x="272.0" y="115.5" width="7.7" height="7.7"><title>gen 19: +1.1 pp [-3.0, +5.3]</title></rect>
+<line class="wh" x1="275.9" x2="275.9" y1="144.1" y2="86.8"/>
+<rect class="off" x="284.4" y="123.2" width="7.7" height="4.3"><title>gen 20: -0.6 pp [-4.6, +3.4]</title></rect>
+<line class="wh" x1="288.3" x2="288.3" y1="155.1" y2="99.9"/>
+<rect class="off" x="296.9" y="108.6" width="7.7" height="14.6"><title>gen 21: +2.1 pp [-1.5, +5.8]</title></rect>
+<line class="wh" x1="300.7" x2="300.7" y1="133.7" y2="83.4"/>
+<rect class="off" x="309.3" y="123.2" width="7.7" height="12.0"><title>gen 22: -1.8 pp [-5.1, +1.6]</title></rect>
+<line class="wh" x1="313.1" x2="313.1" y1="158.6" y2="111.9"/>
+<rect class="off" x="321.7" y="116.3" width="7.7" height="6.9"><title>gen 23: +1.0 pp [-3.0, +5.0]</title></rect>
+<line class="wh" x1="325.6" x2="325.6" y1="143.7" y2="88.9"/>
+<rect class="off" x="334.1" y="123.2" width="7.7" height="7.7"><title>gen 24: -1.1 pp [-4.9, +2.6]</title></rect>
+<line class="wh" x1="338.0" x2="338.0" y1="156.9" y2="105.0"/>
+<rect class="off" x="346.6" y="100.0" width="7.7" height="23.2"><title>gen 25: +3.4 pp [-1.3, +8.0]</title></rect>
+<line class="wh" x1="350.4" x2="350.4" y1="131.8" y2="68.1"/>
+<rect class="off" x="359.0" y="123.2" width="7.7" height="14.6"><title>gen 26: -2.1 pp [-5.9, +1.6]</title></rect>
+<line class="wh" x1="362.9" x2="362.9" y1="163.7" y2="111.9"/>
+<rect class="off" x="371.4" y="105.1" width="7.7" height="18.1"><title>gen 27: +2.6 pp [-1.0, +6.3]</title></rect>
+<line class="wh" x1="375.3" x2="375.3" y1="130.3" y2="80.0"/>
+<rect class="c1" x="383.9" y="87.1" width="7.7" height="36.1"><title>gen 28: +5.2 pp [+1.5, +9.0] · promovida</title></rect>
+<line class="wh" x1="387.7" x2="387.7" y1="113.1" y2="61.0"/>
+<rect class="off" x="396.3" y="123.2" width="7.7" height="7.7"><title>gen 29: -1.1 pp [-4.8, +2.5]</title></rect>
+<line class="wh" x1="400.1" x2="400.1" y1="156.1" y2="105.8"/>
+<rect class="off" x="408.7" y="118.9" width="7.7" height="4.3"><title>gen 30: +0.6 pp [-3.0, +4.3]</title></rect>
+<line class="wh" x1="412.6" x2="412.6" y1="144.0" y2="93.8"/>
+<rect class="off" x="421.1" y="119.8" width="7.7" height="3.4"><title>gen 31: +0.5 pp [-3.2, +4.2]</title></rect>
+<line class="wh" x1="425.0" x2="425.0" y1="145.1" y2="94.4"/>
+<rect class="off" x="433.6" y="123.2" width="7.7" height="18.1"><title>gen 32: -2.6 pp [-6.6, +1.4]</title></rect>
+<line class="wh" x1="437.4" x2="437.4" y1="168.8" y2="113.7"/>
+<rect class="off" x="446.0" y="123.2" width="7.7" height="0.9"><title>gen 33: -0.1 pp [-4.1, +3.8]</title></rect>
+<line class="wh" x1="449.8" x2="449.8" y1="151.1" y2="97.0"/>
+<rect class="off" x="458.4" y="123.2" width="7.7" height="6.9"><title>gen 34: -1.0 pp [-4.5, +2.5]</title></rect>
+<line class="wh" x1="462.3" x2="462.3" y1="154.2" y2="105.9"/>
+<rect class="off" x="470.8" y="123.2" width="7.7" height="19.8"><title>gen 35: -2.9 pp [-6.8, +1.1]</title></rect>
+<line class="wh" x1="474.7" x2="474.7" y1="170.2" y2="115.8"/>
+<rect class="off" x="483.3" y="123.2" width="7.7" height="26.7"><title>gen 36: -3.9 pp [-7.2, -0.5]</title></rect>
+<line class="wh" x1="487.1" x2="487.1" y1="173.1" y2="126.7"/>
+<rect class="off" x="495.7" y="123.2" width="7.7" height="4.3"><title>gen 37: -0.6 pp [-4.3, +3.0]</title></rect>
+<line class="wh" x1="499.5" x2="499.5" y1="152.8" y2="102.2"/>
+<rect class="off" x="508.1" y="123.2" width="7.7" height="6.9"><title>gen 38: -1.0 pp [-5.0, +3.0]</title></rect>
+<line class="wh" x1="512.0" x2="512.0" y1="157.4" y2="102.8"/>
+<rect class="off" x="520.5" y="123.2" width="7.7" height="0.8"><title>gen 39: +0.0 pp [-3.4, +3.4]</title></rect>
+<line class="wh" x1="524.4" x2="524.4" y1="146.3" y2="100.1"/>
+<rect class="off" x="533.0" y="123.2" width="7.7" height="21.5"><title>gen 40: -3.1 pp [-6.8, +0.5]</title></rect>
+<line class="wh" x1="536.8" x2="536.8" y1="169.6" y2="119.8"/>
+<rect class="off" x="545.4" y="114.6" width="7.7" height="8.6"><title>gen 41: +1.2 pp [-2.7, +5.2]</title></rect>
+<line class="wh" x1="549.2" x2="549.2" y1="141.9" y2="87.3"/>
+<rect class="off" x="557.8" y="112.9" width="7.7" height="10.3"><title>gen 42: +1.5 pp [-2.2, +5.2]</title></rect>
+<line class="wh" x1="561.7" x2="561.7" y1="138.6" y2="87.2"/>
+<rect class="off" x="570.2" y="99.1" width="7.7" height="24.1"><title>gen 43: +3.5 pp [-0.8, +7.8]</title></rect>
+<line class="wh" x1="574.1" x2="574.1" y1="129.0" y2="69.3"/>
+<rect class="off" x="582.7" y="121.5" width="7.7" height="1.7"><title>gen 44: +0.2 pp [-3.1, +3.6]</title></rect>
+<line class="wh" x1="586.5" x2="586.5" y1="144.8" y2="98.1"/>
+<rect class="off" x="595.1" y="112.9" width="7.7" height="10.3"><title>gen 45: +1.5 pp [-2.7, +5.7]</title></rect>
+<line class="wh" x1="598.9" x2="598.9" y1="141.9" y2="83.9"/>
+<rect class="off" x="607.5" y="114.6" width="7.7" height="8.6"><title>gen 46: +1.2 pp [-2.5, +5.0]</title></rect>
+<line class="wh" x1="611.4" x2="611.4" y1="140.1" y2="89.1"/>
+<rect class="off" x="619.9" y="105.1" width="7.7" height="18.1"><title>gen 47: +2.6 pp [-1.2, +6.5]</title></rect>
+<line class="wh" x1="623.8" x2="623.8" y1="131.7" y2="78.5"/>
+<text class="labb" x="77.1" y="45.2" text-anchor="middle">3</text>
+<text class="labb" x="89.5" y="43.8" text-anchor="middle">4</text>
+<text class="labb" x="126.8" y="52.3" text-anchor="middle">7</text>
+<text class="labb" x="139.2" y="56.4" text-anchor="middle">8</text>
+<text class="labb" x="164.0" y="61.4" text-anchor="middle">10</text>
+<text class="labb" x="387.7" y="57.0" text-anchor="middle">28</text>
+<text class="tk" x="12" y="12">pp</text>
+</svg></div>
+    <h4>Corrida 2 · 48 controles, 9 promociones</h4>
+    <div class="chart"><svg viewBox="0 0 640 230" role="img" aria-label="Ganancia por generación, corrida 2">
+<line class="grid" x1="46" x2="630" y1="192.0" y2="192.0"/>
+<text class="tk" x="39" y="196.0" text-anchor="end">−10</text>
+<line class="grid" x1="46" x2="630" y1="157.6" y2="157.6"/>
+<text class="tk" x="39" y="161.6" text-anchor="end">−5</text>
+<line class="grid" x1="46" x2="630" y1="123.2" y2="123.2"/>
+<text class="tk" x="39" y="127.2" text-anchor="end">0</text>
+<line class="grid" x1="46" x2="630" y1="88.8" y2="88.8"/>
+<text class="tk" x="39" y="92.8" text-anchor="end">+5</text>
+<line class="grid" x1="46" x2="630" y1="54.4" y2="54.4"/>
+<text class="tk" x="39" y="58.4" text-anchor="end">+10</text>
+<line class="grid" x1="46" x2="630" y1="20.0" y2="20.0"/>
+<text class="tk" x="39" y="24.0" text-anchor="end">+15</text>
+<line class="ax" x1="46" x2="630" y1="192" y2="192"/>
+<line class="ax" x1="159.2" x2="159.2" y1="192" y2="196"/>
+<text class="tk" x="159.2" y="209" text-anchor="middle">10</text>
+<line class="ax" x1="278.4" x2="278.4" y1="192" y2="196"/>
+<text class="tk" x="278.4" y="209" text-anchor="middle">20</text>
+<line class="ax" x1="397.6" x2="397.6" y1="192" y2="196"/>
+<text class="tk" x="397.6" y="209" text-anchor="middle">30</text>
+<line class="ax" x1="516.8" x2="516.8" y1="192" y2="196"/>
+<text class="tk" x="516.8" y="209" text-anchor="middle">40</text>
+<text class="tk" x="338.0" y="227" text-anchor="middle">generación</text>
+<line class="zero" x1="46" x2="630" y1="123.2" y2="123.2"/>
+<rect class="c2" x="60.2" y="81.9" width="7.4" height="41.3"><title>gen 2: +6.0 pp [+3.0, +9.0] · promovida</title></rect>
+<line class="wh" x1="63.9" x2="63.9" y1="102.7" y2="61.1"/>
+<rect class="c2" x="72.1" y="95.1" width="7.4" height="28.1"><title>gen 3: +4.1 pp [+1.0, +7.1] · promovida</title></rect>
+<line class="wh" x1="75.8" x2="75.8" y1="116.2" y2="74.0"/>
+<rect class="off" x="84.0" y="123.2" width="7.4" height="12.6"><title>gen 4: -1.8 pp [-5.0, +1.4]</title></rect>
+<line class="wh" x1="87.7" x2="87.7" y1="157.8" y2="113.8"/>
+<rect class="c2" x="95.9" y="93.4" width="7.4" height="29.8"><title>gen 5: +4.3 pp [+1.3, +7.4] · promovida</title></rect>
+<line class="wh" x1="99.6" x2="99.6" y1="114.5" y2="72.3"/>
+<rect class="c2" x="107.9" y="93.4" width="7.4" height="29.8"><title>gen 6: +4.3 pp [+0.9, +7.8] · promovida</title></rect>
+<line class="wh" x1="111.6" x2="111.6" y1="117.1" y2="69.7"/>
+<rect class="off" x="119.8" y="117.5" width="7.4" height="5.7"><title>gen 7: +0.8 pp [-2.5, +4.1]</title></rect>
+<line class="wh" x1="123.5" x2="123.5" y1="140.2" y2="94.7"/>
+<rect class="off" x="131.7" y="123.2" width="7.4" height="1.7"><title>gen 8: -0.3 pp [-3.3, +2.8]</title></rect>
+<line class="wh" x1="135.4" x2="135.4" y1="145.7" y2="104.2"/>
+<rect class="off" x="143.6" y="101.4" width="7.4" height="21.8"><title>gen 9: +3.2 pp [-0.2, +6.5]</title></rect>
+<line class="wh" x1="147.3" x2="147.3" y1="124.3" y2="78.6"/>
+<rect class="c2" x="155.5" y="87.7" width="7.4" height="35.5"><title>gen 10: +5.2 pp [+1.8, +8.6] · promovida</title></rect>
+<line class="wh" x1="159.2" x2="159.2" y1="111.0" y2="64.3"/>
+<rect class="off" x="167.4" y="123.2" width="7.4" height="7.5"><title>gen 11: -1.1 pp [-4.4, +2.2]</title></rect>
+<line class="wh" x1="171.1" x2="171.1" y1="153.3" y2="108.0"/>
+<rect class="off" x="179.4" y="114.0" width="7.4" height="9.2"><title>gen 12: +1.3 pp [-1.5, +4.2]</title></rect>
+<line class="wh" x1="183.1" x2="183.1" y1="133.4" y2="94.6"/>
+<rect class="c2" x="191.3" y="103.1" width="7.4" height="20.1"><title>gen 13: +2.9 pp [+0.0, +5.8] · promovida</title></rect>
+<line class="wh" x1="195.0" x2="195.0" y1="123.0" y2="83.2"/>
+<rect class="off" x="203.2" y="123.2" width="7.4" height="46.4"><title>gen 14: -6.8 pp [-9.6, -3.9]</title></rect>
+<line class="wh" x1="206.9" x2="206.9" y1="189.4" y2="149.9"/>
+<rect class="off" x="215.1" y="123.2" width="7.4" height="9.2"><title>gen 15: -1.3 pp [-4.7, +2.0]</title></rect>
+<line class="wh" x1="218.8" x2="218.8" y1="155.3" y2="109.5"/>
+<rect class="off" x="227.0" y="123.2" width="7.4" height="26.9"><title>gen 16: -3.9 pp [-7.3, -0.6]</title></rect>
+<line class="wh" x1="230.7" x2="230.7" y1="173.3" y2="127.0"/>
+<rect class="off" x="239.0" y="123.2" width="7.4" height="6.3"><title>gen 17: -0.9 pp [-4.1, +2.2]</title></rect>
+<line class="wh" x1="242.7" x2="242.7" y1="151.2" y2="107.8"/>
+<rect class="off" x="250.9" y="108.3" width="7.4" height="14.9"><title>gen 18: +2.2 pp [-0.8, +5.1]</title></rect>
+<line class="wh" x1="254.6" x2="254.6" y1="128.5" y2="88.1"/>
+<rect class="off" x="262.8" y="123.2" width="7.4" height="0.8"><title>gen 19: -0.0 pp [-3.7, +3.7]</title></rect>
+<line class="wh" x1="266.5" x2="266.5" y1="148.5" y2="97.9"/>
+<rect class="c2" x="274.7" y="94.0" width="7.4" height="29.2"><title>gen 20: +4.2 pp [+1.0, +7.5] · promovida</title></rect>
+<line class="wh" x1="278.4" x2="278.4" y1="116.5" y2="71.4"/>
+<rect class="off" x="286.6" y="114.0" width="7.4" height="9.2"><title>gen 21: +1.3 pp [-1.8, +4.5]</title></rect>
+<line class="wh" x1="290.3" x2="290.3" y1="135.6" y2="92.4"/>
+<rect class="off" x="298.6" y="123.2" width="7.4" height="14.9"><title>gen 22: -2.2 pp [-5.0, +0.7]</title></rect>
+<line class="wh" x1="302.2" x2="302.2" y1="157.5" y2="118.7"/>
+<rect class="off" x="310.5" y="110.0" width="7.4" height="13.2"><title>gen 23: +1.9 pp [-1.4, +5.3]</title></rect>
+<line class="wh" x1="314.2" x2="314.2" y1="133.0" y2="87.0"/>
+<rect class="off" x="322.4" y="106.6" width="7.4" height="16.6"><title>gen 24: +2.4 pp [-0.4, +5.3]</title></rect>
+<line class="wh" x1="326.1" x2="326.1" y1="126.1" y2="87.1"/>
+<rect class="c2" x="334.3" y="100.8" width="7.4" height="22.4"><title>gen 25: +3.2 pp [+0.6, +5.9] · promovida</title></rect>
+<line class="wh" x1="338.0" x2="338.0" y1="119.2" y2="82.5"/>
+<rect class="off" x="346.2" y="122.6" width="7.4" height="0.8"><title>gen 26: +0.1 pp [-3.5, +3.6]</title></rect>
+<line class="wh" x1="349.9" x2="349.9" y1="147.1" y2="98.1"/>
+<rect class="off" x="358.1" y="123.2" width="7.4" height="7.5"><title>gen 27: -1.1 pp [-4.2, +2.0]</title></rect>
+<line class="wh" x1="361.8" x2="361.8" y1="152.0" y2="109.3"/>
+<rect class="off" x="370.1" y="122.6" width="7.4" height="0.8"><title>gen 28: +0.1 pp [-2.9, +3.1]</title></rect>
+<line class="wh" x1="373.8" x2="373.8" y1="143.3" y2="102.0"/>
+<rect class="off" x="382.0" y="123.2" width="7.4" height="18.3"><title>gen 29: -2.7 pp [-6.4, +1.0]</title></rect>
+<line class="wh" x1="385.7" x2="385.7" y1="167.0" y2="116.1"/>
+<rect class="off" x="393.9" y="123.2" width="7.4" height="8.0"><title>gen 30: -1.2 pp [-4.4, +2.1]</title></rect>
+<line class="wh" x1="397.6" x2="397.6" y1="153.6" y2="108.8"/>
+<rect class="off" x="405.8" y="123.2" width="7.4" height="2.9"><title>gen 31: -0.4 pp [-3.7, +2.9]</title></rect>
+<line class="wh" x1="409.5" x2="409.5" y1="149.0" y2="103.2"/>
+<rect class="off" x="417.7" y="123.2" width="7.4" height="19.5"><title>gen 32: -2.8 pp [-5.8, +0.2]</title></rect>
+<line class="wh" x1="421.4" x2="421.4" y1="163.3" y2="122.1"/>
+<rect class="off" x="429.7" y="118.0" width="7.4" height="5.2"><title>gen 33: +0.8 pp [-2.4, +3.9]</title></rect>
+<line class="wh" x1="433.3" x2="433.3" y1="140.0" y2="96.1"/>
+<rect class="off" x="441.6" y="123.2" width="7.4" height="12.0"><title>gen 34: -1.7 pp [-4.8, +1.3]</title></rect>
+<line class="wh" x1="445.3" x2="445.3" y1="156.3" y2="114.2"/>
+<rect class="off" x="453.5" y="123.2" width="7.4" height="1.7"><title>gen 35: -0.3 pp [-3.4, +2.9]</title></rect>
+<line class="wh" x1="457.2" x2="457.2" y1="146.4" y2="103.5"/>
+<rect class="off" x="465.4" y="123.2" width="7.4" height="13.2"><title>gen 36: -1.9 pp [-4.9, +1.0]</title></rect>
+<line class="wh" x1="469.1" x2="469.1" y1="156.6" y2="116.1"/>
+<rect class="off" x="477.3" y="123.2" width="7.4" height="9.7"><title>gen 37: -1.4 pp [-4.5, +1.7]</title></rect>
+<line class="wh" x1="481.0" x2="481.0" y1="154.3" y2="111.6"/>
+<rect class="c2" x="489.2" y="70.5" width="7.4" height="52.7"><title>gen 38: +7.7 pp [+4.3, +11.0] · promovida</title></rect>
+<line class="wh" x1="492.9" x2="492.9" y1="93.5" y2="47.4"/>
+<rect class="off" x="501.2" y="123.2" width="7.4" height="18.9"><title>gen 39: -2.8 pp [-6.2, +0.7]</title></rect>
+<line class="wh" x1="504.9" x2="504.9" y1="166.0" y2="118.2"/>
+<rect class="off" x="513.1" y="123.2" width="7.4" height="24.7"><title>gen 40: -3.6 pp [-7.3, +0.1]</title></rect>
+<line class="wh" x1="516.8" x2="516.8" y1="173.2" y2="122.5"/>
+<rect class="off" x="525.0" y="123.2" width="7.4" height="25.8"><title>gen 41: -3.8 pp [-7.2, -0.3]</title></rect>
+<line class="wh" x1="528.7" x2="528.7" y1="172.9" y2="125.1"/>
+<rect class="off" x="536.9" y="123.2" width="7.4" height="6.3"><title>gen 42: -0.9 pp [-3.9, +2.1]</title></rect>
+<line class="wh" x1="540.6" x2="540.6" y1="150.2" y2="108.8"/>
+<rect class="off" x="548.8" y="123.2" width="7.4" height="25.2"><title>gen 43: -3.7 pp [-6.7, -0.6]</title></rect>
+<line class="wh" x1="552.5" x2="552.5" y1="169.6" y2="127.2"/>
+<rect class="off" x="560.8" y="123.2" width="7.4" height="25.2"><title>gen 44: -3.7 pp [-6.6, -0.7]</title></rect>
+<line class="wh" x1="564.4" x2="564.4" y1="168.7" y2="128.2"/>
+<rect class="off" x="572.7" y="123.2" width="7.4" height="24.1"><title>gen 45: -3.5 pp [-6.4, -0.6]</title></rect>
+<line class="wh" x1="576.4" x2="576.4" y1="167.1" y2="127.4"/>
+<rect class="off" x="584.6" y="118.6" width="7.4" height="4.6"><title>gen 46: +0.7 pp [-2.3, +3.6]</title></rect>
+<line class="wh" x1="588.3" x2="588.3" y1="138.7" y2="98.5"/>
+<rect class="off" x="596.5" y="123.2" width="7.4" height="13.8"><title>gen 47: -2.0 pp [-4.8, +0.8]</title></rect>
+<line class="wh" x1="600.2" x2="600.2" y1="156.1" y2="117.8"/>
+<rect class="off" x="608.4" y="112.3" width="7.4" height="10.9"><title>gen 48: +1.6 pp [-1.4, +4.6]</title></rect>
+<line class="wh" x1="612.1" x2="612.1" y1="132.9" y2="91.7"/>
+<rect class="off" x="620.3" y="123.2" width="7.4" height="18.3"><title>gen 49: -2.7 pp [-5.8, +0.4]</title></rect>
+<line class="wh" x1="624.0" x2="624.0" y1="162.9" y2="120.2"/>
+<text class="labb" x="63.9" y="57.1" text-anchor="middle">2</text>
+<text class="labb" x="75.8" y="70.0" text-anchor="middle">3</text>
+<text class="labb" x="99.6" y="68.3" text-anchor="middle">5</text>
+<text class="labb" x="111.6" y="65.7" text-anchor="middle">6</text>
+<text class="labb" x="159.2" y="60.3" text-anchor="middle">10</text>
+<text class="labb" x="195.0" y="79.2" text-anchor="middle">13</text>
+<text class="labb" x="278.4" y="67.4" text-anchor="middle">20</text>
+<text class="labb" x="338.0" y="78.5" text-anchor="middle">25</text>
+<text class="labb" x="492.9" y="43.4" text-anchor="middle">38</text>
+<text class="tk" x="12" y="12">pp</text>
+</svg></div>
+    <h4>Corrida 3 · 99 controles, 7 promociones</h4>
+    <div class="chart"><svg viewBox="0 0 640 230" role="img" aria-label="Ganancia por generación, corrida 3">
+<line class="grid" x1="46" x2="630" y1="192.0" y2="192.0"/>
+<text class="tk" x="39" y="196.0" text-anchor="end">−10</text>
+<line class="grid" x1="46" x2="630" y1="157.6" y2="157.6"/>
+<text class="tk" x="39" y="161.6" text-anchor="end">−5</text>
+<line class="grid" x1="46" x2="630" y1="123.2" y2="123.2"/>
+<text class="tk" x="39" y="127.2" text-anchor="end">0</text>
+<line class="grid" x1="46" x2="630" y1="88.8" y2="88.8"/>
+<text class="tk" x="39" y="92.8" text-anchor="end">+5</text>
+<line class="grid" x1="46" x2="630" y1="54.4" y2="54.4"/>
+<text class="tk" x="39" y="58.4" text-anchor="end">+10</text>
+<line class="grid" x1="46" x2="630" y1="20.0" y2="20.0"/>
+<text class="tk" x="39" y="24.0" text-anchor="end">+15</text>
+<line class="ax" x1="46" x2="630" y1="192" y2="192"/>
+<line class="ax" x1="101.5" x2="101.5" y1="192" y2="196"/>
+<text class="tk" x="101.5" y="209" text-anchor="middle">10</text>
+<line class="ax" x1="159.9" x2="159.9" y1="192" y2="196"/>
+<text class="tk" x="159.9" y="209" text-anchor="middle">20</text>
+<line class="ax" x1="218.3" x2="218.3" y1="192" y2="196"/>
+<text class="tk" x="218.3" y="209" text-anchor="middle">30</text>
+<line class="ax" x1="276.7" x2="276.7" y1="192" y2="196"/>
+<text class="tk" x="276.7" y="209" text-anchor="middle">40</text>
+<line class="ax" x1="335.1" x2="335.1" y1="192" y2="196"/>
+<text class="tk" x="335.1" y="209" text-anchor="middle">50</text>
+<line class="ax" x1="393.5" x2="393.5" y1="192" y2="196"/>
+<text class="tk" x="393.5" y="209" text-anchor="middle">60</text>
+<line class="ax" x1="451.9" x2="451.9" y1="192" y2="196"/>
+<text class="tk" x="451.9" y="209" text-anchor="middle">70</text>
+<line class="ax" x1="510.3" x2="510.3" y1="192" y2="196"/>
+<text class="tk" x="510.3" y="209" text-anchor="middle">80</text>
+<line class="ax" x1="568.7" x2="568.7" y1="192" y2="196"/>
+<text class="tk" x="568.7" y="209" text-anchor="middle">90</text>
+<line class="ax" x1="627.1" x2="627.1" y1="192" y2="196"/>
+<text class="tk" x="627.1" y="209" text-anchor="middle">100</text>
+<text class="tk" x="338.0" y="227" text-anchor="middle">generación</text>
+<line class="zero" x1="46" x2="630" y1="123.2" y2="123.2"/>
+<rect class="c3" x="52.9" y="80.4" width="3.6" height="42.8"><title>gen 2: +6.2 pp [+4.7, +7.7] · promovida</title></rect>
+<line class="wh" x1="54.8" x2="54.8" y1="90.7" y2="70.1"/>
+<rect class="off" x="58.8" y="123.2" width="3.6" height="8.6"><title>gen 3: -1.2 pp [-2.6, +0.1]</title></rect>
+<line class="wh" x1="60.6" x2="60.6" y1="141.3" y2="122.3"/>
+<rect class="off" x="64.6" y="123.2" width="3.6" height="9.7"><title>gen 4: -1.4 pp [-2.9, +0.0]</title></rect>
+<line class="wh" x1="66.4" x2="66.4" y1="143.0" y2="122.9"/>
+<rect class="off" x="70.5" y="121.7" width="3.6" height="1.5"><title>gen 5: +0.2 pp [-1.1, +1.6]</title></rect>
+<line class="wh" x1="72.3" x2="72.3" y1="130.9" y2="112.4"/>
+<rect class="off" x="76.3" y="118.4" width="3.6" height="4.8"><title>gen 6: +0.7 pp [-0.7, +2.1]</title></rect>
+<line class="wh" x1="78.1" x2="78.1" y1="128.3" y2="108.6"/>
+<rect class="off" x="82.1" y="123.2" width="3.6" height="4.2"><title>gen 7: -0.6 pp [-2.0, +0.8]</title></rect>
+<line class="wh" x1="84.0" x2="84.0" y1="137.0" y2="117.8"/>
+<rect class="off" x="88.0" y="123.2" width="3.6" height="8.4"><title>gen 8: -1.2 pp [-2.7, +0.2]</title></rect>
+<line class="wh" x1="89.8" x2="89.8" y1="141.4" y2="121.8"/>
+<rect class="off" x="93.8" y="118.6" width="3.6" height="4.6"><title>gen 9: +0.7 pp [-0.8, +2.2]</title></rect>
+<line class="wh" x1="95.6" x2="95.6" y1="128.9" y2="108.4"/>
+<rect class="off" x="99.7" y="119.0" width="3.6" height="4.2"><title>gen 10: +0.6 pp [-0.7, +2.0]</title></rect>
+<line class="wh" x1="101.5" x2="101.5" y1="128.3" y2="109.7"/>
+<rect class="c3" x="105.5" y="109.4" width="3.6" height="13.8"><title>gen 11: +2.0 pp [+0.6, +3.4] · promovida</title></rect>
+<line class="wh" x1="107.3" x2="107.3" y1="119.0" y2="99.9"/>
+<rect class="off" x="111.3" y="114.0" width="3.6" height="9.2"><title>gen 12: +1.3 pp [-0.0, +2.7]</title></rect>
+<line class="wh" x1="113.2" x2="113.2" y1="123.4" y2="104.6"/>
+<rect class="off" x="117.2" y="123.2" width="3.6" height="0.8"><title>gen 13: -0.1 pp [-1.5, +1.4]</title></rect>
+<line class="wh" x1="119.0" x2="119.0" y1="133.7" y2="113.4"/>
+<rect class="off" x="123.0" y="123.2" width="3.6" height="11.8"><title>gen 14: -1.7 pp [-3.1, -0.3]</title></rect>
+<line class="wh" x1="124.8" x2="124.8" y1="144.8" y2="125.3"/>
+<rect class="off" x="128.9" y="113.8" width="3.6" height="9.4"><title>gen 15: +1.4 pp [-0.0, +2.7]</title></rect>
+<line class="wh" x1="130.7" x2="130.7" y1="123.2" y2="104.5"/>
+<rect class="off" x="134.7" y="122.2" width="3.6" height="1.0"><title>gen 16: +0.1 pp [-1.4, +1.7]</title></rect>
+<line class="wh" x1="136.5" x2="136.5" y1="132.7" y2="111.8"/>
+<rect class="off" x="140.5" y="123.2" width="3.6" height="2.5"><title>gen 17: -0.4 pp [-1.8, +1.1]</title></rect>
+<line class="wh" x1="142.4" x2="142.4" y1="135.8" y2="115.6"/>
+<rect class="off" x="146.4" y="119.0" width="3.6" height="4.2"><title>gen 18: +0.6 pp [-0.8, +2.1]</title></rect>
+<line class="wh" x1="148.2" x2="148.2" y1="129.0" y2="109.0"/>
+<rect class="c3" x="152.2" y="113.1" width="3.6" height="10.1"><title>gen 19: +1.5 pp [+0.1, +2.8] · promovida</title></rect>
+<line class="wh" x1="154.0" x2="154.0" y1="122.4" y2="103.8"/>
+<rect class="off" x="158.1" y="123.2" width="3.6" height="6.7"><title>gen 20: -1.0 pp [-2.4, +0.4]</title></rect>
+<line class="wh" x1="159.9" x2="159.9" y1="139.4" y2="120.4"/>
+<rect class="off" x="163.9" y="123.2" width="3.6" height="3.8"><title>gen 21: -0.6 pp [-1.9, +0.8]</title></rect>
+<line class="wh" x1="165.7" x2="165.7" y1="136.4" y2="117.6"/>
+<rect class="c3" x="169.7" y="107.1" width="3.6" height="16.1"><title>gen 22: +2.3 pp [+0.9, +3.8] · promovida</title></rect>
+<line class="wh" x1="171.6" x2="171.6" y1="117.0" y2="97.3"/>
+<rect class="off" x="175.6" y="123.2" width="3.6" height="34.2"><title>gen 23: -5.0 pp [-6.3, -3.6]</title></rect>
+<line class="wh" x1="177.4" x2="177.4" y1="166.6" y2="148.2"/>
+<rect class="off" x="181.4" y="123.2" width="3.6" height="12.8"><title>gen 24: -1.9 pp [-3.1, -0.6]</title></rect>
+<line class="wh" x1="183.2" x2="183.2" y1="144.7" y2="127.3"/>
+<rect class="off" x="187.3" y="123.2" width="3.6" height="3.4"><title>gen 25: -0.5 pp [-1.8, +0.8]</title></rect>
+<line class="wh" x1="189.1" x2="189.1" y1="135.6" y2="117.7"/>
+<rect class="off" x="193.1" y="122.8" width="3.6" height="0.8"><title>gen 26: +0.1 pp [-1.3, +1.4]</title></rect>
+<line class="wh" x1="194.9" x2="194.9" y1="131.9" y2="113.7"/>
+<rect class="off" x="198.9" y="123.2" width="3.6" height="1.1"><title>gen 27: -0.2 pp [-1.6, +1.3]</title></rect>
+<line class="wh" x1="200.8" x2="200.8" y1="134.2" y2="114.5"/>
+<rect class="off" x="204.8" y="123.2" width="3.6" height="19.3"><title>gen 28: -2.8 pp [-4.1, -1.5]</title></rect>
+<line class="wh" x1="206.6" x2="206.6" y1="151.6" y2="133.4"/>
+<rect class="off" x="210.6" y="120.5" width="3.6" height="2.7"><title>gen 29: +0.4 pp [-0.9, +1.7]</title></rect>
+<line class="wh" x1="212.4" x2="212.4" y1="129.7" y2="111.4"/>
+<rect class="off" x="216.5" y="123.2" width="3.6" height="2.9"><title>gen 30: -0.4 pp [-1.6, +0.8]</title></rect>
+<line class="wh" x1="218.3" x2="218.3" y1="134.4" y2="117.7"/>
+<rect class="off" x="222.3" y="123.2" width="3.6" height="9.6"><title>gen 31: -1.4 pp [-2.7, -0.0]</title></rect>
+<line class="wh" x1="224.1" x2="224.1" y1="142.1" y2="123.4"/>
+<rect class="off" x="228.1" y="123.2" width="3.6" height="10.5"><title>gen 32: -1.5 pp [-2.9, -0.2]</title></rect>
+<line class="wh" x1="230.0" x2="230.0" y1="143.0" y2="124.5"/>
+<rect class="off" x="234.0" y="123.2" width="3.6" height="2.3"><title>gen 33: -0.3 pp [-1.7, +1.1]</title></rect>
+<line class="wh" x1="235.8" x2="235.8" y1="135.0" y2="116.0"/>
+<rect class="off" x="239.8" y="123.2" width="3.6" height="1.3"><title>gen 34: -0.2 pp [-1.5, +1.1]</title></rect>
+<line class="wh" x1="241.6" x2="241.6" y1="133.4" y2="115.7"/>
+<rect class="off" x="245.7" y="123.2" width="3.6" height="8.4"><title>gen 35: -1.2 pp [-2.5, +0.1]</title></rect>
+<line class="wh" x1="247.5" x2="247.5" y1="140.7" y2="122.5"/>
+<rect class="off" x="251.5" y="123.2" width="3.6" height="13.0"><title>gen 36: -1.9 pp [-3.3, -0.5]</title></rect>
+<line class="wh" x1="253.3" x2="253.3" y1="145.8" y2="126.6"/>
+<rect class="off" x="257.3" y="123.2" width="3.6" height="10.5"><title>gen 37: -1.5 pp [-2.9, -0.1]</title></rect>
+<line class="wh" x1="259.2" x2="259.2" y1="143.3" y2="124.2"/>
+<rect class="off" x="263.2" y="115.6" width="3.6" height="7.6"><title>gen 38: +1.1 pp [-0.1, +2.3]</title></rect>
+<line class="wh" x1="265.0" x2="265.0" y1="124.0" y2="107.1"/>
+<rect class="off" x="269.0" y="123.2" width="3.6" height="15.1"><title>gen 39: -2.2 pp [-3.6, -0.7]</title></rect>
+<line class="wh" x1="270.8" x2="270.8" y1="148.3" y2="128.3"/>
+<rect class="off" x="274.9" y="119.6" width="3.6" height="3.6"><title>gen 40: +0.5 pp [-0.8, +1.9]</title></rect>
+<line class="wh" x1="276.7" x2="276.7" y1="129.0" y2="110.1"/>
+<rect class="off" x="280.7" y="123.2" width="3.6" height="25.0"><title>gen 41: -3.6 pp [-5.0, -2.3]</title></rect>
+<line class="wh" x1="282.5" x2="282.5" y1="157.7" y2="138.8"/>
+<rect class="off" x="286.5" y="123.2" width="3.6" height="18.3"><title>gen 42: -2.7 pp [-4.1, -1.3]</title></rect>
+<line class="wh" x1="288.4" x2="288.4" y1="151.1" y2="132.0"/>
+<rect class="off" x="292.4" y="123.2" width="3.6" height="1.7"><title>gen 43: -0.2 pp [-1.6, +1.1]</title></rect>
+<line class="wh" x1="294.2" x2="294.2" y1="134.5" y2="115.3"/>
+<rect class="off" x="298.2" y="123.2" width="3.6" height="1.7"><title>gen 44: -0.3 pp [-1.6, +1.1]</title></rect>
+<line class="wh" x1="300.0" x2="300.0" y1="134.3" y2="115.6"/>
+<rect class="off" x="304.1" y="123.2" width="3.6" height="14.3"><title>gen 45: -2.1 pp [-3.5, -0.6]</title></rect>
+<line class="wh" x1="305.9" x2="305.9" y1="147.4" y2="127.7"/>
+<rect class="off" x="309.9" y="123.2" width="3.6" height="0.8"><title>gen 46: -0.1 pp [-1.5, +1.3]</title></rect>
+<line class="wh" x1="311.7" x2="311.7" y1="133.6" y2="114.3"/>
+<rect class="off" x="315.7" y="123.2" width="3.6" height="3.1"><title>gen 47: -0.4 pp [-1.8, +0.9]</title></rect>
+<line class="wh" x1="317.6" x2="317.6" y1="135.4" y2="117.1"/>
+<rect class="off" x="321.6" y="121.5" width="3.6" height="1.7"><title>gen 48: +0.2 pp [-1.1, +1.6]</title></rect>
+<line class="wh" x1="323.4" x2="323.4" y1="130.9" y2="112.0"/>
+<rect class="off" x="327.4" y="117.3" width="3.6" height="5.9"><title>gen 49: +0.9 pp [-0.4, +2.1]</title></rect>
+<line class="wh" x1="329.2" x2="329.2" y1="126.1" y2="108.5"/>
+<rect class="off" x="333.3" y="119.6" width="3.6" height="3.6"><title>gen 50: +0.5 pp [-0.8, +1.8]</title></rect>
+<line class="wh" x1="335.1" x2="335.1" y1="128.6" y2="110.5"/>
+<rect class="off" x="339.1" y="123.2" width="3.6" height="4.8"><title>gen 51: -0.7 pp [-2.0, +0.6]</title></rect>
+<line class="wh" x1="340.9" x2="340.9" y1="137.2" y2="118.8"/>
+<rect class="off" x="344.9" y="121.5" width="3.6" height="1.7"><title>gen 52: +0.2 pp [-1.1, +1.6]</title></rect>
+<line class="wh" x1="346.8" x2="346.8" y1="130.9" y2="112.0"/>
+<rect class="off" x="350.8" y="123.2" width="3.6" height="6.7"><title>gen 53: -1.0 pp [-2.3, +0.4]</title></rect>
+<line class="wh" x1="352.6" x2="352.6" y1="139.0" y2="120.7"/>
+<rect class="off" x="356.6" y="123.2" width="3.6" height="0.8"><title>gen 54: -0.1 pp [-1.4, +1.3]</title></rect>
+<line class="wh" x1="358.4" x2="358.4" y1="133.1" y2="114.5"/>
+<rect class="off" x="362.5" y="115.4" width="3.6" height="7.8"><title>gen 55: +1.1 pp [-0.3, +2.6]</title></rect>
+<line class="wh" x1="364.3" x2="364.3" y1="125.5" y2="105.3"/>
+<rect class="c3" x="368.3" y="114.2" width="3.6" height="9.0"><title>gen 56: +1.3 pp [+0.1, +2.5] · promovida</title></rect>
+<line class="wh" x1="370.1" x2="370.1" y1="122.6" y2="105.8"/>
+<rect class="off" x="374.1" y="116.7" width="3.6" height="6.5"><title>gen 57: +0.9 pp [-0.3, +2.2]</title></rect>
+<line class="wh" x1="376.0" x2="376.0" y1="125.4" y2="108.0"/>
+<rect class="off" x="380.0" y="123.2" width="3.6" height="5.5"><title>gen 58: -0.8 pp [-2.1, +0.5]</title></rect>
+<line class="wh" x1="381.8" x2="381.8" y1="137.6" y2="119.9"/>
+<rect class="off" x="385.8" y="121.3" width="3.6" height="1.9"><title>gen 59: +0.3 pp [-1.1, +1.6]</title></rect>
+<line class="wh" x1="387.6" x2="387.6" y1="130.5" y2="112.1"/>
+<rect class="off" x="391.7" y="123.2" width="3.6" height="1.7"><title>gen 60: -0.2 pp [-1.7, +1.2]</title></rect>
+<line class="wh" x1="393.5" x2="393.5" y1="135.1" y2="114.7"/>
+<rect class="c3" x="397.5" y="110.8" width="3.6" height="12.4"><title>gen 61: +1.8 pp [+0.4, +3.2] · promovida</title></rect>
+<line class="wh" x1="399.3" x2="399.3" y1="120.7" y2="100.8"/>
+<rect class="off" x="403.3" y="123.2" width="3.6" height="5.0"><title>gen 62: -0.7 pp [-2.2, +0.8]</title></rect>
+<line class="wh" x1="405.2" x2="405.2" y1="138.3" y2="118.0"/>
+<rect class="off" x="409.2" y="123.2" width="3.6" height="1.1"><title>gen 63: -0.2 pp [-1.6, +1.2]</title></rect>
+<line class="wh" x1="411.0" x2="411.0" y1="134.0" y2="114.7"/>
+<rect class="off" x="415.0" y="119.2" width="3.6" height="4.0"><title>gen 64: +0.6 pp [-0.8, +2.0]</title></rect>
+<line class="wh" x1="416.8" x2="416.8" y1="128.6" y2="109.8"/>
+<rect class="off" x="420.9" y="123.2" width="3.6" height="10.3"><title>gen 65: -1.5 pp [-2.9, -0.1]</title></rect>
+<line class="wh" x1="422.7" x2="422.7" y1="143.3" y2="123.8"/>
+<rect class="off" x="426.7" y="120.9" width="3.6" height="2.3"><title>gen 66: +0.3 pp [-1.0, +1.7]</title></rect>
+<line class="wh" x1="428.5" x2="428.5" y1="130.0" y2="111.8"/>
+<rect class="off" x="432.5" y="123.2" width="3.6" height="11.3"><title>gen 67: -1.6 pp [-3.0, -0.3]</title></rect>
+<line class="wh" x1="434.4" x2="434.4" y1="144.0" y2="124.9"/>
+<rect class="off" x="438.4" y="123.2" width="3.6" height="6.3"><title>gen 68: -0.9 pp [-2.3, +0.4]</title></rect>
+<line class="wh" x1="440.2" x2="440.2" y1="138.8" y2="120.2"/>
+<rect class="off" x="444.2" y="119.4" width="3.6" height="3.8"><title>gen 69: +0.6 pp [-0.8, +1.9]</title></rect>
+<line class="wh" x1="446.0" x2="446.0" y1="128.8" y2="110.0"/>
+<rect class="off" x="450.1" y="123.2" width="3.6" height="9.6"><title>gen 70: -1.4 pp [-2.9, +0.1]</title></rect>
+<line class="wh" x1="451.9" x2="451.9" y1="142.8" y2="122.7"/>
+<rect class="off" x="455.9" y="118.8" width="3.6" height="4.4"><title>gen 71: +0.6 pp [-0.6, +1.9]</title></rect>
+<line class="wh" x1="457.7" x2="457.7" y1="127.4" y2="110.2"/>
+<rect class="off" x="461.7" y="123.2" width="3.6" height="8.6"><title>gen 72: -1.2 pp [-2.6, +0.1]</title></rect>
+<line class="wh" x1="463.6" x2="463.6" y1="141.1" y2="122.5"/>
+<rect class="c3" x="467.6" y="103.3" width="3.6" height="19.9"><title>gen 73: +2.9 pp [+1.6, +4.2] · promovida</title></rect>
+<line class="wh" x1="469.4" x2="469.4" y1="112.2" y2="94.5"/>
+<rect class="off" x="473.4" y="123.2" width="3.6" height="17.2"><title>gen 74: -2.5 pp [-3.7, -1.3]</title></rect>
+<line class="wh" x1="475.2" x2="475.2" y1="148.3" y2="132.5"/>
+<rect class="off" x="479.3" y="123.2" width="3.6" height="19.3"><title>gen 75: -2.8 pp [-4.2, -1.4]</title></rect>
+<line class="wh" x1="481.1" x2="481.1" y1="151.9" y2="133.2"/>
+<rect class="off" x="485.1" y="123.2" width="3.6" height="19.3"><title>gen 76: -2.8 pp [-4.0, -1.7]</title></rect>
+<line class="wh" x1="486.9" x2="486.9" y1="150.4" y2="134.6"/>
+<rect class="off" x="490.9" y="123.2" width="3.6" height="22.7"><title>gen 77: -3.3 pp [-4.6, -2.0]</title></rect>
+<line class="wh" x1="492.8" x2="492.8" y1="154.7" y2="137.2"/>
+<rect class="off" x="496.8" y="123.2" width="3.6" height="2.9"><title>gen 78: -0.4 pp [-1.6, +0.8]</title></rect>
+<line class="wh" x1="498.6" x2="498.6" y1="134.4" y2="117.7"/>
+<rect class="off" x="502.6" y="123.2" width="3.6" height="26.6"><title>gen 79: -3.9 pp [-5.3, -2.5]</title></rect>
+<line class="wh" x1="504.4" x2="504.4" y1="159.4" y2="140.1"/>
+<rect class="off" x="508.5" y="123.2" width="3.6" height="3.4"><title>gen 80: -0.5 pp [-1.8, +0.8]</title></rect>
+<line class="wh" x1="510.3" x2="510.3" y1="135.3" y2="118.0"/>
+<rect class="off" x="514.3" y="123.2" width="3.6" height="16.4"><title>gen 81: -2.4 pp [-3.6, -1.2]</title></rect>
+<line class="wh" x1="516.1" x2="516.1" y1="148.1" y2="131.2"/>
+<rect class="off" x="520.1" y="123.2" width="3.6" height="14.5"><title>gen 82: -2.1 pp [-3.3, -0.9]</title></rect>
+<line class="wh" x1="522.0" x2="522.0" y1="146.0" y2="129.4"/>
+<rect class="off" x="526.0" y="123.2" width="3.6" height="14.0"><title>gen 83: -2.0 pp [-3.4, -0.7]</title></rect>
+<line class="wh" x1="527.8" x2="527.8" y1="146.5" y2="127.8"/>
+<rect class="off" x="531.8" y="123.2" width="3.6" height="18.5"><title>gen 84: -2.7 pp [-4.1, -1.3]</title></rect>
+<line class="wh" x1="533.6" x2="533.6" y1="151.3" y2="132.1"/>
+<rect class="off" x="537.7" y="123.2" width="3.6" height="6.7"><title>gen 85: -1.0 pp [-2.3, +0.4]</title></rect>
+<line class="wh" x1="539.5" x2="539.5" y1="139.2" y2="120.6"/>
+<rect class="off" x="543.5" y="123.2" width="3.6" height="8.2"><title>gen 86: -1.2 pp [-2.5, +0.1]</title></rect>
+<line class="wh" x1="545.3" x2="545.3" y1="140.1" y2="122.8"/>
+<rect class="off" x="549.3" y="123.2" width="3.6" height="18.3"><title>gen 87: -2.7 pp [-4.0, -1.3]</title></rect>
+<line class="wh" x1="551.2" x2="551.2" y1="151.1" y2="132.0"/>
+<rect class="off" x="555.2" y="123.2" width="3.6" height="13.8"><title>gen 88: -2.0 pp [-3.3, -0.7]</title></rect>
+<line class="wh" x1="557.0" x2="557.0" y1="145.9" y2="128.0"/>
+<rect class="off" x="561.0" y="123.2" width="3.6" height="18.0"><title>gen 89: -2.6 pp [-3.9, -1.4]</title></rect>
+<line class="wh" x1="562.8" x2="562.8" y1="149.8" y2="132.5"/>
+<rect class="off" x="566.9" y="123.2" width="3.6" height="9.4"><title>gen 90: -1.4 pp [-2.5, -0.2]</title></rect>
+<line class="wh" x1="568.7" x2="568.7" y1="140.4" y2="124.7"/>
+<rect class="off" x="572.7" y="123.2" width="3.6" height="44.0"><title>gen 91: -6.4 pp [-7.8, -4.9]</title></rect>
+<line class="wh" x1="574.5" x2="574.5" y1="177.1" y2="157.2"/>
+<rect class="off" x="578.5" y="123.2" width="3.6" height="26.6"><title>gen 92: -3.9 pp [-5.2, -2.5]</title></rect>
+<line class="wh" x1="580.4" x2="580.4" y1="159.3" y2="140.2"/>
+<rect class="off" x="584.4" y="123.2" width="3.6" height="27.5"><title>gen 93: -4.0 pp [-5.4, -2.6]</title></rect>
+<line class="wh" x1="586.2" x2="586.2" y1="160.3" y2="141.1"/>
+<rect class="off" x="590.2" y="123.2" width="3.6" height="21.2"><title>gen 94: -3.1 pp [-4.5, -1.7]</title></rect>
+<line class="wh" x1="592.0" x2="592.0" y1="154.0" y2="134.8"/>
+<rect class="off" x="596.1" y="123.2" width="3.6" height="20.6"><title>gen 95: -3.0 pp [-4.3, -1.7]</title></rect>
+<line class="wh" x1="597.9" x2="597.9" y1="152.5" y2="135.2"/>
+<rect class="off" x="601.9" y="123.2" width="3.6" height="18.0"><title>gen 96: -2.6 pp [-3.9, -1.3]</title></rect>
+<line class="wh" x1="603.7" x2="603.7" y1="150.0" y2="132.4"/>
+<rect class="off" x="607.7" y="123.2" width="3.6" height="18.3"><title>gen 97: -2.7 pp [-4.0, -1.4]</title></rect>
+<line class="wh" x1="609.6" x2="609.6" y1="150.4" y2="132.7"/>
+<rect class="off" x="613.6" y="123.2" width="3.6" height="20.3"><title>gen 98: -2.9 pp [-4.2, -1.7]</title></rect>
+<line class="wh" x1="615.4" x2="615.4" y1="152.2" y2="134.7"/>
+<rect class="off" x="619.4" y="123.2" width="3.6" height="26.9"><title>gen 99: -3.9 pp [-5.2, -2.6]</title></rect>
+<line class="wh" x1="621.2" x2="621.2" y1="159.3" y2="141.0"/>
+<rect class="off" x="625.3" y="123.2" width="3.6" height="8.0"><title>gen 100: -1.2 pp [-2.5, +0.1]</title></rect>
+<line class="wh" x1="627.1" x2="627.1" y1="140.2" y2="122.3"/>
+<text class="labb" x="54.8" y="66.1" text-anchor="middle">2</text>
+<text class="labb" x="107.3" y="95.9" text-anchor="middle">11</text>
+<text class="labb" x="154.0" y="99.8" text-anchor="middle">19</text>
+<text class="labb" x="171.6" y="93.3" text-anchor="middle">22</text>
+<text class="labb" x="370.1" y="101.8" text-anchor="middle">56</text>
+<text class="labb" x="399.3" y="96.8" text-anchor="middle">61</text>
+<text class="labb" x="469.4" y="90.5" text-anchor="middle">73</text>
+<text class="tk" x="12" y="12">pp</text>
+</svg></div>
+    <p>La corrida 1 mejoró en las primeras diez generaciones y después solo la gen 28 pasó el umbral; tras ella hubo 19 controles seguidos sin promoción. La corrida 2 promovió nueve veces y la última fue la gen 38. La corrida 3 promovió siete veces; tras la gen 73 hubo 27 controles sin promoción y el tope de tiempo cortó el entrenamiento antes de llegar al límite de 40.</p>
+    <span class="src">fuente: generations.jsonl de cada corrida (campo check: gain, lower_bound, upper_bound, promoted)</span>
+  </div>
+
+  <div class="panel">
+    <h3>Pérdida de entrenamiento por generación</h3>
+    <p class="sub">La «pérdida» es el error medio entre lo que la red estimaba y lo que después pasó. Más baja es mejor para esa red, <b>pero la corrida 3 no es comparable con las otras dos</b>: aprende un objetivo distinto (mezcla con las chances tras cada mano) y por eso su escala es mucho menor.</p>
+    <div>
+      <div><h4>Corridas 1 y 2 · objetivo: resultado de la partida</h4>
+      <div class="legend"><span><i class="sw c1"></i>Corrida 1</span><span><i class="sw c2"></i>Corrida 2</span></div>
+      <div class="chart"><svg viewBox="0 0 640 230" role="img" aria-label="Pérdida por generación, corridas 1 y 2">
+<line class="grid" x1="50" x2="570" y1="192.0" y2="192.0"/>
+<text class="tk" x="43" y="196.0" text-anchor="end">0.70</text>
+<line class="grid" x1="50" x2="570" y1="172.4" y2="172.4"/>
+<text class="tk" x="43" y="176.4" text-anchor="end">0.72</text>
+<line class="grid" x1="50" x2="570" y1="152.9" y2="152.9"/>
+<text class="tk" x="43" y="156.9" text-anchor="end">0.74</text>
+<line class="grid" x1="50" x2="570" y1="133.3" y2="133.3"/>
+<text class="tk" x="43" y="137.3" text-anchor="end">0.76</text>
+<line class="grid" x1="50" x2="570" y1="113.8" y2="113.8"/>
+<text class="tk" x="43" y="117.8" text-anchor="end">0.78</text>
+<line class="grid" x1="50" x2="570" y1="94.2" y2="94.2"/>
+<text class="tk" x="43" y="98.2" text-anchor="end">0.80</text>
+<line class="grid" x1="50" x2="570" y1="74.7" y2="74.7"/>
+<text class="tk" x="43" y="78.7" text-anchor="end">0.82</text>
+<line class="grid" x1="50" x2="570" y1="55.1" y2="55.1"/>
+<text class="tk" x="43" y="59.1" text-anchor="end">0.84</text>
+<line class="grid" x1="50" x2="570" y1="35.6" y2="35.6"/>
+<text class="tk" x="43" y="39.6" text-anchor="end">0.86</text>
+<line class="grid" x1="50" x2="570" y1="16.0" y2="16.0"/>
+<text class="tk" x="43" y="20.0" text-anchor="end">0.88</text>
+<line class="ax" x1="50" x2="570" y1="192" y2="192"/>
+<line class="ax" x1="145.5" x2="145.5" y1="192" y2="196"/>
+<text class="tk" x="145.5" y="209" text-anchor="middle">10</text>
+<line class="ax" x1="251.6" x2="251.6" y1="192" y2="196"/>
+<text class="tk" x="251.6" y="209" text-anchor="middle">20</text>
+<line class="ax" x1="357.8" x2="357.8" y1="192" y2="196"/>
+<text class="tk" x="357.8" y="209" text-anchor="middle">30</text>
+<line class="ax" x1="463.9" x2="463.9" y1="192" y2="196"/>
+<text class="tk" x="463.9" y="209" text-anchor="middle">40</text>
+<line class="ax" x1="570.0" x2="570.0" y1="192" y2="196"/>
+<text class="tk" x="570.0" y="209" text-anchor="middle">50</text>
+<text class="tk" x="310.0" y="227" text-anchor="middle">generación</text>
+<path class="ln c1" d="M50.0 33.1 L60.6 44.4 L71.2 51.0 L81.8 50.1 L92.4 49.7 L103.1 71.0 L113.7 71.8 L124.3 81.9 L134.9 98.9 L145.5 107.0 L156.1 119.8 L166.7 129.8 L177.3 132.9 L188.0 111.6 L198.6 132.8 L209.2 118.6 L219.8 121.1 L230.4 121.7 L241.0 112.7 L251.6 123.2 L262.2 128.1 L272.9 135.8 L283.5 126.9 L294.1 127.8 L304.7 130.9 L315.3 134.6 L325.9 138.0 L336.5 131.6 L347.1 120.2 L357.8 130.2 L368.4 130.0 L379.0 131.9 L389.6 130.5 L400.2 132.4 L410.8 127.2 L421.4 121.5 L432.0 123.6 L442.7 123.3 L453.3 127.9 L463.9 127.3 L474.5 125.2 L485.1 131.6 L495.7 135.2 L506.3 131.3 L516.9 121.9 L527.6 125.4 L538.2 124.8"/>
+<circle class="c1" cx="538.2" cy="124.8" r="3.5"/>
+<text class="c1 labb" x="546.2" y="128.8">Corrida 1</text>
+<path class="ln c2" d="M50.0 52.3 L60.6 91.6 L71.2 77.7 L81.8 81.9 L92.4 84.4 L103.1 111.7 L113.7 116.4 L124.3 124.8 L134.9 127.6 L145.5 147.4 L156.1 145.6 L166.7 131.9 L177.3 155.5 L188.0 142.6 L198.6 149.1 L209.2 143.4 L219.8 152.9 L230.4 148.8 L241.0 159.8 L251.6 160.8 L262.2 166.6 L272.9 166.2 L283.5 160.1 L294.1 166.7 L304.7 159.9 L315.3 161.9 L325.9 153.6 L336.5 165.5 L347.1 172.0 L357.8 163.9 L368.4 160.5 L379.0 162.9 L389.6 160.8 L400.2 153.4 L410.8 155.9 L421.4 159.2 L432.0 160.1 L442.7 164.3 L453.3 153.1 L463.9 155.0 L474.5 153.7 L485.1 163.6 L495.7 152.5 L506.3 160.2 L516.9 162.6 L527.6 169.2 L538.2 165.2 L548.8 165.3 L559.4 161.2"/>
+<circle class="c2" cx="559.4" cy="161.2" r="3.5"/>
+<text class="c2 labb" x="567.4" y="165.2">Corrida 2</text>
+<text class="tk" x="10" y="10">pérdida</text>
+</svg></div></div>
+      <div><h4>Corrida 3 · objetivo mezclado</h4>
+      <div class="legend"><span><i class="sw c3"></i>Corrida 3</span></div>
+      <div class="chart"><svg viewBox="0 0 640 230" role="img" aria-label="Pérdida por generación, corrida 3">
+<line class="grid" x1="50" x2="570" y1="192.0" y2="192.0"/>
+<text class="tk" x="43" y="196.0" text-anchor="end">0.18</text>
+<line class="grid" x1="50" x2="570" y1="148.0" y2="148.0"/>
+<text class="tk" x="43" y="152.0" text-anchor="end">0.19</text>
+<line class="grid" x1="50" x2="570" y1="104.0" y2="104.0"/>
+<text class="tk" x="43" y="108.0" text-anchor="end">0.20</text>
+<line class="grid" x1="50" x2="570" y1="60.0" y2="60.0"/>
+<text class="tk" x="43" y="64.0" text-anchor="end">0.21</text>
+<line class="grid" x1="50" x2="570" y1="16.0" y2="16.0"/>
+<text class="tk" x="43" y="20.0" text-anchor="end">0.22</text>
+<line class="ax" x1="50" x2="570" y1="192" y2="192"/>
+<line class="ax" x1="97.3" x2="97.3" y1="192" y2="196"/>
+<text class="tk" x="97.3" y="209" text-anchor="middle">10</text>
+<line class="ax" x1="149.8" x2="149.8" y1="192" y2="196"/>
+<text class="tk" x="149.8" y="209" text-anchor="middle">20</text>
+<line class="ax" x1="202.3" x2="202.3" y1="192" y2="196"/>
+<text class="tk" x="202.3" y="209" text-anchor="middle">30</text>
+<line class="ax" x1="254.8" x2="254.8" y1="192" y2="196"/>
+<text class="tk" x="254.8" y="209" text-anchor="middle">40</text>
+<line class="ax" x1="307.4" x2="307.4" y1="192" y2="196"/>
+<text class="tk" x="307.4" y="209" text-anchor="middle">50</text>
+<line class="ax" x1="359.9" x2="359.9" y1="192" y2="196"/>
+<text class="tk" x="359.9" y="209" text-anchor="middle">60</text>
+<line class="ax" x1="412.4" x2="412.4" y1="192" y2="196"/>
+<text class="tk" x="412.4" y="209" text-anchor="middle">70</text>
+<line class="ax" x1="464.9" x2="464.9" y1="192" y2="196"/>
+<text class="tk" x="464.9" y="209" text-anchor="middle">80</text>
+<line class="ax" x1="517.5" x2="517.5" y1="192" y2="196"/>
+<text class="tk" x="517.5" y="209" text-anchor="middle">90</text>
+<line class="ax" x1="570.0" x2="570.0" y1="192" y2="196"/>
+<text class="tk" x="570.0" y="209" text-anchor="middle">100</text>
+<text class="tk" x="310.0" y="227" text-anchor="middle">generación</text>
+<path class="ln c3" d="M50.0 27.5 L55.3 82.7 L60.5 86.1 L65.8 77.7 L71.0 91.4 L76.3 90.6 L81.5 86.6 L86.8 87.5 L92.0 83.6 L97.3 89.7 L102.5 86.7 L107.8 90.4 L113.0 94.3 L118.3 98.7 L123.5 93.2 L128.8 89.2 L134.0 88.8 L139.3 91.2 L144.5 92.3 L149.8 88.5 L155.1 89.7 L160.3 98.2 L165.6 94.8 L170.8 94.4 L176.1 87.8 L181.3 94.9 L186.6 100.5 L191.8 109.7 L197.1 107.2 L202.3 98.6 L207.6 95.8 L212.8 96.3 L218.1 104.5 L223.3 102.9 L228.6 90.1 L233.8 99.5 L239.1 100.9 L244.3 106.9 L249.6 98.3 L254.8 108.1 L260.1 107.2 L265.4 86.7 L270.6 98.2 L275.9 101.2 L281.1 92.4 L286.4 96.6 L291.6 92.9 L296.9 98.5 L302.1 100.9 L307.4 103.8 L312.6 114.4 L317.9 103.0 L323.1 100.3 L328.4 106.1 L333.6 110.4 L338.9 109.8 L344.1 103.0 L349.4 102.8 L354.6 107.4 L359.9 112.3 L365.2 108.1 L370.4 102.6 L375.7 99.9 L380.9 96.7 L386.2 114.2 L391.4 106.6 L396.7 100.4 L401.9 112.3 L407.2 107.8 L412.4 103.4 L417.7 104.7 L422.9 104.6 L428.2 106.8 L433.4 95.0 L438.7 114.4 L443.9 106.4 L449.2 98.6 L454.4 98.3 L459.7 101.4 L464.9 104.8 L470.2 96.6 L475.5 104.5 L480.7 105.3 L486.0 117.0 L491.2 109.8 L496.5 106.1 L501.7 117.9 L507.0 110.0 L512.2 102.8 L517.5 118.1 L522.7 110.1 L528.0 108.8 L533.2 98.1 L538.5 100.2 L543.7 103.2 L549.0 114.9 L554.2 111.1 L559.5 106.5 L564.7 102.3 L570.0 113.7"/>
+<circle class="c3" cx="570.0" cy="113.7" r="3.5"/>
+<text class="c3 labb" x="578.0" y="117.7">Corrida 3</text>
+<text class="tk" x="10" y="10">pérdida</text>
+</svg></div></div>
+    </div>
+    <p>Corrida 1: de 0.86 a 0.77. Corrida 2: de 0.84 a 0.73, con mínimo de 0.72. Corrida 3: de 0.22 a 0.20. Que la pérdida se aplane no significa que la red deje de jugar mejor: en la corrida 2 la pérdida casi no se movía mientras las promociones seguían apareciendo.</p>
+    <span class="src">fuente: generations.jsonl (mean_loss)</span>
+  </div>
+
+  <div class="panel">
+    <h3>Corrida 3: cuánto cambia la acción elegida si se juega con azar</h3>
+    <p class="sub">«Desacuerdo con la elegida sin azar» es la fracción de decisiones de entrenamiento donde la acción sorteada con temperatura 0.02 fue distinta de la que elegiría la red sin azar. Probablemente es alta porque en muchos momentos varias acciones valen casi lo mismo, y entonces el sorteo cambia la elección sin costar mucho.</p>
+    <div class="chart"><svg viewBox="0 0 640 230" role="img" aria-label="Desacuerdo con la acción sin azar, corrida 3">
+<line class="grid" x1="50" x2="570" y1="192.0" y2="192.0"/>
+<text class="tk" x="43" y="196.0" text-anchor="end">0%</text>
+<line class="grid" x1="50" x2="570" y1="162.7" y2="162.7"/>
+<text class="tk" x="43" y="166.7" text-anchor="end">10%</text>
+<line class="grid" x1="50" x2="570" y1="133.3" y2="133.3"/>
+<text class="tk" x="43" y="137.3" text-anchor="end">20%</text>
+<line class="grid" x1="50" x2="570" y1="104.0" y2="104.0"/>
+<text class="tk" x="43" y="108.0" text-anchor="end">30%</text>
+<line class="grid" x1="50" x2="570" y1="74.7" y2="74.7"/>
+<text class="tk" x="43" y="78.7" text-anchor="end">40%</text>
+<line class="grid" x1="50" x2="570" y1="45.3" y2="45.3"/>
+<text class="tk" x="43" y="49.3" text-anchor="end">50%</text>
+<line class="grid" x1="50" x2="570" y1="16.0" y2="16.0"/>
+<text class="tk" x="43" y="20.0" text-anchor="end">60%</text>
+<line class="ax" x1="50" x2="570" y1="192" y2="192"/>
+<line class="ax" x1="97.3" x2="97.3" y1="192" y2="196"/>
+<text class="tk" x="97.3" y="209" text-anchor="middle">10</text>
+<line class="ax" x1="149.8" x2="149.8" y1="192" y2="196"/>
+<text class="tk" x="149.8" y="209" text-anchor="middle">20</text>
+<line class="ax" x1="202.3" x2="202.3" y1="192" y2="196"/>
+<text class="tk" x="202.3" y="209" text-anchor="middle">30</text>
+<line class="ax" x1="254.8" x2="254.8" y1="192" y2="196"/>
+<text class="tk" x="254.8" y="209" text-anchor="middle">40</text>
+<line class="ax" x1="307.4" x2="307.4" y1="192" y2="196"/>
+<text class="tk" x="307.4" y="209" text-anchor="middle">50</text>
+<line class="ax" x1="359.9" x2="359.9" y1="192" y2="196"/>
+<text class="tk" x="359.9" y="209" text-anchor="middle">60</text>
+<line class="ax" x1="412.4" x2="412.4" y1="192" y2="196"/>
+<text class="tk" x="412.4" y="209" text-anchor="middle">70</text>
+<line class="ax" x1="464.9" x2="464.9" y1="192" y2="196"/>
+<text class="tk" x="464.9" y="209" text-anchor="middle">80</text>
+<line class="ax" x1="517.5" x2="517.5" y1="192" y2="196"/>
+<text class="tk" x="517.5" y="209" text-anchor="middle">90</text>
+<line class="ax" x1="570.0" x2="570.0" y1="192" y2="196"/>
+<text class="tk" x="570.0" y="209" text-anchor="middle">100</text>
+<text class="tk" x="310.0" y="227" text-anchor="middle">generación</text>
+<line class="ref" x1="50" x2="570" y1="30.5" y2="30.5"/>
+<text class="tk" x="566" y="25.5" text-anchor="end">piloto con temperatura 0.05</text>
+<path class="ln c3" d="M50.0 74.1 L55.3 72.5 L60.5 73.7 L65.8 75.2 L71.0 74.3 L76.3 72.7 L81.5 72.0 L86.8 72.5 L92.0 72.3 L97.3 72.5 L102.5 72.7 L107.8 72.8 L113.0 72.3 L118.3 72.3 L123.5 72.9 L128.8 71.9 L134.0 72.3 L139.3 72.7 L144.5 72.2 L149.8 72.4 L155.1 71.5 L160.3 72.6 L165.6 71.6 L170.8 72.7 L176.1 71.5 L181.3 71.7 L186.6 71.2 L191.8 72.8 L197.1 73.5 L202.3 72.7 L207.6 73.2 L212.8 72.8 L218.1 73.3 L223.3 73.6 L228.6 71.3 L233.8 72.3 L239.1 72.3 L244.3 71.7 L249.6 71.6 L254.8 70.5 L260.1 71.3 L265.4 71.0 L270.6 70.9 L275.9 71.9 L281.1 71.6 L286.4 70.5 L291.6 71.8 L296.9 71.0 L302.1 71.9 L307.4 71.4 L312.6 72.5 L317.9 71.4 L323.1 71.5 L328.4 71.0 L333.6 72.6 L338.9 71.2 L344.1 70.8 L349.4 70.5 L354.6 70.5 L359.9 71.3 L365.2 71.4 L370.4 71.2 L375.7 70.8 L380.9 71.5 L386.2 71.3 L391.4 70.4 L396.7 70.4 L401.9 70.7 L407.2 70.8 L412.4 71.5 L417.7 70.6 L422.9 72.6 L428.2 71.0 L433.4 69.1 L438.7 71.2 L443.9 70.4 L449.2 70.4 L454.4 69.7 L459.7 71.1 L464.9 70.1 L470.2 70.6 L475.5 70.3 L480.7 70.8 L486.0 70.8 L491.2 71.5 L496.5 71.4 L501.7 72.6 L507.0 71.3 L512.2 70.6 L517.5 70.4 L522.7 71.6 L528.0 69.6 L533.2 71.5 L538.5 71.3 L543.7 72.6 L549.0 71.0 L554.2 71.7 L559.5 71.6 L564.7 71.6 L570.0 71.6"/>
+<circle class="c3" cx="570.0" cy="71.6" r="3.5"/>
+<text class="c3 labb" x="578.0" y="75.6">Corrida 3</text>
+<text class="tk" x="10" y="10">% decisiones</text>
+</svg></div>
+    <p>Se mantuvo entre 39.8% y 41.9% durante toda la corrida. En el piloto previo, con temperatura 0.05, ese valor era 55.0%; con 0.02 bajó a 40.2% (sección 7).</p>
+    <span class="src">fuente: training_output/phase2-run3/generations.jsonl (greedy_disagreement); experiments/phase2-run3/pilots/*.json</span>
+  </div>
+
+  <div class="panel">
+    <h3>Cinco generaciones de cada corrida contra rivales fijos</h3>
+    <p class="sub">Cada gráfico chico muestra el porcentaje de partidas ganadas (eje 0–100, línea de trazos en 50) por cinco generaciones de una corrida contra un mismo rival, con el intervalo de 95%. 1,000 pares espejo por punto, todas sin azar. «Corrida 2 · gen 38» fue la red del juego antes de la gen 73. Falta el punto donde Refuerzo corrida 2 · gen 38 se enfrentaría a sí misma.</p>
+    <h4 style="margin:14px 0 6px" class="t1">Corrida 1 · generaciones 4, 10, 20, 28, 47</h4><div class="evo"><figure><figcaption>vs Reactivo</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Reactivo, corrida 1">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c1" d="M44.0 68.7 L77.5 33.1 L111.0 36.4 L144.5 39.7 L178.0 34.0" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">4</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">10</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">20</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">28</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">47</text>
+<line class="wh" x1="44.0" x2="44.0" y1="66.5" y2="70.8"/>
+<circle class="c1" cx="44.0" cy="68.7" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>51% [49, 53]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="62.5" text-anchor="middle">51</text>
+<line class="wh" x1="77.5" x2="77.5" y1="31.5" y2="34.7"/>
+<circle class="c1" cx="77.5" cy="33.1" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>84% [83, 86]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="27.5" text-anchor="middle">84</text>
+<line class="wh" x1="111.0" x2="111.0" y1="34.7" y2="38.0"/>
+<circle class="c1" cx="111.0" cy="36.4" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>81% [80, 83]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="30.7" text-anchor="middle">81</text>
+<line class="wh" x1="144.5" x2="144.5" y1="37.9" y2="41.4"/>
+<circle class="c1" cx="144.5" cy="39.7" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>78% [76, 80]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="33.9" text-anchor="middle">78</text>
+<line class="wh" x1="178.0" x2="178.0" y1="32.4" y2="35.6"/>
+<circle class="c1" cx="178.0" cy="34.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>83% [82, 85]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="28.4" text-anchor="middle">83</text>
+</svg></figure><figure><figcaption>vs Utilidad adaptativa</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Utilidad adaptativa, corrida 1">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c1" d="M44.0 92.6 L77.5 67.9 L111.0 77.0 L144.5 77.7 L178.0 65.7" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">4</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">10</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">20</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">28</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">47</text>
+<line class="wh" x1="44.0" x2="44.0" y1="90.7" y2="94.5"/>
+<circle class="c1" cx="44.0" cy="92.6" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>29% [27, 31]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="86.7" text-anchor="middle">29</text>
+<line class="wh" x1="77.5" x2="77.5" y1="66.0" y2="69.8"/>
+<circle class="c1" cx="77.5" cy="67.9" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>52% [50, 54]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="62.0" text-anchor="middle">52</text>
+<line class="wh" x1="111.0" x2="111.0" y1="75.2" y2="78.8"/>
+<circle class="c1" cx="111.0" cy="77.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>44% [42, 45]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="71.2" text-anchor="middle">44</text>
+<line class="wh" x1="144.5" x2="144.5" y1="75.9" y2="79.5"/>
+<circle class="c1" cx="144.5" cy="77.7" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>43% [41, 45]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="71.9" text-anchor="middle">43</text>
+<line class="wh" x1="178.0" x2="178.0" y1="63.8" y2="67.6"/>
+<circle class="c1" cx="178.0" cy="65.7" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>54% [52, 56]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="59.8" text-anchor="middle">54</text>
+</svg></figure><figure><figcaption>vs Genético publicado (gen 48)</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Genético publicado (gen 48), corrida 1">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c1" d="M44.0 46.1 L77.5 33.8 L111.0 28.7 L144.5 26.9 L178.0 28.6" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">4</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">10</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">20</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">28</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">47</text>
+<line class="wh" x1="44.0" x2="44.0" y1="44.2" y2="48.1"/>
+<circle class="c1" cx="44.0" cy="46.1" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>72% [70, 74]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="40.2" text-anchor="middle">72</text>
+<line class="wh" x1="77.5" x2="77.5" y1="32.1" y2="35.4"/>
+<circle class="c1" cx="77.5" cy="33.8" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>84% [82, 85]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="28.1" text-anchor="middle">84</text>
+<line class="wh" x1="111.0" x2="111.0" y1="27.3" y2="30.2"/>
+<circle class="c1" cx="111.0" cy="28.7" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>88% [87, 90]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="23.3" text-anchor="middle">88</text>
+<line class="wh" x1="144.5" x2="144.5" y1="25.5" y2="28.2"/>
+<circle class="c1" cx="144.5" cy="26.9" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>90% [89, 91]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="21.5" text-anchor="middle">90</text>
+<line class="wh" x1="178.0" x2="178.0" y1="27.1" y2="30.0"/>
+<circle class="c1" cx="178.0" cy="28.6" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>88% [87, 90]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="23.1" text-anchor="middle">88</text>
+</svg></figure><figure><figcaption>vs Refuerzo corrida 2 · gen 38</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Refuerzo corrida 2 · gen 38, corrida 1">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c1" d="M44.0 97.3 L77.5 76.3 L111.0 67.0 L144.5 69.0 L178.0 62.8" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">4</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">10</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">20</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">28</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">47</text>
+<line class="wh" x1="44.0" x2="44.0" y1="95.5" y2="99.2"/>
+<circle class="c1" cx="44.0" cy="97.3" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>25% [23, 26]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="91.5" text-anchor="middle">25</text>
+<line class="wh" x1="77.5" x2="77.5" y1="74.4" y2="78.1"/>
+<circle class="c1" cx="77.5" cy="76.3" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>44% [42, 46]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="70.4" text-anchor="middle">44</text>
+<line class="wh" x1="111.0" x2="111.0" y1="65.1" y2="69.0"/>
+<circle class="c1" cx="111.0" cy="67.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>53% [51, 55]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="61.1" text-anchor="middle">53</text>
+<line class="wh" x1="144.5" x2="144.5" y1="67.2" y2="70.9"/>
+<circle class="c1" cx="144.5" cy="69.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>51% [49, 53]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="63.2" text-anchor="middle">51</text>
+<line class="wh" x1="178.0" x2="178.0" y1="61.0" y2="64.6"/>
+<circle class="c1" cx="178.0" cy="62.8" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>57% [55, 58]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="57.0" text-anchor="middle">57</text>
+</svg></figure></div><h4 style="margin:14px 0 6px" class="t2">Corrida 2 · generaciones 10, 20, 30, 38, 49</h4><div class="evo"><figure><figcaption>vs Reactivo</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Reactivo, corrida 2">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c2" d="M44.0 20.7 L77.5 17.0 L111.0 19.0 L144.5 16.6 L178.0 17.5" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">10</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">20</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">30</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">38</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">49</text>
+<line class="wh" x1="44.0" x2="44.0" y1="19.7" y2="21.7"/>
+<circle class="c2" cx="44.0" cy="20.7" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>96% [95, 97]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="33.7" text-anchor="middle">96</text>
+<line class="wh" x1="77.5" x2="77.5" y1="16.6" y2="17.5"/>
+<circle class="c2" cx="77.5" cy="17.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>99% [99, 99]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="29.5" text-anchor="middle">99</text>
+<line class="wh" x1="111.0" x2="111.0" y1="18.2" y2="19.7"/>
+<circle class="c2" cx="111.0" cy="19.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>97% [97, 98]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="31.7" text-anchor="middle">97</text>
+<line class="wh" x1="144.5" x2="144.5" y1="16.2" y2="16.9"/>
+<circle class="c2" cx="144.5" cy="16.6" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>99% [99, 100]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="28.9" text-anchor="middle">99</text>
+<line class="wh" x1="178.0" x2="178.0" y1="17.0" y2="18.1"/>
+<circle class="c2" cx="178.0" cy="17.5" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>99% [98, 99]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="30.1" text-anchor="middle">99</text>
+</svg></figure><figure><figcaption>vs Utilidad adaptativa</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Utilidad adaptativa, corrida 2">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c2" d="M44.0 61.9 L77.5 63.5 L111.0 55.3 L144.5 46.2 L178.0 55.0" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">10</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">20</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">30</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">38</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">49</text>
+<line class="wh" x1="44.0" x2="44.0" y1="59.8" y2="64.0"/>
+<circle class="c2" cx="44.0" cy="61.9" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>57% [56, 59]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="55.8" text-anchor="middle">57</text>
+<line class="wh" x1="77.5" x2="77.5" y1="61.6" y2="65.5"/>
+<circle class="c2" cx="77.5" cy="63.5" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>56% [54, 58]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="57.6" text-anchor="middle">56</text>
+<line class="wh" x1="111.0" x2="111.0" y1="53.4" y2="57.1"/>
+<circle class="c2" cx="111.0" cy="55.3" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>64% [62, 65]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="49.4" text-anchor="middle">64</text>
+<line class="wh" x1="144.5" x2="144.5" y1="44.4" y2="48.1"/>
+<circle class="c2" cx="144.5" cy="46.2" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>72% [70, 74]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="40.4" text-anchor="middle">72</text>
+<line class="wh" x1="178.0" x2="178.0" y1="53.0" y2="56.9"/>
+<circle class="c2" cx="178.0" cy="55.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>64% [62, 66]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="49.0" text-anchor="middle">64</text>
+</svg></figure><figure><figcaption>vs Genético publicado (gen 48)</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Genético publicado (gen 48), corrida 2">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c2" d="M44.0 43.4 L77.5 27.3 L111.0 25.2 L144.5 23.4 L178.0 25.0" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">10</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">20</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">30</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">38</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">49</text>
+<line class="wh" x1="44.0" x2="44.0" y1="41.5" y2="45.4"/>
+<circle class="c2" cx="44.0" cy="43.4" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>75% [73, 76]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="37.5" text-anchor="middle">75</text>
+<line class="wh" x1="77.5" x2="77.5" y1="25.9" y2="28.7"/>
+<circle class="c2" cx="77.5" cy="27.3" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>90% [88, 91]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="21.9" text-anchor="middle">90</text>
+<line class="wh" x1="111.0" x2="111.0" y1="24.0" y2="26.5"/>
+<circle class="c2" cx="111.0" cy="25.2" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>91% [90, 93]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="38.5" text-anchor="middle">91</text>
+<line class="wh" x1="144.5" x2="144.5" y1="22.2" y2="24.5"/>
+<circle class="c2" cx="144.5" cy="23.4" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>93% [92, 94]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="36.5" text-anchor="middle">93</text>
+<line class="wh" x1="178.0" x2="178.0" y1="23.8" y2="26.3"/>
+<circle class="c2" cx="178.0" cy="25.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>92% [90, 93]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="38.3" text-anchor="middle">92</text>
+</svg></figure><figure><figcaption>vs Refuerzo corrida 2 · gen 38</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Refuerzo corrida 2 · gen 38, corrida 2">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c2" d="M44.0 94.0 L77.5 81.8 L111.0 67.6 L178.0 62.5" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">10</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">20</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">30</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">38</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">49</text>
+<line class="wh" x1="44.0" x2="44.0" y1="92.1" y2="95.8"/>
+<circle class="c2" cx="44.0" cy="94.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>28% [26, 30]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="88.1" text-anchor="middle">28</text>
+<line class="wh" x1="77.5" x2="77.5" y1="79.9" y2="83.7"/>
+<circle class="c2" cx="77.5" cy="81.8" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>39% [37, 41]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="75.9" text-anchor="middle">39</text>
+<line class="wh" x1="111.0" x2="111.0" y1="65.7" y2="69.5"/>
+<circle class="c2" cx="111.0" cy="67.6" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>52% [50, 54]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="61.7" text-anchor="middle">52</text>
+<line class="wh" x1="178.0" x2="178.0" y1="60.7" y2="64.3"/>
+<circle class="c2" cx="178.0" cy="62.5" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>57% [55, 59]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="56.7" text-anchor="middle">57</text>
+</svg></figure></div><h4 style="margin:14px 0 6px" class="t3">Corrida 3 · generaciones 11, 25, 50, 73, 100</h4><div class="evo"><figure><figcaption>vs Reactivo</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Reactivo, corrida 3">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c3" d="M44.0 16.5 L77.5 16.2 L111.0 16.5 L144.5 16.2 L178.0 16.2" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">11</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">25</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">50</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">73</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">100</text>
+<line class="wh" x1="44.0" x2="44.0" y1="16.2" y2="16.8"/>
+<circle class="c3" cx="44.0" cy="16.5" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>100% [99, 100]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="28.8" text-anchor="middle">100</text>
+<line class="wh" x1="77.5" x2="77.5" y1="16.0" y2="16.4"/>
+<circle class="c3" cx="77.5" cy="16.2" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>100% [100, 100]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="28.4" text-anchor="middle">100</text>
+<line class="wh" x1="111.0" x2="111.0" y1="16.2" y2="16.9"/>
+<circle class="c3" cx="111.0" cy="16.5" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>100% [99, 100]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="28.9" text-anchor="middle">100</text>
+<line class="wh" x1="144.5" x2="144.5" y1="16.0" y2="16.3"/>
+<circle class="c3" cx="144.5" cy="16.2" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>100% [100, 100]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="28.3" text-anchor="middle">100</text>
+<line class="wh" x1="178.0" x2="178.0" y1="16.0" y2="16.3"/>
+<circle class="c3" cx="178.0" cy="16.2" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>100% [100, 100]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="28.3" text-anchor="middle">100</text>
+</svg></figure><figure><figcaption>vs Utilidad adaptativa</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Utilidad adaptativa, corrida 3">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c3" d="M44.0 37.9 L77.5 37.0 L111.0 33.2 L144.5 30.3 L178.0 30.8" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">11</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">25</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">50</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">73</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">100</text>
+<line class="wh" x1="44.0" x2="44.0" y1="36.2" y2="39.7"/>
+<circle class="c3" cx="44.0" cy="37.9" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>80% [78, 81]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="32.2" text-anchor="middle">80</text>
+<line class="wh" x1="77.5" x2="77.5" y1="35.3" y2="38.7"/>
+<circle class="c3" cx="77.5" cy="37.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>81% [79, 82]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="31.3" text-anchor="middle">81</text>
+<line class="wh" x1="111.0" x2="111.0" y1="31.5" y2="34.8"/>
+<circle class="c3" cx="111.0" cy="33.2" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>84% [83, 86]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="27.5" text-anchor="middle">84</text>
+<line class="wh" x1="144.5" x2="144.5" y1="28.7" y2="31.8"/>
+<circle class="c3" cx="144.5" cy="30.3" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>87% [85, 88]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="24.7" text-anchor="middle">87</text>
+<line class="wh" x1="178.0" x2="178.0" y1="29.3" y2="32.4"/>
+<circle class="c3" cx="178.0" cy="30.8" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>86% [85, 88]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="25.3" text-anchor="middle">86</text>
+</svg></figure><figure><figcaption>vs Genético publicado (gen 48)</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Genético publicado (gen 48), corrida 3">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c3" d="M44.0 29.3 L77.5 26.3 L111.0 24.5 L144.5 24.0 L178.0 23.9" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">11</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">25</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">50</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">73</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">100</text>
+<line class="wh" x1="44.0" x2="44.0" y1="27.9" y2="30.8"/>
+<circle class="c3" cx="44.0" cy="29.3" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>88% [86, 89]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="23.9" text-anchor="middle">88</text>
+<line class="wh" x1="77.5" x2="77.5" y1="25.0" y2="27.7"/>
+<circle class="c3" cx="77.5" cy="26.3" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>90% [89, 92]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="21.0" text-anchor="middle">90</text>
+<line class="wh" x1="111.0" x2="111.0" y1="23.3" y2="25.8"/>
+<circle class="c3" cx="111.0" cy="24.5" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>92% [91, 93]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="37.8" text-anchor="middle">92</text>
+<line class="wh" x1="144.5" x2="144.5" y1="22.8" y2="25.2"/>
+<circle class="c3" cx="144.5" cy="24.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>93% [91, 94]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="37.2" text-anchor="middle">93</text>
+<line class="wh" x1="178.0" x2="178.0" y1="22.7" y2="25.1"/>
+<circle class="c3" cx="178.0" cy="23.9" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>93% [92, 94]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="37.1" text-anchor="middle">93</text>
+</svg></figure><figure><figcaption>vs Refuerzo corrida 2 · gen 38</figcaption><svg viewBox="0 0 200 150" role="img" aria-label="Refuerzo corrida 2 · gen 38, corrida 3">
+<line class="grid" x1="30" x2="192" y1="124.0" y2="124.0"/>
+<text class="tk" x="25" y="128.0" text-anchor="end">0</text>
+<line class="ref" x1="30" x2="192" y1="70.0" y2="70.0"/>
+<text class="tk" x="25" y="74.0" text-anchor="end">50</text>
+<line class="grid" x1="30" x2="192" y1="16.0" y2="16.0"/>
+<text class="tk" x="25" y="20.0" text-anchor="end">100</text>
+<line class="ax" x1="30" x2="192" y1="124" y2="124"/>
+<path class="ln c3" d="M44.0 58.1 L77.5 57.4 L111.0 57.0 L144.5 55.3 L178.0 56.2" style="stroke-width:1.5"/>
+<text class="tk" x="44.0" y="139" text-anchor="middle">11</text>
+<text class="tk" x="77.5" y="139" text-anchor="middle">25</text>
+<text class="tk" x="111.0" y="139" text-anchor="middle">50</text>
+<text class="tk" x="144.5" y="139" text-anchor="middle">73</text>
+<text class="tk" x="178.0" y="139" text-anchor="middle">100</text>
+<line class="wh" x1="44.0" x2="44.0" y1="56.4" y2="59.8"/>
+<circle class="c3" cx="44.0" cy="58.1" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>61% [59, 63]</title></circle>
+<text class="lab" style="font-size:10px" x="44.0" y="52.4" text-anchor="middle">61</text>
+<line class="wh" x1="77.5" x2="77.5" y1="55.6" y2="59.3"/>
+<circle class="c3" cx="77.5" cy="57.4" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>62% [60, 63]</title></circle>
+<text class="lab" style="font-size:10px" x="77.5" y="51.6" text-anchor="middle">62</text>
+<line class="wh" x1="111.0" x2="111.0" y1="55.2" y2="58.8"/>
+<circle class="c3" cx="111.0" cy="57.0" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>62% [60, 64]</title></circle>
+<text class="lab" style="font-size:10px" x="111.0" y="51.2" text-anchor="middle">62</text>
+<line class="wh" x1="144.5" x2="144.5" y1="53.5" y2="57.1"/>
+<circle class="c3" cx="144.5" cy="55.3" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>64% [62, 65]</title></circle>
+<text class="lab" style="font-size:10px" x="144.5" y="49.5" text-anchor="middle">64</text>
+<line class="wh" x1="178.0" x2="178.0" y1="54.3" y2="58.1"/>
+<circle class="c3" cx="178.0" cy="56.2" r="3.6" style="stroke:var(--panel);stroke-width:1.5"><title>63% [61, 65]</title></circle>
+<text class="lab" style="font-size:10px" x="178.0" y="50.3" text-anchor="middle">63</text>
+</svg></figure></div>
+    <span class="src">fuente: experiments/run-evolution/output/results.json (analysis.runs[*].table)</span>
+  </div>
+
+  <div class="panel">
+    <h3>Dentro de cada corrida: quién le gana a quién</h3>
+    <p class="sub">Cada celda es el porcentaje de partidas que gana la red de la fila contra la de la columna. Azul: gana la fila; rojo: gana la columna. Es el mismo protocolo, sin azar.</p>
+    <div class="cols"><div><h4 class="t1" style="margin-bottom:6px">Corrida 1</h4><div class="tw"><table class="hm"><thead><tr><th></th><th>gen 4</th><th>gen 10</th><th>gen 20</th><th>gen 28</th><th>gen 47</th></tr></thead><tbody><tr><th class="rl">gen 4</th><td class="self">—</td><td style="--hi:0.000;--lo:0.408" title="Refuerzo corrida 1 · gen 4 vs Refuerzo corrida 1 · gen 10: 29.6% [27.8, 31.4]">29.6</td><td style="--hi:0.000;--lo:0.455" title="Refuerzo corrida 1 · gen 4 vs Refuerzo corrida 1 · gen 20: 27.3% [25.5, 29.0]">27.3</td><td style="--hi:0.000;--lo:0.441" title="Refuerzo corrida 1 · gen 4 vs Refuerzo corrida 1 · gen 28: 28.0% [26.2, 29.7]">28.0</td><td style="--hi:0.000;--lo:0.510" title="Refuerzo corrida 1 · gen 4 vs Refuerzo corrida 1 · gen 47: 24.5% [22.8, 26.2]">24.5</td></tr><tr><th class="rl">gen 10</th><td style="--hi:0.408;--lo:0.000" title="Refuerzo corrida 1 · gen 10 vs Refuerzo corrida 1 · gen 4: 70.4% [68.6, 72.2]">70.4</td><td class="self">—</td><td style="--hi:0.000;--lo:0.056" title="Refuerzo corrida 1 · gen 10 vs Refuerzo corrida 1 · gen 20: 47.2% [45.5, 48.9]">47.2</td><td style="--hi:0.000;--lo:0.096" title="Refuerzo corrida 1 · gen 10 vs Refuerzo corrida 1 · gen 28: 45.2% [43.5, 46.9]">45.2</td><td style="--hi:0.000;--lo:0.201" title="Refuerzo corrida 1 · gen 10 vs Refuerzo corrida 1 · gen 47: 40.0% [38.3, 41.6]">40.0</td></tr><tr><th class="rl">gen 20</th><td style="--hi:0.455;--lo:0.000" title="Refuerzo corrida 1 · gen 20 vs Refuerzo corrida 1 · gen 4: 72.8% [71.0, 74.5]">72.8</td><td style="--hi:0.056;--lo:0.000" title="Refuerzo corrida 1 · gen 20 vs Refuerzo corrida 1 · gen 10: 52.8% [51.1, 54.5]">52.8</td><td class="self">—</td><td style="--hi:0.057;--lo:0.000" title="Refuerzo corrida 1 · gen 20 vs Refuerzo corrida 1 · gen 28: 52.8% [51.3, 54.4]">52.8</td><td style="--hi:0.000;--lo:0.072" title="Refuerzo corrida 1 · gen 20 vs Refuerzo corrida 1 · gen 47: 46.4% [44.7, 48.1]">46.4</td></tr><tr><th class="rl">gen 28</th><td style="--hi:0.441;--lo:0.000" title="Refuerzo corrida 1 · gen 28 vs Refuerzo corrida 1 · gen 4: 72.0% [70.3, 73.8]">72.0</td><td style="--hi:0.096;--lo:0.000" title="Refuerzo corrida 1 · gen 28 vs Refuerzo corrida 1 · gen 10: 54.8% [53.1, 56.5]">54.8</td><td style="--hi:0.000;--lo:0.057" title="Refuerzo corrida 1 · gen 28 vs Refuerzo corrida 1 · gen 20: 47.1% [45.6, 48.7]">47.1</td><td class="self">—</td><td style="--hi:0.000;--lo:0.151" title="Refuerzo corrida 1 · gen 28 vs Refuerzo corrida 1 · gen 47: 42.4% [40.8, 44.1]">42.4</td></tr><tr><th class="rl">gen 47</th><td style="--hi:0.510;--lo:0.000" title="Refuerzo corrida 1 · gen 47 vs Refuerzo corrida 1 · gen 4: 75.5% [73.8, 77.2]">75.5</td><td style="--hi:0.201;--lo:0.000" title="Refuerzo corrida 1 · gen 47 vs Refuerzo corrida 1 · gen 10: 60.1% [58.4, 61.7]">60.1</td><td style="--hi:0.072;--lo:0.000" title="Refuerzo corrida 1 · gen 47 vs Refuerzo corrida 1 · gen 20: 53.6% [51.9, 55.3]">53.6</td><td style="--hi:0.151;--lo:0.000" title="Refuerzo corrida 1 · gen 47 vs Refuerzo corrida 1 · gen 28: 57.6% [55.9, 59.2]">57.6</td><td class="self">—</td></tr></tbody></table></div></div><div><h4 class="t2" style="margin-bottom:6px">Corrida 2</h4><div class="tw"><table class="hm"><thead><tr><th></th><th>gen 10</th><th>gen 20</th><th>gen 30</th><th>gen 38</th><th>gen 49</th></tr></thead><tbody><tr><th class="rl">gen 10</th><td class="self">—</td><td style="--hi:0.000;--lo:0.393" title="Refuerzo corrida 2 · gen 10 vs Refuerzo corrida 2 · gen 20: 30.3% [28.6, 32.1]">30.3</td><td style="--hi:0.000;--lo:0.440" title="Refuerzo corrida 2 · gen 10 vs Refuerzo corrida 2 · gen 30: 28.0% [26.3, 29.7]">28.0</td><td style="--hi:0.000;--lo:0.444" title="Refuerzo corrida 2 · gen 10 vs Refuerzo corrida 2 · gen 38: 27.8% [26.1, 29.5]">27.8</td><td style="--hi:0.000;--lo:0.476" title="Refuerzo corrida 2 · gen 10 vs Refuerzo corrida 2 · gen 49: 26.2% [24.5, 27.9]">26.2</td></tr><tr><th class="rl">gen 20</th><td style="--hi:0.393;--lo:0.000" title="Refuerzo corrida 2 · gen 20 vs Refuerzo corrida 2 · gen 10: 69.7% [67.9, 71.4]">69.7</td><td class="self">—</td><td style="--hi:0.000;--lo:0.158" title="Refuerzo corrida 2 · gen 20 vs Refuerzo corrida 2 · gen 30: 42.1% [40.4, 43.8]">42.1</td><td style="--hi:0.000;--lo:0.219" title="Refuerzo corrida 2 · gen 20 vs Refuerzo corrida 2 · gen 38: 39.1% [37.3, 40.8]">39.1</td><td style="--hi:0.000;--lo:0.268" title="Refuerzo corrida 2 · gen 20 vs Refuerzo corrida 2 · gen 49: 36.6% [34.9, 38.3]">36.6</td></tr><tr><th class="rl">gen 30</th><td style="--hi:0.440;--lo:0.000" title="Refuerzo corrida 2 · gen 30 vs Refuerzo corrida 2 · gen 10: 72.0% [70.3, 73.7]">72.0</td><td style="--hi:0.158;--lo:0.000" title="Refuerzo corrida 2 · gen 30 vs Refuerzo corrida 2 · gen 20: 57.9% [56.2, 59.6]">57.9</td><td class="self">—</td><td style="--hi:0.044;--lo:0.000" title="Refuerzo corrida 2 · gen 30 vs Refuerzo corrida 2 · gen 38: 52.2% [50.5, 53.9]">52.2</td><td style="--hi:0.000;--lo:0.078" title="Refuerzo corrida 2 · gen 30 vs Refuerzo corrida 2 · gen 49: 46.1% [44.4, 47.8]">46.1</td></tr><tr><th class="rl">gen 38</th><td style="--hi:0.444;--lo:0.000" title="Refuerzo corrida 2 · gen 38 vs Refuerzo corrida 2 · gen 10: 72.2% [70.5, 73.9]">72.2</td><td style="--hi:0.219;--lo:0.000" title="Refuerzo corrida 2 · gen 38 vs Refuerzo corrida 2 · gen 20: 61.0% [59.2, 62.7]">61.0</td><td style="--hi:0.000;--lo:0.044" title="Refuerzo corrida 2 · gen 38 vs Refuerzo corrida 2 · gen 30: 47.8% [46.1, 49.5]">47.8</td><td class="self">—</td><td style="--hi:0.000;--lo:0.139" title="Refuerzo corrida 2 · gen 38 vs Refuerzo corrida 2 · gen 49: 43.0% [41.3, 44.8]">43.0</td></tr><tr><th class="rl">gen 49</th><td style="--hi:0.476;--lo:0.000" title="Refuerzo corrida 2 · gen 49 vs Refuerzo corrida 2 · gen 10: 73.8% [72.1, 75.5]">73.8</td><td style="--hi:0.268;--lo:0.000" title="Refuerzo corrida 2 · gen 49 vs Refuerzo corrida 2 · gen 20: 63.4% [61.7, 65.1]">63.4</td><td style="--hi:0.078;--lo:0.000" title="Refuerzo corrida 2 · gen 49 vs Refuerzo corrida 2 · gen 30: 53.9% [52.2, 55.6]">53.9</td><td style="--hi:0.139;--lo:0.000" title="Refuerzo corrida 2 · gen 49 vs Refuerzo corrida 2 · gen 38: 57.0% [55.2, 58.7]">57.0</td><td class="self">—</td></tr></tbody></table></div></div><div><h4 class="t3" style="margin-bottom:6px">Corrida 3</h4><div class="tw"><table class="hm"><thead><tr><th></th><th>gen 11</th><th>gen 25</th><th>gen 50</th><th>gen 73</th><th>gen 100</th></tr></thead><tbody><tr><th class="rl">gen 11</th><td class="self">—</td><td style="--hi:0.000;--lo:0.027" title="Refuerzo corrida 3 · gen 11 vs Refuerzo corrida 3 · gen 25: 48.6% [46.9, 50.4]">48.6</td><td style="--hi:0.088;--lo:0.000" title="Refuerzo corrida 3 · gen 11 vs Refuerzo corrida 3 · gen 50: 54.4% [52.7, 56.1]">54.4</td><td style="--hi:0.000;--lo:0.054" title="Refuerzo corrida 3 · gen 11 vs Refuerzo corrida 3 · gen 73: 47.3% [45.7, 48.9]">47.3</td><td style="--hi:0.000;--lo:0.035" title="Refuerzo corrida 3 · gen 11 vs Refuerzo corrida 3 · gen 100: 48.2% [46.5, 50.0]">48.2</td></tr><tr><th class="rl">gen 25</th><td style="--hi:0.027;--lo:0.000" title="Refuerzo corrida 3 · gen 25 vs Refuerzo corrida 3 · gen 11: 51.3% [49.6, 53.1]">51.3</td><td class="self">—</td><td style="--hi:0.050;--lo:0.000" title="Refuerzo corrida 3 · gen 25 vs Refuerzo corrida 3 · gen 50: 52.5% [50.7, 54.3]">52.5</td><td style="--hi:0.000;--lo:0.013" title="Refuerzo corrida 3 · gen 25 vs Refuerzo corrida 3 · gen 73: 49.4% [47.6, 51.1]">49.4</td><td style="--hi:0.039;--lo:0.000" title="Refuerzo corrida 3 · gen 25 vs Refuerzo corrida 3 · gen 100: 51.9% [50.2, 53.7]">51.9</td></tr><tr><th class="rl">gen 50</th><td style="--hi:0.000;--lo:0.088" title="Refuerzo corrida 3 · gen 50 vs Refuerzo corrida 3 · gen 11: 45.6% [43.9, 47.3]">45.6</td><td style="--hi:0.000;--lo:0.050" title="Refuerzo corrida 3 · gen 50 vs Refuerzo corrida 3 · gen 25: 47.5% [45.7, 49.3]">47.5</td><td class="self">—</td><td style="--hi:0.000;--lo:0.038" title="Refuerzo corrida 3 · gen 50 vs Refuerzo corrida 3 · gen 73: 48.1% [46.5, 49.7]">48.1</td><td style="--hi:0.000;--lo:0.093" title="Refuerzo corrida 3 · gen 50 vs Refuerzo corrida 3 · gen 100: 45.4% [43.7, 47.0]">45.4</td></tr><tr><th class="rl">gen 73</th><td style="--hi:0.054;--lo:0.000" title="Refuerzo corrida 3 · gen 73 vs Refuerzo corrida 3 · gen 11: 52.7% [51.1, 54.3]">52.7</td><td style="--hi:0.013;--lo:0.000" title="Refuerzo corrida 3 · gen 73 vs Refuerzo corrida 3 · gen 25: 50.6% [48.9, 52.4]">50.6</td><td style="--hi:0.038;--lo:0.000" title="Refuerzo corrida 3 · gen 73 vs Refuerzo corrida 3 · gen 50: 51.9% [50.3, 53.5]">51.9</td><td class="self">—</td><td style="--hi:0.024;--lo:0.000" title="Refuerzo corrida 3 · gen 73 vs Refuerzo corrida 3 · gen 100: 51.2% [49.6, 52.8]">51.2</td></tr><tr><th class="rl">gen 100</th><td style="--hi:0.035;--lo:0.000" title="Refuerzo corrida 3 · gen 100 vs Refuerzo corrida 3 · gen 11: 51.7% [50.0, 53.5]">51.7</td><td style="--hi:0.000;--lo:0.039" title="Refuerzo corrida 3 · gen 100 vs Refuerzo corrida 3 · gen 25: 48.0% [46.3, 49.8]">48.0</td><td style="--hi:0.093;--lo:0.000" title="Refuerzo corrida 3 · gen 100 vs Refuerzo corrida 3 · gen 50: 54.6% [53.0, 56.3]">54.6</td><td style="--hi:0.000;--lo:0.024" title="Refuerzo corrida 3 · gen 100 vs Refuerzo corrida 3 · gen 73: 48.8% [47.2, 50.4]">48.8</td><td class="self">—</td></tr></tbody></table></div></div></div><div class="scale"><span>gana la columna</span><i></i><span>gana la fila</span></div>
+    <span class="src">fuente: experiments/run-evolution/output/results.json (analysis.runs[*].within)</span>
+  </div>
+</section>
+
+<!-- ============================================================ 6 -->
+<section id="velocidad">
+  <div class="sechead"><span class="k">6 · Velocidad</span><h2>Más partidas por hora sin cambiar ningún resultado</h2></div>
+  <div class="tiles">
+    <div class="tile"><div class="v">63.3</div><div class="l">partidas/s, corrida 1</div><div class="s">promedio de las 12 h</div></div>
+    <div class="tile"><div class="v">64.8</div><div class="l">partidas/s, corrida 2</div><div class="s">promedio de las 12 h</div></div>
+    <div class="tile"><div class="v">289.1</div><div class="l">partidas/s, corrida 3</div><div class="s">4.6 veces la corrida 1</div></div>
+    <div class="tile"><div class="v">4.1×</div><div class="l">mejora medida de la optimización</div><div class="s">110.0 → 450.9 partidas/s en una prueba corta del entrenamiento completo</div></div>
+  </div>
+  <div class="panel">
+    <h3>Partidas por segundo, generación por generación</h3>
+    <p class="sub">Partidas de la generación dividido el tiempo de la generación (incluye el control). Al comienzo las partidas son cortas y rápidas; a medida que la red mejora juega partidas más largas y la velocidad baja. En la corrida 3 la velocidad es casi pareja de punta a punta; una explicación probable es que arrancó desde una red ya entrenada, así que no tuvo la etapa inicial de partidas cortas.</p>
+    <div class="chart"><svg viewBox="0 0 640 230" role="img" aria-label="Partidas por segundo por generación">
+<line class="grid" x1="50" x2="570" y1="192.0" y2="192.0"/>
+<text class="tk" x="43" y="196.0" text-anchor="end">0</text>
+<line class="grid" x1="50" x2="570" y1="166.9" y2="166.9"/>
+<text class="tk" x="43" y="170.9" text-anchor="end">50</text>
+<line class="grid" x1="50" x2="570" y1="141.7" y2="141.7"/>
+<text class="tk" x="43" y="145.7" text-anchor="end">100</text>
+<line class="grid" x1="50" x2="570" y1="116.6" y2="116.6"/>
+<text class="tk" x="43" y="120.6" text-anchor="end">150</text>
+<line class="grid" x1="50" x2="570" y1="91.4" y2="91.4"/>
+<text class="tk" x="43" y="95.4" text-anchor="end">200</text>
+<line class="grid" x1="50" x2="570" y1="66.3" y2="66.3"/>
+<text class="tk" x="43" y="70.3" text-anchor="end">250</text>
+<line class="grid" x1="50" x2="570" y1="41.1" y2="41.1"/>
+<text class="tk" x="43" y="45.1" text-anchor="end">300</text>
+<line class="grid" x1="50" x2="570" y1="16.0" y2="16.0"/>
+<text class="tk" x="43" y="20.0" text-anchor="end">350</text>
+<line class="ax" x1="50" x2="570" y1="192" y2="192"/>
+<line class="ax" x1="97.3" x2="97.3" y1="192" y2="196"/>
+<text class="tk" x="97.3" y="209" text-anchor="middle">10</text>
+<line class="ax" x1="149.8" x2="149.8" y1="192" y2="196"/>
+<text class="tk" x="149.8" y="209" text-anchor="middle">20</text>
+<line class="ax" x1="202.3" x2="202.3" y1="192" y2="196"/>
+<text class="tk" x="202.3" y="209" text-anchor="middle">30</text>
+<line class="ax" x1="254.8" x2="254.8" y1="192" y2="196"/>
+<text class="tk" x="254.8" y="209" text-anchor="middle">40</text>
+<line class="ax" x1="307.4" x2="307.4" y1="192" y2="196"/>
+<text class="tk" x="307.4" y="209" text-anchor="middle">50</text>
+<line class="ax" x1="359.9" x2="359.9" y1="192" y2="196"/>
+<text class="tk" x="359.9" y="209" text-anchor="middle">60</text>
+<line class="ax" x1="412.4" x2="412.4" y1="192" y2="196"/>
+<text class="tk" x="412.4" y="209" text-anchor="middle">70</text>
+<line class="ax" x1="464.9" x2="464.9" y1="192" y2="196"/>
+<text class="tk" x="464.9" y="209" text-anchor="middle">80</text>
+<line class="ax" x1="517.5" x2="517.5" y1="192" y2="196"/>
+<text class="tk" x="517.5" y="209" text-anchor="middle">90</text>
+<line class="ax" x1="570.0" x2="570.0" y1="192" y2="196"/>
+<text class="tk" x="570.0" y="209" text-anchor="middle">100</text>
+<text class="tk" x="310.0" y="227" text-anchor="middle">generación</text>
+<path class="ln c1" d="M50.0 118.2 L55.3 108.5 L60.5 132.5 L65.8 141.2 L71.0 147.3 L76.3 152.3 L81.5 153.5 L86.8 154.7 L92.0 158.3 L97.3 159.4 L102.5 159.9 L107.8 160.3 L113.0 159.3 L118.3 160.5 L123.5 159.8 L128.8 160.6 L134.0 161.0 L139.3 160.8 L144.5 160.9 L149.8 161.3 L155.1 160.8 L160.3 161.3 L165.6 161.3 L170.8 161.3 L176.1 162.0 L181.3 162.2 L186.6 162.1 L191.8 162.4 L197.1 162.0 L202.3 161.7 L207.6 163.0 L212.8 162.6 L218.1 162.3 L223.3 157.0 L228.6 162.7 L233.8 161.8 L239.1 161.5 L244.3 161.9 L249.6 162.4 L254.8 162.2 L260.1 162.1 L265.4 161.1 L270.6 161.9 L275.9 161.5 L281.1 161.1 L286.4 162.0 L291.6 161.3"/>
+<circle class="c1" cx="291.6" cy="161.3" r="3.5"/>
+<text class="c1 labb" x="299.6" y="165.3">Corrida 1</text>
+<path class="ln c2" d="M50.0 117.9 L55.3 123.6 L60.5 135.6 L65.8 141.5 L71.0 140.4 L76.3 141.5 L81.5 144.0 L86.8 147.0 L92.0 147.1 L97.3 150.2 L102.5 151.5 L107.8 154.1 L113.0 155.7 L118.3 156.5 L123.5 158.7 L128.8 156.0 L134.0 157.1 L139.3 158.5 L144.5 159.0 L149.8 159.7 L155.1 159.0 L160.3 159.3 L165.6 161.3 L170.8 161.1 L176.1 162.0 L181.3 161.4 L186.6 161.3 L191.8 161.9 L197.1 161.3 L202.3 161.0 L207.6 162.1 L212.8 161.6 L218.1 162.1 L223.3 161.4 L228.6 161.3 L233.8 159.9 L239.1 159.9 L244.3 160.1 L249.6 161.1 L254.8 163.9 L260.1 162.6 L265.4 162.6 L270.6 162.7 L275.9 163.4 L281.1 162.8 L286.4 163.6 L291.6 163.7 L296.9 162.6 L302.1 161.6"/>
+<circle class="c2" cx="302.1" cy="161.6" r="3.5"/>
+<text class="c2 labb" x="310.1" y="180.3">Corrida 2</text>
+<path class="ln c3" d="M50.0 41.8 L55.3 28.7 L60.5 34.3 L65.8 30.8 L71.0 35.6 L76.3 35.5 L81.5 33.0 L86.8 40.5 L92.0 45.6 L97.3 45.9 L102.5 40.7 L107.8 40.2 L113.0 44.2 L118.3 42.9 L123.5 36.8 L128.8 36.9 L134.0 35.7 L139.3 34.1 L144.5 30.7 L149.8 30.1 L155.1 32.6 L160.3 31.9 L165.6 36.0 L170.8 45.3 L176.1 45.6 L181.3 36.2 L186.6 39.5 L191.8 35.0 L197.1 41.9 L202.3 39.0 L207.6 45.7 L212.8 42.8 L218.1 42.1 L223.3 39.4 L228.6 41.1 L233.8 39.3 L239.1 41.5 L244.3 38.0 L249.6 41.6 L254.8 41.6 L260.1 43.0 L265.4 42.3 L270.6 41.6 L275.9 40.6 L281.1 40.8 L286.4 43.2 L291.6 41.5 L296.9 40.7 L302.1 40.7 L307.4 41.7 L312.6 42.6 L317.9 40.4 L323.1 42.1 L328.4 40.2 L333.6 39.8 L338.9 38.6 L344.1 36.8 L349.4 39.9 L354.6 39.3 L359.9 38.7 L365.2 36.7 L370.4 38.3 L375.7 39.1 L380.9 40.0 L386.2 39.3 L391.4 41.1 L396.7 40.7 L401.9 41.4 L407.2 40.8 L412.4 40.5 L417.7 39.8 L422.9 39.3 L428.2 39.8 L433.4 40.5 L438.7 42.5 L443.9 41.9 L449.2 47.3 L454.4 47.6 L459.7 42.3 L464.9 43.2 L470.2 42.9 L475.5 45.6 L480.7 42.5 L486.0 44.7 L491.2 43.6 L496.5 44.9 L501.7 45.8 L507.0 44.1 L512.2 44.2 L517.5 44.3 L522.7 44.1 L528.0 44.7 L533.2 43.7 L538.5 43.9 L543.7 45.3 L549.0 48.9 L554.2 45.7 L559.5 46.6 L564.7 47.3 L570.0 44.6"/>
+<circle class="c3" cx="570.0" cy="44.6" r="3.5"/>
+<text class="c3 labb" x="578.0" y="48.6">Corrida 3</text>
+<text class="tk" x="10" y="10">partidas/s</text>
+</svg></div>
+    <p>Tiempo por generación al final: corrida 1, 950 s; corrida 2, 989 s (alrededor de 15 minutos); corrida 3, 428 s, con una generación de más del doble de partidas (124,560).</p>
+    <span class="src">fuente: generations.jsonl (matches / elapsed_seconds); docs/adr/0062</span>
+  </div>
+  <div class="panel">
+    <h3>La optimización «bit a bit»</h3>
+    <p>Entre la corrida 2 y la 3 se aceleró el código de entrenamiento unas 4 veces con una regla estricta: <b>una mejora solo se acepta si no cambia nada de lo que se calcula</b>. Se usaron las mismas partidas, los mismos ganadores, las mismas muestras de aprendizaje, los mismos pesos y los mismos archivos guardados, comparados byte por byte.</p>
+    <ul class="clean">
+      <li><b>Cómo se probó:</b> una corrida de referencia fija («prueba dorada»): 3 generaciones de 96 partidas, con 5,579 muestras y 25 actualizaciones. Se grabó con el código viejo y 1 trabajador; cada cambio tuvo que reproducirla igual con 1 y con 12 trabajadores. Un cambio de una millonésima en una entrada hace fallar la prueba, así que se sabe que puede detectar diferencias.</li>
+      <li><b>Qué se aceleró:</b> el cálculo de las creencias sobre las cartas del rival, que era casi todo el tiempo (6.23 s → 0.93 s por bloque de 40 partidas). En total se aceptaron 6 cambios (los demás reparten mejor el trabajo entre procesos), uno por commit, cada uno con su argumento de por qué da exactamente lo mismo.</li>
+      <li><b>Resultado medido:</b> 53.6 → 392.0 partidas/s en rondas de actores (7.3×); control de generación 42.7 s → 7.7 s (5.6×); entrenamiento completo 110.0 → 450.9 partidas/s (4.1×). El aprendizaje en sí (la actualización de pesos) no cambió. Esa prueba corta parte de una red nueva, que juega partidas más cortas; en la corrida 3 real, con una red entrenada, el promedio fue 289.1 partidas/s.</li>
+      <li><b>Sin ganancia con más trabajadores</b> (procesos que juegan en paralelo)<b>:</b> con 12 se miden 422.1 partidas/s y con más no sube; los resultados tampoco dependen del número de trabajadores.</li>
+      <li>La suite completa de pruebas del proyecto pasó (499 pruebas).</li>
+    </ul>
+    <span class="src">fuente: docs/perf/phase2-speed.md</span>
+  </div>
+  <div class="panel">
+    <h3>Partidas totales por corrida</h3>
+    <div class="tw"><table>
+      <thead><tr><th>Corrida</th><th class="n">Partidas</th><th class="n">Muestras de aprendizaje</th><th class="n">Actualizaciones</th></tr></thead>
+      <tbody>
+      <tr><td><span class="t1"><b>Corrida 1</b></span></td><td class="n">2,735,040</td><td class="n">91,465,755</td><td class="n">184,354</td></tr>
+      <tr><td><span class="t2"><b>Corrida 2</b></span></td><td class="n">2,799,120</td><td class="n">84,279,677</td><td class="n">170,459</td></tr>
+      <tr><td><span class="t3"><b>Corrida 3</b></span></td><td class="n">12,487,920</td><td class="n">493,050,318</td><td class="n">988,984</td></tr>
+      </tbody></table></div>
+    <p class="sub" style="margin-top:8px">Una «muestra» es una decisión de la red con su resultado, lista para aprender. Fuente: progress.json de cada corrida.</p>
+  </div>
+</section>
+
+<!-- ============================================================ 7 -->
+<section id="problemas">
+  <div class="sechead"><span class="k">7 · Descubrimientos y problemas</span><h2>Lo que salió mal, cómo se vio y qué se hizo</h2></div>
+  <div class="find">
+    <article><span class="tag">Corrida 1 · intento abortado</span><h3>Un error en las reglas del motor</h3>
+      <p>El primer intento de la corrida 1 se detuvo a los 80 minutos y 6 generaciones. Al responder un truco con retruco (o un retruco con vale cuatro) el motor no aceptaba la apuesta anterior. Por eso seguía permitiendo cantar envido después del retruco, y un «no quiero» posterior sumaba un punto de menos. Ocurría en alrededor del 0.26% de las decisiones, una vez cada 14 partidas más o menos (ADR 0055).</p>
+      <p>Se corrigió el motor y la revisión completa encontró 6 problemas más (por ejemplo, que las manos de entrenamiento y de control podían repetirse). Los resultados del intento abortado no se usaron para nada, y no cuenta como reintento.</p></article>
+    <article><span class="tag">Corrida 1</span><h3>Entrenó casi solo contra redes parecidas</h3>
+      <p>Cerca del 90% de sus rivales eran redes parecidas: ella misma, sus copias y redes de la fase 1. Su panel de control también eran solo redes. Aprendió a ganarles a las redes como ella y dejó de mejorar contra las estrategias escritas a mano después de la gen 10. Contra Utilidad adaptativa ganaba solo alrededor del 35%. Según un diagnóstico posterior (no una prueba fijada de antemano), perdía puntos sobre todo en envidos aceptados y al no querer el truco.</p>
+      <p>La lección: la red aprende sobre todo a ganarle a lo que enfrenta. De ahí salió la corrida 2.</p></article>
+    <article><span class="tag">Examen de la corrida 2</span><h3>La temperatura escondía la fuerza de la red</h3>
+      <p>La red jugaba sorteando entre sus acciones con temperatura 0.05. Esa temperatura se había fijado con apenas 34 decisiones de una red de ocho minutos. En el examen final, la misma red (Refuerzo corrida 2 · gen 38) ganaba 52% contra Utilidad adaptativa con azar, y 73% <b>sin azar</b>, sin entrenar nada más. Con temperatura 0.02 daba 66%.</p>
+      <p>La red ya ordenaba bien las acciones; el sorteo tiraba partidas ganadas. Desde ese examen, la red publicada juega sin azar. A cambio, una persona que juegue muchas veces contra una red sin azar puede aprender a leerla.</p></article>
+    <article><span class="tag">Corrida 2</span><h3>La red no veía su propio tanto</h3>
+      <p>La red recibía el palo y el número de cada carta, y debía reconstruir por sí misma la regla «mismo palo + 20» para saber cuánto vale su envido. Utilidad adaptativa usa el tanto exacto. En la corrida 3 se agregaron 7 números de entrada, que expresan seis datos de la mano: el tanto propio, si tiene dos cartas del mismo palo, la fuerza de la mano para el truco, la fuerza de las cartas que quedan sin jugar, los puntos en juego (envido y real envido, dos números) y la probabilidad de que su tanto le gane al del rival.</p></article>
+    <article><span class="tag">Corrida 2</span><h3>Un objetivo ruidoso y la tabla de equidad</h3>
+      <p>Cada decisión recibía como objetivo el resultado de toda la partida. Un envido a 0–0 en una partida a 30 puntos casi no cambia quién gana, así que su señal se perdía en el ruido. La pérdida de la corrida 2 dejó de mejorar cerca de 0.73 desde la gen 13.</p>
+      <p>La corrida 3 mezcla 50% del resultado de la partida con 50% de una «equidad»: la probabilidad de ganar la partida según el puntaje después de la mano, para partidas a 15 o 30 y según quién es mano. La tabla sale de <b>200,000 partidas</b> de la gen 38 contra sí misma, sin azar (1,845,751 observaciones). Se la revisó antes de usarla, con partidas aparte: sube con el puntaje propio y predice el ganador mejor que la simple diferencia de puntaje. El error de Brier (el error medio al cuadrado de una probabilidad; más bajo es mejor) fue 0.1795 contra 0.2013. Al empezar 0–0 da cerca de 50% para quien es mano y para quien es pie (49.8% y 50.2% a 15 puntos).</p></article>
+    <article><span class="tag">Corrida 3 · pilotos</span><h3>Con temperatura 0.05, más de la mitad de las decisiones no era la que la red consideraba mejor</h3>
+      <p>Antes de la corrida de 12 horas se corrió un piloto corto (una prueba de pocos minutos) desde la red de arranque. Con temperatura 0.05 el desacuerdo con la acción sin azar fue de 55% (la red ganaba 68.7% contra Utilidad adaptativa; la de arranque, 69.3% en los mismos 300 pares). Con temperatura 0.02, el desacuerdo bajó a 40% y la red ganó 73.2%. Se eligió 0.02 por el desacuerdo, no por las victorias: con solo 300 pares, los intervalos de los dos pilotos se pisan. Temperaturas más bajas se descartaron porque solo se corrige el valor de la acción efectivamente tomada, y una acción casi nunca elegida no se revisaría jamás.</p>
+      <p>El piloto también fijó el tamaño de la generación: 291.6 partidas por segundo medidas daban 124,560 partidas para generaciones de unos 7.5 minutos.</p></article>
+    <article><span class="tag">Corrida 2 · aceptación</span><h3>«No concluyente» por 0.025 puntos porcentuales</h3>
+      <p>La gen 38 jugó contra la gen 28 en una prueba única, fijada de antemano: debía ganar con el límite inferior del intervalo estrictamente por encima de 50%. Sacó 51.85%, con intervalo 49.98%–53.72%. El límite inferior quedó 0.025 puntos porcentuales por debajo de 50%: por la regla, <b>no concluyente</b>, y la gen 28 siguió en el juego. En esa misma prueba, contra las dos redes reservadas, la diferencia promedio con la gen 28 fue +3.1 pp (intervalo +1.6 a +4.6).</p>
+      <p>Esa prueba pregunta algo estrecho (un duelo contra la gen 28) y nunca midió a Utilidad adaptativa, contra la que la gen 28 ganaba apenas 36.95% de las veces en una comparación anterior entre los cuatro modos de juego (34.6% en la evaluación de la corrida 1). Por eso se la reemplazó por un examen final con cinco rivales, que cerró la discusión sin repetir la prueba ni mover umbrales (sección 8).</p></article>
+    <article><span class="tag">Corrida 3 · examen</span><h3>Falló una salvaguarda y se publicó por decisión del usuario</h3>
+      <p>La gen 73 mejoró mucho contra Utilidad adaptativa (+13.7 pp), pero contra Genético semilla 2 (gen 2) bajó −3.7 pp (intervalo −5.1, −2.3), más allá del margen de −2. Por la regla, la gen 38 seguía en el juego. Con el examen a la vista, el usuario consideró que en la práctica la gen 73 era mejor red para el juego y decidió publicarla (ADR 0063). Fue una decisión de criterio, no un aprobado de la regla fijada de antemano, y así se informa.</p></article>
+    <article><span class="tag">Corrida 3 · operación</span><h3>Se mudó a otra terminal a mitad de camino</h3>
+      <p>Por pedido del usuario, la corrida 3 se pasó de una ventana de PowerShell a una terminal de Orca justo después del punto de control de la generación 15. Se retomó con los mismos parámetros por la reanudación determinista (ADR 0042): da exactamente los mismos resultados que si no se hubiera cortado. La pausa fue de unos 20 segundos, que no cuentan para el tope de 12 horas. No es un reintento ni un cambio de configuración.</p></article>
+  </div>
+</section>
+
+<!-- ============================================================ 8 -->
+<section id="examenes">
+  <div class="sechead"><span class="k">8 · Exámenes finales</span><h2>Un examen fijo decide qué red se publica</h2></div>
+  <div class="panel">
+    <h3>Los tres criterios, en simple</h3>
+    <p class="sub">Todo se juega en manos de validación (repartos reservados para medir, que nunca se usan para entrenar), con cinco rivales y 1,000 pares espejo por rival, contra una línea base (la red del juego en ese momento). Cada candidata y la línea base juegan las mismas manos.</p>
+    <ul class="clean">
+      <li><b>Principal:</b> contra Utilidad adaptativa, la candidata tiene que ganar más que la línea base. Cuando hay varias candidatas se usa la corrección de Holm, que exige más evidencia para no aprobar a una por suerte.</li>
+      <li><b>Salvaguardas:</b> contra cada uno de los otros cuatro rivales, el extremo inferior del intervalo de la ganancia tiene que quedar por encima de −2 pp. Sirve para detectar si la red solo se especializó en ganarle a su rival de entrenamiento.</li>
+      <li><b>Balance:</b> la ganancia promedio entre los cinco rivales (con el mismo peso) tiene que ser positiva.</li>
+    </ul>
+    <p class="sub">Las candidatas y su orden se fijan antes de jugar; se publica la primera que aprueba. Fuente: ADR 0061.</p>
+  </div>
+
+  <div class="panel">
+    <h3>Corrida 2, paso previo: ¿con o sin azar? (Parte T)</h3>
+    <p class="sub">Refuerzo corrida 2 · gen 38 jugó 300 pares espejo contra cada rival con tres formas de elegir la acción. Barras: porcentaje de partidas ganadas; línea: intervalo de 95%.</p>
+    <div class="legend"><span><i class="sw c2"></i>Utilidad adaptativa</span><span><i class="sw hol" style="border-color:var(--r2)"></i>Genético publicado (gen 48)</span></div>
+    <div class="chart small"><svg viewBox="0 0 560 260" role="img" aria-label="Gen 38 de la corrida 2 según la forma de elegir la acción">
+<line class="grid" x1="46" x2="550" y1="208.0" y2="208.0"/>
+<text class="tk" x="39" y="212.0" text-anchor="end">0%</text>
+<line class="grid" x1="46" x2="550" y1="160.5" y2="160.5"/>
+<text class="tk" x="39" y="164.5" text-anchor="end">25%</text>
+<line class="grid" x1="46" x2="550" y1="113.0" y2="113.0"/>
+<text class="tk" x="39" y="117.0" text-anchor="end">50%</text>
+<line class="grid" x1="46" x2="550" y1="65.5" y2="65.5"/>
+<text class="tk" x="39" y="69.5" text-anchor="end">75%</text>
+<line class="grid" x1="46" x2="550" y1="18.0" y2="18.0"/>
+<text class="tk" x="39" y="22.0" text-anchor="end">100%</text>
+<line class="ax" x1="46" x2="550" y1="208" y2="208"/>
+<rect class="c2" x="76.6" y="109.2" width="50.4" height="98.8" rx="0"><title>Utilidad adaptativa: 52.0% [48.7, 55.3]</title></rect>
+<line class="wh" x1="101.8" x2="101.8" y1="102.9" y2="115.5"/>
+<text class="labb" x="101.8" y="98.9" text-anchor="middle">52.0</text>
+<rect class="c2" x="134.0" y="51.6" width="48.4" height="156.4" style="fill:var(--panel);stroke-width:2"><title>Genético publicado: 82.8% [80.0, 85.6]</title></rect>
+<line class="wh" x1="158.2" x2="158.2" y1="45.3" y2="56.0"/>
+<text class="labb" x="158.2" y="41.3" text-anchor="middle">82.8</text>
+<text class="lab" x="130.0" y="226" text-anchor="middle">Temperatura 0.05</text>
+<rect class="c2" x="244.6" y="83.2" width="50.4" height="124.8" rx="0"><title>Utilidad adaptativa: 65.7% [62.4, 68.9]</title></rect>
+<line class="wh" x1="269.8" x2="269.8" y1="77.0" y2="89.5"/>
+<text class="labb" x="269.8" y="73.0" text-anchor="middle">65.7</text>
+<rect class="c2" x="302.0" y="37.4" width="48.4" height="170.6" style="fill:var(--panel);stroke-width:2"><title>Genético publicado: 90.3% [88.0, 92.6]</title></rect>
+<line class="wh" x1="326.2" x2="326.2" y1="32.0" y2="40.7"/>
+<text class="labb" x="326.2" y="28.0" text-anchor="middle">90.3</text>
+<text class="lab" x="298.0" y="226" text-anchor="middle">Temperatura 0.02</text>
+<rect class="c2" x="412.6" y="69.0" width="50.4" height="139.0" rx="0"><title>Utilidad adaptativa: 73.2% [70.0, 76.3]</title></rect>
+<line class="wh" x1="437.8" x2="437.8" y1="63.0" y2="75.0"/>
+<text class="labb" x="437.8" y="59.0" text-anchor="middle">73.2</text>
+<rect class="c2" x="470.0" y="32.6" width="48.4" height="175.4" style="fill:var(--panel);stroke-width:2"><title>Genético publicado: 92.8% [90.8, 94.9]</title></rect>
+<line class="wh" x1="494.2" x2="494.2" y1="27.7" y2="35.5"/>
+<text class="labb" x="494.2" y="23.7" text-anchor="middle">92.8</text>
+<text class="lab" x="466.0" y="226" text-anchor="middle">Sin azar</text>
+</svg></div>
+    <p>Sin azar ganó en promedio +15.6 pp más que con temperatura 0.05 (intervalo +13.0 a +18.2). Superó por mucho el umbral fijado de 2 pp, por eso en el examen las candidatas jugaron sin azar. La línea base siguió con su temperatura de siempre.</p>
+    <span class="src">fuente: experiments/phase2-final-exam/part-t/results.json</span>
+  </div>
+
+  <div class="panel">
+    <h3>Corrida 2: el examen (Parte E)</h3>
+    <p class="sub">Línea base: Refuerzo corrida 1 · gen 28, con su temperatura de siempre. Candidatas: Refuerzo corrida 2 · gen 38 (primera en el orden) y gen 49, ambas sin azar. Punto lleno: gen 38; punto hueco: gen 49. Las dos eran candidatas nombradas después de ver sus controles de desarrollo; con partidas nuevas el examen sigue siendo imparcial para esas dos.</p>
+    <div class="chart"><svg viewBox="0 0 640 286" role="img" aria-label="Ganancia de cada candidata frente a la línea base, por rival">
+<line class="grid" x1="190.0" x2="190.0" y1="16" y2="252"/>
+<text class="tk" x="190.0" y="268" text-anchor="middle">−5</text>
+<line class="grid" x1="233.6" x2="233.6" y1="16" y2="252"/>
+<text class="tk" x="233.6" y="268" text-anchor="middle">0</text>
+<line class="grid" x1="277.2" x2="277.2" y1="16" y2="252"/>
+<text class="tk" x="277.2" y="268" text-anchor="middle">+5</text>
+<line class="grid" x1="320.8" x2="320.8" y1="16" y2="252"/>
+<text class="tk" x="320.8" y="268" text-anchor="middle">+10</text>
+<line class="grid" x1="364.4" x2="364.4" y1="16" y2="252"/>
+<text class="tk" x="364.4" y="268" text-anchor="middle">+15</text>
+<line class="grid" x1="408.0" x2="408.0" y1="16" y2="252"/>
+<text class="tk" x="408.0" y="268" text-anchor="middle">+20</text>
+<line class="grid" x1="451.6" x2="451.6" y1="16" y2="252"/>
+<text class="tk" x="451.6" y="268" text-anchor="middle">+25</text>
+<line class="grid" x1="495.2" x2="495.2" y1="16" y2="252"/>
+<text class="tk" x="495.2" y="268" text-anchor="middle">+30</text>
+<line class="grid" x1="538.8" x2="538.8" y1="16" y2="252"/>
+<text class="tk" x="538.8" y="268" text-anchor="middle">+35</text>
+<line class="grid" x1="582.4" x2="582.4" y1="16" y2="252"/>
+<text class="tk" x="582.4" y="268" text-anchor="middle">+40</text>
+<line class="grid" x1="626.0" x2="626.0" y1="16" y2="252"/>
+<text class="tk" x="626.0" y="268" text-anchor="middle">+45</text>
+<line class="zero" x1="233.6" x2="233.6" y1="16" y2="252"/>
+<line class="ref" x1="216.2" x2="216.2" y1="16" y2="252"/>
+<text class="tk" x="212.2" y="13" text-anchor="end">límite −2</text>
+<text class="tk" x="408.0" y="283" text-anchor="middle">ganancia frente a la línea base (puntos porcentuales)</text>
+<text class="lab" x="180" y="49.0" text-anchor="end">Utilidad adaptativa</text>
+<line class="whp c2" x1="533.1" x2="577.7" y1="37.0" y2="37.0" style="fill:none"/>
+<circle class="c2" cx="555.4" cy="37.0" r="4.5"><title>gen 38: +36.9 [+34.3, +39.5]</title></circle>
+<line class="whp c2" x1="471.4" x2="517.3" y1="53.0" y2="53.0" style="fill:none"/>
+<circle class="c2 hol" cx="494.3" cy="53.0" r="4" style="fill:var(--panel);stroke-width:2"><title>gen 49: +29.9 [+27.3, +32.5]</title></circle>
+<text class="lab" x="180" y="95.0" text-anchor="end">Reactivo</text>
+<line class="whp c2" x1="482.8" x2="515.4" y1="83.0" y2="83.0" style="fill:none"/>
+<circle class="c2" cx="499.1" cy="83.0" r="4.5"><title>gen 38: +30.4 [+28.6, +32.3]</title></circle>
+<line class="whp c2" x1="480.1" x2="512.9" y1="99.0" y2="99.0" style="fill:none"/>
+<circle class="c2 hol" cx="496.5" cy="99.0" r="4" style="fill:var(--panel);stroke-width:2"><title>gen 49: +30.1 [+28.3, +32.0]</title></circle>
+<text class="lab" x="180" y="141.0" text-anchor="end">Genético publicado (gen 48)</text>
+<line class="whp c2" x1="344.6" x2="379.0" y1="129.0" y2="129.0" style="fill:none"/>
+<circle class="c2" cx="361.8" cy="129.0" r="4.5"><title>gen 38: +14.7 [+12.7, +16.7]</title></circle>
+<line class="whp c2" x1="344.7" x2="378.9" y1="145.0" y2="145.0" style="fill:none"/>
+<circle class="c2 hol" cx="361.8" cy="145.0" r="4" style="fill:var(--panel);stroke-width:2"><title>gen 49: +14.7 [+12.7, +16.7]</title></circle>
+<text class="lab" x="180" y="187.0" text-anchor="end">Genético semilla 1 (gen 23)</text>
+<line class="whp c2" x1="351.0" x2="386.5" y1="175.0" y2="175.0" style="fill:none"/>
+<circle class="c2" cx="368.8" cy="175.0" r="4.5"><title>gen 38: +15.5 [+13.5, +17.5]</title></circle>
+<line class="whp c2" x1="350.7" x2="386.0" y1="191.0" y2="191.0" style="fill:none"/>
+<circle class="c2 hol" cx="368.3" cy="191.0" r="4" style="fill:var(--panel);stroke-width:2"><title>gen 49: +15.4 [+13.4, +17.5]</title></circle>
+<text class="lab" x="180" y="233.0" text-anchor="end">Genético semilla 2 (gen 2)</text>
+<line class="whp c2" x1="339.8" x2="372.5" y1="221.0" y2="221.0" style="fill:none"/>
+<circle class="c2" cx="356.1" cy="221.0" r="4.5"><title>gen 38: +14.1 [+12.2, +15.9]</title></circle>
+<line class="whp c2" x1="335.1" x2="368.4" y1="237.0" y2="237.0" style="fill:none"/>
+<circle class="c2 hol" cx="351.8" cy="237.0" r="4" style="fill:var(--panel);stroke-width:2"><title>gen 49: +13.6 [+11.6, +15.5]</title></circle>
+</svg></div>
+    <div class="tw"><table><thead><tr><th>Rival</th><th class="n">Línea base</th><th class="n">gen 38</th><th class="n">Ganancia</th><th class="n">gen 49</th><th class="n">Ganancia</th></tr></thead><tbody><tr><td>Utilidad adaptativa</td><td class="n">34.6%</td><td class="n">71.5%</td><td class="n">+36.9 <span style="color:var(--muted)">[+34.3, +39.5]</span></td><td class="n">64.5%</td><td class="n">+29.9 <span style="color:var(--muted)">[+27.3, +32.5]</span></td></tr><tr><td>Reactivo</td><td class="n">68.8%</td><td class="n">99.3%</td><td class="n">+30.4 <span style="color:var(--muted)">[+28.6, +32.3]</span></td><td class="n">99.0%</td><td class="n">+30.1 <span style="color:var(--muted)">[+28.3, +32.0]</span></td></tr><tr><td>Genético publicado (gen 48)</td><td class="n">77.8%</td><td class="n">92.5%</td><td class="n">+14.7 <span style="color:var(--muted)">[+12.7, +16.7]</span></td><td class="n">92.5%</td><td class="n">+14.7 <span style="color:var(--muted)">[+12.7, +16.7]</span></td></tr><tr><td>Genético semilla 1 (gen 23)</td><td class="n">76.4%</td><td class="n">91.9%</td><td class="n">+15.5 <span style="color:var(--muted)">[+13.5, +17.5]</span></td><td class="n">91.8%</td><td class="n">+15.4 <span style="color:var(--muted)">[+13.4, +17.5]</span></td></tr><tr><td>Genético semilla 2 (gen 2)</td><td class="n">79.2%</td><td class="n">93.2%</td><td class="n">+14.1 <span style="color:var(--muted)">[+12.2, +15.9]</span></td><td class="n">92.8%</td><td class="n">+13.6 <span style="color:var(--muted)">[+11.6, +15.5]</span></td></tr></tbody></table></div><p class="sub">Porcentaje de partidas ganadas (2,000 por celda) y ganancia sobre la línea base en puntos porcentuales, con intervalo de 95%.</p>
+    <p>Las dos aprobaron los tres criterios y se publicó la gen 38. <b>Cuidado con qué prueba esto:</b> el examen mezcla dos cambios, el entrenamiento de la corrida 2 y jugar sin azar (la gen 28 jugó con azar), y no separa cuánto aporta cada uno. Una medición posterior con las dos sin azar (sección 9) sugiere que pesan los dos: contra Utilidad adaptativa la gen 38 sacó 72.0% y la gen 28 41.5%, pero en el duelo directo quedaron parejas (49.5%). Los resultados contra Utilidad adaptativa y Reactivo son contra rivales conocidos; Genético publicado y las dos semillas nunca entraron en el entrenamiento de la corrida 2.</p>
+    <span class="src">fuente: experiments/phase2-final-exam/part-e/ (results.json, partial.jsonl)</span>
+  </div>
+
+  <div class="panel">
+    <h3>Corrida 3: examen</h3>
+    <p class="sub">Línea base: Refuerzo corrida 2 · gen 38, sin azar. Candidatas: Refuerzo corrida 3 · gen 73 (la campeona de la corrida, punto lleno) y gen 100 (la última generación controlada, punto hueco). Todos sin azar. La línea de trazos marca el límite de −2 pp de las salvaguardas.</p>
+    <div class="chart"><svg viewBox="0 0 640 286" role="img" aria-label="Ganancia de cada candidata frente a la línea base, por rival">
+<line class="grid" x1="190.0" x2="190.0" y1="16" y2="252"/>
+<text class="tk" x="190.0" y="268" text-anchor="middle">−10</text>
+<line class="grid" x1="262.7" x2="262.7" y1="16" y2="252"/>
+<text class="tk" x="262.7" y="268" text-anchor="middle">−5</text>
+<line class="grid" x1="335.3" x2="335.3" y1="16" y2="252"/>
+<text class="tk" x="335.3" y="268" text-anchor="middle">0</text>
+<line class="grid" x1="408.0" x2="408.0" y1="16" y2="252"/>
+<text class="tk" x="408.0" y="268" text-anchor="middle">+5</text>
+<line class="grid" x1="480.7" x2="480.7" y1="16" y2="252"/>
+<text class="tk" x="480.7" y="268" text-anchor="middle">+10</text>
+<line class="grid" x1="553.3" x2="553.3" y1="16" y2="252"/>
+<text class="tk" x="553.3" y="268" text-anchor="middle">+15</text>
+<line class="grid" x1="626.0" x2="626.0" y1="16" y2="252"/>
+<text class="tk" x="626.0" y="268" text-anchor="middle">+20</text>
+<line class="zero" x1="335.3" x2="335.3" y1="16" y2="252"/>
+<line class="ref" x1="306.3" x2="306.3" y1="16" y2="252"/>
+<text class="tk" x="302.3" y="13" text-anchor="end">límite −2</text>
+<text class="tk" x="408.0" y="283" text-anchor="middle">ganancia frente a la línea base (puntos porcentuales)</text>
+<text class="lab" x="180" y="49.0" text-anchor="end">Utilidad adaptativa</text>
+<line class="whp c3" x1="504.6" x2="562.9" y1="37.0" y2="37.0" style="fill:none"/>
+<circle class="c3" cx="533.7" cy="37.0" r="4.5"><title>gen 73: +13.7 [+11.6, +15.7]</title></circle>
+<line class="whp c3" x1="492.5" x2="551.7" y1="53.0" y2="53.0" style="fill:none"/>
+<circle class="c3 hol" cx="522.1" cy="53.0" r="4" style="fill:var(--panel);stroke-width:2"><title>gen 100: +12.8 [+10.8, +14.9]</title></circle>
+<text class="lab" x="180" y="95.0" text-anchor="end">Reactivo</text>
+<line class="whp c3" x1="331.6" x2="343.4" y1="83.0" y2="83.0" style="fill:none"/>
+<circle class="c3" cx="337.5" cy="83.0" r="4.5"><title>gen 73: +0.1 [-0.3, +0.6]</title></circle>
+<line class="whp c3" x1="337.2" x2="346.6" y1="99.0" y2="99.0" style="fill:none"/>
+<circle class="c3 hol" cx="341.9" cy="99.0" r="4" style="fill:var(--panel);stroke-width:2"><title>gen 100: +0.4 [+0.1, +0.8]</title></circle>
+<text class="lab" x="180" y="141.0" text-anchor="end">Genético publicado (gen 48)</text>
+<line class="whp c3" x1="319.8" x2="361.0" y1="129.0" y2="129.0" style="fill:none"/>
+<circle class="c3" cx="340.4" cy="129.0" r="4.5"><title>gen 73: +0.4 [-1.1, +1.8]</title></circle>
+<line class="whp c3" x1="308.5" x2="352.0" y1="145.0" y2="145.0" style="fill:none"/>
+<circle class="c3 hol" cx="330.2" cy="145.0" r="4" style="fill:var(--panel);stroke-width:2"><title>gen 100: -0.4 [-1.8, +1.1]</title></circle>
+<text class="lab" x="180" y="187.0" text-anchor="end">Genético semilla 1 (gen 23)</text>
+<line class="whp c3" x1="315.2" x2="355.5" y1="175.0" y2="175.0" style="fill:none"/>
+<circle class="c3" cx="335.3" cy="175.0" r="4.5"><title>gen 73: +0.0 [-1.4, +1.4]</title></circle>
+<line class="whp c3" x1="303.2" x2="345.7" y1="191.0" y2="191.0" style="fill:none"/>
+<circle class="c3 hol" cx="324.4" cy="191.0" r="4" style="fill:var(--panel);stroke-width:2"><title>gen 100: -0.8 [-2.2, +0.7]</title></circle>
+<text class="lab" x="180" y="233.0" text-anchor="end">Genético semilla 2 (gen 2)</text>
+<line class="whp c3" x1="260.8" x2="302.3" y1="221.0" y2="221.0" style="fill:none"/>
+<circle class="c3" cx="281.6" cy="221.0" r="4.5"><title>gen 73: -3.7 [-5.1, -2.3]</title></circle>
+<line class="whp c3" x1="240.9" x2="284.5" y1="237.0" y2="237.0" style="fill:none"/>
+<circle class="c3 hol" cx="262.7" cy="237.0" r="4" style="fill:var(--panel);stroke-width:2"><title>gen 100: -5.0 [-6.5, -3.5]</title></circle>
+</svg></div>
+    <div class="tw"><table><thead><tr><th>Rival</th><th class="n">Línea base</th><th class="n">gen 73</th><th class="n">Ganancia</th><th class="n">gen 100</th><th class="n">Ganancia</th></tr></thead><tbody><tr><td>Utilidad adaptativa</td><td class="n">72.2%</td><td class="n">85.8%</td><td class="n">+13.7 <span style="color:var(--muted)">[+11.6, +15.7]</span></td><td class="n">85.0%</td><td class="n">+12.8 <span style="color:var(--muted)">[+10.8, +14.9]</span></td></tr><tr><td>Reactivo</td><td class="n">99.5%</td><td class="n">99.7%</td><td class="n">+0.1 <span style="color:var(--muted)">[−0.3, +0.6]</span></td><td class="n">100.0%</td><td class="n">+0.4 <span style="color:var(--muted)">[+0.1, +0.8]</span></td></tr><tr><td>Genético publicado (gen 48)</td><td class="n">92.2%</td><td class="n">92.6%</td><td class="n">+0.4 <span style="color:var(--muted)">[−1.1, +1.8]</span></td><td class="n">91.9%</td><td class="n">−0.4 <span style="color:var(--muted)">[−1.8, +1.1]</span></td></tr><tr><td>Genético semilla 1 (gen 23)</td><td class="n">92.2%</td><td class="n">92.2%</td><td class="n">+0.0 <span style="color:var(--muted)">[−1.4, +1.4]</span></td><td class="n">91.4%</td><td class="n">−0.8 <span style="color:var(--muted)">[−2.2, +0.7]</span></td></tr><tr><td>Genético semilla 2 (gen 2)</td><td class="n">94.0%</td><td class="n">90.3%</td><td class="n">−3.7 <span style="color:var(--muted)">[−5.1, −2.3]</span></td><td class="n">89.0%</td><td class="n">−5.0 <span style="color:var(--muted)">[−6.5, −3.5]</span></td></tr></tbody></table></div><p class="sub">Porcentaje de partidas ganadas (2,000 por celda) y ganancia sobre la línea base en puntos porcentuales, con intervalo de 95%.</p>
+    <div class="legend" style="margin-top:12px">Resultado de la regla: gen 73 <span class="pill no"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>No aprueba: falla una salvaguarda</span> gen 100 <span class="pill no"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>No aprueba: falla dos salvaguardas</span></div>
+    <p>Las dos aprobaron el criterio principal y el balance (ganancia promedio de +2.1 y +1.4 pp), pero <b>las dos fallaron salvaguardas</b>. La gen 73 falló una: contra Genético semilla 2 (gen 2). La gen 100 falló dos: contra Genético semilla 2 y, por poco, contra Genético semilla 1 (límite inferior −2.2 pp). Por la regla, la gen 38 seguía en el juego; el usuario decidió publicar la gen 73 (sección 10). Contra Reactivo, Genético publicado y Genético semilla 1 la gen 73 quedó sin diferencia clara con la gen 38 (los intervalos incluyen el 0).</p>
+    <span class="src">fuente: experiments/phase2-run3-exam/part-e/ (results.json, partial.jsonl)</span>
+  </div>
+</section>
+
+<!-- ============================================================ 9 -->
+<section id="todos">
+  <div class="sechead"><span class="k">9 · Todos contra todos</span><h2>Ocho participantes, 28 enfrentamientos</h2></div>
+  <p>Una comparación descriptiva, fijada antes de jugar: cada par de participantes juega 1,000 pares espejo (2,000 partidas, mitad a 15 y mitad a 30 puntos). <b>Todas las redes de refuerzo juegan sin azar.</b> Las corridas 1 y 2 originalmente jugaban con azar, así que sus números acá son más altos que los de su época: por ejemplo, la gen 28 sacaba 34.6% contra Utilidad adaptativa con azar y 41.5% sin azar.</p>
+  <div class="panel">
+    <h3>Porcentaje de partidas que gana la fila contra la columna</h3>
+    <p class="sub">En las columnas, «C1 · 28» significa Refuerzo corrida 1 · gen 28, y así con las demás.</p>
+    <div class="tw"><table class="hm"><thead><tr><th></th><th>Reactivo</th><th>Util. adapt.</th><th>Genét. 48</th><th>C1 · 28</th><th>C2 · 38</th><th>C2 · 49</th><th>C3 · 73</th><th>C3 · 100</th></tr></thead><tbody><tr><th class="rl">Reactivo</th><td class="self">—</td><td style="--hi:0.000;--lo:0.666" title="Reactivo vs Utilidad adaptativa: 16.7% [15.2, 18.2]">16.7</td><td style="--hi:0.097;--lo:0.000" title="Reactivo vs Genético publicado (gen 48): 54.9% [52.7, 57.0]">54.9</td><td style="--hi:0.000;--lo:0.591" title="Reactivo vs Refuerzo corrida 1 · gen 28: 20.4% [18.9, 22.0]">20.4</td><td style="--hi:0.000;--lo:0.986" title="Reactivo vs Refuerzo corrida 2 · gen 38: 0.7% [0.3, 1.1]">0.7</td><td style="--hi:0.000;--lo:0.960" title="Reactivo vs Refuerzo corrida 2 · gen 49: 2.0% [1.4, 2.6]">2.0</td><td style="--hi:0.000;--lo:0.995" title="Reactivo vs Refuerzo corrida 3 · gen 73: 0.2% [0.0, 0.5]">0.2</td><td style="--hi:0.000;--lo:0.995" title="Reactivo vs Refuerzo corrida 3 · gen 100: 0.2% [0.0, 0.5]">0.2</td></tr><tr><th class="rl">Utilidad adaptativa</th><td style="--hi:0.666;--lo:0.000" title="Utilidad adaptativa vs Reactivo: 83.3% [81.8, 84.8]">83.3</td><td class="self">—</td><td style="--hi:0.585;--lo:0.000" title="Utilidad adaptativa vs Genético publicado (gen 48): 79.2% [77.6, 80.9]">79.2</td><td style="--hi:0.169;--lo:0.000" title="Utilidad adaptativa vs Refuerzo corrida 1 · gen 28: 58.5% [56.7, 60.2]">58.5</td><td style="--hi:0.000;--lo:0.441" title="Utilidad adaptativa vs Refuerzo corrida 2 · gen 38: 28.0% [26.2, 29.7]">28.0</td><td style="--hi:0.000;--lo:0.313" title="Utilidad adaptativa vs Refuerzo corrida 2 · gen 49: 34.4% [32.6, 36.1]">34.4</td><td style="--hi:0.000;--lo:0.737" title="Utilidad adaptativa vs Refuerzo corrida 3 · gen 73: 13.2% [11.8, 14.5]">13.2</td><td style="--hi:0.000;--lo:0.700" title="Utilidad adaptativa vs Refuerzo corrida 3 · gen 100: 15.0% [13.5, 16.5]">15.0</td></tr><tr><th class="rl">Genético publicado (gen 48)</th><td style="--hi:0.000;--lo:0.097" title="Genético publicado (gen 48) vs Reactivo: 45.1% [43.0, 47.3]">45.1</td><td style="--hi:0.000;--lo:0.585" title="Genético publicado (gen 48) vs Utilidad adaptativa: 20.8% [19.1, 22.4]">20.8</td><td class="self">—</td><td style="--hi:0.000;--lo:0.798" title="Genético publicado (gen 48) vs Refuerzo corrida 1 · gen 28: 10.1% [8.8, 11.4]">10.1</td><td style="--hi:0.000;--lo:0.853" title="Genético publicado (gen 48) vs Refuerzo corrida 2 · gen 38: 7.3% [6.2, 8.5]">7.3</td><td style="--hi:0.000;--lo:0.837" title="Genético publicado (gen 48) vs Refuerzo corrida 2 · gen 49: 8.2% [7.0, 9.3]">8.2</td><td style="--hi:0.000;--lo:0.846" title="Genético publicado (gen 48) vs Refuerzo corrida 3 · gen 73: 7.7% [6.6, 8.8]">7.7</td><td style="--hi:0.000;--lo:0.825" title="Genético publicado (gen 48) vs Refuerzo corrida 3 · gen 100: 8.8% [7.5, 10.0]">8.8</td></tr><tr><th class="rl">Refuerzo corrida 1 · gen 28</th><td style="--hi:0.591;--lo:0.000" title="Refuerzo corrida 1 · gen 28 vs Reactivo: 79.5% [78.0, 81.1]">79.5</td><td style="--hi:0.000;--lo:0.169" title="Refuerzo corrida 1 · gen 28 vs Utilidad adaptativa: 41.5% [39.8, 43.3]">41.5</td><td style="--hi:0.798;--lo:0.000" title="Refuerzo corrida 1 · gen 28 vs Genético publicado (gen 48): 89.9% [88.6, 91.2]">89.9</td><td class="self">—</td><td style="--hi:0.009;--lo:0.000" title="Refuerzo corrida 1 · gen 28 vs Refuerzo corrida 2 · gen 38: 50.4% [48.8, 52.1]">50.4</td><td style="--hi:0.000;--lo:0.133" title="Refuerzo corrida 1 · gen 28 vs Refuerzo corrida 2 · gen 49: 43.4% [41.7, 45.0]">43.4</td><td style="--hi:0.000;--lo:0.301" title="Refuerzo corrida 1 · gen 28 vs Refuerzo corrida 3 · gen 73: 34.9% [33.3, 36.6]">34.9</td><td style="--hi:0.000;--lo:0.160" title="Refuerzo corrida 1 · gen 28 vs Refuerzo corrida 3 · gen 100: 42.0% [40.4, 43.6]">42.0</td></tr><tr><th class="rl">Refuerzo corrida 2 · gen 38</th><td style="--hi:0.986;--lo:0.000" title="Refuerzo corrida 2 · gen 38 vs Reactivo: 99.3% [98.9, 99.7]">99.3</td><td style="--hi:0.441;--lo:0.000" title="Refuerzo corrida 2 · gen 38 vs Utilidad adaptativa: 72.0% [70.3, 73.8]">72.0</td><td style="--hi:0.853;--lo:0.000" title="Refuerzo corrida 2 · gen 38 vs Genético publicado (gen 48): 92.7% [91.5, 93.8]">92.7</td><td style="--hi:0.000;--lo:0.009" title="Refuerzo corrida 2 · gen 38 vs Refuerzo corrida 1 · gen 28: 49.5% [47.9, 51.2]">49.5</td><td class="self">—</td><td style="--hi:0.000;--lo:0.150" title="Refuerzo corrida 2 · gen 38 vs Refuerzo corrida 2 · gen 49: 42.5% [40.7, 44.3]">42.5</td><td style="--hi:0.000;--lo:0.310" title="Refuerzo corrida 2 · gen 38 vs Refuerzo corrida 3 · gen 73: 34.5% [32.8, 36.2]">34.5</td><td style="--hi:0.000;--lo:0.213" title="Refuerzo corrida 2 · gen 38 vs Refuerzo corrida 3 · gen 100: 39.4% [37.7, 41.0]">39.4</td></tr><tr><th class="rl">Refuerzo corrida 2 · gen 49</th><td style="--hi:0.960;--lo:0.000" title="Refuerzo corrida 2 · gen 49 vs Reactivo: 98.0% [97.4, 98.6]">98.0</td><td style="--hi:0.313;--lo:0.000" title="Refuerzo corrida 2 · gen 49 vs Utilidad adaptativa: 65.6% [63.9, 67.4]">65.6</td><td style="--hi:0.837;--lo:0.000" title="Refuerzo corrida 2 · gen 49 vs Genético publicado (gen 48): 91.8% [90.7, 93.0]">91.8</td><td style="--hi:0.133;--lo:0.000" title="Refuerzo corrida 2 · gen 49 vs Refuerzo corrida 1 · gen 28: 56.6% [55.0, 58.3]">56.6</td><td style="--hi:0.150;--lo:0.000" title="Refuerzo corrida 2 · gen 49 vs Refuerzo corrida 2 · gen 38: 57.5% [55.7, 59.3]">57.5</td><td class="self">—</td><td style="--hi:0.000;--lo:0.186" title="Refuerzo corrida 2 · gen 49 vs Refuerzo corrida 3 · gen 73: 40.7% [39.0, 42.4]">40.7</td><td style="--hi:0.000;--lo:0.075" title="Refuerzo corrida 2 · gen 49 vs Refuerzo corrida 3 · gen 100: 46.2% [44.5, 48.0]">46.2</td></tr><tr><th class="rl">Refuerzo corrida 3 · gen 73</th><td style="--hi:0.995;--lo:0.000" title="Refuerzo corrida 3 · gen 73 vs Reactivo: 99.8% [99.5, 100.0]">99.8</td><td style="--hi:0.737;--lo:0.000" title="Refuerzo corrida 3 · gen 73 vs Utilidad adaptativa: 86.9% [85.5, 88.2]">86.9</td><td style="--hi:0.846;--lo:0.000" title="Refuerzo corrida 3 · gen 73 vs Genético publicado (gen 48): 92.3% [91.2, 93.4]">92.3</td><td style="--hi:0.301;--lo:0.000" title="Refuerzo corrida 3 · gen 73 vs Refuerzo corrida 1 · gen 28: 65.0% [63.4, 66.7]">65.0</td><td style="--hi:0.310;--lo:0.000" title="Refuerzo corrida 3 · gen 73 vs Refuerzo corrida 2 · gen 38: 65.5% [63.8, 67.2]">65.5</td><td style="--hi:0.186;--lo:0.000" title="Refuerzo corrida 3 · gen 73 vs Refuerzo corrida 2 · gen 49: 59.3% [57.6, 61.0]">59.3</td><td class="self">—</td><td style="--hi:0.000;--lo:0.014" title="Refuerzo corrida 3 · gen 73 vs Refuerzo corrida 3 · gen 100: 49.3% [47.6, 51.0]">49.3</td></tr><tr><th class="rl">Refuerzo corrida 3 · gen 100</th><td style="--hi:0.995;--lo:0.000" title="Refuerzo corrida 3 · gen 100 vs Reactivo: 99.8% [99.5, 100.0]">99.8</td><td style="--hi:0.700;--lo:0.000" title="Refuerzo corrida 3 · gen 100 vs Utilidad adaptativa: 85.0% [83.5, 86.5]">85.0</td><td style="--hi:0.825;--lo:0.000" title="Refuerzo corrida 3 · gen 100 vs Genético publicado (gen 48): 91.2% [90.0, 92.5]">91.2</td><td style="--hi:0.160;--lo:0.000" title="Refuerzo corrida 3 · gen 100 vs Refuerzo corrida 1 · gen 28: 58.0% [56.4, 59.6]">58.0</td><td style="--hi:0.213;--lo:0.000" title="Refuerzo corrida 3 · gen 100 vs Refuerzo corrida 2 · gen 38: 60.7% [59.0, 62.3]">60.7</td><td style="--hi:0.075;--lo:0.000" title="Refuerzo corrida 3 · gen 100 vs Refuerzo corrida 2 · gen 49: 53.8% [52.0, 55.5]">53.8</td><td style="--hi:0.014;--lo:0.000" title="Refuerzo corrida 3 · gen 100 vs Refuerzo corrida 3 · gen 73: 50.7% [49.0, 52.4]">50.7</td><td class="self">—</td></tr></tbody></table></div><div class="scale"><span>gana la columna</span><i></i><span>gana la fila</span></div>
+    <span class="src">fuente: experiments/all-vs-all/output/results.json (analysis.pairs; 28,000 pares). Intervalos de 95% sin ajuste por comparaciones múltiples.</span>
+  </div>
+  <div class="panel">
+    <h3>Ranking</h3>
+    <p class="sub">Media: promedio con el mismo peso del porcentaje que gana contra los otros siete. Puntaje tipo Elo: el mismo tipo de puntaje del ajedrez, ajustado con todas las partidas y centrado en 0; 100 puntos de diferencia equivalen a ganar cerca del 64% de las partidas. El puntaje supone que la fuerza se ordena en una sola línea, lo cual no siempre pasa en el Truco; es solo descriptivo.</p>
+    <div class="tw"><table><thead><tr><th class="n">#</th><th>Participante</th><th>Media contra los otros 7</th><th class="n">Puntaje tipo Elo</th></tr></thead><tbody><tr><td class="n">1</td><td>Refuerzo corrida 3 · gen 73</td><td class="barcell"><i class="bar" style="width:133px"></i><span class="num">74.0%</span></td><td class="n">+203</td></tr><tr><td class="n">2</td><td>Refuerzo corrida 3 · gen 100</td><td class="barcell"><i class="bar" style="width:128px"></i><span class="num">71.3%</span></td><td class="n">+180</td></tr><tr><td class="n">3</td><td>Refuerzo corrida 2 · gen 49</td><td class="barcell"><i class="bar" style="width:117px"></i><span class="num">65.2%</span></td><td class="n">+132</td></tr><tr><td class="n">4</td><td>Refuerzo corrida 2 · gen 38</td><td class="barcell"><i class="bar" style="width:111px"></i><span class="num">61.4%</span></td><td class="n">+102</td></tr><tr><td class="n">5</td><td>Refuerzo corrida 1 · gen 28</td><td class="barcell"><i class="bar" style="width:98px"></i><span class="num">54.5%</span></td><td class="n">+50</td></tr><tr><td class="n">6</td><td>Utilidad adaptativa</td><td class="barcell"><i class="bar" style="width:80px"></i><span class="num">44.5%</span></td><td class="n">−29</td></tr><tr><td class="n">7</td><td>Genético publicado (gen 48)</td><td class="barcell"><i class="bar" style="width:28px"></i><span class="num">15.4%</span></td><td class="n">−308</td></tr><tr><td class="n">8</td><td>Reactivo</td><td class="barcell"><i class="bar" style="width:24px"></i><span class="num">13.6%</span></td><td class="n">−331</td></tr></tbody></table></div>
+    <span class="src">fuente: experiments/all-vs-all/output/results.json (analysis.agents)</span>
+  </div>
+  <div class="note"><p><b>El duelo directo.</b> Refuerzo corrida 3 · gen 73 le ganó a Refuerzo corrida 2 · gen 38 el <b>65.5%</b> de las partidas (intervalo de 95%: 63.8%–67.2%) y tuvo la mejor media contra los otros siete: 74.0%. Publicar la gen 73 dependía de que no perdiera ese duelo.</p></div>
+</section>
+
+<!-- ============================================================ 10 -->
+<section id="juego">
+  <div class="sechead"><span class="k">10 · Qué está en el juego</span><h2>Refuerzo corrida 3 · gen 73, y sus límites</h2></div>
+  <div class="cols">
+    <div>
+      <h3>Qué se publicó</h3>
+      <ul class="clean">
+        <li>La red de la gen 73 de la corrida 3, <b>sin azar</b>, con 1,635 entradas y el perfil del rival configurado igual que al entrenar (ADR 0063).</li>
+        <li>Contra Utilidad adaptativa (rival conocido) gana 85.8% (examen) y 86.9% (todos contra todos).</li>
+        <li>Contra Reactivo gana 99.7%; contra Genético publicado, 92.6%.</li>
+        <li>Gana 65.5% de los duelos contra la red que reemplazó.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Límites, sin adornos</h3>
+      <ul class="clean">
+        <li>Falló una salvaguarda: contra Genético semilla 2 (gen 2) bajó −3.7 pp (94.0% → 90.3%). Sigue ganando casi todo, pero es una pérdida clara.</li>
+        <li>La decisión de publicarla se tomó después de ver el examen. Es un criterio del usuario, no un aprobado de la regla.</li>
+        <li>Utilidad adaptativa y Reactivo son rivales conocidos: la red entrenó contra ellos. La mejora contra Utilidad adaptativa puede ser en parte especialización.</li>
+        <li>Utilidad adaptativa juega siempre igual aquí; un rival que se adapta sería otra prueba.</li>
+        <li>Sin azar, la red es predecible: quien juegue muchas veces contra ella puede aprender a leerla.</li>
+        <li>No hay todavía partidas contra personas. Todo se midió contra programas.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ 11 -->
+<section id="proximos">
+  <div class="sechead"><span class="k">11 · Próximos pasos</span><h2>Ideas para la corrida 4</h2></div>
+  <p>Son ideas, no decisiones. Salen de lo que mostraron las corridas 1 a 3.</p>
+  <div class="cols">
+    <div class="panel"><h3>Una liga más variada</h3><p>Sumar rivales raros y débiles al entrenamiento, incluidos estilos como el de Genético semilla 2 (gen 2). Hoy esas redes están reservadas para el examen; habría que conseguir otros rivales parecidos para seguir teniendo una medida sin contaminar.</p></div>
+    <div class="panel"><h3>Diagnosticar la pérdida frente al rival raro</h3><p>La corrida 3 cambió varias cosas a la vez (entradas, objetivo, temperatura, tamaño del control), así que no se sabe cuál causó la pérdida. Hay que mirar qué decisiones cambian contra esa red, antes de gastar otra noche.</p></div>
+    <div class="panel"><h3>Un cambio por vez</h3><p>Cambiar una sola cosa por corrida, con el mismo presupuesto y con el examen final fijo, para poder atribuir cada resultado. Repetir con otras semillas para saber cuánto varía una corrida respecto de sí misma.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ 12 -->
+<section id="leer">
+  <div class="sechead"><span class="k">12 · Cómo leer los números</span><h2>Seis ideas para no malinterpretar nada</h2></div>
+  <div class="find">
+    <article><h3>Par espejo</h3><p>Cada reparto se juega dos veces con las mismas cartas: una vez la red recibe las cartas de un asiento y la otra vez las del otro. Así la suerte de repartir cartas se cancela. Cada par vale 0, medio o 1 punto, y los intervalos se calculan sobre los pares.</p></article>
+    <article><h3>Intervalo de 95%</h3><p>Es el rango donde probablemente cae el valor real si se repitiera la medición con otras manos. Si dos intervalos no se pisan, la diferencia es clara. Si uno cruza el 50% (o el 0 en una ganancia), no se puede afirmar quién es mejor. Los intervalos de este informe no están corregidos para muchas comparaciones a la vez.</p></article>
+    <article><h3>Rivales conocidos y desconocidos</h3><p>Reactivo y Utilidad adaptativa entrenaron junto a las corridas 2 y 3; ganarles muestra que aprendió a jugar contra ellos, no que juegue bien contra cualquiera. Genético publicado y las dos semillas nunca entraron en el entrenamiento ni en la selección de las corridas 2 y 3, y por eso pueden revelar especialización (Genético publicado sí estuvo al principio en el panel de la corrida 1). Son solo tres redes de la fase 1, así que es un control limitado.</p></article>
+    <article><h3>Pocos pares o muchos</h3><p>Los controles durante el entrenamiento usan 100 (corridas 1 y 2) o 300 (corrida 3) pares por rival; los exámenes y el todos contra todos usan 1,000. Menos pares, intervalos más anchos.</p></article>
+    <article><h3>Por qué los números internos no se comparan con los del examen</h3><p>El control interno compara una generación con la campeona de ese momento, en un panel propio de cada corrida, con otro tamaño y a veces con azar. El examen usa otros rivales, otras manos y todas las redes sin azar. Por eso una ganancia de 5 pp en un control no equivale a 5 pp en el examen.</p></article>
+    <article><h3>Los nombres de las redes de la fase 1</h3><p>«Genético» siempre designa a la fase 1 (algoritmos genéticos), y «Refuerzo» a la fase 2, con la corrida y la generación.</p></article>
+  </div>
+</section>
+
+<!-- ============================================================ color -->
+<section id="color">
+  <div class="sechead"><span class="k">Extra</span><h2>Cifras sueltas del proyecto</h2></div>
+  <div class="panel">
+    <dl class="facts">
+      <div><dt>Partidas de entrenamiento</dt><dd>2.7 M · 2.8 M · 12.5 M<small>corridas 1, 2 y 3 (aprox., en millones)</small></dd></div>
+      <div><dt>Total de partidas</dt><dd>18,022,080<small>sumando las tres corridas</small></dd></div>
+      <div><dt>Horas de entrenamiento</dt><dd>36 h<small>12 h por corrida</small></dd></div>
+      <div><dt>Muestras de aprendizaje</dt><dd>668,795,750<small>decisiones con su resultado, todas las corridas</small></dd></div>
+      <div><dt>Tamaño de la red</dt><dd>453,260 pesos<small>1,635 entradas · 256 · 128 · 12 salidas</small></dd></div>
+      <div><dt>Tabla de equidad</dt><dd>200,000 partidas<small>1,845,751 observaciones de autojuego</small></dd></div>
+      <div><dt>Aceleración de la optimización</dt><dd>4.1× entrenando, 7.3× en las rondas de partidas<small>control de generación: 5.6×</small></dd></div>
+      <div><dt>Promociones</dt><dd>6 · 9 · 7<small>corridas 1, 2 y 3</small></dd></div>
+      <div><dt>Actualizaciones de la red</dt><dd>988,984<small>solo la corrida 3 (aprox. 1.0 M)</small></dd></div>
+      <div><dt>Partidas por generación</dt><dd>57,120 → 124,560<small>de la corrida 1 a la 3</small></dd></div>
+      <div><dt>Prueba dorada de la optimización</dt><dd>3 × 96 partidas<small>idénticas bit a bit en 1 y 12 trabajadores</small></dd></div>
+      <div><dt>Pruebas del proyecto</dt><dd>633<small>pasan al publicar la gen 73 (499 tras la optimización)</small></dd></div>
+    </dl>
+  </div>
+</section>
+<footer>Informe generado a partir de los archivos del repositorio y del archivo de entrenamiento. Los valores y su fuente están en <code>data.json</code>; <code>verify.py</code> los vuelve a calcular desde los archivos de origen y comprueba que coincidan con esta página.</footer>
+</div>
