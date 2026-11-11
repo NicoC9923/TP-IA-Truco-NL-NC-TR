@@ -355,7 +355,7 @@ function handView(phase) {
     else {
       const hands = [0, 1].map((seat) => { const d = chosen.example_hand.find((x) => x.player === seat); return d && d.observation ? d.observation.hand : null; });
       body.append(el('p', { text: `Mano jugada por la campeona de la generación ${chosen.generation}.` }));
-      body.append(...handRows(chosen.example_hand.map((d) => ({ who: d.player, action: d.action, why: d.bluff ? 'farol' : '' })), hands[0], hands[1], ['Jugador 1', 'Jugador 2']));
+      body.append(...handRows(chosen.example_hand.map((d) => ({ who: d.player, action: d.action, why: d.bluff ? 'mentira' : '' })), hands[0], hands[1], ['Jugador 1', 'Jugador 2']));
     }
   } else {
     const h = state.hand.p2;
@@ -559,7 +559,7 @@ function architecture() {
   const stages=el('div',{class:'stage-list','aria-label':'Elegir etapa'});
   LAYERS.forEach(([title],i)=>{const b=el('button',{type:'button',class:'step-button','aria-pressed':String(state.layer===i),text:title});b.onclick=()=>{state.layer=i;state.neuron=0;render();document.querySelectorAll('.stage-list button')[i]?.focus()};stages.append(b)});box.append(stages);
   const detail=el('div',{class:'layer-details','aria-live':'polite'},el('strong',{text:LAYERS[state.layer][0]}),el('p',{text:LAYERS[state.layer][1]}));
-  if(state.layer===0) detail.append(el('p',{text:'Las estimaciones compatibles consideran las manos del rival que no contradicen los hechos públicos; las ponderadas también dan más o menos peso a esas posibilidades según el perfil de faroles. Son estimaciones, no cartas conocidas. La historia reserva 24 eventos de 59 números; los espacios vacíos se completan con ceros.'}));
+  if(state.layer===0) detail.append(el('p',{text:'Las estimaciones compatibles consideran las manos del rival que no contradicen los hechos públicos; las ponderadas también dan más o menos peso a esas posibilidades según el perfil de mentiras. Son estimaciones, no cartas conocidas. La historia reserva 24 eventos de 59 números; los espacios vacíos se completan con ceros.'}));
   if(trace && state.layer===0){const [name,a,b]=INPUT_GROUPS[state.neuron];detail.append(el('p',{text:`Entrada representativa: ${name}, posición ${a}, valor ${trace.input[a].toFixed(4)}. En este grupo hay ${b-a} números; por ejemplo, ${trace.input.slice(a,Math.min(a+5,b)).map(v=>v.toFixed(2)).join(', ')}.`}),el('p',{text:`En esta decisión: cartas propias ${h.champion_hand.map(c=>cardName([c.valor,c.palo])).join(', ')}; acciones permitidas ${trace.actions.filter(a=>a.legal).map(a=>shortLabel(a.action,null)).join(', ')}; eventos públicos registrados ${Array.from({length:24},(_,i)=>trace.input[202+i*59]).filter(Boolean).length}. Las estimaciones compatibles y ponderadas ocupan cinco números cada una.`}));}
   if(trace && (state.layer===1||state.layer===2) && trace.calculations){const c=trace.calculations[state.layer-1][state.neuron], activation=(state.layer===1?trace.hidden_256:trace.hidden_128)[state.neuron];detail.append(el('p',{text:`Neurona ${state.neuron}: ${c.groups.map((v,i)=>`${state.layer===1?(INPUT_GROUPS[i]||['Datos de la mano'])[0]:'suma de entradas'} ${v.toFixed(4)}`).join(' + ')} + sesgo ${c.bias.toFixed(4)} = ${c.sum.toFixed(4)} antes de ReLU → ${activation.toFixed(4)} después. Cada aporte suma entrada × peso de todo el grupo.`}));}
   if(trace && state.layer===3){const a=trace.actions[state.neuron];detail.append(el('p',{text:`Salida ${state.neuron}: ${shortLabel(a.action,null)}, valor ${a.value.toFixed(4)}; ${a.legal?'permitida':'no permitida'}.`}));}

@@ -20,7 +20,7 @@ Play a complete match of Argentine Truco (two players, to 15 or 30 points) again
 
 ## Positioning
 
-Not a card-game app: an AI agent you can play against and inspect. Its distinguishing mechanisms are a utility agent built on a 474,000-hand statistical corpus, a dynamic bluff (farol) policy, online modelling of the human opponent's bluffing and folding, explainable decision traces, and switchable agent architectures (reactive, utility-based, hybrid adaptive) for comparison. A physical humanoid in simulation mirrors the game.
+Not a card-game app: an AI agent you can play against and inspect. Its distinguishing mechanisms are a utility agent built on a 474,000-hand statistical corpus, a dynamic bluff (mentira) policy, online modelling of the human opponent's bluffing and folding, explainable decision traces, and switchable agent architectures (reactive, utility-based, hybrid adaptive) for comparison. A physical humanoid in simulation mirrors the game.
 
 ## Operating Context
 
@@ -38,7 +38,7 @@ Game state exposes: score and goal (15/30), who is mano, round (baza 1-3), turn,
 
 The client simulates a 3-second "thinking" pause before Ottoman's moves and polls state every 2 s.
 
-Terminology is Argentine Spanish and must stay so: mano, baza, parda, envido, real envido, falta envido, truco, retruco, vale cuatro, quiero / no quiero, irse al mazo, farol, tantos.
+Terminology is Argentine Spanish and must stay so: mano, baza, parda, envido, real envido, falta envido, truco, retruco, vale cuatro, quiero / no quiero, irse al mazo, mentira, tantos.
 
 ## Brand Commitments
 

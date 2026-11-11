@@ -683,10 +683,10 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         partida.irse_al_mazo_humano()
         aprendizaje = partida.estado_publico()["aprendizaje_ia"]
         paso = aprendizaje["traza_razonamiento"][0]
-        self.assertEqual(paso["decision"], "ENVIDO (FAROL)")
+        self.assertEqual(paso["decision"], "ENVIDO (MENTIRA)")
         self.assertIn("tantos", paso["metrica"])
         self.assertTrue(paso["umbral"])
-        self.assertIn("Farol", paso["farol_info"])
+        self.assertIn("Mentira", paso["farol_info"])
         self.assertEqual(aprendizaje["ultimo_razonamiento"], paso)
     def test_carta_ajena_no_cambia_mano_mesa_ni_turno(self):
         partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
@@ -871,7 +871,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         partida = PartidaTruco(robot=None, meta_puntos=15, historial_path=self.tmp_hist)
         partida.es_mano_humano = True
         partida.nueva_mano(primera_vez=True)
-        # Forzar farol de Envido y Truco al 100% con cartas bajas para Ottoman
+        # Forzar mentira de Envido y Truco al 100% con cartas bajas para Ottoman
         partida.ia.prob_farol_envido = 1.0
         partida.ia.prob_farol_truco = 1.0
         partida.cartas_robot = [
@@ -892,7 +892,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
             es_farol=partida.ia.ultimo_canto_fue_farol,
             detalle_farol=partida.ia.ultimo_detalle_farol,
         )
-        # El humano dice NO QUIERO: el farol de Ottoman resulta exitoso
+        # El humano dice NO QUIERO: la mentira de Ottoman resulta exitoso
         partida.responder_canto_humano("NO_QUIERO")
 
         self.assertEqual(partida.estadisticas_partida["envido"]["bluffs_intentados"], 1)
@@ -905,7 +905,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         p_truco_ini = ia.prob_farol_truco
 
         # Si el humano siempre se retira ("NO QUIERO") ante cantos de Truco del robot,
-        # la IA incrementa su frecuencia de farol en Truco
+        # la IA incrementa su frecuencia de mentira en Truco
         for _ in range(5):
             ia.registrar_respuesta_humano_a_canto("TRUCO", quiso=False, era_farol_robot=True)
         self.assertGreater(ia.prob_farol_truco, p_truco_ini)

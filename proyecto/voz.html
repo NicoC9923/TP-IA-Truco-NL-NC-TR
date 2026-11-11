@@ -966,14 +966,14 @@
       <div class="traza-lista" id="panel-xai-vivo"></div>
     </section>
   <section class="plate">
-      <div class="plate-h"><h3 class="plate-t">Faroles</h3><span class="modo-nombre">Este partido</span></div>
+      <div class="plate-h"><h3 class="plate-t">Mentiras</h3><span class="modo-nombre">Este partido</span></div>
       <div class="medidores">
         <div class="medidor">
-          <div class="medidor-h"><span>Cuota de farol · envido</span><b id="cuota-env">–</b></div>
+          <div class="medidor-h"><span>Cuota de mentira · envido</span><b id="cuota-env">–</b></div>
           <div class="barra"><i id="barra-env" style="width:0"></i><span class="base" style="left:35%" title="Base 14%"></span></div>
         </div>
         <div class="medidor">
-          <div class="medidor-h"><span>Cuota de farol · truco</span><b id="cuota-tru">–</b></div>
+          <div class="medidor-h"><span>Cuota de mentira · truco</span><b id="cuota-tru">–</b></div>
           <div class="barra"><i id="barra-tru" style="width:0"></i><span class="base" style="left:35%" title="Base 14%"></span></div>
           <small>Escala 0–40 %. La raya marca la base inicial de 14 %.</small>
         </div>
@@ -1006,7 +1006,7 @@
   <div class="cab-vista">
     <div>
       <h2>Cómo aprende Ottoman</h2>
-      <p>Además de la base estadística de 474.000 manos, Ottoman mide cuánto mentís o achicás en cada mano y ajusta sus probabilidades de farol y sus umbrales para querer.</p>
+      <p>Además de la base estadística de 474.000 manos, Ottoman mide cuánto mentís o achicás en cada mano y ajusta sus probabilidades de mentira y sus umbrales para querer.</p>
     </div>
     <div class="perfil-plate"><small>Te tiene leído como</small><b id="badge-perfil-humano">Equilibrado</b></div>
   </div>
@@ -1029,7 +1029,7 @@
 
   <section class="plate">
     <div class="plate-h">
-      <h3 class="plate-t">Cuota de farol, partido a partido</h3>
+      <h3 class="plate-t">Cuota de mentira, partido a partido</h3>
       <div class="leyenda"><span><i style="background:var(--txt)"></i>Envido</span><span><i style="background:var(--ott)"></i>Truco</span></div>
     </div>
     <div class="grafico" id="grafico-evolucion"></div>
@@ -1042,8 +1042,8 @@
         <thead>
           <tr>
             <th scope="col">#</th><th scope="col">Fecha</th><th scope="col">Resultado</th><th scope="col">Modo</th><th scope="col">Manos</th>
-            <th scope="col">Faroles envido<br>total · pasaron · descub.</th>
-            <th scope="col">Faroles truco<br>total · pasaron · descub.</th>
+            <th scope="col">Mentiras envido<br>total · pasaron · descub.</th>
+            <th scope="col">Mentiras truco<br>total · pasaron · descub.</th>
             <th scope="col">Ajuste de la IA al terminar</th>
           </tr>
         </thead>
@@ -1116,7 +1116,7 @@
   const NOMBRE_TRUCO_BTN = { TRUCO: '¡Truco!', RETRUCO: '¡Quiero retruco!', VALE_CUATRO: '¡Quiero vale cuatro!' };
   const MODOS_RESPALDO = [
     { codigo: 'reactivo', nombre: 'Reactivo', subtitulo: 'Reglas fijas condición-acción' },
-    { codigo: 'utilidad_adaptativa', nombre: 'Utilidad adaptativa', subtitulo: 'Utilidad + farol dinámico + modelado del rival' }
+    { codigo: 'utilidad_adaptativa', nombre: 'Utilidad adaptativa', subtitulo: 'Utilidad + mentira dinámica + modelado del rival' }
   ];
 
   const $ = (id) => document.getElementById(id);
@@ -1310,10 +1310,10 @@
         envTxt = `<span class="chip">Envido: Ottoman <b>${esc(re.pts_robot)}</b> · Vos <b>${esc(re.pts_humano)}</b></span>`;
       }
       const farolesHTML = bluffs.length === 0
-        ? `<span class="derecho">Jugó derecho: ningún farol esta mano</span>`
+        ? `<span class="derecho">Jugó derecho: ninguna mentira esta mano</span>`
         : bluffs.map(b => {
             const r = b.resultado === 'exitoso' ? 'le salió bien' : (b.resultado === 'descubierto' ? '¡lo descubriste!' : 'en juego');
-            return `<span class="farol"><b>Farol</b>${esc(nombreCanto(b.tipo))}: ${esc(b.detalle)} · ${r}</span>`;
+            return `<span class="farol"><b>Mentira</b>${esc(nombreCanto(b.tipo))}: ${esc(b.detalle)} · ${r}</span>`;
           }).join('');
       ver.hidden = false;
       ver.innerHTML = `
@@ -1374,7 +1374,7 @@
   // ==================== RENDER: ZÓCALO / CANTO ====================
   function pruebaHTML(raz) {
     if (!raz) return '';
-    const esFarol = String(raz.decision || '').includes('FAROL');
+    const esFarol = String(raz.decision || '').includes('MENTIRA');
     return `<div class="prueba">
       <span class="dec ${esFarol ? 'farol-dec' : ''}">${esc(raz.decision)}</span>
       ${raz.metrica ? `<span><b>Métrica:</b> ${esc(raz.metrica)}</span>` : ''}
@@ -1483,8 +1483,8 @@
         <div class="filas">
           <div class="fila"><span>Manos jugadas</span><b>${st.manos_jugadas || 0}</b></div>
           <div class="fila"><span>Veces que Ottoman mintió</span><b>${total}</b></div>
-          <div class="fila"><span>Faroles en envido · de ${env.cantados_robot || 0} cantos</span><b>${env.bluffs_intentados || 0} · pasaron ${env.bluffs_exitosos || 0} · descubiertos ${env.bluffs_descubiertos || 0}</b></div>
-          <div class="fila"><span>Faroles en truco · de ${tru.cantados_robot || 0} cantos</span><b>${tru.bluffs_intentados || 0} · pasaron ${tru.bluffs_exitosos || 0} · descubiertos ${tru.bluffs_descubiertos || 0}</b></div>
+          <div class="fila"><span>Mentiras en envido · de ${env.cantados_robot || 0} cantos</span><b>${env.bluffs_intentados || 0} · pasaron ${env.bluffs_exitosos || 0} · descubiertos ${env.bluffs_descubiertos || 0}</b></div>
+          <div class="fila"><span>Mentiras en truco · de ${tru.cantados_robot || 0} cantos</span><b>${tru.bluffs_intentados || 0} · pasaron ${tru.bluffs_exitosos || 0} · descubiertos ${tru.bluffs_descubiertos || 0}</b></div>
         </div>
         <button type="button" class="btn-canto repartir" id="btn-otra" style="justify-self:start"><svg class="i"><use href="#i-reset"/></svg>Jugar otro partido</button>
       </div>`;
@@ -1540,13 +1540,13 @@
     $('panel-xai-vivo').innerHTML = trazas.length === 0
       ? `<p class="vacio-txt">Cuando Ottoman tome su próxima decisión vas a ver acá la cuenta que hizo: métrica, umbral y si eligió mentir.</p>`
       : trazas.slice(-8).map(t => {
-          const esFarol = String(t.decision || '').includes('FAROL');
+          const esFarol = String(t.decision || '').includes('MENTIRA');
           return `<article class="paso">
             <div class="paso-top"><span class="paso-fase">${esc(t.fase)}${t.hora ? `<small>${esc(t.hora)}</small>` : ''}</span><span class="paso-dec ${esFarol ? 'farol-dec' : ''}">${esc(t.decision)}</span></div>
             ${t.metrica ? `<dl><dt>Métrica</dt><dd>${t.acciones_probables ? t.acciones_probables.map(a => `${esc(a.accion.replaceAll("_", " ").replace(/^card (\d)$/, (_, n) => `carta ${Number(n)+1}`).replace(/^fold$/, "irse al mazo"))}: ${a.porcentaje.toFixed(1)} %`).join(", ") : esc(t.metrica)}</dd>${t.umbral ? `<dt>Umbral</dt><dd>${esc(t.umbral)}</dd>` : ""}<dt>Engaño</dt><dd>${esc(t.farol_info)}</dd></dl>` : ''}
             ${t.explicacion ? `<p>${esc(t.explicacion)}</p>` : ''}
             ${t.inferencia ? `<p>P(tenés una brava): ${(t.inferencia.brava_probability * 100).toFixed(1)} % · Fuerza esperada: ${t.inferencia.expected_strength.toFixed(1)} · P(ganar la próxima baza): ${(t.inferencia.next_trick_win_probability * 100).toFixed(1)} %</p>` : ''}
-            ${t.perfil_rival ? `<p>Perfil: farol ${(t.perfil_rival.bluff * 100).toFixed(1)} % · mazo ${(t.perfil_rival.fold * 100).toFixed(1)} % · acepta truco ${(t.perfil_rival.truco_accepted * 100).toFixed(1)} % · canta envido ${(t.perfil_rival.envido_called * 100).toFixed(1)} %</p>` : ''}
+            ${t.perfil_rival ? `<p>Perfil: mentira ${(t.perfil_rival.bluff * 100).toFixed(1)} % · mazo ${(t.perfil_rival.fold * 100).toFixed(1)} % · acepta truco ${(t.perfil_rival.truco_accepted * 100).toFixed(1)} % · canta envido ${(t.perfil_rival.envido_called * 100).toFixed(1)} %</p>` : ''}
           </article>`;
         }).join('');
   }
@@ -1600,9 +1600,9 @@
 
     const off = (v) => (v >= 0 ? '+' : '') + v;
     $('kpis-evolucion').innerHTML = `
-      <div class="ficha-fila"><span>Cuota de farol en envido</span><b>${ia.prob_farol_envido_pct} %</b><small>Base inicial 14 %. Sube si decís “no quiero” seguido.</small></div>
-      <div class="ficha-fila"><span>Cuota de farol en truco</span><b>${ia.prob_farol_truco_pct} %</b><small>Base inicial 14 %. Se adapta a cómo respondés al truco.</small></div>
-      <div class="ficha-fila"><span>Faroles tuyos detectados</span><b>${ia.bluffs_humano_detectados} (${ia.tasa_bluff_humano_pct} %)</b><small>Ajuste del umbral para querer: envido ${off(ia.umbral_envido_offset)} · truco ${off(ia.umbral_truco_offset ?? 0)}</small></div>`;
+      <div class="ficha-fila"><span>Cuota de mentira en envido</span><b>${ia.prob_farol_envido_pct} %</b><small>Base inicial 14 %. Sube si decís “no quiero” seguido.</small></div>
+      <div class="ficha-fila"><span>Cuota de mentira en truco</span><b>${ia.prob_farol_truco_pct} %</b><small>Base inicial 14 %. Se adapta a cómo respondés al truco.</small></div>
+      <div class="ficha-fila"><span>Mentiras tuyas detectadas</span><b>${ia.bluffs_humano_detectados} (${ia.tasa_bluff_humano_pct} %)</b><small>Ajuste del umbral para querer: envido ${off(ia.umbral_envido_offset)} · truco ${off(ia.umbral_truco_offset ?? 0)}</small></div>`;
 
     const partidas = ia.partidas || [];
     const tbody = $('tbody-historial');
@@ -1648,7 +1648,7 @@
     let yEnv = y(ult.env), yTru = y(ult.tru);
     if (Math.abs(yEnv - yTru) < 16) { const m = (yEnv + yTru) / 2; const envArriba = ult.env >= ult.tru; yEnv = m + (envArriba ? -8 : 8); yTru = m + (envArriba ? 8 : -8); }
     $('grafico-evolucion').innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cuota de farol en envido y truco a lo largo de los partidos">
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cuota de mentira en envido y truco a lo largo de los partidos">
         ${grid}
         <line x1="${pl}" x2="${W - pr}" y1="${y(14)}" y2="${y(14)}" stroke="var(--txt-3)" stroke-dasharray="5 4" stroke-width="1"/>
         <text x="${pl + 6}" y="${y(14) - 6}" font-size="12" fill="var(--txt-3)">base 14%</text>

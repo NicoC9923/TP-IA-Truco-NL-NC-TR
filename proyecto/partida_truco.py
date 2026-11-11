@@ -72,7 +72,7 @@ class PartidaTruco:
         self.canto_pendiente: Optional[Dict] = None
         self.truco_en_espera: Optional[Dict] = None
 
-        # Seguimiento de mentiras (bluffs) en la mano y en la partida
+        # Seguimiento de mentiras en la mano y en la partida
         self.bluffs_mano_actual: List[Dict] = []
         self._ultimo_bluff_envido_mano: Optional[Dict] = None
         self._ultimo_bluff_truco_mano: Optional[Dict] = None
@@ -477,7 +477,7 @@ class PartidaTruco:
         # A greedy network picks the highest legal value; showing sampling percentages would be false.
         metric = 'Elige la jugada de mayor valor' if greedy else ', '.join('%s: %.1f%%' % (a, p * 100) for a, p in probabilities)
         self.ia._registrar_razonamiento('Red neuronal', action.upper(), metric,
-            '', 'Farol' if bluff else 'Sin farol', '')
+            '', 'Mentira' if bluff else 'Sin mentira', '')
         trace = self.ia.traza_razonamiento[-1]
         trace.update(inferencia=belief, es_farol=bluff,
                      perfil_rival=profile.rates() if self.adapt_to_opponent else None)
@@ -844,7 +844,7 @@ class PartidaTruco:
             evento_b = {
                 "tipo": "TRUCO",
                 "canto": nivel,
-                "detalle": detalle_farol or f"Cantó {nivel} de farol con cartas bajas",
+                "detalle": detalle_farol or f"Cantó {nivel} de mentira con cartas bajas",
                 "resultado": "pendiente",
             }
             self.bluffs_mano_actual.append(evento_b)
@@ -1184,12 +1184,12 @@ class PartidaTruco:
             def vista_publica(paso):
                 if paso is None:
                     return None
-                return {"fase": paso["fase"], "decision": paso["decision"].replace(" (FAROL)", "")}
+                return {"fase": paso["fase"], "decision": paso["decision"].replace(" (MENTIRA)", "")}
 
             aprendizaje["ultimo_razonamiento"] = vista_publica(aprendizaje["ultimo_razonamiento"])
             aprendizaje["traza_razonamiento"] = [vista_publica(paso) for paso in aprendizaje["traza_razonamiento"]]
 
-        # Al terminar la mano, revelar las 3 cartas de Ottoman y si hizo farol
+        # Al terminar la mano, revelar las 3 cartas de Ottoman y si dijo una mentira
         cartas_robot_reveladas = None
         tantos_robot_revelados = None
         if self.mano_terminada:

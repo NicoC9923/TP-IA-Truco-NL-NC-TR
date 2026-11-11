@@ -29,7 +29,7 @@ The three cards a player receives in a hand. UI: "cartas".
 _Avoid_: hand (for the cards)
 
 **Bluff**:
-A call or raise made with an objectively weak hand: fewer than 24 tantos for envido, or a hand-strength percentile below 0.44 for truco. The criterion is the same for every player, human or agent. UI: "farol".
+A call or raise made with an objectively weak hand: fewer than 24 tantos for envido, or a hand-strength percentile below 0.44 for truco. The criterion is the same for every player, human or agent. UI: "mentira" (earlier called "farol", which remains in code identifiers such as `es_farol` and `prob_farol_envido`).
 _Avoid_: lie (except in audience-facing text)
 
 **Certain evidence**:
