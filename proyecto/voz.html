@@ -1122,7 +1122,7 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const nombreCanto = (c) => NOMBRE_CANTO[c] || String(c || '').replace(/_/g, ' ').toLowerCase();
-  const imgCarta = (c) => `/cartas/${encodeURIComponent(c.valor)}_${encodeURIComponent(c.palo)}.png?v=fournier`;
+  const imgCarta = (c) => `/cartas/${encodeURIComponent(c.valor)}_${encodeURIComponent(c.palo)}.png?v=propia`;
   const nombreCarta = (c) => c.nombre || `${c.valor} de ${c.palo}`;
   const naipeHTML = (c) => `<span class="naipe"><img src="${imgCarta(c)}" alt="${esc(nombreCarta(c))}" draggable="false"></span>`;
   const espera = (ms) => new Promise(r => setTimeout(r, ms));

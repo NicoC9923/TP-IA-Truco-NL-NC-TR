@@ -12,5 +12,7 @@ if str(_ENTORNO) not in sys.path:
 
 from sim.robot import EstadoRobot, NoHaySimulador, Robot  # noqa: E402,F401
 from sim.safety import ErrorDeSeguridad, Limites  # noqa: E402,F401
+from sim.visor import aviso_sin_mujoco  # noqa: E402,F401
 
-__all__ = ["Robot", "EstadoRobot", "ErrorDeSeguridad", "Limites", "NoHaySimulador"]
+__all__ = ["Robot", "EstadoRobot", "ErrorDeSeguridad", "Limites", "NoHaySimulador",
+           "aviso_sin_mujoco"]

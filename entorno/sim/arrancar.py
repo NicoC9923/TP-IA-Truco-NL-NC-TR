@@ -77,6 +77,30 @@ class SimuladorOficial:
         self.servicio = None
         self._qpos_previo = None
         self._art_suave = None
+        self.reloj = time.perf_counter     # replaceable for offscreen captures
+        self.cartas = self._crear_escena_cartas()
+
+    def _crear_escena_cartas(self):
+        """The Truco cards, when the scene has them (G1 at the Truco table)."""
+        if self.mj.mj_name2id(self.model, self.mj.mjtObj.mjOBJ_BODY,
+                              "carta_1_0") < 0:
+            return None
+        from .escena_cartas import EscenaCartas
+
+        escena = EscenaCartas(self.mj, self.model, self.data)
+        escena.calibrar(self._qpos_sentado())
+        return escena
+
+    def _qpos_sentado(self):
+        """qpos of the robot seated at the table, with no gesture."""
+        q = self.data.qpos.copy()
+        q[0:3] = [0.0, 0.0, self.robot.altura - 0.23]
+        q[3:7] = [1.0, 0.0, 0.0, 0.0]
+        q[7:] = 0.0
+        for pose in (self.robot.pose_de_pie, self.robot.pose_sentado):
+            for idx, valor in pose.items():
+                q[7 + idx] = valor
+        return q
 
     # ---------- transporte ----------
     def iniciar_transporte(self):
@@ -124,7 +148,7 @@ class SimuladorOficial:
                 objetivo[idx] = valor
 
         accion = e.get("accion", "quieto")
-        t_osc = time.perf_counter() * 5.5
+        t_osc = self.reloj() * 5.5
 
         # 1. Si está sentado en la silla, fijar las piernas en pose_sentado (y brazos base sobre la mesa)
         if not e.get("de_pie", True):
@@ -173,14 +197,23 @@ class SimuladorOficial:
                 if idx < len(objetivo):
                     objetivo[idx] += amplitud * math.sin(f + desfase)
 
-        ahora = time.perf_counter()
+        ahora = self.reloj()
+        dt_suave = (ahora - self._qpos_previo[0]) if self._qpos_previo else self.cfg.VIEWER_DT
+        exactas = {}
+        if self.cartas is not None:
+            self.cartas.mesa.avanzar(max(0.0, dt_suave))
+            actual = self._art_suave if self._art_suave is not None else objetivo
+            exactas = self.cartas.ajustar_articulaciones(objetivo, actual)
         if self._art_suave is None or len(self._art_suave) != len(objetivo):
             self._art_suave = list(objetivo)
         else:
-            dt_suave = (ahora - self._qpos_previo[0]) if self._qpos_previo else self.cfg.VIEWER_DT
             alpha = min(1.0, max(0.08, dt_suave * 10.0))
             for i in range(len(objetivo)):
                 self._art_suave[i] += (objetivo[i] - self._art_suave[i]) * alpha
+        # The play animation already interpolates its joints: no extra lag,
+        # so the card on the palm and the palm stay together.
+        for idx, valor in exactas.items():
+            self._art_suave[idx] = valor
 
         art[:] = self._art_suave
 
@@ -196,6 +229,10 @@ class SimuladorOficial:
         self._qpos_previo = (ahora, q[7:].copy())
 
         self.mj.mj_forward(self.model, self.data)
+        if self.cartas is not None:
+            # Cards hang from the palms, so they go after the arms are posed.
+            self.cartas.aplicar_cartas()
+            self.mj.mj_kinematics(self.model, self.data)
         self._publicar_telemetria()
 
     def _publicar_telemetria(self) -> None:
@@ -222,8 +259,10 @@ class SimuladorOficial:
     def _correr_con_ventana(self):
         import mujoco.viewer
 
+        tecla = self.cartas.tecla if self.cartas is not None else None
         with mujoco.viewer.launch_passive(
-            self.model, self.data, show_left_ui=False, show_right_ui=False
+            self.model, self.data, show_left_ui=False, show_right_ui=False,
+            key_callback=tecla,
         ) as v:
             if self.robot.tipo == "humanoide":
                 v.cam.lookat[:] = [0.26, 0.0, 0.62]
@@ -234,12 +273,18 @@ class SimuladorOficial:
                 v.cam.distance = 2.6
                 v.cam.elevation = -20
             self.iniciar_transporte()
+            if self.cartas is not None and self.verboso:
+                print("  [CARTAS] F7 cambia de camara (general / detras de cada robot).")
+                print("           Contra un humano, las camaras detras del robot no se muestran.")
             periodo = self.cfg.VIEWER_DT
             while v.is_running():
                 inicio = time.perf_counter()
                 self.mundo.avanzar()
                 self._escribir_pose()
                 self._volcar_avisos()
+                if self.cartas is not None:
+                    with v.lock():
+                        self.cartas.sincronizar_visor(v.cam)
                 v.sync()
                 resto = periodo - (time.perf_counter() - inicio)
                 if resto > 0:

@@ -12,6 +12,7 @@ Gestiona:
 
 from __future__ import annotations
 
+import queue
 import random
 import re
 import threading
@@ -24,12 +25,21 @@ from phase1_network import NetworkPolicy
 from symmetric_engine import bluff as is_bluff
 
 
+def _es_error_de_conexion(error: Exception) -> bool:
+    """True when `error` means the simulator connection is gone (by name, so
+    this module does not import the simulator)."""
+    return isinstance(error, OSError) or type(error).__name__ in ("ErrorTransporte", "NoHaySimulador")
+
+
 class PartidaTruco:
     def __init__(self, robot=None, meta_puntos: int = 15, historial_path: Optional[str] = None,
                  rng: random.Random | None = None, champions_dir=None):
         self.robot = robot
         self.rng = rng if rng is not None else random.Random()
         self._robot_lock = threading.Lock()
+        # Card moves on the 3D table: ordered and never dropped, unlike gestures.
+        self._cola_mesa: "queue.Queue" = queue.Queue()
+        self._hilo_mesa: Optional[threading.Thread] = None
         self.ia = AgenteTrucoIA(historial_path=historial_path, rng=self.rng, champions_dir=champions_dir)
         profile_path = Path(historial_path).with_name('opponent_profile.json') if historial_path else Path(__file__).with_name('opponent_profile.json')
         self.opponent_profile = OpponentProfile(profile_path)
@@ -145,6 +155,47 @@ class PartidaTruco:
 
         threading.Thread(target=_worker, daemon=True).start()
 
+    # ---------- las cartas en la mesa 3D ----------
+    def _mesa_3d(self, metodo: str, *args) -> None:
+        """Queues a card move for the simulator's table, in game order.
+
+        A single worker sends them one by one, so the robot's answer never
+        overtakes the human's card. Without a simulator (or with an old one)
+        it does nothing: the web game never waits for, nor depends on, the 3D.
+        """
+        if self.robot is None or not hasattr(self.robot, metodo):
+            return
+        self._cola_mesa.put((metodo, args))
+        if self._hilo_mesa is None or not self._hilo_mesa.is_alive():
+            self._hilo_mesa = threading.Thread(target=self._trabajar_mesa, daemon=True)
+            self._hilo_mesa.start()
+
+    def _trabajar_mesa(self) -> None:
+        while True:
+            metodo, args = self._cola_mesa.get()
+            try:
+                robot = self.robot
+                if robot is not None:
+                    getattr(robot, metodo)(*args)
+            except Exception as error:
+                if _es_error_de_conexion(error):
+                    self._perder_robot()
+
+    def _perder_robot(self) -> None:
+        """The simulator went away: forget it so the next request reconnects."""
+        self.robot = None
+        aviso = getattr(self, "al_perder_robot", None)
+        if aviso is not None:
+            aviso()
+
+    def sincronizar_mesa_3d(self) -> None:
+        """Rebuilds the current hand on the 3D table (e.g. after connecting)."""
+        self._mesa_3d("modo_mesa", "humano")
+        self._mesa_3d("repartir_cartas", list(self.cartas_robot))
+        for jugada in self.mesa:
+            asiento = 1 if jugada["quien"] == "robot" else 2
+            self._mesa_3d("tirar_carta", jugada["carta"], asiento)
+
     def registrar(self, mensaje: str) -> None:
         self.log_mensajes.append(mensaje)
         if len(self.log_mensajes) > 60:
@@ -255,6 +306,7 @@ class PartidaTruco:
 
         # Animación de repartir las cartas en la mesa del simulador
         self._reaccion_robot("repartir")
+        self._mesa_3d("repartir_cartas", list(self.cartas_robot))
 
         if self.es_mano_humano:
             self.decir_robot("Ya repartí. Sos mano, tirá una carta o cantá.")
@@ -371,6 +423,7 @@ class PartidaTruco:
             }
         )
         self.registrar(f"👤 Humano jugó: {nombre_c} (Ronda {self.ronda_actual})")
+        self._mesa_3d("tirar_carta", carta_jugada, 2)
 
         cartas_ronda = [m for m in self.mesa if m["ronda"] == self.ronda_actual]
         if len(cartas_ronda) == 2:
@@ -520,6 +573,7 @@ class PartidaTruco:
             }
         )
         self.decir_robot(f"Juego el {nombre_c}.")
+        self._mesa_3d("tirar_carta", carta, 1)
 
         cartas_ronda = [m for m in self.mesa if m["ronda"] == self.ronda_actual]
         if len(cartas_ronda) == 2:

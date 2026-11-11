@@ -91,8 +91,9 @@ class ServidorLocal(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
 
     def __init__(self, mundo, robot, limites, telemetria=None, verboso=True,
-                 puerto: int = PUERTO):
+                 puerto: int = PUERTO, cartas=None):
         self.mundo = mundo
+        self.cartas = cartas        # sim.cartas.MesaCartas, if the scene has cards
         self.robot = robot
         self.limites = limites
         self.telemetria = telemetria
@@ -147,6 +148,43 @@ class ServidorLocal(socketserver.ThreadingTCPServer):
 
     def _orden_estado(self, _pedido: dict) -> dict:
         return {"ok": True, "estado": self.mundo.leer()}
+
+    # ---- Truco cards and cameras (sim/cartas.py) ----
+    def _sin_cartas(self) -> dict | None:
+        if self.cartas is None:
+            return {"ok": False, "error": "esta escena no tiene cartas"}
+        return None
+
+    def _orden_cartas_repartir(self, pedido: dict) -> dict:
+        """New hand: {"manos": {"1": [{"valor", "palo"}, ...], "2": [...]}}."""
+        error = self._sin_cartas()
+        if error:
+            return error
+        self.cartas.repartir(pedido.get("manos") or {})
+        return {"ok": True}
+
+    def _orden_cartas_jugar(self, pedido: dict) -> dict:
+        """A seat plays a card: {"asiento": 1, "carta": {"valor", "palo"}}."""
+        error = self._sin_cartas()
+        if error:
+            return error
+        self.cartas.jugar(int(pedido.get("asiento", 1)), pedido.get("carta"))
+        return {"ok": True}
+
+    def _orden_camara(self, pedido: dict) -> dict:
+        """Asks for a named camera; answers with the one actually shown."""
+        error = self._sin_cartas()
+        if error:
+            return error
+        return {"ok": True, "camara": self.cartas.elegir_camara(str(pedido.get("nombre", "")))}
+
+    def _orden_modo_mesa(self, pedido: dict) -> dict:
+        """'humano' (human vs robot) or 'robots' (robot vs robot)."""
+        error = self._sin_cartas()
+        if error:
+            return error
+        self.cartas.poner_modo(str(pedido.get("modo", "")))
+        return {"ok": True, "camara": self.cartas.camara}
 
     def _orden_telemetria(self, _pedido: dict) -> dict:
         """Estado articular leido de MuJoCo (q, dq, base). Nada inventado."""
@@ -248,6 +286,20 @@ class ClienteLocal:
         return self._codigo(self._pedir({"orden": "gesto",
                                          "nombre": nombre,
                                          "duracion": duracion}))
+
+    # The Truco table. Not part of Unitree's SDK: only the local simulator has it.
+    def RepartirCartas(self, manos: dict) -> int:
+        return self._codigo(self._pedir({"orden": "cartas_repartir", "manos": manos}))
+
+    def JugarCarta(self, asiento: int, carta: dict) -> int:
+        return self._codigo(self._pedir({"orden": "cartas_jugar", "asiento": asiento,
+                                         "carta": carta}))
+
+    def Camara(self, nombre: str) -> dict:
+        return self._pedir({"orden": "camara", "nombre": nombre})
+
+    def ModoMesa(self, modo: str) -> dict:
+        return self._pedir({"orden": "modo_mesa", "modo": modo})
 
     def Estado(self) -> dict:
         return self._pedir({"orden": "estado"}).get("estado", {})

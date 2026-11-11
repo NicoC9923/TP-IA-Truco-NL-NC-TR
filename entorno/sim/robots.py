@@ -19,6 +19,10 @@ from dataclasses import dataclass, field
 
 # Los modelos oficiales vienen en el repo. Solo se buscan aca, para que nunca
 # se cargue otra copia que haya quedado en la maquina.
+# The card PNGs the web serves are also the 3D scene's textures.
+DIR_CARTAS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), "proyecto", "cartas")
+
 UBICACIONES = [
     os.path.join(os.path.dirname(os.path.abspath(__file__)),
                  "unitree_mujoco", "unitree_robots"),
@@ -60,7 +64,8 @@ ESCENA_LIMPIA = """<mujoco model="{modelo} - escena limpia">
 
 ESCENA_MESA_TRUCO = """<mujoco model="{modelo} - mesa de truco">
   <!-- Generado por sim/robots.py. Incluye el modelo oficial g1_29dof.xml y
-       agrega la silla y la mesa de Truco con paño verde y naipes. -->
+       agrega las sillas, la mesa de Truco con paño verde, los naipes
+       texturados y las tres camaras (general y detras de cada asiento). -->
   <include file="{incluye}"/>
 
   <statistic center="0.28 0 0.6" extent="1.8"/>
@@ -68,7 +73,7 @@ ESCENA_MESA_TRUCO = """<mujoco model="{modelo} - mesa de truco">
   <visual>
     <headlight diffuse="0.6 0.6 0.6" ambient="0.35 0.35 0.35" specular="0 0 0"/>
     <rgba haze="0.15 0.25 0.35 1"/>
-    <global azimuth="-135" elevation="-20"/>
+    <global azimuth="-135" elevation="-20" offwidth="1280" offheight="720"/>
   </visual>
 
   <asset>
@@ -79,10 +84,13 @@ ESCENA_MESA_TRUCO = """<mujoco model="{modelo} - mesa de truco">
              width="300" height="300"/>
     <material name="groundplane" texture="groundplane" texuniform="true"
               texrepeat="5 5" reflectance="0.2"/>
+{cartas_assets}
   </asset>
 
   <worldbody>
     <light pos="0.4 0 2.0" dir="0 0 -1" directional="true"/>
+    <light pos="0.6 -0.6 1.8" dir="0 0.5 -1" diffuse="0.35 0.35 0.35" specular="0 0 0"/>
+{camaras}
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
 
     <!-- Silla de madera donde se sienta Ottoman -->
@@ -99,20 +107,19 @@ ESCENA_MESA_TRUCO = """<mujoco model="{modelo} - mesa de truco">
     <body name="mesa_truco" pos="0.60 0 0">
       <geom name="mesa_tablero" type="box" pos="0 0 0.64" size="0.32 0.52 0.025" rgba="0.48 0.30 0.16 1"/>
       <geom name="mesa_pano" type="box" pos="0 0 0.667" size="0.26 0.44 0.004" rgba="0.12 0.44 0.23 1"/>
-      <geom name="mazo_cartas" type="box" pos="-0.12 0.16 0.682" size="0.035 0.05 0.012" rgba="0.96 0.94 0.86 1"/>
-      <geom name="mazo_lomo" type="box" pos="-0.12 0.16 0.695" size="0.033 0.048 0.0015" rgba="0.76 0.14 0.14 1"/>
-      <geom name="carta_mesa_1" type="box" pos="-0.02 -0.06 0.673" size="0.035 0.05 0.002" rgba="0.98 0.97 0.92 1"/>
-      <geom name="carta_mesa_2" type="box" pos="0.08 0.05 0.673" size="0.035 0.05 0.002" rgba="0.98 0.97 0.92 1"/>
+      <!-- El mazo: un taco de canto crema con nuestro dorso arriba -->
+      <geom name="mazo_cartas" type="box" pos="0.02 0.33 0.6815" size="0.0445 0.0677 0.0105" rgba="0.93 0.91 0.85 1"/>
+      <geom name="mazo_dorso" type="mesh" mesh="malla_carta" pos="0.02 0.33 0.6925" material="mat_dorso" contype="0" conaffinity="0"/>
       <!-- Mate criollo con virola de plata y bombilla -->
-      <geom name="mate_base" type="cylinder" pos="-0.14 -0.26 0.676" size="0.022 0.006" rgba="0.25 0.15 0.08 1"/>
-      <geom name="mate_calabaza" type="ellipsoid" pos="-0.14 -0.26 0.706" size="0.034 0.034 0.032" rgba="0.45 0.24 0.11 1"/>
-      <geom name="mate_virola" type="cylinder" pos="-0.14 -0.26 0.733" size="0.028 0.005" rgba="0.88 0.90 0.94 1"/>
-      <geom name="mate_yerba" type="cylinder" pos="-0.14 -0.26 0.736" size="0.024 0.003" rgba="0.26 0.42 0.16 1"/>
-      <geom name="mate_bombilla" type="capsule" pos="-0.155 -0.26 0.758" euler="0 -0.45 0" size="0.004 0.028" rgba="0.90 0.92 0.96 1"/>
+      <geom name="mate_base" type="cylinder" pos="-0.22 -0.40 0.676" size="0.022 0.006" rgba="0.25 0.15 0.08 1"/>
+      <geom name="mate_calabaza" type="ellipsoid" pos="-0.22 -0.40 0.706" size="0.034 0.034 0.032" rgba="0.45 0.24 0.11 1"/>
+      <geom name="mate_virola" type="cylinder" pos="-0.22 -0.40 0.733" size="0.028 0.005" rgba="0.88 0.90 0.94 1"/>
+      <geom name="mate_yerba" type="cylinder" pos="-0.22 -0.40 0.736" size="0.024 0.003" rgba="0.26 0.42 0.16 1"/>
+      <geom name="mate_bombilla" type="capsule" pos="-0.235 -0.40 0.758" euler="0 -0.45 0" size="0.004 0.028" rgba="0.90 0.92 0.96 1"/>
       <!-- Termo / Pava criolla al costado -->
-      <geom name="termo_cuerpo" type="cylinder" pos="-0.04 -0.35 0.745" size="0.036 0.075" rgba="0.72 0.74 0.78 1"/>
-      <geom name="termo_tapa" type="cylinder" pos="-0.04 -0.35 0.828" size="0.033 0.012" rgba="0.15 0.15 0.15 1"/>
-      <geom name="termo_pico" type="cylinder" pos="-0.04 -0.35 0.844" size="0.012 0.008" rgba="0.82 0.12 0.12 1"/>
+      <geom name="termo_cuerpo" type="cylinder" pos="0.22 -0.42 0.745" size="0.036 0.075" rgba="0.72 0.74 0.78 1"/>
+      <geom name="termo_tapa" type="cylinder" pos="0.22 -0.42 0.828" size="0.033 0.012" rgba="0.15 0.15 0.15 1"/>
+      <geom name="termo_pico" type="cylinder" pos="0.22 -0.42 0.844" size="0.012 0.008" rgba="0.82 0.12 0.12 1"/>
       <!-- Porotos de tanteador sobre el paño -->
       <geom name="poroto_1" type="ellipsoid" pos="-0.18 0.28 0.674" size="0.009 0.006 0.004" rgba="0.88 0.78 0.56 1"/>
       <geom name="poroto_2" type="ellipsoid" pos="-0.16 0.30 0.674" size="0.009 0.006 0.004" rgba="0.88 0.78 0.56 1"/>
@@ -122,6 +129,19 @@ ESCENA_MESA_TRUCO = """<mujoco model="{modelo} - mesa de truco">
       <geom name="mesa_pata3" type="cylinder" pos="0.27 0.46 0.31" size="0.028 0.31" rgba="0.32 0.20 0.10 1"/>
       <geom name="mesa_pata4" type="cylinder" pos="0.27 -0.46 0.31" size="0.028 0.31" rgba="0.32 0.20 0.10 1"/>
     </body>
+
+    <!-- Asiento 2, enfrente: el humano hoy; un segundo G1 en el paso 2 -->
+    <body name="silla_asiento_2" pos="1.24 0 0" euler="0 0 3.14159">
+      <geom name="silla2_asiento" type="box" pos="0 0 0.46" size="0.18 0.22 0.025" rgba="0.38 0.24 0.13 1"/>
+      <geom name="silla2_respaldo" type="box" pos="-0.16 0 0.72" size="0.022 0.21 0.23" rgba="0.38 0.24 0.13 1"/>
+      <geom name="silla2_pata1" type="cylinder" pos="0.14 0.18 0.22" size="0.02 0.22" rgba="0.22 0.15 0.08 1"/>
+      <geom name="silla2_pata2" type="cylinder" pos="0.14 -0.18 0.22" size="0.02 0.22" rgba="0.22 0.15 0.08 1"/>
+      <geom name="silla2_pata3" type="cylinder" pos="-0.14 0.18 0.22" size="0.02 0.22" rgba="0.22 0.15 0.08 1"/>
+      <geom name="silla2_pata4" type="cylinder" pos="-0.14 -0.18 0.22" size="0.02 0.22" rgba="0.22 0.15 0.08 1"/>
+    </body>
+
+    <!-- Cartas del Truco: cuerpos mocap que mueve sim/escena_cartas.py -->
+{cartas_cuerpos}
   </worldbody>
 </mujoco>
 """
@@ -368,6 +388,14 @@ def _generar_modelo_gaucho(ruta_original: str) -> str:
                 rgba="0.82 0.72 0.50 1",
             )
 
+    # Sitios en las palmas: de aca cuelgan las cartas que el robot sostiene
+    # o lleva a la mesa (sim/escena_cartas.py). No son visibles.
+    for lado, nombre in (("left", "mano_izq"), ("right", "mano_der")):
+        muneca = bodies.get(f"{lado}_wrist_yaw_link")
+        if muneca is not None:
+            ET.SubElement(muneca, "site", {"name": nombre, "pos": "0.10 0 0",
+                                           "size": "0.008", "group": "5"})
+
     tree.write(ruta_gaucho, encoding="utf-8")
     return nombre_gaucho
 
@@ -381,8 +409,15 @@ def _generar_escena_limpia(destino: str, incluye: str) -> str:
         ruta_original = os.path.join(os.path.dirname(destino), incluye)
         if os.path.exists(ruta_original):
             archivo_incluido = _generar_modelo_gaucho(ruta_original)
+    extras = {}
+    if es_mesa_truco:
+        from . import cartas
+        ruta = cartas.ruta_cartas_relativa(os.path.dirname(destino), DIR_CARTAS)
+        extras = {"cartas_assets": cartas.xml_assets(ruta),
+                  "cartas_cuerpos": cartas.xml_cuerpos(),
+                  "camaras": cartas.xml_camaras()}
     contenido = plantilla.format(
-        modelo=os.path.splitext(incluye)[0], incluye=archivo_incluido)
+        modelo=os.path.splitext(incluye)[0], incluye=archivo_incluido, **extras)
     with open(destino, "w", encoding="utf-8") as f:
         f.write(contenido)
     return destino
