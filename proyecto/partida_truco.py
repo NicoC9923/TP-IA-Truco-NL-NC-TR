@@ -12,6 +12,7 @@ Gestiona:
 
 from __future__ import annotations
 
+import queue
 import random
 import re
 import threading
@@ -30,6 +31,9 @@ class PartidaTruco:
         self.robot = robot
         self.rng = rng if rng is not None else random.Random()
         self._robot_lock = threading.Lock()
+        # Card moves on the 3D table: ordered and never dropped, unlike gestures.
+        self._cola_mesa: "queue.Queue" = queue.Queue()
+        self._hilo_mesa: Optional[threading.Thread] = None
         self.ia = AgenteTrucoIA(historial_path=historial_path, rng=self.rng, champions_dir=champions_dir)
         profile_path = Path(historial_path).with_name('opponent_profile.json') if historial_path else Path(__file__).with_name('opponent_profile.json')
         self.opponent_profile = OpponentProfile(profile_path)
@@ -145,6 +149,39 @@ class PartidaTruco:
 
         threading.Thread(target=_worker, daemon=True).start()
 
+    # ---------- las cartas en la mesa 3D ----------
+    def _mesa_3d(self, metodo: str, *args) -> None:
+        """Queues a card move for the simulator's table, in game order.
+
+        A single worker sends them one by one, so the robot's answer never
+        overtakes the human's card. Without a simulator (or with an old one)
+        it does nothing: the web game never waits for, nor depends on, the 3D.
+        """
+        if self.robot is None or not hasattr(self.robot, metodo):
+            return
+        self._cola_mesa.put((metodo, args))
+        if self._hilo_mesa is None or not self._hilo_mesa.is_alive():
+            self._hilo_mesa = threading.Thread(target=self._trabajar_mesa, daemon=True)
+            self._hilo_mesa.start()
+
+    def _trabajar_mesa(self) -> None:
+        while True:
+            metodo, args = self._cola_mesa.get()
+            try:
+                robot = self.robot
+                if robot is not None:
+                    getattr(robot, metodo)(*args)
+            except Exception:
+                pass
+
+    def sincronizar_mesa_3d(self) -> None:
+        """Rebuilds the current hand on the 3D table (e.g. after connecting)."""
+        self._mesa_3d("modo_mesa", "humano")
+        self._mesa_3d("repartir_cartas", list(self.cartas_robot))
+        for jugada in self.mesa:
+            asiento = 1 if jugada["quien"] == "robot" else 2
+            self._mesa_3d("tirar_carta", jugada["carta"], asiento)
+
     def registrar(self, mensaje: str) -> None:
         self.log_mensajes.append(mensaje)
         if len(self.log_mensajes) > 60:
@@ -255,6 +292,7 @@ class PartidaTruco:
 
         # Animación de repartir las cartas en la mesa del simulador
         self._reaccion_robot("repartir")
+        self._mesa_3d("repartir_cartas", list(self.cartas_robot))
 
         if self.es_mano_humano:
             self.decir_robot("Ya repartí. Sos mano, tirá una carta o cantá.")
@@ -371,6 +409,7 @@ class PartidaTruco:
             }
         )
         self.registrar(f"👤 Humano jugó: {nombre_c} (Ronda {self.ronda_actual})")
+        self._mesa_3d("tirar_carta", carta_jugada, 2)
 
         cartas_ronda = [m for m in self.mesa if m["ronda"] == self.ronda_actual]
         if len(cartas_ronda) == 2:
@@ -520,6 +559,7 @@ class PartidaTruco:
             }
         )
         self.decir_robot(f"Juego el {nombre_c}.")
+        self._mesa_3d("tirar_carta", carta, 1)
 
         cartas_ronda = [m for m in self.mesa if m["ronda"] == self.ronda_actual]
         if len(cartas_ronda) == 2:

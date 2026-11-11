@@ -3,5 +3,7 @@
 mujoco==3.12.0
 numpy==2.4.3
 opencv-python>=4.10,<5
+# Draws the deck (proyecto/generar_baraja.py) and the 3D table screenshots.
+pillow>=10
 
 # Optional phase 2 only: install PyTorch CPU separately; see README.md.

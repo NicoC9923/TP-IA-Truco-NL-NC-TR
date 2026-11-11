@@ -14,8 +14,8 @@ Python. Proyecto personal.
 ## Arrancar
 
 Una vez por máquina, doble click en `instalar.bat` (o `./instalar.sh` en
-Linux/macOS). Instala lo que lista `requirements.txt` (MuJoCo, NumPy y OpenCV
-para la cámara) y después revisa el entorno. Es lo mismo que:
+Linux/macOS). Instala lo que lista `requirements.txt` (MuJoCo para la vista 3D,
+NumPy, OpenCV para la cámara y Pillow para dibujar la baraja) y después revisa el entorno. Es lo mismo que:
 
 ```bash
 py -3 -m pip install --user -r requirements.txt
@@ -23,6 +23,8 @@ py -3 -m pip install --user -r requirements.txt
 
 Los lanzadores nunca instalan nada: si falta algo, avisan y dicen qué correr.
 Sin OpenCV el Truco funciona igual, pero la cámara queda desactivada.
+Sin MuJoCo la web del Truco funciona igual, pero no hay vista 3D: el servidor
+avisa al arrancar con el comando para instalarlo.
 
 Cada vez, en dos terminales:
 
@@ -67,6 +69,16 @@ de cada articulacion del modelo.
 
 Flags: `--sin-ventana` (modo consola), `--dds` (SDK real de Unitree, solo
 Linux + Python 3.10), `--puerto`, `--solo-revisar`.
+
+## Truco cards in 3D
+
+The deck in `proyecto/cartas/` is drawn by code (`py -3 proyecto/generar_baraja.py`);
+the same PNGs texture the cards on the 3D table. Ottoman holds its cards fanned in
+the left hand and lays each one on the table with the right hand; your cards
+appear on your side as you play them. In the viewer, **F7** cycles the cameras
+(`general`, `detras_robot_1`, `detras_robot_2`); against a human only `general`
+is available, and the robot's hand shows card backs. Offscreen screenshots:
+`cd entorno && py -3 -m sim.capturas ../docs/screenshots/step1 jpg`. See ADR 0064.
 
 ## Phase 2 network dependency
 

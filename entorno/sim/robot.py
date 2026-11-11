@@ -395,6 +395,51 @@ class Robot:
         """Pone al robot de pie para poder caminar."""
         return self.hacer_gesto("pararse", duracion=0.2, esperar=False)
 
+    # ---------- mesa de Truco (solo el simulador local) ----------
+    def _mesa(self, metodo: str):
+        """The table method of the client, or None (DDS / real robot: no table)."""
+        self._exigir_conexion()
+        return getattr(self._cliente, metodo, None)
+
+    def repartir_cartas(self, mano_robot, mano_rival=None) -> bool:
+        """New hand on the 3D table: the robot (seat 1) gets `mano_robot` in hand.
+
+        `mano_rival` is only used when seat 2 is a robot (step 2); a human's
+        cards appear on the table as they are played.
+        """
+        metodo = self._mesa("RepartirCartas")
+        if metodo is None:
+            return False
+        manos = {"1": [dict(valor=c["valor"], palo=c["palo"]) for c in mano_robot]}
+        if mano_rival:
+            manos["2"] = [dict(valor=c["valor"], palo=c["palo"]) for c in mano_rival]
+        return metodo(manos) == 0
+
+    def tirar_carta(self, carta: dict, asiento: int = 1) -> bool:
+        """Shows `carta` played by `asiento` (1 = robot, 2 = rival) on the table."""
+        metodo = self._mesa("JugarCarta")
+        if metodo is None:
+            return False
+        return metodo(int(asiento), {"valor": carta["valor"], "palo": carta["palo"]}) == 0
+
+    def elegir_camara(self, nombre: str) -> str | None:
+        """'general', 'detras_robot_1' or 'detras_robot_2'. Returns the camera
+        really shown: against a human the behind-robot cameras stay disabled."""
+        metodo = self._mesa("Camara")
+        if metodo is None:
+            return None
+        respuesta = metodo(nombre)
+        if not respuesta.get("ok"):
+            raise ValueError(respuesta.get("error", "camara invalida"))
+        return respuesta.get("camara")
+
+    def modo_mesa(self, modo: str) -> bool:
+        """'humano' (human vs robot, the default) or 'robots' (robot vs robot)."""
+        metodo = self._mesa("ModoMesa")
+        if metodo is None:
+            return False
+        return bool(metodo(modo).get("ok"))
+
     def _exigir_conexion(self) -> None:
         if self._cliente is None:
             raise NoHaySimulador(

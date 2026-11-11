@@ -110,7 +110,9 @@ def diagnosticar_mujoco() -> tuple[bool, str]:
                 f"        {_URL_VCREDIST}\n"
                 f"      Despues de instalarlo, cerra y volve a abrir la consola.")
         if "mujoco" in texto.lower() and "no module" in texto.lower():
-            return False, f"Falta MuJoCo. Instalalo con:\n      {_pip('mujoco')}"
+            return False, (f"Falta MuJoCo (la vista 3D del robot y las cartas). Instalalo una\n"
+                           f"      vez con instalar.bat (o instalar.sh), o con:\n"
+                           f"      {_pip('mujoco==3.12.0')}")
         return False, f"No se pudo importar MuJoCo: {texto}"
     except Exception as exc:                                   # noqa: BLE001
         return False, f"No se pudo importar MuJoCo: {exc}"
@@ -155,6 +157,16 @@ def verificar(dds: bool = False) -> Resultado:
         print(f"  [AVISO] OpenCV no esta instalado: la camara del Truco queda "
               f"desactivada.\n          Instalalo con instalar.bat (o instalar.sh), "
               f"o con:\n          {_pip('opencv-python')}")
+
+    # 2c. Pillow: solo para redibujar la baraja (generar_baraja.py) y sacar
+    # capturas de la mesa (sim.capturas). Las cartas ya vienen dibujadas.
+    if _tiene("PIL"):
+        import PIL
+        _ok("Pillow", f"v{PIL.__version__} (dibujar la baraja y capturas)")
+    else:
+        print(f"  [AVISO] Pillow no esta instalado: solo hace falta para redibujar la "
+              f"baraja o sacar capturas.\n          Instalalo con instalar.bat (o instalar.sh), "
+              f"o con:\n          {_pip('pillow')}")
 
     # 3 y 4. CycloneDDS y el SDK de Unitree: SOLO en modo --dds.
     #

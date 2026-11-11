@@ -19,7 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from robot import Robot
+from robot import Robot, aviso_sin_mujoco
 from control_voz import AgenteRobot
 from partida_truco import PartidaTruco
 from truco_ia import AgenteTrucoIA
@@ -55,6 +55,7 @@ class ServidorTruco(ThreadingHTTPServer):
                 self.agente.robot = robot
                 self.agente.ejecutor.robot = robot
                 self.partida.robot = robot
+                self.partida.sincronizar_mesa_3d()
                 print("  [OK] Conectado dinámicamente al simulador del Robot.")
                 return robot
             except Exception as error:
@@ -508,11 +509,17 @@ def main() -> None:
         print("  [AVISO] Simulador aún no detectado. Se conectará automáticamente en cuanto abras sim.bat.")
     if not server.detector.disponible:
         print(f"  [AVISO] {MENSAJE_SIN_OPENCV}")
+    aviso_3d = aviso_sin_mujoco()
+    if aviso_3d and not sin_robot_flag:
+        print(f"  [AVISO] {aviso_3d}")
 
-    # Asegurar que las 40 imágenes de la Baraja Española estén generadas
-    if not (DIR_CARTAS / "1_Espada.png").is_file() and (DIR_CARTAS / "template_naipes.jpg").is_file():
-        from generar_baraja import generar_baraja_40
-        generar_baraja_40(str(DIR_CARTAS / "template_naipes.jpg"), str(DIR_CARTAS))
+    # The deck is committed; redraw it only if someone deleted the PNGs.
+    if not (DIR_CARTAS / "1_Espada.png").is_file():
+        try:
+            from generar_baraja import generar_baraja_40
+            generar_baraja_40(str(DIR_CARTAS))
+        except ImportError:
+            print("  [AVISO] Faltan las cartas y Pillow para dibujarlas: ejecutá instalar.bat.")
 
     url = f"http://127.0.0.1:{server.server_port}"
     if abrir_evolution:
