@@ -570,9 +570,15 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual(resultados[0], resultados[1])
         self.assertEqual(partidas[0].estado_publico(), partidas[1].estado_publico())
 
+    def _partida_robot_mano(self, semilla, nombre="h.json"):
+        """Robot is mano and opens with a truco: the human is the pie and has not played yet (ADR 0068)."""
+        partida = PartidaTruco(robot=None, historial_path=str(Path(self._tmpdir.name) / nombre), rng=random.Random(semilla))
+        partida.mano_terminada = True
+        partida.nueva_mano()
+        return partida
+
     def test_envido_suspende_truco_robot_y_lo_restituye(self):
-        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(1))
-        partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+        partida = self._partida_robot_mano(172)
         original = partida.estado_publico()["canto_pendiente"].copy()
         self.assertEqual(original["tipo"], "TRUCO")
         self.assertTrue(partida.estado_publico()["envido_disponible"])
@@ -607,9 +613,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual(resultado["estado"], partida.estado_publico())
 
     def test_rechazar_real_envido_muestra_resultado_antes_del_truco(self):
-        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(54))
-        estado = partida.estado_publico()
-        partida.jugar_carta_humano(estado["cartas_humano_disponibles"][0])
+        partida = self._partida_robot_mano(172)
         estado = partida.responder_canto_humano("ENVIDO")["estado"]
         self.assertEqual(estado["canto_pendiente"]["canto"], "REAL_ENVIDO")
         estado = partida.responder_canto_humano("NO_QUIERO")["estado"]
@@ -627,13 +631,11 @@ class TestTrucoReglasYMotor(unittest.TestCase):
                         (estado["canto_pendiente"] and estado["canto_pendiente"]["tipo"] == "TRUCO"))
 
     def test_truco_robot_se_reanuda_tras_cada_resolucion_del_envido(self):
-        casos = [(11, None, "QUIERO", 2), (1, None, "NO_QUIERO", 1),
-                 (54, "QUIERO", "QUIERO", 5), (54, "NO_QUIERO", "NO_QUIERO", 2)]
+        casos = [(18, None, "QUIERO", 2), (5, None, "NO_QUIERO", 1),
+                 (172, "QUIERO", "QUIERO", 5), (172, "NO_QUIERO", "NO_QUIERO", 2)]
         for i, (semilla, respuesta_humana, respuesta_envido, puntos) in enumerate(casos):
             with self.subTest(semilla=semilla, respuesta=respuesta_envido):
-                partida = PartidaTruco(robot=None, historial_path=str(Path(self._tmpdir.name) / f"robot{i}.json"),
-                                       rng=random.Random(semilla))
-                partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+                partida = self._partida_robot_mano(semilla, f"robot{i}.json")
                 original = copy.deepcopy(partida.estado_publico()["canto_pendiente"])
                 self.assertEqual(original["tipo"], "TRUCO")
                 self.assertEqual(original["quien_canto"], "robot")
