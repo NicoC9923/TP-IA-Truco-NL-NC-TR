@@ -8,8 +8,10 @@ import threading
 import time
 import unittest
 from pathlib import Path
+import unittest.mock
 from unittest.mock import patch
 
+import truco_reglas as tr
 import voz_jugador as vj
 from partida_truco import MENSAJE_ROBOT_OCUPADO, PartidaTruco
 from ritmo import Ritmo
@@ -76,6 +78,20 @@ class Base(unittest.TestCase):
 
     def libre(self, partida):
         return esperar(lambda: not partida.estado_publico()["robot"]["ocupado"])
+
+    def repartir(self, partida, humano, robot, robot_es_mano=False):
+        """Deals a chosen hand: `humano` and `robot` are lists of (valor, palo)."""
+        elegidas = list(humano) + list(robot)
+
+        def ordenar(mazo):
+            por_clave = {(c["valor"], c["palo"]): c for c in mazo}
+            mazo[:] = [por_clave[k] for k in elegidas] + [c for c in mazo if (c["valor"], c["palo"]) not in elegidas]
+
+        partida.mano_terminada = True
+        partida.es_mano_humano = robot_es_mano  # nueva_mano switches the mano
+        with patch.object(partida.rng, "shuffle", side_effect=ordenar):
+            partida.nueva_mano()
+        self.assertEqual(partida.es_mano_humano, not robot_es_mano)
 
 
 class TestTurnoAsincrono(Base):
@@ -252,11 +268,30 @@ class TestTurnoAsincrono(Base):
 
     def test_una_decision_rota_no_congela_la_partida(self):
         partida = self.crear(RAPIDO)
-        with patch.object(partida, "_robot_tira_carta", side_effect=RuntimeError("boom")):
+        with patch.object(partida.ia, "elegir_carta_a_jugar", side_effect=RuntimeError("boom")):
             self.sin_cantos(partida)
             self.robot_mano(partida)
             self.assertTrue(self.libre(partida))
-        self.assertEqual(partida.estado_publico()["robot"]["estado"], "ocioso")
+        est = partida.estado_publico()
+        self.assertEqual(est["robot"]["estado"], "ocioso")
+        # The robot fell back to a legal card, so the human can go on.
+        self.assertTrue(est["turno_carta"] == "humano" or est["mano_terminada"], est["turno_carta"])
+        self.assertEqual([m["quien"] for m in est["mesa"]], ["robot"])
+        self.assertTrue(any("[ERROR]" in linea for linea in est["log"]))
+
+    def test_una_decision_rota_no_revela_lo_que_iba_a_hacer(self):
+        partida = self.crear(RAPIDO)
+
+        def canta_y_rompe(*_a, **_k):
+            partida._hablar(vj.TRUCO)
+            raise RuntimeError("boom")
+
+        with patch.object(partida.ia, "decidir_iniciar_envido", return_value=(None, "")), \
+                patch.object(partida.ia, "decidir_iniciar_truco", side_effect=canta_y_rompe):
+            self.robot_mano(partida)
+            self.assertTrue(self.libre(partida))
+        frases = [v["frase"] for v in partida.estado_publico()["voz"]]
+        self.assertNotIn("¡Truco!", frases)
 
     def test_varios_pasos_encadenados_el_robot_sigue_jugando(self):
         """After winning a baza the robot moves again, each step with its own think."""
@@ -310,6 +345,251 @@ class TestConcurrencia(Base):
             h.join()
         self.assertEqual(errores, [])
         self.assertTrue(self.libre(partida))
+
+
+class TestRitmoDeLasCadenas(Base):
+    def test_una_cadena_no_vuelve_a_pensar_todo(self):
+        """The robot wins a baza and plays again: the second card takes SEGUIR, not a full think."""
+        ritmo = Ritmo(pensar=(0.4, 0.4), pensar_grande=(0.4, 0.4), seguir=(0.02, 0.02),
+                      alcanzar=0.01, colocar=0.01, pausa_baza=0.01, pausa_mano=0.01)
+        partida = self.crear(ritmo)
+        self.sin_cantos(partida)
+        self.repartir(partida, [(4, "Copa"), (5, "Copa"), (6, "Copa")],
+                      [(1, "Espada"), (1, "Basto"), (7, "Espada")])
+        inicio = time.time()
+        partida.jugar_carta_humano({"valor": 4, "palo": "Copa"})
+        self.assertTrue(self.libre(partida))
+        duracion = time.time() - inicio
+        robot = [m for m in partida.estado_publico()["mesa"] if m["quien"] == "robot"]
+        self.assertEqual(len(robot), 2)  # it won the first baza and led the second
+        self.assertLess(duracion, 0.7)   # two full thinks would be >= 0.8 s
+
+    def test_responder_el_truco_del_humano_es_una_decision_grande(self):
+        ritmo = Ritmo(pensar=(0.02, 0.02), pensar_grande=(0.4, 0.4), seguir=(0.02, 0.02),
+                      alcanzar=0.01, colocar=0.01, pausa_baza=0, pausa_mano=0)
+        partida = self.crear(ritmo)
+        with patch.object(partida.ia, "decidir_iniciar_envido", return_value=(None, "")), \
+                patch.object(partida.ia, "responder_canto_truco", return_value=("QUIERO", "")):
+            inicio = time.time()
+            partida.cantar_truco_humano()
+            self.assertTrue(self.libre(partida))
+        self.assertGreaterEqual(time.time() - inicio, 0.35)
+
+    def test_querer_real_envido_piensa_mas_que_querer_envido(self):
+        ritmo = Ritmo(pensar=(0.02, 0.02), pensar_grande=(0.4, 0.4), seguir=(0.02, 0.02),
+                      alcanzar=0.01, colocar=0.01, pausa_baza=0, pausa_mano=0)
+        for canto, minimo, maximo in (("REAL_ENVIDO", 0.35, 5.0), ("ENVIDO", 0.0, 0.3)):
+            partida = self.crear(ritmo)
+            with patch.object(partida.ia, "responder_envido", return_value=("QUIERO", "")):
+                inicio = time.time()
+                partida.cantar_envido_humano(canto)
+                self.assertTrue(self.libre(partida))
+                duracion = time.time() - inicio
+            self.assertTrue(minimo <= duracion <= maximo, (canto, duracion))
+
+
+class TestNadaSeAdelanta(Base):
+    def test_mientras_piensa_nada_revela_la_decision(self):
+        """Log, bubble, reasoning panel and pending call stay as before until the wait ends."""
+        partida = self.crear(LENTO)
+
+        def decide_truco(*_a, **_k):
+            partida.ia._registrar_razonamiento("Truco", "TRUCO (MENTIRA)", "m", "u", "Mentira", "x")
+            return "TRUCO", "Tengo 33 de envido y un 1 de espada"
+
+        with patch.object(partida.ia, "decidir_iniciar_envido", return_value=(None, "")), \
+                patch.object(partida.ia, "decidir_iniciar_truco", side_effect=decide_truco):
+            antes = partida.estado_publico()
+            partida.jugar_carta_humano(partida.cartas_humano[0])
+            visto = []
+            while partida.estado_publico()["robot"]["estado"] == "pensando":
+                visto.append(partida.estado_publico())
+                time.sleep(0.03)
+            self.assertTrue(visto)
+            for est in visto:
+                self.assertIsNone(est["canto_pendiente"])
+                self.assertEqual(est["ultima_frase_robot"], antes["ultima_frase_robot"])
+                self.assertEqual(est["aprendizaje_ia"]["traza_razonamiento"],
+                                 antes["aprendizaje_ia"]["traza_razonamiento"])
+                nuevas = [l for l in est["log"] if l not in antes["log"]]
+                self.assertTrue(all(l.startswith("👤 Humano jugó") for l in nuevas), nuevas)
+                self.assertEqual(est["voz"], antes["voz"])
+            self.assertTrue(self.libre(partida))
+        est = partida.estado_publico()
+        self.assertEqual(est["canto_pendiente"]["canto"], "TRUCO")
+        self.assertEqual(est["ultima_frase_robot"], "¡Truco!")
+        self.assertIn('🤖 Ottoman: "¡Truco!"', est["log"])
+        textos = est["log"] + [est["ultima_frase_robot"]] + [v["frase"] for v in est["voz"]]
+        self.assertFalse(any("Tengo 33" in t for t in textos))
+
+    def test_reconectar_el_simulador_mientras_piensa_no_adelanta_ni_duplica_la_carta(self):
+        robot = RobotFalso()
+        partida = self.crear(LENTO, robot=robot)
+        self.sin_cantos(partida)
+        self.robot_mano(partida)
+        self.assertEqual(partida.estado_publico()["robot"]["estado"], "pensando")
+        partida.sincronizar_mesa_3d()  # what the server does when the simulator comes back
+        self.assertTrue(esperar(lambda: robot.llamadas.count(("repartir_cartas",)) >= 2))
+        self.assertFalse(any(l[0] == "tirar_carta" for l in robot.llamadas))
+        self.assertTrue(self.libre(partida))
+        self.assertTrue(esperar(lambda: any(l[0] == "tirar_carta" for l in robot.llamadas)))
+        time.sleep(0.1)
+        self.assertEqual([l[3] for l in robot.llamadas if l[0] == "tirar_carta"], [1])
+
+    def test_cancelar_mientras_coloca_la_carta(self):
+        ritmo = Ritmo(pensar=(0.02, 0.02), pensar_grande=(0.02, 0.02), alcanzar=0.05, colocar=0.6,
+                      pausa_baza=0.01, pausa_mano=0.01)
+        partida = self.crear(ritmo)
+        self.sin_cantos(partida)
+        self.robot_mano(partida)
+        self.assertTrue(esperar(lambda: partida.estado_publico()["robot"]["estado"] == "actuando"))
+        hilo = partida._hilo_robot
+        partida.reiniciar_partido(15)
+        hilo.join(2)
+        self.assertFalse(hilo.is_alive())
+        time.sleep(0.2)
+        est = partida.estado_publico()
+        self.assertEqual(est["robot"]["estado"], "ocioso")
+        self.assertEqual(est["mesa"], [])
+        self.assertEqual(est["cartas_robot_restantes"], 3)
+        self.assertEqual(est["turno_carta"], "humano")
+
+
+class TestTantoDeLaPartida(Base):
+    """The tanto said out loud after an accepted envido, through the whole game."""
+
+    HUMANO_33 = [(7, "Oro"), (6, "Oro"), (1, "Copa")]
+    HUMANO_27 = [(7, "Copa"), (12, "Copa"), (1, "Oro")]
+    HUMANO_30 = [(7, "Copa"), (3, "Copa"), (1, "Oro")]
+    ROBOT_32 = [(7, "Espada"), (5, "Espada"), (4, "Basto")]
+    ROBOT_27 = [(7, "Basto"), (12, "Basto"), (4, "Espada")]
+    ROBOT_30 = [(6, "Basto"), (4, "Basto"), (5, "Espada")]
+
+    def jugar_envido(self, humano, robot, robot_es_mano):
+        partida = self.crear(Ritmo.instantaneo())
+        self.sin_cantos(partida)
+        self.repartir(partida, humano, robot, robot_es_mano)
+        with patch.object(partida.ia, "responder_envido", return_value=("QUIERO", "")):
+            res = partida.cantar_envido_humano("ENVIDO")
+        self.assertNotIn("error", res)
+        est = partida.estado_publico()
+        self.assertTrue(est["envido_resuelto"])
+        return partida, est
+
+    def tanto_dicho(self, est):
+        return [v["frase"] for v in est["voz"] if v["accion"] == vj.TANTO]
+
+    def test_el_robot_mano_dice_su_numero_aunque_pierda(self):
+        partida, est = self.jugar_envido(self.HUMANO_33, self.ROBOT_32, robot_es_mano=True)
+        self.assertEqual(est["resultado_envido"]["ganador"], "humano")
+        self.assertEqual(self.tanto_dicho(est), ["Treinta y dos."])
+
+    def test_el_robot_pie_dice_su_numero_solo_si_gana(self):
+        _, est = self.jugar_envido(self.HUMANO_27, self.ROBOT_32, robot_es_mano=False)
+        self.assertEqual(est["resultado_envido"]["ganador"], "robot")
+        self.assertEqual(self.tanto_dicho(est), ["Treinta y dos."])
+
+    def test_el_robot_pie_que_pierde_dice_son_buenas_y_no_muestra_su_numero(self):
+        partida, est = self.jugar_envido(self.HUMANO_33, self.ROBOT_27, robot_es_mano=False)
+        self.assertEqual(est["resultado_envido"]["ganador"], "humano")
+        self.assertEqual(self.tanto_dicho(est), ["Son buenas."])
+        self.assertEqual(est["ultima_frase_robot"], "Son buenas.")
+        self.assertFalse(any("27" in linea or "veintisiete" in linea.lower() for linea in est["log"]), est["log"])
+
+    def test_empate_gana_la_mano(self):
+        _, est = self.jugar_envido(self.HUMANO_30, self.ROBOT_30, robot_es_mano=False)
+        self.assertEqual(est["resultado_envido"]["ganador"], "humano")
+        self.assertEqual(self.tanto_dicho(est), ["Son buenas."])
+        _, est = self.jugar_envido(self.HUMANO_30, self.ROBOT_30, robot_es_mano=True)
+        self.assertEqual(est["resultado_envido"]["ganador"], "robot")
+        self.assertEqual(self.tanto_dicho(est), ["Treinta."])
+
+    def test_las_manos_de_prueba_tienen_el_tanto_esperado(self):
+        cartas = lambda m: [{"valor": v, "palo": p} for v, p in m]
+        for mano, tanto in ((self.HUMANO_33, 33), (self.HUMANO_27, 27), (self.HUMANO_30, 30),
+                            (self.ROBOT_32, 32), (self.ROBOT_27, 27), (self.ROBOT_30, 30)):
+            self.assertEqual(tr.calcular_envido(cartas(mano)), tanto, mano)
+
+
+class TestServidorRitmo(unittest.TestCase):
+    def crear(self, ritmo):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        partida = PartidaTruco(historial_path=str(Path(tmp.name) / "h.json"), rng=random.Random(3), ritmo=ritmo)
+        self.addCleanup(partida.cancelar_turno_robot)
+        return partida
+
+    def servir(self, partida, sin_robot=True):
+        from servidor_truco import crear_servidor
+        servidor = crear_servidor(partida, puerto=0, sin_robot=sin_robot)
+        hilo = threading.Thread(target=servidor.serve_forever, daemon=True)
+        hilo.start()
+        self.addCleanup(servidor.server_close)
+        self.addCleanup(servidor.shutdown)
+        return servidor
+
+    def post(self, servidor, ruta, cuerpo):
+        import http.client
+        import json
+        conn = http.client.HTTPConnection("127.0.0.1", servidor.server_port, timeout=5)
+        conn.request("POST", ruta, json.dumps(cuerpo), {"Content-Type": "application/json"})
+        r = conn.getresponse()
+        datos = json.loads(r.read())
+        conn.close()
+        return r.status, datos
+
+    def test_elegir_velocidad_sale_del_modo_instantaneo(self):
+        partida = self.crear(Ritmo.instantaneo())
+        servidor = self.servir(partida)
+        codigo, datos = self.post(servidor, "/truco/ritmo", {"velocidad": 2})
+        self.assertEqual(codigo, 200)
+        self.assertFalse(partida.ritmo.es_instantaneo)
+        self.assertEqual(partida.ritmo.velocidad, 2.0)
+        self.assertEqual(datos["estado"]["robot"], dict(datos["estado"]["robot"], instantaneo=False, velocidad=2.0))
+
+    def test_cambiar_velocidad_conserva_el_ritmo_humano(self):
+        partida = self.crear(Ritmo.humano(1.0))
+        servidor = self.servir(partida)
+        self.assertEqual(self.post(servidor, "/truco/ritmo", {"velocidad": 0.5})[0], 200)
+        self.assertEqual(partida.ritmo.velocidad, 0.5)
+        self.assertFalse(partida.ritmo.es_instantaneo)
+
+    def test_velocidad_invalida(self):
+        partida = self.crear(Ritmo.instantaneo())
+        servidor = self.servir(partida)
+        for valor in (3, True, "2", None):
+            self.assertEqual(self.post(servidor, "/truco/ritmo", {"velocidad": valor})[0], 400, valor)
+        self.assertTrue(partida.ritmo.es_instantaneo)
+
+    def test_los_sondeos_no_reintentan_conectar_a_cada_rato_ni_con_el_lock(self):
+        import servidor_truco
+        partida = self.crear(Ritmo.instantaneo())
+        servidor = servidor_truco.ServidorTruco(("127.0.0.1", 0), partida, False)
+        self.addCleanup(servidor.server_close)
+        lock_libre = []
+
+        def probar_lock():
+            tomado = partida.lock.acquire(timeout=1)
+            if tomado:
+                partida.lock.release()
+            lock_libre.append(tomado)
+
+        def conectar():
+            t = threading.Thread(target=probar_lock)
+            t.start()
+            t.join()
+            raise OSError("sin simulador")
+
+        falso = unittest.mock.MagicMock()
+        falso.conectar.side_effect = conectar
+        with patch.object(servidor_truco, "Robot", return_value=falso) as Robot:
+            for _ in range(5):
+                self.assertIsNone(servidor.asegurar_robot())
+            self.assertEqual(Robot.call_count, 1)
+            self.assertEqual(lock_libre, [True])
+            servidor._ultimo_intento -= servidor_truco.INTERVALO_RECONEXION + 0.1
+            servidor.asegurar_robot()
+            self.assertEqual(Robot.call_count, 2)
 
 
 if __name__ == "__main__":

@@ -120,13 +120,18 @@ def gesto(accion: str) -> Optional[str]:
 
 
 # ---- voice profiles per seat ----
-# `preferencias`: substrings of speechSynthesis voice names, best first. The
-# page picks the first es-AR/es voice that matches, then any es-AR, any es.
+# `preferencias`: whole words of speechSynthesis voice names, best first
+# (matched as words, so "Male" never matches "Female"). The page picks the
+# first es-AR/es voice that matches, then any es-AR, any es. Seat 2 avoids the
+# voice seat 1 got when there is another Spanish voice. The names cover the
+# usual Windows (Microsoft ...), Edge "Online (Natural)" and Chrome voices.
 _PERFILES = {
     1: {"nombre": "Ottoman", "idioma": "es-AR", "tono": 0.75, "velocidad": 1.0,
-        "preferencias": ["Tomas", "Tomás", "Diego", "Jorge", "Juan", "Male"]},
+        "preferencias": ["Tomás", "Diego", "Álvaro", "Jorge", "Pablo", "Raúl", "Gerardo",
+                         "Juan", "Male"]},
     2: {"nombre": "Segundo", "idioma": "es-AR", "tono": 1.25, "velocidad": 1.08,
-        "preferencias": ["Elena", "Paulina", "Monica", "Mónica", "Sabina", "Female"]},
+        "preferencias": ["Elena", "Paulina", "Mónica", "Sabina", "Helena", "Laura", "Dalia",
+                         "Elvira", "Female"]},
 }
 
 

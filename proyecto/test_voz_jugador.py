@@ -110,6 +110,14 @@ class TestGestosYPerfiles(unittest.TestCase):
         with self.assertRaises(ValueError):
             vj.perfil_voz(3)
 
+    def test_preferencias_de_voz_cubren_las_voces_comunes(self):
+        uno = [p.lower() for p in vj.perfil_voz(1)["preferencias"]]
+        dos = [p.lower() for p in vj.perfil_voz(2)["preferencias"]]
+        for nombre in ("tomás", "pablo", "raúl", "álvaro", "jorge"):
+            self.assertIn(nombre, uno)
+        self.assertNotIn("female", uno)
+        self.assertEqual(set(uno) & set(dos), set())  # each seat aims at a different voice
+
     def test_accion_de_canto(self):
         self.assertEqual(vj.accion_de_canto("REAL_ENVIDO"), vj.REAL_ENVIDO)
         self.assertEqual(vj.accion_de_canto("fold"), vj.MAZO)

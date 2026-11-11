@@ -7,6 +7,7 @@ the spectator mode use the same numbers.
     ritmo = Ritmo.instantaneo()                # tests: zero delays, synchronous
     espera = ritmo.retraso_pensar(["truco"])   # 2.5-4.5 s, a big decision
     espera = ritmo.retraso(CARTA)              # arm reaches and lays the card
+    espera = ritmo.retraso(SEGUIR)             # 0.5-1 s, next step of a chain
 
 `velocidad` is a speed multiplier: x2 halves every delay, x0.5 doubles it.
 The card timings mirror the 3D table's own `Ritmo` (`entorno/sim/cartas.py`,
@@ -22,10 +23,11 @@ from typing import Iterable, Optional
 # Events accepted by `Ritmo.retraso`.
 PENSAR = "pensar"                # an ordinary decision
 PENSAR_GRANDE = "pensar_grande"  # a big call or accepting one
+SEGUIR = "seguir"                # the next step of a chain already thought out
 CARTA = "carta"                  # the arm reaching, then laying the card
 BAZA = "baza"                    # short pause after a baza is decided
 MANO = "mano"                    # short pause between hands
-EVENTOS = (PENSAR, PENSAR_GRANDE, CARTA, BAZA, MANO)
+EVENTOS = (PENSAR, PENSAR_GRANDE, SEGUIR, CARTA, BAZA, MANO)
 
 VELOCIDADES = (0.5, 1.0, 2.0)
 
@@ -51,6 +53,7 @@ def es_decision_grande(accion: Optional[str], pendiente: Optional[str] = None) -
 class Ritmo:
     pensar: tuple = (1.5, 3.0)
     pensar_grande: tuple = (2.5, 4.5)
+    seguir: tuple = (0.5, 1.0)   # answer -> tanto -> card: no second full think
     alcanzar: float = 0.45       # arm reaching for the card (3D Ritmo.alcanzar)
     colocar: float = 0.8         # laying it on the table (3D Ritmo.llevar)
     pausa_baza: float = 0.9
@@ -85,6 +88,8 @@ class Ritmo:
             return self._escala(rng.uniform(*self.pensar))
         if evento == PENSAR_GRANDE:
             return self._escala(rng.uniform(*self.pensar_grande))
+        if evento == SEGUIR:
+            return self._escala(rng.uniform(*self.seguir))
         if evento == CARTA:
             return self._escala(self.alcanzar + self.colocar)
         if evento == BAZA:

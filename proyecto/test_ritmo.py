@@ -45,6 +45,17 @@ class TestRitmo(unittest.TestCase):
             self.assertGreaterEqual(r.retraso_pensar(["truco"], rng=self.rng), 2.5)
             self.assertGreaterEqual(r.retraso_pensar(["quiero"], pendiente="retruco", rng=self.rng), 2.5)
 
+    def test_seguir_una_cadena_es_corto(self):
+        r = Ritmo.humano()
+        muestras = [r.retraso(R.SEGUIR, self.rng) for _ in range(200)]
+        self.assertGreaterEqual(min(muestras), 0.5)
+        self.assertLessEqual(max(muestras), 1.0)
+        self.assertLess(max(muestras), min(r.retraso(R.PENSAR, self.rng) for _ in range(50)))
+        self.assertIn(R.SEGUIR, R.EVENTOS)
+        self.assertAlmostEqual(Ritmo.humano(2.0).retraso(R.SEGUIR, random.Random(3)),
+                               Ritmo.humano(1.0).retraso(R.SEGUIR, random.Random(3)) / 2)
+        self.assertEqual(Ritmo.instantaneo().retraso(R.SEGUIR), 0.0)
+
     def test_la_carta_sigue_la_animacion_3d(self):
         sim = C.Ritmo()
         self.assertEqual(Ritmo().alcanzar, sim.alcanzar)
