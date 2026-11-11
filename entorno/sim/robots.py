@@ -65,7 +65,8 @@ ESCENA_LIMPIA = """<mujoco model="{modelo} - escena limpia">
 ESCENA_MESA_TRUCO = """<mujoco model="{modelo} - mesa de truco">
   <!-- Generado por sim/robots.py. Incluye el modelo oficial g1_29dof.xml y
        agrega las sillas, la mesa de Truco con paño verde, los naipes
-       texturados y las tres camaras (general y detras de cada asiento). -->
+       texturados, las camaras y el segundo G1 (poncho celeste) del asiento 2,
+       que solo se sienta a la mesa en el modo robot contra robot. -->
   <include file="{incluye}"/>
 
   <statistic center="0.28 0 0.6" extent="1.8"/>
@@ -85,6 +86,7 @@ ESCENA_MESA_TRUCO = """<mujoco model="{modelo} - mesa de truco">
     <material name="groundplane" texture="groundplane" texuniform="true"
               texrepeat="5 5" reflectance="0.2"/>
 {cartas_assets}
+    <model name="rival" file="{rival}"/>
   </asset>
 
   <worldbody>
@@ -130,7 +132,7 @@ ESCENA_MESA_TRUCO = """<mujoco model="{modelo} - mesa de truco">
       <geom name="mesa_pata4" type="cylinder" pos="0.27 -0.46 0.31" size="0.028 0.31" rgba="0.32 0.20 0.10 1"/>
     </body>
 
-    <!-- Asiento 2, enfrente: el humano hoy; un segundo G1 en el paso 2 -->
+    <!-- Asiento 2, enfrente: el humano, o el segundo G1 contra otro robot -->
     <body name="silla_asiento_2" pos="1.24 0 0" euler="0 0 3.14159">
       <geom name="silla2_asiento" type="box" pos="0 0 0.46" size="0.18 0.22 0.025" rgba="0.38 0.24 0.13 1"/>
       <geom name="silla2_respaldo" type="box" pos="-0.16 0 0.72" size="0.022 0.21 0.23" rgba="0.38 0.24 0.13 1"/>
@@ -142,6 +144,12 @@ ESCENA_MESA_TRUCO = """<mujoco model="{modelo} - mesa de truco">
 
     <!-- Cartas del Truco: cuerpos mocap que mueve sim/escena_cartas.py -->
 {cartas_cuerpos}
+
+    <!-- Segundo G1 (asiento 2). Cinematico: sim/arrancar.py escribe su pose y lo
+         guarda bajo el piso cuando juega un humano. -->
+    <frame pos="1.24 0 0" euler="0 0 3.14159">
+      <attach model="rival" body="pelvis" prefix="{prefijo_rival}"/>
+    </frame>
   </worldbody>
 </mujoco>
 """
@@ -400,6 +408,40 @@ def _generar_modelo_gaucho(ruta_original: str) -> str:
     return nombre_gaucho
 
 
+PREFIJO_RIVAL = "r2_"     # names of the second G1's bodies, joints and sites
+
+# The rival's poncho: the reds of Ottoman's outfit turned light blue and navy.
+_COLORES_RIVAL = {
+    "0.48 0.12 0.10 1": "0.42 0.68 0.92 1",     # hombreras y punos
+    "0.46 0.11 0.09 1": "0.42 0.68 0.92 1",     # chaleco / poncho
+    "0.78 0.10 0.10 1": "0.16 0.30 0.62 1",     # faja
+    "0.80 0.10 0.10 1": "0.16 0.30 0.62 1",     # faja, cinta del sombrero
+    "0.82 0.10 0.10 1": "0.93 0.95 0.98 1",     # panuelo blanco
+    "0.86 0.12 0.12 1": "0.93 0.95 0.98 1",
+}
+
+
+def _generar_modelo_rival(carpeta: str, nombre_gaucho: str) -> str:
+    """Genera g1_29dof_gaucho_rival.xml: el mismo gaucho con poncho celeste.
+
+    Sin actuadores ni sensores: es cinematico, y asi el modelo sigue teniendo los
+    29 motores de Ottoman que esperan el bridge DDS y la telemetria.
+    """
+    nombre = "g1_29dof_gaucho_rival.xml"
+    tree = ET.parse(os.path.join(carpeta, nombre_gaucho))
+    root = tree.getroot()
+    for etiqueta in ("actuator", "sensor", "keyframe"):
+        for e in root.findall(etiqueta):
+            root.remove(e)
+    for geom in root.iter("geom"):
+        color = geom.attrib.get("rgba")
+        if color in _COLORES_RIVAL:
+            geom.set("rgba", _COLORES_RIVAL[color])
+    root.set("model", "g1_29dof_gaucho_rival")
+    tree.write(os.path.join(carpeta, nombre), encoding="utf-8")
+    return nombre
+
+
 def _generar_escena_limpia(destino: str, incluye: str) -> str:
     """Escribe la escena al lado del modelo oficial."""
     es_mesa_truco = "mesa_truco" in os.path.basename(destino)
@@ -413,9 +455,13 @@ def _generar_escena_limpia(destino: str, incluye: str) -> str:
     if es_mesa_truco:
         from . import cartas
         ruta = cartas.ruta_cartas_relativa(os.path.dirname(destino), DIR_CARTAS)
+        carpeta = os.path.dirname(destino)
+        rival = (_generar_modelo_rival(carpeta, archivo_incluido)
+                 if os.path.exists(os.path.join(carpeta, archivo_incluido)) else archivo_incluido)
         extras = {"cartas_assets": cartas.xml_assets(ruta),
                   "cartas_cuerpos": cartas.xml_cuerpos(),
-                  "camaras": cartas.xml_camaras()}
+                  "camaras": cartas.xml_camaras(),
+                  "rival": rival, "prefijo_rival": PREFIJO_RIVAL}
     contenido = plantilla.format(
         modelo=os.path.splitext(incluye)[0], incluye=archivo_incluido, **extras)
     with open(destino, "w", encoding="utf-8") as f:

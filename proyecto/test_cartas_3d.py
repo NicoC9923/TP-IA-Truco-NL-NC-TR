@@ -106,16 +106,16 @@ class TestEscenaXML(unittest.TestCase):
         mallas = {m.get("name"): m for m in self.raiz.iter("mesh")}
         self.assertIn("texcoord", mallas["malla_carta"].attrib)
 
-    def test_tres_camaras_y_el_asiento_de_enfrente(self):
+    def test_camaras_y_el_asiento_de_enfrente(self):
         camaras = {c.get("name") for c in self.raiz.iter("camera")}
-        self.assertEqual(camaras, {"general", "detras_robot_1", "detras_robot_2"})
+        self.assertEqual(camaras, {"general", "detras_robot_1", "detras_robot_2", "mesa"})
         self.assertIn("silla_asiento_2", {b.get("name") for b in self.raiz.iter("body")})
 
     @unittest.skipUnless(HAY_MUJOCO, "MuJoCo no instalado")
     def test_la_escena_carga_en_mujoco(self):
         import mujoco
         m = mujoco.MjModel.from_xml_path(str(self.ruta))
-        self.assertEqual(m.ncam, 3)
+        self.assertEqual(m.ncam, 4)
         self.assertEqual(m.nmocap, 6)
         for n in ("mano_izq", "mano_der"):
             self.assertGreaterEqual(mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, n), 0)
@@ -231,12 +231,13 @@ class TestCamaras(unittest.TestCase):
         # And whatever the viewer shows, the robot's hand shows only backs.
         self.assertTrue(mesa.ocultar_caras_en_mano(1))
 
-    def test_robot_contra_robot_habilita_las_tres(self):
+    def test_robot_contra_robot_habilita_todas(self):
         mesa = C.MesaCartas()
         mesa.poner_modo(C.MODO_ROBOTS)
         self.assertEqual(mesa.elegir_camara("detras_robot_1"), "detras_robot_1")
         self.assertEqual(C.camara_siguiente("detras_robot_1", C.MODO_ROBOTS), "detras_robot_2")
-        self.assertEqual(C.camara_siguiente("detras_robot_2", C.MODO_ROBOTS), "general")
+        self.assertEqual(C.camara_siguiente("detras_robot_2", C.MODO_ROBOTS), "mesa")
+        self.assertEqual(C.camara_siguiente("mesa", C.MODO_ROBOTS), "general")
         self.assertFalse(mesa.ocultar_caras_en_mano(1))
         # Back to a human: the behind camera turns itself off.
         mesa.poner_modo(C.MODO_HUMANO)

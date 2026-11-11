@@ -77,8 +77,12 @@ class SimuladorOficial:
         self.servicio = None
         self._qpos_previo = None
         self._art_suave = None
+        self._art_rival = None
         self.reloj = time.perf_counter     # replaceable for offscreen captures
         self.cartas = self._crear_escena_cartas()
+        # Ottoman's joints are the first ones; a second G1 (seat 2) comes after.
+        rival = self.cartas.robots.get(2) if self.cartas is not None else None
+        self._n_art = (rival.qpos_base if rival is not None else self.model.nq) - 7
 
     def _crear_escena_cartas(self):
         """The Truco cards, when the scene has them (G1 at the Truco table)."""
@@ -92,15 +96,61 @@ class SimuladorOficial:
         return escena
 
     def _qpos_sentado(self):
-        """qpos of the robot seated at the table, with no gesture."""
+        """qpos of the robot (and the rival G1, if any) seated at the table, with no gesture."""
+        from .robots import PREFIJO_RIVAL
+
         q = self.data.qpos.copy()
-        q[0:3] = [0.0, 0.0, self.robot.altura - 0.23]
-        q[3:7] = [1.0, 0.0, 0.0, 0.0]
-        q[7:] = 0.0
+        q[:] = 0.0
+        bases = [(0, 0.0, (1.0, 0.0, 0.0, 0.0))]
+        junta = self.mj.mj_name2id(self.model, self.mj.mjtObj.mjOBJ_JOINT,
+                                   PREFIJO_RIVAL + "floating_base_joint")
+        if junta >= 0:
+            from .cartas import ASIENTO_X
+            bases.append((int(self.model.jnt_qposadr[junta]), ASIENTO_X[2], (0.0, 0.0, 0.0, 1.0)))
+        for adr, x, quat in bases:
+            q[adr:adr + 3] = [x, 0.0, self.robot.altura - 0.23]
+            q[adr + 3:adr + 7] = quat
+            for pose in (self.robot.pose_de_pie, self.robot.pose_sentado):
+                for idx, valor in pose.items():
+                    q[adr + 7 + idx] = valor
+        return q
+
+    def _escribir_pose_rival(self, dt: float) -> None:
+        """The second G1: seated in seat 2 against another robot, else under the floor.
+
+        It has no gestures or walking: it sits, holds its cards and plays them.
+        """
+        rival = self.cartas.robots.get(2) if self.cartas is not None else None
+        if rival is None:
+            return
+        from .cartas import ASIENTO_X, MODO_ROBOTS
+
+        q = self.data.qpos
+        b = rival.qpos_base
+        n = self._n_art
+        if self.cartas.mesa.modo != MODO_ROBOTS:
+            q[b:b + 3] = [ASIENTO_X[2], 0.0, -10.0]
+            q[b + 3:b + 7] = [0.0, 0.0, 0.0, 1.0]
+            self._art_rival = None
+            return
+        q[b:b + 3] = [ASIENTO_X[2], 0.0, self.robot.altura - 0.23]
+        q[b + 3:b + 7] = [0.0, 0.0, 0.0, 1.0]          # facing -x, toward Ottoman
+        objetivo = [0.0] * n
         for pose in (self.robot.pose_de_pie, self.robot.pose_sentado):
             for idx, valor in pose.items():
-                q[7 + idx] = valor
-        return q
+                objetivo[idx] = valor
+        actual = self._art_rival if self._art_rival is not None else objetivo
+        exactas = self.cartas.ajustar_articulaciones(objetivo, actual, asiento=2)
+        if self._art_rival is None:
+            self._art_rival = list(objetivo)
+        else:
+            alpha = min(1.0, max(0.08, dt * 10.0))
+            for i in range(n):
+                self._art_rival[i] += (objetivo[i] - self._art_rival[i]) * alpha
+        for idx, valor in exactas.items():
+            self._art_rival[idx] = valor
+        q[rival.qpos_art:rival.qpos_art + n] = self._art_rival
+        self.data.qvel[rival.qvel_art - 6:rival.qvel_art + n] = 0.0
 
     # ---------- transporte ----------
     def iniciar_transporte(self):
@@ -141,7 +191,7 @@ class SimuladorOficial:
         media = e["yaw"] / 2.0
         q[3], q[4], q[5], q[6] = math.cos(media), 0.0, 0.0, math.sin(media)
 
-        art = q[7:]
+        art = q[7:7 + self._n_art]
         objetivo = [0.0] * len(art)
         for idx, valor in self.robot.pose_de_pie.items():
             if idx < len(objetivo):
@@ -217,16 +267,18 @@ class SimuladorOficial:
 
         art[:] = self._art_suave
 
+        n = self._n_art
         if self._qpos_previo is not None:
             dt = ahora - self._qpos_previo[0]
             if dt > 1e-6:
-                self.data.qvel[6:] = (q[7:] - self._qpos_previo[1]) / dt
+                self.data.qvel[6:6 + n] = (q[7:7 + n] - self._qpos_previo[1]) / dt
                 self.data.qvel[:6] = 0.0
             else:
                 self.data.qvel[:] = 0.0
         else:
             self.data.qvel[:] = 0.0
-        self._qpos_previo = (ahora, q[7:].copy())
+        self._qpos_previo = (ahora, q[7:7 + n].copy())
+        self._escribir_pose_rival(max(0.0, dt_suave))
 
         self.mj.mj_forward(self.model, self.data)
         if self.cartas is not None:

@@ -9,8 +9,8 @@ Seats
 The table sits between two seats on the x axis:
 
     seat 1  (x = 0)      Ottoman, the robot already in the scene, facing +x
-    seat 2  (x = 1.20)   the rival, facing -x: the human today, a second G1
-                         in step 2 (its chair is already there)
+    seat 2  (x = 1.20)   the rival, facing -x: the human (no body), or in
+                         robot-vs-robot mode a second G1 in a light-blue poncho
 
 Each seat owns three card bodies. A robot seat holds its cards fanned in the
 left hand; the human seat has no body, so its cards only appear when played.
@@ -57,9 +57,10 @@ SLOT_GIRO = (0.05, -0.03, 0.04)                # small hand-placed look, radians
 # --- cameras -------------------------------------------------------------
 CAMARA_GENERAL = "general"
 CAMARA_DETRAS = {1: "detras_robot_1", 2: "detras_robot_2"}
-CAMARAS = (CAMARA_GENERAL, CAMARA_DETRAS[1], CAMARA_DETRAS[2])
+CAMARA_MESA = "mesa"          # side view of the whole table, both seats in frame
+CAMARAS = (CAMARA_GENERAL, CAMARA_DETRAS[1], CAMARA_DETRAS[2], CAMARA_MESA)
 MODO_HUMANO = "humano"        # human vs robot: no camera may show a robot's hand
-MODO_ROBOTS = "robots"        # robot vs robot (step 2): every camera allowed
+MODO_ROBOTS = "robots"        # robot vs robot (spectator mode): every camera allowed
 MODOS = (MODO_HUMANO, MODO_ROBOTS)
 
 
@@ -152,6 +153,7 @@ POSICION_CAMARAS = {
     CAMARA_GENERAL: ((MESA_X + 0.10, -0.95, 1.45), (MESA_X - 0.16, 0.0, 0.80)),
     CAMARA_DETRAS[1]: _camara_detras(1),
     CAMARA_DETRAS[2]: _camara_detras(2),
+    CAMARA_MESA: ((MESA_X, -1.42, 1.78), (MESA_X, 0.04, 0.70)),
 }
 
 
@@ -288,7 +290,7 @@ class MesaCartas:
     def __init__(self, ritmo: Ritmo | None = None, asientos_robot=(1,)):
         """`asientos_robot`: seats with a robot body that holds its cards.
 
-        Seat 2 joins in step 2, when the second G1 sits there.
+        Seat 2 joins when the mode is robot vs robot (`poner_modo`).
         """
         self.ritmo = ritmo or Ritmo()
         self.asientos_robot = set(asientos_robot)
@@ -338,6 +340,11 @@ class MesaCartas:
             raise ValueError(f"Modo invalido: {modo!r}. Validos: {', '.join(MODOS)}")
         with self._lock:
             self.modo = modo
+            # The second G1 only sits at the table against another robot.
+            if modo == MODO_ROBOTS:
+                self.asientos_robot.add(2)
+            else:
+                self.asientos_robot.discard(2)
 
     def elegir_camara(self, nombre: str) -> str:
         """Asks for a camera; returns the one that will really be shown."""
