@@ -152,6 +152,9 @@
   }
   .seg button[aria-pressed="true"] { background: var(--txt); color: var(--ink-0); }
   .seg button:hover:not([aria-pressed="true"]) { background: var(--ink-3); color: var(--txt); }
+  .seg-vel { flex-shrink: 0; }
+  .seg-vel button { font-size: 13px; padding: 4px 8px; }
+  .seg-vel .por { font-family: system-ui, sans-serif; font-weight: 600; }
   .track { position: relative; width: 132px; display: grid; gap: 3px; }
   .track span { display: block; height: 5px; background: var(--ink-4); border-radius: 3px; overflow: hidden; }
   .track span i { display: block; height: 100%; width: 0; transition: width 0.8s var(--ease-out); }
@@ -657,7 +660,7 @@
     .sb-name { font-size: 17px; }
     .sb-info { width: 100%; height: auto; padding: 8px 12px; clip-path: none; margin-top: 4px; gap: 14px; flex-wrap: wrap; justify-content: space-between; border-radius: 4px; }
     .top-right { flex-direction: column-reverse; align-items: stretch; }
-    .status-row { justify-content: space-between; }
+    .status-row { justify-content: space-between; flex-wrap: wrap; }
     .tabs { width: 100%; }
     .tab { flex: 1; font-size: 15px; padding: 9px 6px 8px; }
     #vista-mesa { grid-template-columns: 1fr; grid-template-areas: "centro" "izq" "der"; padding: 8px; gap: 8px; }
@@ -865,6 +868,11 @@
     <div class="status-row">
       <span class="live" id="badge-robot"><i class="dot"></i><span>Buscando G1…</span></span>
       <button type="button" class="btn-ghost" id="abrir-cajon" aria-expanded="false" aria-controls="cajon"><svg class="i"><use href="#i-scan"/></svg><span>Ver análisis</span></button>
+      <div class="seg seg-vel" id="sel-velocidad" role="group" aria-label="Velocidad de Ottoman" title="Velocidad de Ottoman">
+        <button type="button" data-vel="0.5" aria-pressed="false"><span class="por">×</span>0,5</button>
+        <button type="button" data-vel="1" aria-pressed="true"><span class="por">×</span>1</button>
+        <button type="button" data-vel="2" aria-pressed="false"><span class="por">×</span>2</button>
+      </div>
       <button type="button" class="btn-ghost toggle-voz" id="btn-tts" aria-pressed="true"><svg class="i"><use href="#i-vol"/></svg>Voz de Ottoman</button>
     </div>
     <nav class="tabs" role="tablist" aria-label="Secciones">
@@ -1127,7 +1135,6 @@
   const naipeHTML = (c) => `<span class="naipe"><img src="${imgCarta(c)}" alt="${esc(nombreCarta(c))}" draggable="false"></span>`;
   const espera = (ms) => new Promise(r => setTimeout(r, ms));
 
-  let ultimaFraseHablada = '';
   let estadoActual = null;
   let ocupado = false;          // Ottoman "pensando" o esperando respuesta del servidor
   let metaElegida = 15;
@@ -1167,21 +1174,59 @@
   });
 
   // ==================== VOZ DE OTTOMAN (TTS) ====================
-  function hablarRobot(texto, forzar = false) {
-    if (!texto) return;
-    if (!forzar && texto === ultimaFraseHablada) return;
-    ultimaFraseHablada = texto;
-    if (!ttsActivo || !('speechSynthesis' in window)) return;
+  // Cada frase llega una sola vez en `voz` (con id creciente) y se dice con el perfil de su robot.
+  let ultimoVozId = null;       // null hasta el primer estado: no repetimos el historial al cargar
+  let ultimaVoz = null;
+  let vocesEs = [];
+  const sinAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  function cargarVoces() {
+    try { vocesEs = (window.speechSynthesis.getVoices() || []).filter(v => /^es/i.test(v.lang)); } catch (e) { vocesEs = []; }
+  }
+  if ('speechSynthesis' in window) {
+    cargarVoces();
+    try { window.speechSynthesis.addEventListener('voiceschanged', cargarVoces); } catch (e) {}
+  }
+  // Whole words: "male" must not match "Female".
+  const palabras = (t) => ` ${sinAcento(t).replace(/[^a-z0-9]+/g, ' ').trim()} `;
+  const perfilesAsiento = {};
+  function elegirVoz(perfil, evitar = null) {
+    const prefs = (perfil?.preferencias || []).map(p => palabras(p));
+    const todas = evitar && vocesEs.some(v => v !== evitar) ? vocesEs.filter(v => v !== evitar) : vocesEs;
+    const ar = todas.filter(v => /^es[-_]AR/i.test(v.lang));
+    const buscar = (lista) => {
+      for (const p of prefs) { const v = lista.find(x => palabras(x.name).includes(p)); if (v) return v; }
+      return null;
+    };
+    return buscar(ar) || buscar(todas) || ar[0] || todas[0] || null;
+  }
+  function vozDeAsiento(perfil, asiento) {
+    if (perfil) perfilesAsiento[asiento] = perfil;
+    // Seat 2 keeps a different voice from seat 1 when there is one.
+    const evitar = asiento !== 1 && perfilesAsiento[1] ? elegirVoz(perfilesAsiento[1]) : null;
+    return elegirVoz(perfil, evitar);
+  }
+  function hablarPerfil(frase, perfil, asiento = 1) {
+    if (!frase || !ttsActivo || !('speechSynthesis' in window)) return;
     try {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(texto);
-      u.lang = 'es-AR';
-      u.rate = 1.05;
+      const u = new SpeechSynthesisUtterance(frase);
+      const voz = vozDeAsiento(perfil, asiento);
+      if (voz) u.voice = voz;
+      u.lang = voz?.lang || perfil?.idioma || 'es-AR';
+      u.pitch = perfil?.tono ?? 1;
+      u.rate = perfil?.velocidad ?? 1;
       window.speechSynthesis.speak(u);
     } catch (e) {}
   }
+  function procesarVoz(data) {
+    const lista = Array.isArray(data.voz) ? data.voz : [];
+    const maxId = lista.reduce((m, v) => Math.max(m, v.id), 0);
+    if (lista.length) ultimaVoz = lista[lista.length - 1];
+    if (ultimoVozId === null || maxId < ultimoVozId) { ultimoVozId = maxId; return; }
+    lista.filter(v => v.id > ultimoVozId).forEach(v => hablarPerfil(v.frase, v.perfil, v.asiento ?? 1));
+    ultimoVozId = maxId;
+  }
   function repetirVozRobot() {
-    if (estadoActual?.ultima_frase_robot) hablarRobot(estadoActual.ultima_frase_robot, true);
+    if (ultimaVoz) hablarPerfil(ultimaVoz.frase, ultimaVoz.perfil, ultimaVoz.asiento ?? 1);
   }
   $('btn-tts').addEventListener('click', () => {
     ttsActivo = !ttsActivo;
@@ -1385,6 +1430,10 @@
   function renderZocalo(data) {
     const zona = $('zona-zocalo');
     const cp = data.canto_pendiente;
+    if (data.robot?.ocupado) {
+      zocaloPensando(data.robot.estado === 'actuando' ? 'Ottoman juega…' : 'Ottoman está pensando…');
+      return;
+    }
     if (cp) {
       const key = `${cp.tipo}-${cp.canto}-${(data.mesa || []).length}-${data.tanteador?.humano}-${data.tanteador?.robot}`;
       const nuevo = key !== ultimoCantoKey;
@@ -1392,7 +1441,12 @@
       const pts = (cp.puntos_quiero !== undefined && cp.puntos_no_quiero !== undefined)
         ? `<span class="canto-pts">Si querés se juega ${cp.por_el_partido ? 'por el partido' : esc(cp.puntos_quiero)} · si no, Ottoman suma ${esc(cp.puntos_no_quiero)}</span>` : '';
       const re = cp.reanudado_tras_envido && data.resultado_envido;
-      const resultadoEnvido = re ? `<span class="canto-pts">${re.motivo ? esc(re.motivo) + ' · ' : 'Envido querido · '}${re.ganador === 'humano' ? 'Ganaste' : 'Ganó Ottoman'} ${esc(re.puntos_ganados)} ${re.puntos_ganados === 1 ? 'punto' : 'puntos'}${re.pts_humano !== undefined && re.pts_robot !== undefined ? ` · Tus tantos: ${esc(re.pts_humano)} · Ottoman: ${esc(re.pts_robot)}` : ''}</span>` : '';
+      // Ottoman's tanto only once it said it (it is mano, or it won), or when the hand is over:
+      // after "Son buenas" a player keeps its number to itself.
+      const ottDijo = re && (data.es_mano === 'robot' || re.ganador === 'robot' || data.mano_terminada);
+      const tantos = re && re.pts_humano !== undefined && re.pts_robot !== undefined
+        ? ` · Tus tantos: ${esc(re.pts_humano)}${ottDijo ? ` · Ottoman: ${esc(re.pts_robot)}` : ' · Ottoman: son buenas'}` : '';
+      const resultadoEnvido = re ? `<span class="canto-pts">${re.motivo ? esc(re.motivo) + ' · ' : 'Envido querido · '}${re.ganador === 'humano' ? 'Ganaste' : 'Ganó Ottoman'} ${esc(re.puntos_ganados)} ${re.puntos_ganados === 1 ? 'punto' : 'puntos'}${tantos}</span>` : '';
       zona.innerHTML = `
         <div class="canto ${nuevo ? 'entra' : ''}" role="alert">
           <span class="canto-quien">${cp.reanudado_tras_envido ? 'Envido resuelto · Respondé al truco pendiente' : 'Ottoman te canta'}</span>
@@ -1421,13 +1475,12 @@
     $('btn-repetir').addEventListener('click', repetirVozRobot);
   }
 
-  function zocaloPensando() {
+  function zocaloPensando(texto) {
     $('zona-zocalo').innerHTML = `
-      <div class="zocalo pensando">
+      <div class="zocalo pensando" role="status">
         <div class="zocalo-tab"><b>Ottoman</b><small>Pensando</small></div>
         <div class="zocalo-body">
-          <div class="frase"><q>Mmm… dejame pensar.</q>
-            <div class="prueba"><span>Evaluando probabilidades de <b>474k manos</b> y tu perfil de juego</span></div>
+          <div class="frase"><q>${esc(texto)}</q>
             <div class="escaneo"></div>
           </div>
         </div>
@@ -1438,7 +1491,8 @@
   function renderMano(data) {
     const div = $('mis-cartas');
     const disp = data.cartas_humano_disponibles || [];
-    const puedeTirar = !data.mano_terminada && !data.canto_pendiente && data.turno_carta === 'humano';
+    const robotOcupado = Boolean(data.robot?.ocupado);
+    const puedeTirar = !data.mano_terminada && !data.canto_pendiente && data.turno_carta === 'humano' && !robotOcupado;
     div.innerHTML = disp.length
       ? disp.map((c, i) => `<button type="button" class="carta-btn" data-i="${i}" ${puedeTirar ? '' : 'disabled'} title="${esc(c.valor + ' de ' + c.palo)}" aria-label="Jugar ${esc(c.valor + ' de ' + c.palo)}">${naipeHTML(c)}</button>`).join('')
       : `<span class="mano-vacia">${data.mano_terminada ? 'Repartí para la próxima mano.' : 'Sin cartas en la mano.'}</span>`;
@@ -1450,18 +1504,18 @@
     tv.textContent = data.canto_pendiente ? 'Respondé' : puedeTirar ? 'Te toca' : 'Espera';
     if (data.canto_pendiente) tv.className = 'turno vos';
 
-    const envDisp = Boolean(data.envido_disponible);
+    const envDisp = Boolean(data.envido_disponible) && !robotOcupado;
     ['btn-envido', 'btn-real-envido', 'btn-falta-envido'].forEach(id => { $(id).disabled = !envDisp; });
 
     const btnTruco = $('btn-truco');
-    if (data.siguiente_truco_humano && !data.mano_terminada && !data.canto_pendiente) {
+    if (data.siguiente_truco_humano && !data.mano_terminada && !data.canto_pendiente && !robotOcupado) {
       btnTruco.disabled = false;
       btnTruco.textContent = NOMBRE_TRUCO_BTN[data.siguiente_truco_humano] || '¡Truco!';
     } else {
       btnTruco.disabled = true;
     }
-    $('btn-mazo').disabled = Boolean(data.mano_terminada);
-    $('btn-nueva-mano').disabled = false;
+    $('btn-mazo').disabled = Boolean(data.mano_terminada) || robotOcupado;
+    $('btn-nueva-mano').disabled = robotOcupado;
     $('btn-nueva-mano').classList.toggle('llama', Boolean(data.mano_terminada) && !data.partido_terminado);
     $('btn-capturar').disabled = false;
   }
@@ -1554,15 +1608,6 @@
         }).join('');
   }
 
-  function rielPensando() {
-    $('panel-xai-vivo').innerHTML = `
-      <div class="paso calc">
-        <div class="paso-top"><span class="paso-fase">Calculando la jugada</span><span class="paso-dec">3 s</span></div>
-        <p>Utilidad esperada de cada canto y de cada carta, contra el corpus de 474k manos y el perfil del rival.</p>
-        <div class="escaneo"></div>
-      </div>`;
-  }
-
   // ==================== RENDER: LOG ====================
   function renderLog(data) {
     if (!Array.isArray(data.log)) return;
@@ -1570,6 +1615,19 @@
     ol.innerHTML = '';
     data.log.forEach(l => { const li = document.createElement('li'); li.textContent = l; ol.appendChild(li); });
   }
+
+  // ==================== VELOCIDAD DE OTTOMAN ====================
+  function renderVelocidad(data) {
+    const r = data.robot || {};
+    document.querySelectorAll('#sel-velocidad button').forEach(b =>
+      b.setAttribute('aria-pressed', !r.instantaneo && Number(b.dataset.vel) === r.velocidad));
+  }
+  document.querySelectorAll('#sel-velocidad button').forEach(b => b.addEventListener('click', async () => {
+    try {
+      const d = await postJSON('/truco/ritmo', { velocidad: Number(b.dataset.vel) });
+      if (d && d.estado) renderizarEstado(d.estado);
+    } catch (e) {}
+  }));
 
   // ==================== RENDER PRINCIPAL ====================
   function renderizarEstado(data) {
@@ -1583,7 +1641,9 @@
     renderFinal(data);
     renderRiel(data);
     renderLog(data);
-    if (data.ultima_frase_robot) hablarRobot(data.ultima_frase_robot);
+    renderVelocidad(data);
+    procesarVoz(data);
+    programarPoll();
     if (data.aprendizaje_ia && $('vista-stats').classList.contains('activa')) renderizarEvolucionIA(data.aprendizaje_ia);
   }
 
@@ -1664,43 +1724,10 @@
       </svg>`;
   }
 
-  // ==================== PENSAMIENTO DE OTTOMAN ====================
-  function bloquearControlesMesa(bloquear) {
-    ['btn-envido', 'btn-real-envido', 'btn-falta-envido', 'btn-truco', 'btn-mazo', 'btn-nueva-mano', 'btn-capturar']
-      .forEach(id => { const el = $(id); if (el) el.disabled = bloquear; });
-    document.querySelectorAll('#mis-cartas button, #alerta-botones button, .agente').forEach(b => { b.disabled = bloquear || b.dataset.disponible === 'false'; });
-  }
-
-  async function simularPensamientoOttoman(cartaRecienJugadaHumano = null) {
-    bloquearControlesMesa(true);
-
-    // Mostrar al instante la carta que acaba de tirar el humano, antes de la pausa de Ottoman
-    if (cartaRecienJugadaHumano && estadoActual) {
-      const ronda = estadoActual.ronda || 1;
-      const baza = document.querySelectorAll('#mesa-cartas .baza')[ronda - 1];
-      const slot = baza?.querySelector('.slot.vos');
-      if (slot) {
-        const c = cartaRecienJugadaHumano;
-        slot.className = 'slot vos llega';
-        slot.innerHTML = `${naipeHTML(c)}<span class="who">Vos</span>`;
-        cartasVistas.add(`${ronda}-humano-${c.valor}_${c.palo}`);
-      }
-      document.querySelectorAll('#mis-cartas .carta-btn').forEach(btn => {
-        if (btn.title === `${cartaRecienJugadaHumano.valor} de ${cartaRecienJugadaHumano.palo}`) btn.remove();
-      });
-    }
-
-    zocaloPensando();
-    rielPensando();
-    hablarRobot('Pensando', true);
-    await espera(3000);
-  }
-
   async function accion(fn, { pensar = true, carta = null } = {}) {
     if (ocupado) return;
     ocupado = true;
     try {
-      if (pensar) await simularPensamientoOttoman(carta);
       const d = await fn();
       if (d && d.estado) renderizarEstado(d.estado);
       else await actualizarEstadoTruco(true);
@@ -1734,16 +1761,8 @@
     ocupado = true;
     try {
       const d = await postJSON('/truco/nuevo');
-      if (d.estado) {
-        // Si Ottoman es mano y juega primero, mostrar su pausa de 3 s antes de su jugada
-        if (d.estado.es_mano === 'robot') {
-          renderizarEstado({ ...d.estado, mesa: [], canto_pendiente: null, ultima_frase_robot: 'Pensando...' });
-          await simularPensamientoOttoman();
-        }
-        renderizarEstado(d.estado);
-      } else {
-        await actualizarEstadoTruco(true);
-      }
+      if (d.estado) renderizarEstado(d.estado);
+      else await actualizarEstadoTruco(true);
     } catch (e) {
       await actualizarEstadoTruco(true);
     } finally {
@@ -1916,8 +1935,15 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && cajon.dataset.abierto === 'true') { set(false); abrir.focus(); } });
   })();
 
-  setInterval(() => actualizarEstadoTruco(), 2000);
+  // Sondeo: lento en reposo, rápido mientras Ottoman piensa o juega.
+  let tPoll = null;
+  function programarPoll() {
+    clearTimeout(tPoll);
+    const ms = estadoActual?.robot?.ocupado ? 350 : 2000;
+    tPoll = setTimeout(async () => { await actualizarEstadoTruco(); programarPoll(); }, ms);
+  }
   actualizarEstadoTruco();
+  programarPoll();
 </script>
 
 </body>
