@@ -152,6 +152,13 @@
   }
   .seg button[aria-pressed="true"] { background: var(--txt); color: var(--ink-0); }
   .seg button:hover:not([aria-pressed="true"]) { background: var(--ink-3); color: var(--txt); }
+  .largo-partida { display: flex; align-items: center; gap: 6px; }
+  .largo-partida .seg, .largo-partida .seg button { white-space: nowrap; flex: none; }
+  .sel-manos {
+    background: var(--ink-1); color: var(--txt-2); border: 1px solid var(--line); border-radius: 4px;
+    padding: 3px 6px; font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.04em; cursor: pointer;
+  }
+  .sel-manos.activa { background: var(--txt); color: var(--ink-0); }
   .track { position: relative; width: 132px; display: grid; gap: 3px; }
   .track span { display: block; height: 5px; background: var(--ink-4); border-radius: 3px; overflow: hidden; }
   .track span i { display: block; height: 100%; width: 0; transition: width 0.8s var(--ease-out); }
@@ -840,9 +847,18 @@
     </div>
     <div class="sb-info">
       <div class="sb-goal">
-        <div class="seg" role="group" aria-label="Partido a">
-          <button type="button" data-meta="15" aria-pressed="true">A 15</button>
-          <button type="button" data-meta="30" aria-pressed="false">A 30</button>
+        <div class="largo-partida">
+          <div class="seg" role="group" aria-label="Partido a">
+            <button type="button" data-meta="15" aria-pressed="true">A 15</button>
+            <button type="button" data-meta="30" aria-pressed="false">A 30</button>
+          </div>
+          <select class="sel-manos" id="sel-manos" aria-label="Partida corta: cantidad de manos" title="Partida corta: gana quien suma más en esas manos">
+            <option value="">Corta</option>
+            <option value="1">1 mano</option><option value="2">2 manos</option><option value="3">3 manos</option>
+            <option value="4">4 manos</option><option value="5">5 manos</option><option value="6">6 manos</option>
+            <option value="7">7 manos</option><option value="8">8 manos</option><option value="9">9 manos</option>
+            <option value="10">10 manos</option>
+          </select>
         </div>
         <div class="track" title="Avance hacia la meta">
           <span class="t-vos"><i id="track-vos"></i></span>
@@ -864,6 +880,7 @@
   <div class="top-right">
     <div class="status-row">
       <span class="live" id="badge-robot"><i class="dot"></i><span>Buscando G1…</span></span>
+      <a class="btn-ghost" href="/espectador" style="text-decoration:none"><svg class="i"><use href="#i-robot"/></svg>Modo espectador</a>
       <button type="button" class="btn-ghost" id="abrir-cajon" aria-expanded="false" aria-controls="cajon"><svg class="i"><use href="#i-scan"/></svg><span>Ver análisis</span></button>
       <button type="button" class="btn-ghost toggle-voz" id="btn-tts" aria-pressed="true"><svg class="i"><use href="#i-vol"/></svg>Voz de Ottoman</button>
     </div>
@@ -1131,6 +1148,7 @@
   let estadoActual = null;
   let ocupado = false;          // Ottoman "pensando" o esperando respuesta del servidor
   let metaElegida = 15;
+  let manosElegidas = null;     // partida corta: cantidad de manos, o null si es a puntos
   let ttsActivo = true;
   let cartasVistas = new Set(); // para animar sólo las cartas recién llegadas a la mesa
   let ultimoCantoKey = null;
@@ -1258,6 +1276,9 @@
     const t = data.tanteador || { humano: 0, robot: 0, meta: 15 };
     const meta = t.meta || 15;
     metaElegida = meta;
+    manosElegidas = t.manos || null;
+    $('sel-manos').value = manosElegidas ? String(manosElegidas) : '';
+    $('sel-manos').classList.toggle('activa', !!manosElegidas);
     [['humano', 'pts-vos'], ['robot', 'pts-ott']].forEach(([k, id]) => {
       const el = $(id);
       if (puntosPrevios[k] !== null && puntosPrevios[k] !== t[k]) {
@@ -1269,7 +1290,7 @@
     $('track-vos').style.width = Math.min(100, (t.humano / meta) * 100) + '%';
     $('track-ott').style.width = Math.min(100, (t.robot / meta) * 100) + '%';
     $('track-mitad').hidden = meta !== 30;
-    document.querySelectorAll('.sb-goal .seg button').forEach(b => b.setAttribute('aria-pressed', Number(b.dataset.meta) === meta));
+    document.querySelectorAll('.sb-goal .seg button').forEach(b => b.setAttribute('aria-pressed', !manosElegidas && Number(b.dataset.meta) === meta));
     $('mano-vos').hidden = data.es_mano !== 'humano';
     $('mano-ott').hidden = data.es_mano !== 'robot';
 
@@ -1751,8 +1772,9 @@
     }
   }
 
-  async function reiniciarPartido(meta = metaElegida) {
-    await accion(() => postJSON('/truco/reiniciar', { meta_puntos: meta }), { pensar: false });
+  async function reiniciarPartido(meta = metaElegida, manos = manosElegidas) {
+    const cuerpo = manos ? { manos } : { meta_puntos: meta };
+    await accion(() => postJSON('/truco/reiniciar', cuerpo), { pensar: false });
   }
 
   async function cambiarModoIA(modo) {
@@ -1767,8 +1789,12 @@
   $('btn-reiniciar').addEventListener('click', () => reiniciarPartido());
   document.querySelectorAll('.sb-goal .seg button').forEach(b => b.addEventListener('click', () => {
     const m = Number(b.dataset.meta);
-    reiniciarPartido(m);
+    reiniciarPartido(m, null);
   }));
+  $('sel-manos').addEventListener('change', (e) => {
+    const n = Number(e.target.value);
+    if (n) reiniciarPartido(metaElegida, n);
+  });
 
   // ==================== VOZ EN LA MESA ====================
   async function enviarVozMesa(texto) {

@@ -53,6 +53,8 @@ class PartidaTruco:
         self.puntos_humano = 0
         self.puntos_robot = 0
         self.meta_puntos = meta_puntos
+        # Short match (ADR 0069): number of hands, or None for a points target.
+        self.manos_partida: Optional[int] = None
         self.partido_terminado = False
         self.ganador_partido: Optional[str] = None
 
@@ -235,10 +237,17 @@ class PartidaTruco:
         self.opponent_profile_phase2.reset()
         self._human_decisions.clear()
 
-    def reiniciar_partido(self, meta_puntos: Optional[int] = None) -> Dict:
+    def reiniciar_partido(self, meta_puntos: Optional[int] = None, manos: Optional[int] = None) -> Dict:
+        """New match to 15 or 30 points, or a short match of `manos` hands (1-10).
+
+        A short match keeps 30 as its points target (falta envido, network inputs);
+        after the last hand the one ahead wins, and while level one more hand is played.
+        """
         self.adapt_to_opponent = True
-        if meta_puntos in (15, 30):
-            self.meta_puntos = meta_puntos
+        if manos is not None and 1 <= manos <= 10:
+            self.manos_partida, self.meta_puntos = manos, 30
+        elif meta_puntos in (15, 30):
+            self.manos_partida, self.meta_puntos = None, meta_puntos
         self.puntos_humano = 0
         self.puntos_robot = 0
         self.partido_terminado = False
@@ -246,7 +255,8 @@ class PartidaTruco:
         self.es_mano_humano = True
         self.estadisticas_partida = self._crear_estadisticas_vacias()
         self.nueva_mano(primera_vez=True)
-        self.decir_robot(f"¡Partido nuevo a {self.meta_puntos} puntos! Vos sos mano.")
+        largo = f"de {self.manos_partida} manos" if self.manos_partida else f"a {self.meta_puntos} puntos"
+        self.decir_robot(f"¡Partido nuevo {largo}! Vos sos mano.")
         return self.estado_publico()
 
     def nueva_mano(self, primera_vez: bool = False) -> Dict:
@@ -338,10 +348,19 @@ class PartidaTruco:
             cartas_truco_reveladas=[m["carta"] for m in self.mesa if m["quien"] == "humano"],
         )
 
+    def _fin_por_manos(self) -> Optional[str]:
+        """Winner of a short match once its hands are played and points are not level."""
+        if (self.manos_partida is None or not self.mano_terminada
+                or self.estadisticas_partida["manos_jugadas"] < self.manos_partida
+                or self.puntos_humano == self.puntos_robot):
+            return None
+        return "humano" if self.puntos_humano > self.puntos_robot else "robot"
+
     def _verificar_fin_partido(self) -> None:
         if self.partido_terminado:
             return
-        if self.puntos_humano >= self.meta_puntos:
+        por_manos = self._fin_por_manos()
+        if self.puntos_humano >= self.meta_puntos or por_manos == "humano":
             self.partido_terminado = True
             self.ganador_partido = "humano"
             self.mano_terminada = True
@@ -355,7 +374,7 @@ class PartidaTruco:
             )
             self.decir_robot("¡Me ganaste el partido en buena ley! Te doy la mano, campeón.")
             self._reaccion_robot("fin_partido")
-        elif self.puntos_robot >= self.meta_puntos:
+        elif self.puntos_robot >= self.meta_puntos or por_manos == "robot":
             self.partido_terminado = True
             self.ganador_partido = "robot"
             self.mano_terminada = True
@@ -1276,6 +1295,8 @@ class PartidaTruco:
                 "humano": self.puntos_humano,
                 "robot": self.puntos_robot,
                 "meta": self.meta_puntos,
+                "manos": self.manos_partida,
+                "manos_jugadas": self.estadisticas_partida["manos_jugadas"],
             },
             "partido_terminado": self.partido_terminado,
             "ganador_partido": self.ganador_partido,
