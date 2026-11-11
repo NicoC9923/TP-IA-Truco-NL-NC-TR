@@ -78,7 +78,7 @@ the left hand and lays each one on the table with the right hand; your cards
 appear on your side as you play them. In the viewer, **F7** cycles the cameras
 (`general`, `detras_robot_1`, `detras_robot_2`); against a human only `general`
 is available, and the robot's hand shows card backs. Offscreen screenshots:
-`cd entorno && py -3 -m sim.capturas ../docs/screenshots/step1 jpg`. See ADR 0064.
+`cd entorno && py -3 -m sim.capturas ../docs/screenshots/step1 jpg`. See ADR 0067.
 
 ## Phase 2 network dependency
 
