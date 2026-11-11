@@ -450,7 +450,7 @@ class PartidaTruco:
         )
 
         # 1. En 1ra ronda, antes de tirar su 1ra carta, evaluar si cantar Envido
-        if self.ronda_actual == 1 and not self.envido_resuelto and len(self.cartas_robot_disponibles) == 3:
+        if self.puede_cantar_envido() and len(self.cartas_robot_disponibles) == 3:
             canto_e, frase_e = self.ia.decidir_iniciar_envido(
                 self.cartas_robot,
                 es_mano=(not self.es_mano_humano),
@@ -790,6 +790,7 @@ class PartidaTruco:
             self.puntos_envido_acumulados = pts_q
             res = self._resolver_tantos_envido(pts_q, frase_inicial=frase)
             self._avanzar_turno_robot_si_corresponde()
+            res["estado"] = self.estado_publico()
             return res
 
         # NO_QUIERO del robot
@@ -897,7 +898,7 @@ class PartidaTruco:
             opciones.append("RETRUCO")
         elif nivel == "RETRUCO":
             opciones.append("VALE_CUATRO")
-        if self.ronda_actual == 1 and not self.envido_resuelto:
+        if self.puede_cantar_envido():
             opciones.extend(["ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"])
 
         self.canto_pendiente = {
@@ -1021,6 +1022,9 @@ class PartidaTruco:
         if not pendiente or self.partido_terminado:
             return
         if pendiente["quien_canto"] == "robot":
+            pendiente["opciones"] = [op for op in pendiente["opciones"]
+                                    if op not in ("ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO")]
+            pendiente["reanudado_tras_envido"] = True
             self.canto_pendiente = pendiente
         else:
             carta = next((m["carta"] for m in self.mesa
@@ -1051,6 +1055,7 @@ class PartidaTruco:
                 self.puntos_envido_acumulados = pts_q
                 res = self._resolver_tantos_envido(pts_q)
                 self._avanzar_turno_robot_si_corresponde()
+                res["estado"] = self.estado_publico()
                 return res
             if resp == "NO_QUIERO":
                 self.ia.registrar_respuesta_humano_a_canto("ENVIDO", quiso=False, era_farol_robot=era_farol)
@@ -1061,6 +1066,9 @@ class PartidaTruco:
                 self.envido_resuelto = True
                 self.canto_pendiente = None
                 self.puntos_robot += pts_nq
+                self.resultado_envido_detalle = {
+                    "ganador": "robot", "puntos_ganados": pts_nq, "motivo": "No querido por vos",
+                }
                 self.decir_robot(f"¡Achicaste! Sumo {pts_nq} {'punto' if pts_nq == 1 else 'puntos'} del envido.")
                 self._reaccion_robot("festejo")
                 self._verificar_fin_partido()

@@ -579,8 +579,42 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         estado = partida.responder_canto_humano("ENVIDO")["estado"]
         while estado["canto_pendiente"] and estado["canto_pendiente"]["tipo"] == "ENVIDO":
             estado = partida.responder_canto_humano("NO_QUIERO")["estado"]
-        self.assertEqual(estado["canto_pendiente"], original)
+        self.assertEqual(estado["canto_pendiente"]["canto"], original["canto"])
+        self.assertEqual(estado["canto_pendiente"]["opciones"], ["QUIERO", "NO_QUIERO", "RETRUCO"])
+        self.assertTrue(estado["canto_pendiente"]["reanudado_tras_envido"])
         self.assertEqual(estado["canto_pendiente"]["puntos_quiero"], 2)
+
+    def test_robot_no_canta_envido_tras_truco_querido(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(25))
+        estado = partida.cantar_truco_humano("TRUCO")["estado"]
+        self.assertEqual(estado["apuesta_truco"], "TRUCO")
+        estado = partida.jugar_carta_humano(estado["cartas_humano_disponibles"][0])["estado"]
+        self.assertNotEqual((estado["canto_pendiente"] or {}).get("tipo"), "ENVIDO")
+
+    def test_retruco_no_ofrece_envido_tras_truco_querido(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(1))
+        estado = partida.cantar_truco_humano("TRUCO")["estado"]
+        estado = partida.jugar_carta_humano(estado["cartas_humano_disponibles"][0])["estado"]
+        self.assertEqual(estado["canto_pendiente"]["canto"], "RETRUCO")
+        self.assertEqual(estado["canto_pendiente"]["opciones"], ["QUIERO", "NO_QUIERO", "VALE_CUATRO"])
+
+    def test_envido_querido_devuelve_estado_despues_del_turno_robot(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(2))
+        estado = partida.estado_publico()
+        estado = partida.jugar_carta_humano(estado["cartas_humano_disponibles"][0])["estado"]
+        self.assertEqual(estado["canto_pendiente"]["tipo"], "ENVIDO")
+        resultado = partida.responder_canto_humano("QUIERO")
+        self.assertEqual(resultado["estado"], partida.estado_publico())
+
+    def test_rechazar_real_envido_muestra_resultado_antes_del_truco(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(54))
+        estado = partida.estado_publico()
+        partida.jugar_carta_humano(estado["cartas_humano_disponibles"][0])
+        estado = partida.responder_canto_humano("ENVIDO")["estado"]
+        self.assertEqual(estado["canto_pendiente"]["canto"], "REAL_ENVIDO")
+        estado = partida.responder_canto_humano("NO_QUIERO")["estado"]
+        self.assertEqual(estado["resultado_envido"], {"ganador": "robot", "puntos_ganados": 2, "motivo": "No querido por vos"})
+        self.assertTrue(estado["canto_pendiente"]["reanudado_tras_envido"])
 
     def test_truco_humano_vuelve_despues_del_envido_robot(self):
         partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(2))
@@ -614,7 +648,8 @@ class TestTrucoReglasYMotor(unittest.TestCase):
                 self.assertEqual(resultado["respuesta"], respuesta_envido)
                 estado = resultado["estado"]
                 self.assertTrue(estado["envido_resuelto"])
-                self.assertEqual(estado["canto_pendiente"], original)
+                self.assertEqual(estado["canto_pendiente"], {**original, "opciones": ["QUIERO", "NO_QUIERO", "RETRUCO"],
+                                                            "reanudado_tras_envido": True})
                 self.assertIn("QUIERO", original["opciones"])
                 self.assertIn("NO_QUIERO", original["opciones"])
                 self.assertEqual(sum(estado["tanteador"][j] for j in ("humano", "robot")), puntos)
