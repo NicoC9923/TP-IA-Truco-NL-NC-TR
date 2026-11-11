@@ -824,7 +824,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
 
     def test_primera_ejecucion_crea_historial_desde_semilla(self):
         carpeta = Path(self._tmpdir.name)
-        for nombre in ('partida_truco.py', 'truco_ia.py', 'truco_reglas.py', 'historial_truco.py', 'truco_stats.json', 'historial_partidas.seed.json', 'opponent_profile.py', 'opponent_inference.py', 'phase1_network.py', 'symmetric_engine.py'):
+        for nombre in ('partida_truco.py', 'truco_ia.py', 'truco_reglas.py', 'historial_truco.py', 'truco_stats.json', 'historial_partidas.seed.json', 'opponent_profile.py', 'opponent_inference.py', 'phase1_network.py', 'symmetric_engine.py', 'ritmo.py', 'voz_jugador.py'):
             shutil.copy(PROYECTO_DIR / nombre, carpeta / nombre)
         subprocess.run([sys.executable, '-c', 'from partida_truco import PartidaTruco; PartidaTruco(robot=None)'], cwd=carpeta, check=True, capture_output=True)
         historial = carpeta / 'historial_partidas.json'

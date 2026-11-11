@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import sys
 import threading
 import webbrowser
@@ -22,6 +23,7 @@ from urllib.parse import parse_qs, urlsplit
 from robot import Robot, aviso_sin_mujoco
 from control_voz import AgenteRobot
 from partida_truco import PartidaTruco
+from ritmo import desde_entorno
 from truco_ia import AgenteTrucoIA
 from truco_vision import DetectorCartas, MENSAJE_SIN_OPENCV
 
@@ -35,7 +37,8 @@ class ServidorTruco(ThreadingHTTPServer):
     def __init__(self, direccion, partida, sin_robot, evolution_root=None):
         super().__init__(direccion, Handler)
         self.evolution_root = Path(evolution_root) if evolution_root is not None else DIR_PROYECTO.parent
-        self.lock = threading.RLock()
+        # Shared with the game so the robot's worker and the requests never interleave.
+        self.lock = getattr(partida, 'lock', None) or threading.RLock()
         self.partida = partida
         self.robot = partida.robot
         self.sin_robot = sin_robot
@@ -372,6 +375,9 @@ class Handler(BaseHTTPRequestHandler):
             if type(meta) is not int or meta not in (15, 30):
                 self._responder(400, {"error": "Meta inválida"})
                 return
+        if self.path == "/truco/ritmo" and datos.get("velocidad") not in (0.5, 1, 1.0, 2, 2.0):
+            self._responder(400, {"error": "Velocidad inválida (0.5, 1 o 2)"})
+            return
         if self.path == "/truco/adaptacion" and type(datos.get('activa')) is not bool:
             self._responder(400, {"error": "Estado de adaptación inválido"})
             return
@@ -464,6 +470,10 @@ class Handler(BaseHTTPRequestHandler):
             est = partida_truco.cambiar_modo_ia(modo)
             return 200, {"mensaje": f"Modo de IA actualizado a {modo}", "estado": est}
 
+        elif self.path == "/truco/ritmo":
+            partida_truco.ritmo = partida_truco.ritmo.con_velocidad(datos["velocidad"])
+            return 200, {"estado": partida_truco.estado_publico()}
+
         elif self.path == "/truco/adaptacion":
             partida_truco.adapt_to_opponent = datos['activa']
             return 200, {"estado": partida_truco.estado_publico()}
@@ -513,7 +523,11 @@ def main() -> None:
         if arg.startswith("--puerto="):
             puerto = int(arg.split("=", 1)[1])
 
-    partida_truco = PartidaTruco(None)
+    ritmo = desde_entorno(os.environ.get("TRUCO_RITMO"))
+    for arg in sys.argv:
+        if arg.startswith("--ritmo="):
+            ritmo = desde_entorno(arg.split("=", 1)[1])
+    partida_truco = PartidaTruco(None, ritmo=ritmo)
     server = crear_servidor(partida_truco, puerto, sin_robot_flag)
     if not sin_robot_flag and server.asegurar_robot() is None:
         print("  [AVISO] Simulador aún no detectado. Se conectará automáticamente en cuanto abras sim.bat.")
