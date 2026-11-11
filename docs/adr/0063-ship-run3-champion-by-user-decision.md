@@ -14,5 +14,6 @@ Generation 73 ships greedy, with profile prior 5 and encoder v3 (1,635 inputs). 
 
 ## Consequences
 
+- At ship time the full suite passed: 633 tests OK (`py -m unittest discover -s proyecto -p "test_*.py"` from the repository root, rerun 2026-11-11).
 - This was decided after seeing the exam, so it is a judgement call, not a pass of the pre-registered rule. Reports say so.
 - The known weakness, a small but clear loss against an erratic, barely trained opponent, is carried into run 4's goals: a more varied league, and a diagnosis of which change caused it.

@@ -153,14 +153,14 @@
 
   <div class="panel">
     <h3>Cinco generaciones de cada corrida contra rivales fijos</h3>
-    <p class="sub">Cada gráfico chico muestra el porcentaje de partidas ganadas (eje 0–100, línea de trazos en 50) por cinco generaciones de una corrida contra un mismo rival, con el intervalo de 95%. 1,000 pares espejo por punto, todas sin azar. «Corrida 2 · gen 38» fue la red del juego antes de la gen 73. Falta el punto donde Refuerzo corrida 2 · gen 38 se enfrentaría a sí misma.</p>
+    <p class="sub">Cada gráfico chico muestra el porcentaje de partidas ganadas (eje 0–100, línea de trazos en 50) por cinco generaciones de una corrida contra un mismo rival, con el intervalo de 95%. 1,000 pares espejo por punto, todas sin azar. <b>Estas partidas se jugaron después de que terminaron las tres corridas</b>, con las redes que se guardaron en cada generación: es una medición hecha a posteriori, no lo que se midió durante el entrenamiento (eso son los controles del primer gráfico). «Corrida 2 · gen 38» fue la red del juego antes de la gen 73. Falta el punto donde Refuerzo corrida 2 · gen 38 se enfrentaría a sí misma.</p>
     {{chart:evo}}
     <span class="src">fuente: experiments/run-evolution/output/results.json (analysis.runs[*].table)</span>
   </div>
 
   <div class="panel">
     <h3>Dentro de cada corrida: quién le gana a quién</h3>
-    <p class="sub">Cada celda es el porcentaje de partidas que gana la red de la fila contra la de la columna. Azul: gana la fila; rojo: gana la columna. Es el mismo protocolo, sin azar.</p>
+    <p class="sub">Cada celda es el porcentaje de partidas que gana la red de la fila contra la de la columna. Azul: gana la fila; rojo: gana la columna. Es el mismo protocolo, sin azar, y también se jugó después de terminar las corridas.</p>
     {{chart:within}}
     <span class="src">fuente: experiments/run-evolution/output/results.json (analysis.runs[*].within)</span>
   </div>
@@ -367,7 +367,7 @@
       <div><dt>Actualizaciones de la red</dt><dd>[[i:r3.updates]]<small>solo la corrida 3 (aprox. [[mil:r3.updates]] M)</small></dd></div>
       <div><dt>Partidas por generación</dt><dd>[[i:r1.matches_per_gen]] → [[i:r3.matches_per_gen]]<small>de la corrida 1 a la 3</small></dd></div>
       <div><dt>Prueba dorada de la optimización</dt><dd>[[raw:speed.golden_gens]] × [[raw:speed.golden_matches]] partidas<small>idénticas bit a bit en 1 y 12 trabajadores</small></dd></div>
-      <div><dt>Pruebas del proyecto</dt><dd>[[raw:speed.tests]]<small>pasan con el código final</small></dd></div>
+      <div><dt>Pruebas del proyecto</dt><dd>[[raw:ship.tests]]<small>pasan al publicar la gen 73 ([[raw:speed.tests]] tras la optimización)</small></dd></div>
     </dl>
   </div>
 </section>

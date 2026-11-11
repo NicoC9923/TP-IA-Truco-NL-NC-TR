@@ -3262,6 +3262,11 @@
   "src": "docs/perf/phase2-speed.md",
   "how": "text:499 tests OK"
  },
+ "ship.tests": {
+  "v": 633,
+  "src": "docs/adr/0063-ship-run3-champion-by-user-decision.md",
+  "how": "text:633 tests OK"
+ },
  "speed.opt_count": {
   "v": 6,
   "src": "docs/perf/phase2-speed.md",

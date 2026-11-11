@@ -399,7 +399,7 @@ function phaseView(phase) {
   return { node: wrap, running };
 }
 
-const EXAM_RIVALS = {adaptive_utility:'Utilidad adaptativa', reactive:'Reactivo', phase1:'Algoritmos genéticos (fase 1)', held_out_1:'Red de fase 1 no vista (v1s1, generación 23)', held_out_2:'Red de fase 1 casi sin entrenar (v1s2, generación 2)'};
+const EXAM_RIVALS = {adaptive_utility:'Utilidad adaptativa', reactive:'Reactivo', phase1:'Algoritmos genéticos (fase 1)', held_out_1:'Genético semilla 1 (gen 23)', held_out_2:'Genético semilla 2 (gen 2, casi sin entrenar)'};
 const points = (v) => (v * 100).toFixed(1).replace('.', ',').replace('-', '−');
 function shippedNetwork() {
   const s = (state.comparison || {}).shipped;
@@ -416,7 +416,7 @@ function shippedNetwork() {
   if (d) box.append(el('p',{text:`Duelo directo entre las dos redes, ambas voraces (${d.pairs} pares de manos): la generación 73 le ganó a la generación 38 en ${pct(d.win_rate)} de los pares, con intervalo de ${pct(d.lower)} a ${pct(d.upper)}.`}));
   const f = s.failed_guardrail;
   const notes = [];
-  if (f) notes.push(`No pasó una de las condiciones de seguridad del examen: contra la ${(EXAM_RIVALS[f.opponent] || f.opponent).replace(/^R/,'r')} jugó ${points(Math.abs(f.gain))} puntos peor que la generación 38 (intervalo de ${points(f.lower)} a ${points(f.upper)} puntos). Por la regla fijada de antemano, la generación 38 seguía publicada. Se publicó la generación 73 por decisión del usuario (ADR 0063), después de ver el examen: es una decisión de criterio, no un examen aprobado.`);
+  if (f) notes.push(`No pasó una de las condiciones de seguridad del examen: contra ${EXAM_RIVALS[f.opponent] || f.opponent} jugó ${points(Math.abs(f.gain))} puntos peor que la generación 38 (intervalo de ${points(f.lower)} a ${points(f.upper)} puntos). Por la regla fijada de antemano, la generación 38 seguía publicada. Se publicó la generación 73 por decisión del usuario (ADR 0063), después de ver el examen: es una decisión de criterio, no un examen aprobado.`);
   notes.push('Utilidad adaptativa fue rival de entrenamiento de la corrida 3: esa mejora es contra un rival conocido.');
   notes.push('El examen decide qué red se publica; no mide la fuerza general de la red.');
   box.append(el('ul',{class:'small'},...notes.map(c=>el('li',{text:c}))));

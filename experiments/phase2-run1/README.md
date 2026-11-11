@@ -22,7 +22,7 @@ Two inference shortcuts with bit-identical results made training about 11% faste
 The re-launch used seed 54001 and check base 55000. Its settings are in the rule: temperature 0.05, profile prior 5, 57,120 matches per generation, 12 workers, mixed targets, auxiliary head off, panel v1 and patience 40.
 
 - **8 hours** were the planned budget, which ended at generation 34 by the time cap. The 8 h result is copied to `training_output/phase2_8h`.
-- **The 4 h extension** was pre-registered and user-approved. It resumed the 8 h checkpoint to a 12 h total, after its code passed tests and review ([extension record](../../champions/phase2/time_cap_extension.json), [runner](run_extension.ps1)). It ended at the cap after generation 48, at 11.65 h of active time.
+- **The 4 h extension** was pre-registered and user-approved. It resumed the 8 h checkpoint to a 12 h total, after its code passed tests and review ([extension record](../../champions/phase2/time_cap_extension.json), [runner](run_extension.ps1)). It ended at the cap after generation 48, at 12.0 h of active time on the cap clock (`progress.json` `elapsed`). Of that, 11.65 h is the sum of the per-generation `elapsed_seconds` in `generations.jsonl`; that field stops before each promotion check, so the remaining 0.35 h is check time. Runs 2 and 3 show the same split (11.46 h and 11.54 h of 12.0 h).
 - **Totals:** 2,735,040 training matches, 91.5 million learner samples and 184,354 updates.
 
 ### Promotions and the plateau
