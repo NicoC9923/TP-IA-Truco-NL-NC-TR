@@ -389,11 +389,13 @@ class PartidaTruco:
             self.decir_robot("¡Gané el partido! Qué baile te pegué, hermano.")
             self._reaccion_robot("festejo")
 
-    def puede_cantar_envido(self) -> bool:
-        """El envido solo se puede cantar en 1ra ronda, antes de resolverse y sin truco ya querido."""
+    def puede_cantar_envido(self, quien: str = "humano") -> bool:
+        """El envido solo se puede cantar en 1ra ronda, antes de resolverse, sin truco ya querido
+        y antes de que quien canta haya tirado su carta de la 1ra baza (ADR 0068)."""
         return (
             not self.mano_terminada
             and self.ronda_actual == 1
+            and not any(m["ronda"] == 1 and m["quien"] == quien for m in self.mesa)
             and not self.envido_resuelto
             and (self.canto_pendiente is None or self.canto_pendiente["tipo"] == "TRUCO")
             and self.apuesta_truco == "NADA"
@@ -462,7 +464,7 @@ class PartidaTruco:
 
         if self.ia.modo_agente in ('neuroevolucion', 'refuerzo'):
             actions = ['card_%d' % i for i, card in enumerate(self.cartas_robot) if card in self.cartas_robot_disponibles] + ['fold']
-            if self.puede_cantar_envido():
+            if self.puede_cantar_envido("robot"):
                 actions += ['envido', 'real_envido', 'falta_envido']
             if self.quien_tiene_quiero_truco in ('ambos', 'robot') and self._siguiente_nivel_truco():
                 actions.append(self._siguiente_nivel_truco().lower())
@@ -483,7 +485,7 @@ class PartidaTruco:
         )
 
         # 1. En 1ra ronda, antes de tirar su 1ra carta, evaluar si cantar Envido
-        if self.puede_cantar_envido() and len(self.cartas_robot_disponibles) == 3:
+        if self.puede_cantar_envido("robot") and len(self.cartas_robot_disponibles) == 3:
             canto_e, frase_e = self.ia.decidir_iniciar_envido(
                 self.cartas_robot,
                 es_mano=(not self.es_mano_humano),
@@ -779,7 +781,9 @@ class PartidaTruco:
             else:
                 return {"error": "Primero respondé al canto pendiente.", "estado": self.estado_publico()}
 
-        if not self.puede_cantar_envido():
+        # Raising inside an envido exchange already under way is always allowed (ADR 0068 only limits starting it).
+        subiendo = self.puntos_envido_acumulados > 0 and not self.envido_resuelto and self.ronda_actual == 1
+        if not (subiendo or self.puede_cantar_envido()):
             return {"error": "No podés cantar envido ahora.", "estado": self.estado_publico()}
 
         self._humano_canto_envido_mano = True
@@ -977,7 +981,7 @@ class PartidaTruco:
             None,
         )
 
-        if self.ia.modo_agente not in ('neuroevolucion', 'refuerzo') and nivel == "TRUCO" and self.ronda_actual == 1 and not self.envido_resuelto:
+        if self.ia.modo_agente not in ('neuroevolucion', 'refuerzo') and nivel == "TRUCO" and self.puede_cantar_envido("robot"):
             canto_e, _ = self.ia.decidir_iniciar_envido(
                 self.cartas_robot,
                 es_mano=(not self.es_mano_humano),
@@ -1005,7 +1009,7 @@ class PartidaTruco:
             actions = ['quiero', 'no_quiero', 'fold']
             if pts_q < 4:
                 actions.append('retruco' if pts_q == 2 else 'vale_cuatro')
-            if self.puede_cantar_envido():
+            if self.puede_cantar_envido("robot"):
                 actions += ['envido', 'real_envido', 'falta_envido']
             choice = self._network_decide(actions, pending)
             if choice in ('envido', 'real_envido', 'falta_envido'):
@@ -1072,6 +1076,9 @@ class PartidaTruco:
 
         resp = respuesta.upper().strip()
         pendiente = self.canto_pendiente
+        if (pendiente["tipo"] == "TRUCO" and resp in ("ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO")
+                and resp not in pendiente["opciones"]):
+            return {"error": "No podés cantar envido ahora.", "estado": self.estado_publico()}
         if resp not in pendiente["opciones"]:
             return {"error": "Elegí una de las opciones del canto pendiente.", "estado": self.estado_publico()}
         tipo = pendiente["tipo"]
