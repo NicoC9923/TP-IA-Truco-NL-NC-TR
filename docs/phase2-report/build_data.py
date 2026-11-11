@@ -6,7 +6,7 @@ Run: py build_data.py
 import json, re, os
 from pathlib import Path
 
-W = Path("E:/Tools/GitHub-Repositories/TP-IA-Truco-NL-NC-TR/.orca/worktrees/TP-IA-Truco-NL-NC-TR/p2-run2")
+W = Path(__file__).resolve().parents[2]
 OUT = Path(__file__).parent
 D = {}
 
@@ -36,7 +36,7 @@ def const(key, v, src, needle):
 RUNS = {
     "r1": dict(log="champions/phase2/generations.jsonl", prog="champions/phase2/progress.json"),
     "r2": dict(log="champions/phase2-run2/generations.jsonl", prog="champions/phase2-run2/progress.json"),
-    "r3": dict(log="training_output/phase2-run3/generations.jsonl", prog="training_output/phase2-run3/progress.json"),
+    "r3": dict(log="champions/phase2-run3/generations.jsonl", prog="champions/phase2-run3/progress.json"),
 }
 for r, c in RUNS.items():
     pg = J(c["prog"]); L = JL(c["log"])
@@ -83,17 +83,17 @@ for r, c in RUNS.items():
 # run 3 extra: greedy disagreement
 s3 = D["r3.series"]["v"]
 gd = [s["gd"] for s in s3]
-put("r3.gd_first", gd[0], "training_output/phase2-run3/generations.jsonl", "greedy_disagreement generation 1")
-put("r3.gd_last", gd[-1], "training_output/phase2-run3/generations.jsonl", "greedy_disagreement last full generation")
-put("r3.gd_min", min(gd), "training_output/phase2-run3/generations.jsonl", "min greedy_disagreement")
-put("r3.gd_max", max(gd), "training_output/phase2-run3/generations.jsonl", "max greedy_disagreement")
+put("r3.gd_first", gd[0], "champions/phase2-run3/generations.jsonl", "greedy_disagreement generation 1")
+put("r3.gd_last", gd[-1], "champions/phase2-run3/generations.jsonl", "greedy_disagreement last full generation")
+put("r3.gd_min", min(gd), "champions/phase2-run3/generations.jsonl", "min greedy_disagreement")
+put("r3.gd_max", max(gd), "champions/phase2-run3/generations.jsonl", "max greedy_disagreement")
 
 # run 3 progress
-pr = J("training_output/phase2-run3/progress.json")
-put("r3.generation_cut", 101, "training_output/phase2-run3/generations.jsonl", "generation 101 is the partial record cut by the cap")
+pr = J("champions/phase2-run3/progress.json")
+put("r3.generation_cut", 101, "champions/phase2-run3/generations.jsonl", "generation 101 is the partial record cut by the cap")
 put("r1.elapsed_h", D["r1.elapsed"]["v"] / 3600, "champions/phase2/progress.json", "elapsed/3600")
 put("r2.elapsed_h", D["r2.elapsed"]["v"] / 3600, "champions/phase2-run2/progress.json", "elapsed/3600")
-put("r3.elapsed_h", D["r3.elapsed"]["v"] / 3600, "training_output/phase2-run3/progress.json", "elapsed/3600")
+put("r3.elapsed_h", D["r3.elapsed"]["v"] / 3600, "champions/phase2-run3/progress.json", "elapsed/3600")
 ext = J("champions/phase2/time_cap_extension.json")
 put("r1.cap_first_h", ext["old_cap"] / 3600, "champions/phase2/time_cap_extension.json", "old_cap/3600")
 put("r1.cap_ext_h", ext["new_cap"] / 3600, "champions/phase2/time_cap_extension.json", "new_cap/3600")

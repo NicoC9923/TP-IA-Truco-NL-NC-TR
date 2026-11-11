@@ -1525,57 +1525,57 @@
  },
  "r3.matches": {
   "v": 12487920,
-  "src": "training_output/phase2-run3/progress.json",
+  "src": "champions/phase2-run3/progress.json",
   "how": "progress.json[matches]"
  },
  "r3.samples": {
   "v": 493050318,
-  "src": "training_output/phase2-run3/progress.json",
+  "src": "champions/phase2-run3/progress.json",
   "how": "progress.json[samples]"
  },
  "r3.updates": {
   "v": 988984,
-  "src": "training_output/phase2-run3/progress.json",
+  "src": "champions/phase2-run3/progress.json",
   "how": "progress.json[updates]"
  },
  "r3.elapsed": {
   "v": 43200.109000000026,
-  "src": "training_output/phase2-run3/progress.json",
+  "src": "champions/phase2-run3/progress.json",
   "how": "progress.json[elapsed]"
  },
  "r3.champion_generation": {
   "v": 73,
-  "src": "training_output/phase2-run3/progress.json",
+  "src": "champions/phase2-run3/progress.json",
   "how": "progress.json[champion_generation]"
  },
  "r3.promotions": {
   "v": 7,
-  "src": "training_output/phase2-run3/progress.json",
+  "src": "champions/phase2-run3/progress.json",
   "how": "progress.json[promotions]"
  },
  "r3.temperature": {
   "v": 0.02,
-  "src": "training_output/phase2-run3/progress.json",
+  "src": "champions/phase2-run3/progress.json",
   "how": "progress.json[temperature]"
  },
  "r3.hours_avg_rate": {
   "v": 289.0714928520202,
-  "src": "training_output/phase2-run3/progress.json (matches/elapsed)",
+  "src": "champions/phase2-run3/progress.json (matches/elapsed)",
   "how": "matches / elapsed seconds"
  },
  "r3.n_gens_full": {
   "v": 100,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "records without phase_ended"
  },
  "r3.n_checks": {
   "v": 99,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "full records with a check"
  },
  "r3.matches_per_gen": {
   "v": 124560,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "matches of generation 2"
  },
  "r3.promoted": {
@@ -1588,22 +1588,22 @@
    61,
    73
   ],
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "check.promoted true"
  },
  "r3.n_promoted": {
   "v": 7,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "len(promoted)"
  },
  "r3.checks_after_last_promo": {
   "v": 27,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "checks after last promotion"
  },
  "r3.last_gen_full": {
   "v": 100,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "last full generation"
  },
  "r3.series": {
@@ -2903,52 +2903,52 @@
     "gd": 0.41033169152746374
    }
   ],
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "per-generation: mean_loss, matches/elapsed_seconds, check.gain/lower_bound/upper_bound/head_to_head/promoted, greedy_disagreement"
  },
  "r3.rate_early": {
   "v": 316.21566117852905,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "mean of matches/elapsed, generations 2-6"
  },
  "r3.rate_late": {
   "v": 291.38114956552147,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "mean of matches/elapsed, last 10 full generations"
  },
  "r3.secs_early": {
   "v": 394.025,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "mean elapsed seconds per generation, generations 2-6"
  },
  "r3.secs_late": {
   "v": 427.53279999999506,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "mean elapsed seconds per generation, last 10 full generations"
  },
  "r3.rate_min": {
   "v": 284.55572435378474,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "min matches/elapsed (gen>=2)"
  },
  "r3.rate_max": {
   "v": 324.67854061479073,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "max matches/elapsed (gen>=2)"
  },
  "r3.loss_min": {
   "v": 0.19678843440569166,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "min mean_loss"
  },
  "r3.loss_first": {
   "v": 0.21739653207101864,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "mean_loss generation 1"
  },
  "r3.loss_last": {
   "v": 0.19779595595139723,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "mean_loss last full generation"
  },
  "r3.gain_at_promo": {
@@ -2989,7 +2989,7 @@
     0.04172438266557507
    ]
   },
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "check gain/lo/hi of promoted gens"
  },
  "r3.league_gen2": {
@@ -3004,32 +3004,32 @@
    "reactive": 12192,
    "phase1": 12440
   },
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "league_mix of generation 2"
  },
  "r3.gd_first": {
   "v": 0.40189586641372227,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "greedy_disagreement generation 1"
  },
  "r3.gd_last": {
   "v": 0.41033169152746374,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "greedy_disagreement last full generation"
  },
  "r3.gd_min": {
   "v": 0.3981235513021579,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "min greedy_disagreement"
  },
  "r3.gd_max": {
   "v": 0.41884171793750413,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "max greedy_disagreement"
  },
  "r3.generation_cut": {
   "v": 101,
-  "src": "training_output/phase2-run3/generations.jsonl",
+  "src": "champions/phase2-run3/generations.jsonl",
   "how": "generation 101 is the partial record cut by the cap"
  },
  "r1.elapsed_h": {
@@ -3044,7 +3044,7 @@
  },
  "r3.elapsed_h": {
   "v": 12.000030277777785,
-  "src": "training_output/phase2-run3/progress.json",
+  "src": "champions/phase2-run3/progress.json",
   "how": "elapsed/3600"
  },
  "r1.cap_first_h": {

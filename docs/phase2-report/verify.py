@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from fmt import f as F
 
 HERE = Path(__file__).parent
-W = Path("E:/Tools/GitHub-Repositories/TP-IA-Truco-NL-NC-TR/.orca/worktrees/TP-IA-Truco-NL-NC-TR/p2-run2")
+W = Path(__file__).resolve().parents[2]
 D = json.loads((HERE / "data.json").read_text(encoding="utf-8"))
 ok = 0
 bad = []
@@ -77,7 +77,7 @@ for k, e in D.items():
 # ------------------------------------------------------------------ A2. runs: progress and logs
 RUNS = {"r1": ("champions/phase2/generations.jsonl", "champions/phase2/progress.json"),
         "r2": ("champions/phase2-run2/generations.jsonl", "champions/phase2-run2/progress.json"),
-        "r3": ("training_output/phase2-run3/generations.jsonl", "training_output/phase2-run3/progress.json")}
+        "r3": ("champions/phase2-run3/generations.jsonl", "champions/phase2-run3/progress.json")}
 for r, (lp, pp) in RUNS.items():
     L = lines(lp); P = js(pp)
     check(f"{r}.matches", P["matches"], D[f"{r}.matches"]["v"])
