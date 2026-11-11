@@ -1,367 +1,519 @@
-"""Generador en Alta Resolución (344x432) de las 40 cartas de la Baraja Española.
+"""Draws the project's own 40-card Spanish deck (plus a card back) with Pillow.
 
-Toma `Naipes_Españoles_Template.jfif` y:
-1. Limpia el ruido de compresión JPEG del fondo y realza bordes/colores de las ilustraciones
-   mediante filtrado bilateral + supermuestreo Lanczos 4x + refuerzo de trazos de tinta.
-2. Redibuja en resolución nativa 344x432 el marco exterior, el recuadro interior con las
-   pintas tradicionales y los números de las esquinas (1..7, 10, 11, 12) en las 40 cartas,
-   para que todos los números y bordes se vean completamente nítidos.
+Every card is drawn from code: no template image, no font files, no scans. The
+same function always produces the same pixels, so the PNGs in `cartas/` can be
+regenerated on any machine:
+
+    py -3 generar_baraja.py            # writes cartas/{valor}_{Palo}.png + dorso.png
+
+Layout follows the traditional Spanish deck: corner index numbers, pip layouts
+for 1-7, simple original figures for 10 (sota), 11 (caballo) and 12 (rey), and
+the classic broken frame ("pinta") that tells the suit at a glance: oros has no
+break, copas one, espadas two and bastos three.
+
+The web shows these files at an aspect ratio of 262/400 and the MuJoCo scene
+uses them as textures, so the output size keeps that ratio exactly.
 """
 
 from __future__ import annotations
 
+import math
 import os
-import cv2
-import numpy as np
+from typing import Callable, Iterable, Sequence
+
+from PIL import Image, ImageDraw
+
+PALOS = ("Espada", "Basto", "Oro", "Copa")
+VALORES = (1, 2, 3, 4, 5, 6, 7, 10, 11, 12)
+
+# Base design units (the web's aspect ratio). Everything below is expressed in
+# these units and scaled on the way to pixels.
+BASE_W, BASE_H = 262, 400
+ESCALA_SALIDA = 2                   # final PNG: 524 x 800
+SUPERMUESTREO = 2                   # drawn at 1048 x 1600, then downsampled
+TAMANO_CARTA = (BASE_W * ESCALA_SALIDA, BASE_H * ESCALA_SALIDA)
+NOMBRE_DORSO = "dorso.png"
+
+Punto = tuple[float, float]
+
+# --- palette -------------------------------------------------------------
+PAPEL = (250, 246, 234)
+TINTA = (40, 28, 22)
+ORO = (242, 184, 36)
+ORO_OSCURO = (150, 92, 14)
+ROJO = (196, 44, 38)
+ROJO_OSCURO = (120, 22, 20)
+AZUL = (70, 128, 206)
+AZUL_OSCURO = (24, 54, 120)
+VERDE = (52, 132, 70)
+VERDE_OSCURO = (24, 74, 36)
+MADERA = (196, 118, 48)
+MADERA_OSCURA = (96, 50, 18)
+PIEL = (243, 204, 164)
+GRIS_ACERO = (206, 220, 236)
+
+COLOR_PALO = {
+    "Oro": ORO_OSCURO,
+    "Copa": ROJO,
+    "Espada": AZUL_OSCURO,
+    "Basto": VERDE_OSCURO,
+}
+# Breaks in the frame's top and bottom edges: the traditional suit cue.
+CORTES_MARCO = {"Oro": 0, "Copa": 1, "Espada": 2, "Basto": 3}
 
 
-PALOS = ["Oro", "Copa", "Espada", "Basto"]
-VALORES = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12]
-
-# Escala 4x sobre el tamaño base (86x108 -> 344x432)
-S = 4
-W_HI = 86 * S   # 344 px
-H_HI = 108 * S  # 432 px
+def nombre_archivo(valor: int, palo: str) -> str:
+    """File name the web and the 3D scene look up for a card."""
+    return f"{int(valor)}_{str(palo).capitalize()}.png"
 
 
-def extraer_15_cartas_base(ruta_template: str) -> list[np.ndarray]:
-    img = cv2.imread(ruta_template)
-    if img is None:
-        raise FileNotFoundError(f"No se pudo leer el template: {ruta_template}")
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, th = cv2.threshold(gray, 100, 255, cv2.THRESH_BINARY)
-    cnts, _ = cv2.findContours(th, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    boxes = sorted(
-        [cv2.boundingRect(c) for c in cnts if cv2.contourArea(c) > 2000],
-        key=lambda b: (b[1] // 100, b[0]),
-    )
-    if len(boxes) != 15:
-        raise RuntimeError(f"Se esperaban 15 cartas en el template, se hallaron {len(boxes)}")
-    return [
-        cv2.resize(img[y : y + h, x : x + w], (86, 108), interpolation=cv2.INTER_CUBIC)
-        for (x, y, w, h) in boxes
-    ]
+# --- drawing surface with a local transform ------------------------------
+
+class Lienzo:
+    """A Pillow drawing in base units, with an optional local transform.
+
+    `con(cx, cy, rot, esc)` returns a child that draws in a frame centred at
+    (cx, cy), rotated `rot` degrees and scaled `esc`, so every suit symbol is
+    drawn once around the origin and placed anywhere at any angle.
+    """
+
+    def __init__(self, draw: ImageDraw.ImageDraw, k: float,
+                 transf: Callable[[float, float], Punto] | None = None,
+                 escala: float = 1.0):
+        self.draw = draw
+        self.k = k
+        self._t = transf or (lambda x, y: (x, y))
+        self.escala = escala
+
+    def con(self, cx: float, cy: float, rot: float = 0.0, esc: float = 1.0) -> "Lienzo":
+        c, s = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+        padre = self._t
+
+        def t(x: float, y: float) -> Punto:
+            return padre(cx + esc * (x * c - y * s), cy + esc * (x * s + y * c))
+
+        return Lienzo(self.draw, self.k, t, self.escala * esc)
+
+    def _px(self, pts: Iterable[Punto]) -> list[Punto]:
+        out = []
+        for x, y in pts:
+            tx, ty = self._t(x, y)
+            out.append((tx * self.k, ty * self.k))
+        return out
+
+    def _ancho(self, ancho: float) -> int:
+        return max(1, int(round(ancho * self.escala * self.k)))
+
+    def poligono(self, pts: Sequence[Punto], relleno=None, borde=None, ancho: float = 2.0) -> None:
+        px = self._px(pts)
+        if relleno is not None:
+            self.draw.polygon(px, fill=relleno)
+        if borde is not None:
+            self.draw.line(px + [px[0]], fill=borde, width=self._ancho(ancho), joint="curve")
+            self._tapas(px, borde, ancho)
+
+    def linea(self, pts: Sequence[Punto], color, ancho: float = 2.0) -> None:
+        px = self._px(pts)
+        self.draw.line(px, fill=color, width=self._ancho(ancho), joint="curve")
+        self._tapas(px, color, ancho)
+
+    def _tapas(self, px: list[Punto], color, ancho: float) -> None:
+        r = self._ancho(ancho) / 2.0
+        if r < 1.5:
+            return
+        for x, y in (px[0], px[-1]):
+            self.draw.ellipse((x - r, y - r, x + r, y + r), fill=color)
+
+    def elipse(self, cx: float, cy: float, rx: float, ry: float, relleno=None,
+               borde=None, ancho: float = 2.0) -> None:
+        self.poligono(arco(cx, cy, rx, ry, 0, 360, 56)[:-1], relleno, borde, ancho)
 
 
-def mejorar_arte_4x(bgr_low: np.ndarray) -> np.ndarray:
-    """Escala un recorte de arte 4x eliminando ruido JPEG y reforzando trazos y color."""
-    h, w = bgr_low.shape[:2]
-    up = cv2.resize(bgr_low, (w * S, h * S), interpolation=cv2.INTER_LANCZOS4)
-
-    # 1. Filtrado bilateral para quitar bloques JPEG preservando bordes de tinta
-    suave = cv2.bilateralFilter(up, d=7, sigmaColor=38, sigmaSpace=38)
-
-    # 2. Realce de nitidez (Unsharp Mask)
-    blur = cv2.GaussianBlur(suave, (0, 0), 1.4)
-    nitido = cv2.addWeighted(suave, 1.55, blur, -0.55, 0)
-
-    # 3. Limpiar el fondo casi blanco (mosquito noise de JPEG) a blanco puro
-    hsv = cv2.cvtColor(nitido, cv2.COLOR_BGR2HSV).astype(np.float32)
-    gray = cv2.cvtColor(nitido, cv2.COLOR_BGR2GRAY)
-    fondo_blanco = (gray > 224) & (hsv[:, :, 1] < 38)
-    nitido[fondo_blanco] = (255, 255, 255)
-
-    # 4. Saturar levemente los colores vivos (oros, copas, capas) y oscurecer trazos negros
-    hsv[:, :, 1] = np.clip(hsv[:, :, 1] * 1.18, 0, 255)
-    nitido = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
-    nitido[fondo_blanco] = (255, 255, 255)
-
-    trazo_oscuro = gray < 95
-    nitido[trazo_oscuro] = (nitido[trazo_oscuro].astype(np.float32) * 0.72).astype(np.uint8)
-
-    return nitido
+def arco(cx: float, cy: float, rx: float, ry: float, a0: float, a1: float,
+         n: int = 24) -> list[Punto]:
+    """Points along an elliptical arc; angles in degrees, 0 = right, 90 = down."""
+    return [(cx + rx * math.cos(math.radians(a0 + (a1 - a0) * i / n)),
+             cy + ry * math.sin(math.radians(a0 + (a1 - a0) * i / n)))
+            for i in range(n + 1)]
 
 
-def extraer_rgba_hi(bgr_low: np.ndarray, umbral_blanco: int = 232) -> np.ndarray:
-    """Convierte un recorte de baja resolución en un sprite RGBA 4x limpio y nítido."""
-    arte_hi = mejorar_arte_4x(bgr_low)
-    gray = cv2.cvtColor(arte_hi, cv2.COLOR_BGR2GRAY)
-
-    _, mask_bin = cv2.threshold(gray, umbral_blanco, 255, cv2.THRESH_BINARY_INV)
-    # Rellenar huecos internos de la figura (amarillo del oro, piel, etc.)
-    cnts, _ = cv2.findContours(mask_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    mask_fill = np.zeros_like(gray)
-    for c in cnts:
-        if cv2.contourArea(c) > 40:
-            cv2.drawContours(mask_fill, [c], -1, 255, -1)
-
-    # Suavizar el borde del canal alfa (antialiasing)
-    alpha = cv2.GaussianBlur(mask_fill, (3, 3), 0.8)
-    rgba = cv2.cvtColor(arte_hi, cv2.COLOR_BGR2BGRA)
-    rgba[:, :, 3] = alpha
-    return rgba
+def espejo(pts: Sequence[Punto]) -> list[Punto]:
+    """Closes a left-half outline with its mirror image across x = 0."""
+    return list(pts) + [(-x, y) for x, y in reversed(pts)]
 
 
-def pegar_rgba(
-    lienzo: np.ndarray,
-    sprite_rgba: np.ndarray,
-    cx: float,
-    cy: float,
-    escala_x: float = 1.0,
-    escala_y: float = 1.0,
-    rotar_grados: float = 0.0,
-):
-    """Pega un sprite RGBA 4x en las coordenadas (cx*S, cy*S) del lienzo de alta resolución."""
-    h0, w0 = sprite_rgba.shape[:2]
-    nw = max(8, int(round(w0 * escala_x)))
-    nh = max(8, int(round(h0 * escala_y)))
-    sp = cv2.resize(sprite_rgba, (nw, nh), interpolation=cv2.INTER_LANCZOS4)
+# --- index digits (stroke font on a 10 x 16 grid) ------------------------
 
-    if abs(rotar_grados) > 1e-3:
-        if abs(rotar_grados - 180.0) < 1e-3:
-            sp = cv2.rotate(sp, cv2.ROTATE_180)
-        else:
-            M = cv2.getRotationMatrix2D((nw / 2.0, nh / 2.0), rotar_grados, 1.0)
-            cos = abs(M[0, 0])
-            sin = abs(M[0, 1])
-            bw = int((nh * sin) + (nw * cos))
-            bh = int((nh * cos) + (nw * sin))
-            M[0, 2] += (bw / 2.0) - nw / 2.0
-            M[1, 2] += (bh / 2.0) - nh / 2.0
-            sp = cv2.warpAffine(
-                sp,
-                M,
-                (bw, bh),
-                flags=cv2.INTER_LANCZOS4,
-                borderMode=cv2.BORDER_CONSTANT,
-                borderValue=(255, 255, 255, 0),
-            )
+DIGITOS: dict[str, list[list[Punto]]] = {
+    "0": [arco(5, 8, 4, 7, 0, 360, 40)],
+    "1": [[(2.2, 3.8), (5.6, 1.0), (5.6, 15.0)], [(2.4, 15.0), (8.8, 15.0)]],
+    "2": [arco(5, 5, 4, 4, 180, 400, 24) + [(1.0, 15.0), (9.2, 15.0)]],
+    "3": [arco(5, 4.4, 3.8, 3.4, 200, 450, 24), arco(5, 11.4, 4.1, 3.6, 270, 520, 26)],
+    "4": [[(7.0, 15.0), (7.0, 1.0), (1.0, 10.6), (9.6, 10.6)]],
+    "5": [[(8.6, 1.0), (2.6, 1.0), (2.1, 7.3)] + arco(5, 10.6, 4.0, 4.4, 225, 510, 28)],
+    "6": [arco(8.6, 11.2, 7.6, 10.2, 263, 180, 16), arco(5, 11.2, 4.0, 3.8, 180, 540, 40)],
+    "7": [[(1.0, 1.0), (9.2, 1.0), (4.2, 15.0)]],
+}
 
-    sh, sw = sp.shape[:2]
-    x1 = int(round(cx * S - sw / 2.0))
-    y1 = int(round(cy * S - sh / 2.0))
-    x2 = x1 + sw
-    y2 = y1 + sh
 
-    H, W = lienzo.shape[:2]
-    sx1 = max(0, -x1)
-    sy1 = max(0, -y1)
-    sx2 = sw - max(0, x2 - W)
-    sy2 = sh - max(0, y2 - H)
+def dibujar_numero(lz: Lienzo, texto: str, x: float, y: float, alto: float, color) -> None:
+    """Writes `texto` with the stroke font; (x, y) is the top-left corner."""
+    esc = alto / 16.0
+    avance = 0.0
+    for ch in texto:
+        trazo = lz.con(x + avance, y, 0, esc)
+        for linea in DIGITOS[ch]:
+            trazo.linea(linea, color, ancho=2.7)
+        avance += 10.6 * esc
 
-    dx1 = max(0, x1)
-    dy1 = max(0, y1)
-    dx2 = min(W, x2)
-    dy2 = min(H, y2)
 
-    if dx1 >= dx2 or dy1 >= dy2:
+def ancho_numero(texto: str, alto: float) -> float:
+    esc = alto / 16.0
+    return (10.6 * len(texto) - 0.6) * esc
+
+
+# --- suit symbols (drawn around the origin, about 100 units tall) --------
+
+def simbolo_oro(lz: Lienzo, detalle: bool = False) -> None:
+    lz.elipse(0, 0, 46, 46, ORO, ORO_OSCURO, 4)
+    lz.elipse(0, 0, 36, 36, None, ORO_OSCURO, 2.5)
+    for i in range(16 if detalle else 12):
+        a = math.radians(i * (360 / (16 if detalle else 12)))
+        lz.elipse(41 * math.cos(a), 41 * math.sin(a), 2.2, 2.2, ORO_OSCURO)
+    for i in range(8):
+        petalo = lz.con(0, 0, i * 45)
+        petalo.poligono([(0, -4), (8, -14), (0, -30), (-8, -14)], ROJO, ROJO_OSCURO, 1.5)
+    lz.elipse(0, 0, 9, 9, ORO, ORO_OSCURO, 2.5)
+    lz.elipse(0, 0, 3.5, 3.5, ROJO_OSCURO)
+    if detalle:
+        lz.elipse(0, 0, 22, 22, None, ORO_OSCURO, 1.5)
+
+
+def simbolo_copa(lz: Lienzo, detalle: bool = False) -> None:
+    # Foot, stem and knot.
+    lz.poligono(espejo([(-26, 50), (-20, 40), (-9, 34)]), ROJO, ROJO_OSCURO, 3)
+    lz.poligono(espejo([(-6, 34), (-6, 10)]), ORO, ORO_OSCURO, 3)
+    lz.elipse(0, 16, 12, 6, ORO, ORO_OSCURO, 3)
+    # Bowl.
+    cuenco = arco(0, -26, 34, 38, 180, 0, 22)
+    lz.poligono(cuenco[:1] + cuenco + [(34, -26)], ROJO, ROJO_OSCURO, 3)
+    lz.poligono([(-34, -26), (34, -26), (36, -36), (-36, -36)], ORO, ORO_OSCURO, 3)
+    lz.linea([(-20, -10), (20, -10)], ORO, 3)
+    if detalle:
+        for x in (-18, 0, 18):
+            lz.elipse(x, 0, 4, 4, ORO, ORO_OSCURO, 1.5)
+        lz.poligono([(-30, -40), (30, -40), (24, -50), (-24, -50)], ORO, ORO_OSCURO, 3)
+
+
+def simbolo_espada(lz: Lienzo, detalle: bool = False) -> None:
+    # Blade (point up), cross guard, grip and pommel.
+    lz.poligono([(-9, 22), (-9, -34), (0, -50), (9, -34), (9, 22)], GRIS_ACERO, AZUL_OSCURO, 3.5)
+    lz.linea([(0, -40), (0, 18)], AZUL, 3)
+    lz.poligono([(-24, 22), (24, 22), (24, 30), (-24, 30)], ORO, ORO_OSCURO, 3)
+    lz.elipse(-27, 26, 5, 5, ORO, ORO_OSCURO, 2.5)
+    lz.elipse(27, 26, 5, 5, ORO, ORO_OSCURO, 2.5)
+    lz.poligono([(-5, 30), (5, 30), (5, 44), (-5, 44)], ROJO, ROJO_OSCURO, 2.5)
+    lz.elipse(0, 48, 7, 6, ORO, ORO_OSCURO, 2.5)
+    if detalle:
+        lz.linea(arco(0, 26, 34, 18, 200, 340, 18), ORO_OSCURO, 3)
+        lz.elipse(0, 26, 4, 4, ROJO)
+
+
+def simbolo_basto(lz: Lienzo, detalle: bool = False) -> None:
+    # A knotty wooden club, wide at the top, with two green sprouts.
+    contorno = [(-13, -46), (-17, -30), (-12, -14), (-14, 4), (-9, 22), (-10, 40), (-6, 50)]
+    lz.poligono(espejo(contorno), MADERA, MADERA_OSCURA, 3)
+    for x, y in ((-7, -30), (6, -12), (-5, 8), (5, 28)):
+        lz.elipse(x, y, 3.5, 2.6, MADERA_OSCURA)
+    for lado in (-1, 1):
+        hoja = lz.con(lado * 12, -24 + lado * 18, lado * 40)
+        hoja.poligono([(0, 0), (7 * lado, -6), (16 * lado, -4), (9 * lado, 3)], VERDE, VERDE_OSCURO, 1.5)
+    lz.linea([(-6, -44), (-3, 40)], (226, 160, 90), 2)
+    if detalle:
+        for y in (-38, -2, 34):
+            lz.elipse(0, y, 3, 3, VERDE_OSCURO)
+
+
+SIMBOLOS = {
+    "Oro": simbolo_oro,
+    "Copa": simbolo_copa,
+    "Espada": simbolo_espada,
+    "Basto": simbolo_basto,
+}
+# Scale of each symbol as a pip (it is drawn about 100 units tall).
+ESCALA_PIP = {"Oro": 0.74, "Copa": 0.84, "Espada": 0.98, "Basto": 0.96}
+ESCALA_AS = {"Oro": 1.45, "Copa": 2.0, "Espada": 2.65, "Basto": 2.55}
+
+# --- pip layouts (centre x, centre y) inside the frame -------------------
+_L, _C, _R = 86, 131, 176
+DISPOSICION: dict[int, list[Punto]] = {
+    2: [(_C, 112), (_C, 288)],
+    3: [(_C, 96), (_C, 200), (_C, 304)],
+    4: [(_L, 112), (_R, 112), (_L, 288), (_R, 288)],
+    5: [(_L, 104), (_R, 104), (_C, 200), (_L, 296), (_R, 296)],
+    6: [(_L, 96), (_R, 96), (_L, 200), (_R, 200), (_L, 304), (_R, 304)],
+    7: [(_L, 86), (_R, 86), (_C, 150), (_L, 214), (_R, 214), (_L, 314), (_R, 314)],
+}
+
+
+def _angulo_pip(palo: str, valor: int, i: int, n: int) -> float:
+    """Swords and clubs lean alternately, a nod to the deck's crossed pips."""
+    if palo not in ("Espada", "Basto"):
+        return 0.0
+    if valor <= 3:
+        return (-14.0, 14.0, -14.0)[i] if n > 1 else 0.0
+    if valor == 7 and i == 2:
+        return 0.0
+    return -16.0 if i % 2 == 0 else 16.0
+
+
+def dibujar_pips(lz: Lienzo, palo: str, valor: int) -> None:
+    dibujar = SIMBOLOS[palo]
+    if valor == 1:
+        dibujar(lz.con(131, 200, 0, ESCALA_AS[palo]), detalle=True)
         return
-
-    recorte = sp[sy1:sy2, sx1:sx2]
-    alfa = (recorte[:, :, 3:4].astype(np.float32)) / 255.0
-    destino = lienzo[dy1:dy2, dx1:dx2].astype(np.float32)
-    lienzo[dy1:dy2, dx1:dx2] = np.clip(
-        recorte[:, :, :3].astype(np.float32) * alfa + destino * (1.0 - alfa),
-        0,
-        255,
-    ).astype(np.uint8)
+    pts = DISPOSICION[valor]
+    for i, (x, y) in enumerate(pts):
+        dibujar(lz.con(x, y, _angulo_pip(palo, valor, i, len(pts)), ESCALA_PIP[palo]))
 
 
-def dibujar_marco_e_indices_hi(card_hi: np.ndarray, valor: int, palo: str) -> None:
-    """Dibuja en resolución nativa 344x432 el borde exterior, el recuadro con pintas
-    y los números de las esquinas completamente nítidos.
-    """
-    W, H = W_HI, H_HI  # 344 x 432
+# --- court figures -------------------------------------------------------
 
-    # Limpiar los márgenes exteriores alrededor del recuadro interno (x=30..314, y=26..406)
-    card_hi[0:28, :] = 255
-    card_hi[404:, :] = 255
-    card_hi[:, 0:31] = 255
-    card_hi[:, 313:] = 255
-
-    # Esquinas redondeadas exteriores oscuras (estilo naipe español clásico)
-    mask_round = np.zeros((H, W), dtype=np.uint8)
-    r_ext = 24
-    cv2.rectangle(mask_round, (4, r_ext), (W - 5, H - r_ext - 1), 255, -1)
-    cv2.rectangle(mask_round, (r_ext, 4), (W - r_ext - 1, H - 5), 255, -1)
-    for cx, cy in [(r_ext, r_ext), (W - r_ext - 1, r_ext), (r_ext, H - r_ext - 1), (W - r_ext - 1, H - r_ext - 1)]:
-        cv2.circle(mask_round, (cx, cy), r_ext - 4, 255, -1)
-
-    card_hi[mask_round == 0] = (18, 18, 18)
-
-    # Borde perimetral del naipe
-    contours, _ = cv2.findContours(mask_round, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    cv2.drawContours(card_hi, contours, -1, (40, 40, 40), 2, cv2.LINE_AA)
-
-    # Recuadro interior tradicional (x=30..314, y=26..406)
-    cv2.rectangle(card_hi, (30, 26), (314, 406), (25, 25, 25), 3, cv2.LINE_AA)
-
-    # Pintas tradicionales en el borde superior (y=26) e inferior (y=406)
-    cortes = {
-        "Oro": [],
-        "Copa": [172],
-        "Espada": [136, 208],
-        "Basto": [116, 172, 228],
-    }[palo]
-    for x in cortes:
-        cv2.line(card_hi, (x - 10, 26), (x + 10, 26), (255, 255, 255), 5)
-        cv2.line(card_hi, (x - 10, 406), (x + 10, 406), (255, 255, 255), 5)
-
-    # Números de alta definición en esquina superior izquierda y esquina inferior derecha
-    txt = str(valor)
-    fuente = cv2.FONT_HERSHEY_TRIPLEX
-    escala = 0.85 if len(txt) == 1 else 0.72
-    grosor = 2
-    color_num = (18, 18, 18)
-
-    # Superior izquierda (con halo blanco suave para no cortar el dibujo)
-    cv2.putText(card_hi, txt, (37, 58), fuente, escala, (255, 255, 255), 6, cv2.LINE_AA)
-    cv2.putText(card_hi, txt, (37, 58), fuente, escala, color_num, grosor, cv2.LINE_AA)
-
-    # Inferior derecha (rotada 180 grados con halo blanco suave)
-    parche = np.full((46, 54, 3), 255, dtype=np.uint8)
-    px = 10 if len(txt) == 1 else 3
-    cv2.putText(parche, txt, (px, 34), fuente, escala, color_num, grosor, cv2.LINE_AA)
-    parche = cv2.rotate(parche, cv2.ROTATE_180)
-    mask_num = cv2.cvtColor(parche, cv2.COLOR_BGR2GRAY) < 200
-    # Halo blanco alrededor del número inferior derecho
-    kernel = np.ones((5, 5), np.uint8)
-    halo = cv2.dilate(mask_num.astype(np.uint8), kernel, iterations=1) > 0
-    roi_inf = card_hi[356:402, 256:310]
-    roi_inf[halo] = 255
-    roi_inf[mask_num] = parche[mask_num]
+ROPA = {
+    # (tunic, trim, hose/legs, hat or cape)
+    "Oro": (VERDE, ORO, ROJO, ROJO),
+    "Copa": (AZUL, ORO, ROJO, ROJO),
+    "Espada": (ROJO, ORO, AZUL, AZUL),
+    "Basto": (ROJO, ORO, VERDE, VERDE),
+}
 
 
-def crear_carta_directa_hi(carta_low: np.ndarray, valor: int, palo: str) -> np.ndarray:
-    """Toma una de las 15 cartas del template, borra su marco e índices viejos borrosos,
-    mejora el arte 4x y redibuja el marco y los números en alta resolución.
-    """
-    copia = carta_low.copy()
-    # Borrar el marco interno viejo de baja resolución (x<=10, x>=75, y<=9, y>=98)
-    copia[0:10, :] = 255
-    copia[98:, :] = 255
-    copia[:, 0:11] = 255
-    copia[:, 75:] = 255
-    # Borrar los números viejos de las esquinas
-    copia[8:17, 8:17] = 255
-    copia[90:99, 66:77] = 255
-    card_hi = mejorar_arte_4x(copia)
-    dibujar_marco_e_indices_hi(card_hi, valor, palo)
-    return card_hi
+def _cabeza(lz: Lienzo, x: float, y: float, r: float = 17) -> None:
+    lz.elipse(x, y, r, r * 1.12, PIEL, TINTA, 2.5)
+    lz.elipse(x - r * 0.35, y - r * 0.1, 1.8, 2.2, TINTA)
+    lz.elipse(x + r * 0.35, y - r * 0.1, 1.8, 2.2, TINTA)
+    lz.linea([(x - r * 0.3, y + r * 0.45), (x + r * 0.3, y + r * 0.45)], ROJO_OSCURO, 2)
 
 
-def generar_baraja_40(ruta_template: str, dir_salida: str) -> dict[str, str]:
+def _brazo(lz: Lienzo, pts: Sequence[Punto], color, ancho: float) -> None:
+    """A sleeve: a dark outline stroke with the cloth colour on top."""
+    lz.linea(pts, TINTA, ancho + 4.5)
+    lz.linea(pts, color, ancho)
+
+
+def figura_sota(lz: Lienzo, palo: str) -> None:
+    tunica, adorno, piernas, gorro = ROPA[palo]
+    # Legs and shoes.
+    lz.poligono([(108, 262), (126, 262), (124, 336), (110, 336)], piernas, TINTA, 2.5)
+    lz.poligono([(136, 262), (154, 262), (152, 336), (138, 336)], piernas, TINTA, 2.5)
+    lz.poligono([(100, 336), (126, 336), (126, 346), (98, 346)], TINTA)
+    lz.poligono([(136, 336), (162, 336), (164, 346), (136, 346)], TINTA)
+    # Tunic with belt and trim.
+    lz.poligono([(112, 150), (150, 150), (172, 270), (90, 270)], tunica, TINTA, 3)
+    lz.poligono([(102, 214), (160, 214), (162, 224), (100, 224)], adorno, TINTA, 2)
+    lz.linea([(131, 152), (131, 212)], adorno, 3)
+    # Arms: the left rests on the hip, the right holds the symbol up.
+    _brazo(lz, [(114, 160), (96, 196), (108, 216)], tunica, 12)
+    _brazo(lz, [(148, 160), (176, 150), (186, 124)], tunica, 12)
+    lz.elipse(187, 120, 7, 7, PIEL, TINTA, 2)
+    # Head with a feathered cap and long hair.
+    lz.poligono([(112, 118), (150, 118), (154, 152), (108, 152)], (120, 70, 30), TINTA, 2)
+    _cabeza(lz, 131, 124)
+    lz.poligono([(108, 112), (154, 112), (148, 96), (114, 96)], gorro, TINTA, 2.5)
+    lz.linea([(150, 100), (170, 80), (174, 70)], adorno, 4)
+    SIMBOLOS[palo](lz.con(190, 86, 15 if palo in ("Espada", "Basto") else 0, 0.62))
+
+
+def figura_caballo(lz: Lienzo, palo: str) -> None:
+    tunica, adorno, piernas, gorro = ROPA[palo]
+    caballo, crin = (236, 226, 206), (130, 84, 40)
+    # Horse legs, body, neck and head (facing left).
+    for x0, x1 in ((84, 92), (104, 110), (156, 162), (176, 184)):
+        lz.poligono([(x0, 260), (x0 + 12, 260), (x1 + 8, 336), (x1 - 2, 336)], caballo, TINTA, 2.5)
+        lz.poligono([(x1 - 4, 334), (x1 + 10, 334), (x1 + 10, 344), (x1 - 4, 344)], TINTA)
+    lz.elipse(134, 248, 64, 34, caballo, TINTA, 3)
+    lz.linea([(84, 154), (98, 180), (102, 214)], crin, 8)
+    lz.poligono([(84, 236), (98, 214), (76, 158), (58, 172)], caballo, TINTA, 3)
+    lz.poligono([(76, 156), (52, 168), (36, 200), (48, 208), (62, 190), (70, 182)], caballo, TINTA, 3)
+    lz.elipse(66, 170, 2.5, 2.5, TINTA)
+    lz.linea([(196, 236), (214, 262), (210, 300)], crin, 7)
+    # Saddle cloth.
+    lz.poligono([(112, 222), (168, 222), (172, 262), (108, 262)], gorro, TINTA, 2.5)
+    lz.linea([(108, 258), (172, 258)], adorno, 3)
+    # Rider.
+    lz.poligono([(146, 216), (160, 216), (150, 270), (138, 270)], piernas, TINTA, 2)
+    lz.poligono([(118, 150), (150, 150), (158, 222), (112, 222)], tunica, TINTA, 3)
+    _brazo(lz, [(122, 160), (100, 182), (78, 176)], tunica, 11)
+    _brazo(lz, [(148, 158), (172, 140), (180, 112)], tunica, 11)
+    lz.elipse(181, 108, 6.5, 6.5, PIEL, TINTA, 2)
+    _cabeza(lz, 134, 128, 15)
+    lz.poligono([(114, 118), (154, 118), (146, 98), (122, 98)], gorro, TINTA, 2.5)
+    lz.elipse(134, 116, 24, 4, gorro, TINTA, 2)
+    SIMBOLOS[palo](lz.con(186, 76, 15 if palo in ("Espada", "Basto") else 0, 0.56))
+
+
+def figura_rey(lz: Lienzo, palo: str) -> None:
+    tunica, adorno, piernas, capa = ROPA[palo]
+    # Long robe and cape.
+    lz.poligono([(104, 150), (158, 150), (190, 336), (72, 336)], capa, TINTA, 3)
+    lz.poligono([(114, 156), (148, 156), (164, 336), (98, 336)], tunica, TINTA, 2.5)
+    lz.poligono([(126, 156), (136, 156), (136, 336), (126, 336)], adorno, TINTA, 1.5)
+    lz.poligono([(96, 330), (166, 330), (170, 344), (92, 344)], adorno, TINTA, 2)
+    # Ermine collar.
+    lz.elipse(131, 152, 30, 9, (246, 242, 236), TINTA, 2)
+    for x in (112, 124, 138, 150):
+        lz.elipse(x, 152, 1.8, 2.6, TINTA)
+    # Arms: one on the chest, one holding the symbol.
+    _brazo(lz, [(110, 166), (100, 206), (124, 222)], capa, 13)
+    lz.elipse(126, 222, 7, 7, PIEL, TINTA, 2)
+    _brazo(lz, [(152, 166), (178, 168), (190, 142)], capa, 13)
+    lz.elipse(191, 138, 7, 7, PIEL, TINTA, 2)
+    # Head, beard and crown.
+    _cabeza(lz, 131, 118, 17)
+    lz.poligono(arco(131, 124, 17, 18, 0, 180, 14), (232, 230, 226), TINTA, 2)
+    lz.linea([(124, 128), (138, 128)], ROJO_OSCURO, 2)
+    lz.poligono([(112, 102), (150, 102), (154, 78), (143, 90), (131, 72), (119, 90), (108, 78)],
+                ORO, ORO_OSCURO, 2.5)
+    for x, y in ((108, 78), (131, 72), (154, 78)):
+        lz.elipse(x, y, 3, 3, ROJO, ROJO_OSCURO, 1)
+    SIMBOLOS[palo](lz.con(196, 102, 15 if palo in ("Espada", "Basto") else 0, 0.58))
+
+
+FIGURAS = {10: figura_sota, 11: figura_caballo, 12: figura_rey}
+
+
+# --- frame and corner indices --------------------------------------------
+
+MARCO = (28, 36, 234, 364)          # x0, y0, x1, y1 in base units
+
+
+def _segmentos_con_cortes(x0: float, x1: float, cortes: int) -> list[tuple[float, float]]:
+    """Splits a horizontal edge into pieces leaving `cortes` centred gaps."""
+    if cortes == 0:
+        return [(x0, x1)]
+    hueco, paso = 9.0, 16.0
+    total = cortes * hueco + (cortes - 1) * (paso - hueco)
+    inicio = (x0 + x1) / 2 - total / 2
+    tramos, cursor = [], x0
+    for i in range(cortes):
+        a = inicio + i * paso
+        tramos.append((cursor, a))
+        cursor = a + hueco
+    tramos.append((cursor, x1))
+    return tramos
+
+
+def dibujar_marco(lz: Lienzo, palo: str) -> None:
+    color = COLOR_PALO[palo]
+    x0, y0, x1, y1 = MARCO
+    cortes = CORTES_MARCO[palo]
+    lz.linea([(x0, y0), (x0, y1)], color, 2.4)
+    lz.linea([(x1, y0), (x1, y1)], color, 2.4)
+    for y in (y0, y1):
+        for a, b in _segmentos_con_cortes(x0, x1, cortes):
+            lz.linea([(a, y), (b, y)], color, 2.4)
+
+
+def dibujar_indices(lz: Lienzo, palo: str, valor: int) -> None:
+    texto = str(valor)
+    alto = 34.0
+    ancho = ancho_numero(texto, alto)
+    color = COLOR_PALO[palo]
+    for rot in (0, 180):
+        esquina = lz.con(131, 200, rot).con(-131, -200)
+        x, y = 13.0, 12.0
+        esquina.poligono([(x - 5, y - 5), (x + ancho + 5, y - 5),
+                          (x + ancho + 5, y + alto + 5), (x - 5, y + alto + 5)], PAPEL)
+        dibujar_numero(esquina, texto, x, y, alto, color)
+
+
+# --- whole cards ---------------------------------------------------------
+
+def _nuevo_lienzo() -> tuple[Image.Image, Lienzo]:
+    k = ESCALA_SALIDA * SUPERMUESTREO
+    img = Image.new("RGB", (BASE_W * k, BASE_H * k), PAPEL)
+    return img, Lienzo(ImageDraw.Draw(img), k)
+
+
+def _terminar(img: Image.Image) -> Image.Image:
+    return img.resize(TAMANO_CARTA, Image.LANCZOS)
+
+
+def dibujar_carta(valor: int, palo: str) -> Image.Image:
+    """One card face as an RGB image of TAMANO_CARTA pixels."""
+    palo = str(palo).capitalize()
+    if palo not in PALOS or int(valor) not in VALORES:
+        raise ValueError(f"No existe la carta {valor} de {palo}")
+    img, lz = _nuevo_lienzo()
+    lz.poligono([(3, 3), (259, 3), (259, 397), (3, 397)], None, (200, 190, 168), 2)
+    dibujar_marco(lz, palo)
+    if valor in FIGURAS:
+        FIGURAS[valor](lz, palo)
+    else:
+        dibujar_pips(lz, palo, valor)
+    dibujar_indices(lz, palo, valor)
+    return _terminar(img)
+
+
+def dibujar_dorso() -> Image.Image:
+    """The project's own card back, matching the web's navy and gold back."""
+    img, lz = _nuevo_lienzo()
+    fondo, linea, oro = (22, 48, 99), (60, 78, 110), (255, 204, 41)
+    lz.poligono([(0, 0), (262, 0), (262, 400), (0, 400)], (4, 11, 28))
+    lz.poligono([(12, 12), (250, 12), (250, 388), (12, 388)], fondo)
+    for i in range(-40, 70):
+        d = i * 12.0
+        lz.linea([(12 + d, 12), (12 + d + 376, 388)], linea, 1.6)
+        lz.linea([(250 - d, 12), (250 - d - 376, 388)], linea, 1.6)
+    # Re-paint the border over the lattice overflow.
+    for caja in ([(0, 0), (262, 0), (262, 12), (0, 12)], [(0, 388), (262, 388), (262, 400), (0, 400)],
+                 [(0, 0), (12, 0), (12, 400), (0, 400)], [(250, 0), (262, 0), (262, 400), (250, 400)]):
+        lz.poligono(caja, (4, 11, 28))
+    lz.poligono([(20, 20), (242, 20), (242, 380), (20, 380)], None, (224, 168, 0), 2.4)
+    rombo = lz.con(131, 200, 45)
+    rombo.poligono([(-46, -46), (46, -46), (46, 46), (-46, 46)], (8, 20, 46), oro, 4)
+    rombo.poligono([(-36, -36), (36, -36), (36, 36), (-36, 36)], None, (224, 168, 0), 2)
+    simbolo_oro(lz.con(131, 200, 0, 0.62))
+    return _terminar(img)
+
+
+def generar_baraja_40(dir_salida: str) -> dict[str, str]:
+    """Writes the 40 faces and the back into `dir_salida`; returns name -> path."""
     os.makedirs(dir_salida, exist_ok=True)
-    c = extraer_15_cartas_base(ruta_template)
-
-    directas = {
-        (1, "Basto"): c[0],
-        (1, "Espada"): c[1],
-        (1, "Copa"): c[2],
-        (1, "Oro"): c[3],
-        (10, "Copa"): c[4],
-        (2, "Espada"): c[5],
-        (3, "Basto"): c[6],
-        (4, "Copa"): c[7],
-        (5, "Oro"): c[8],
-        (11, "Basto"): c[9],
-        (6, "Oro"): c[10],
-        (7, "Copa"): c[11],
-        (12, "Basto"): c[12],
-        (11, "Copa"): c[13],
-        (12, "Espada"): c[14],
-    }
-
-    # Sprites 4x de cada palo extraídos de regiones limpias (lejos de los números de esquina)
-    pip_oro = extraer_rgba_hi(c[10][41:65, 45:74])
-    pip_copa = extraer_rgba_hi(c[7][11:41, 50:73])
-    pip_espada = extraer_rgba_hi(c[5][14:96, 15:39])
-    basto_crop = c[0][14:95, 17:71].copy()
-    pip_basto_diag = extraer_rgba_hi(basto_crop)
-
-    # Coordenadas estándar (cx, cy, rotacion) en unidades de 86x108
-    pos_2 = [(43, 33, 0), (43, 75, 180)]
-    pos_3 = [(43, 27, 0), (43, 54, 0), (43, 81, 180)]
-    pos_3_espada = [(27, 54, 0), (43, 54, 180), (59, 54, 0)]
-    pos_4 = [(28, 30, 0), (58, 30, 0), (28, 78, 180), (58, 78, 180)]
-    pos_5 = [(28, 28, 0), (58, 28, 0), (43, 54, 0), (28, 80, 180), (58, 80, 180)]
-    pos_6 = [
-        (28, 26, 0), (58, 26, 0),
-        (28, 54, 0), (58, 54, 0),
-        (28, 82, 180), (58, 82, 180),
-    ]
-    pos_7 = [
-        (26, 26, 0), (60, 26, 0),
-        (43, 37, 0),
-        (26, 54, 0), (60, 54, 0),
-        (26, 82, 180), (60, 82, 180),
-    ]
-    layouts = {2: pos_2, 3: pos_3, 4: pos_4, 5: pos_5, 6: pos_6, 7: pos_7}
-
-    rutas_generadas = {}
-
+    generadas: dict[str, str] = {}
     for palo in PALOS:
         for valor in VALORES:
-            if (valor, palo) in directas:
-                card_hi = crear_carta_directa_hi(directas[(valor, palo)], valor, palo)
-            elif valor in layouts:
-                card_hi = np.full((H_HI, W_HI, 3), 255, dtype=np.uint8)
-                coords = pos_3_espada if (palo == "Espada" and valor == 3) else layouts[valor]
-                for (cx, cy, rot) in coords:
-                    if palo == "Oro":
-                        esc = 1.02 if valor <= 4 else 0.94
-                        pegar_rgba(card_hi, pip_oro, cx, cy, esc, esc, 0)
-                    elif palo == "Copa":
-                        esc = 0.98 if valor <= 4 else 0.90
-                        pegar_rgba(card_hi, pip_copa, cx, cy, esc, esc, 0)
-                    elif palo == "Espada":
-                        if valor == 3:
-                            pegar_rgba(card_hi, pip_espada, cx, cy, 0.76, 0.84, rot)
-                        elif valor in (4, 5):
-                            pegar_rgba(card_hi, pip_espada, cx, cy, 0.68, 0.36, rot)
-                        else:
-                            pegar_rgba(card_hi, pip_espada, cx, cy, 0.64, 0.27, rot)
-                    elif palo == "Basto":
-                        ang = -25.0 + rot
-                        if valor == 2:
-                            pegar_rgba(card_hi, pip_basto_diag, cx, cy, 0.50, 0.42, ang)
-                        elif valor in (4, 5):
-                            pegar_rgba(card_hi, pip_basto_diag, cx, cy, 0.42, 0.34, ang)
-                        else:
-                            pegar_rgba(card_hi, pip_basto_diag, cx, cy, 0.36, 0.26, ang)
-                dibujar_marco_e_indices_hi(card_hi, valor, palo)
-            elif valor == 10:
-                copia = c[4].copy()
-                copia[8:27, 15:32] = 255
-                card_hi = crear_carta_directa_hi(copia, 10, palo)
-                if palo == "Oro":
-                    pegar_rgba(card_hi, pip_oro, 24, 19, 0.62, 0.62, 0)
-                elif palo == "Espada":
-                    pegar_rgba(card_hi, pip_espada, 24, 21, 0.55, 0.28, 180)
-                elif palo == "Basto":
-                    pegar_rgba(card_hi, pip_basto_diag, 24, 20, 0.36, 0.30, -15)
-                dibujar_marco_e_indices_hi(card_hi, 10, palo)
-            elif valor == 11:
-                copia = c[13].copy()
-                copia[8:26, 20:36] = 255
-                card_hi = crear_carta_directa_hi(copia, 11, palo)
-                if palo == "Oro":
-                    pegar_rgba(card_hi, pip_oro, 28, 18, 0.64, 0.64, 0)
-                elif palo == "Espada":
-                    pegar_rgba(card_hi, pip_espada, 28, 19, 0.56, 0.28, 180)
-                dibujar_marco_e_indices_hi(card_hi, 11, palo)
-            elif valor == 12:
-                copia = c[14].copy()
-                copia[10:52, 13:27] = 255
-                card_hi = crear_carta_directa_hi(copia, 12, palo)
-                if palo == "Oro":
-                    pegar_rgba(card_hi, pip_oro, 22, 34, 0.66, 0.66, 0)
-                elif palo == "Copa":
-                    pegar_rgba(card_hi, pip_copa, 22, 33, 0.70, 0.70, 0)
-                dibujar_marco_e_indices_hi(card_hi, 12, palo)
+            nombre = nombre_archivo(valor, palo)
+            ruta = os.path.join(dir_salida, nombre)
+            dibujar_carta(valor, palo).save(ruta, optimize=True)
+            generadas[nombre] = ruta
+    ruta = os.path.join(dir_salida, NOMBRE_DORSO)
+    dibujar_dorso().save(ruta, optimize=True)
+    generadas[NOMBRE_DORSO] = ruta
+    return generadas
 
-            nombre_archivo = f"{valor}_{palo}.png"
-            ruta_out = os.path.join(dir_salida, nombre_archivo)
-            cv2.imwrite(ruta_out, card_hi)
-            rutas_generadas[f"{valor}_{palo}"] = ruta_out
 
-    return rutas_generadas
+def hoja_de_contactos(dir_cartas: str, destino: str, ancho_carta: int = 131) -> str:
+    """A grid of all 40 faces plus the back, for reviewing the deck at a glance."""
+    alto = round(ancho_carta * BASE_H / BASE_W)
+    sep = 8
+    filas = [[nombre_archivo(v, p) for v in VALORES] for p in PALOS] + [[NOMBRE_DORSO]]
+    hoja = Image.new("RGB", (len(VALORES) * (ancho_carta + sep) + sep,
+                             len(filas) * (alto + sep) + sep), (30, 60, 40))
+    for f, fila in enumerate(filas):
+        for c, nombre in enumerate(fila):
+            img = Image.open(os.path.join(dir_cartas, nombre)).convert("RGB")
+            hoja.paste(img.resize((ancho_carta, alto), Image.LANCZOS),
+                       (sep + c * (ancho_carta + sep), sep + f * (alto + sep)))
+    hoja.save(destino, optimize=True)
+    return destino
 
 
 if __name__ == "__main__":
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    dir_cartas = os.path.join(base_dir, "cartas")
-    os.makedirs(dir_cartas, exist_ok=True)
-    ruta_tpl = os.path.join(dir_cartas, "template_naipes.jpg")
-    generadas = generar_baraja_40(ruta_tpl, dir_cartas)
-    print(f"Generadas {len(generadas)} cartas HD (344x432) en {dir_cartas}")
+    import sys
+
+    dir_cartas = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cartas")
+    generadas = generar_baraja_40(dir_cartas)
+    print(f"[OK] {len(generadas)} imagenes en {dir_cartas}")
+    if len(sys.argv) > 1:
+        print(f"[OK] Hoja de contactos: {hoja_de_contactos(dir_cartas, sys.argv[1])}")
