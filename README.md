@@ -80,6 +80,26 @@ appear on your side as you play them. In the viewer, **F7** cycles the cameras
 is available, and the robot's hand shows card backs. Offscreen screenshots:
 `cd entorno && py -3 -m sim.capturas ../docs/screenshots/step1 jpg`. See ADR 0067.
 
+## Spectator mode (two AIs)
+
+With the game server running (`jugar_truco.bat`), open
+<http://127.0.0.1:8080/espectador> (or **Modo espectador** in the main page's top
+bar). Pick an AI for each seat (Refuerzo corrida 3 · gen 73, Utilidad adaptativa,
+Genético publicado (gen 48) or Reactivo; the same one twice is fine), the length
+(A 15, A 30, or a short match of 1 to 10 hands) and press **Empezar**. Controls:
+Pausa / Seguir, Siguiente jugada (one action), speed ×0.5 / ×1 / ×2, Ver cartas
+(both hands face up by default), Qué piensa cada IA (on-screen only, never
+spoken), the 3D camera, and at the end Revancha or Cambiar IAs.
+
+The match runs on the training engine (`proyecto/espectador.py`, ADR 0064), so the
+AIs play exactly as they were measured, plus the envido rule of ADR 0068. With the
+simulator open, a second G1 in a light-blue poncho sits in seat 2 and both robots
+hold and play their cards; every camera is allowed (F7 cycles `general`,
+`detras_robot_1`, `detras_robot_2`, `mesa`). Without MuJoCo the page works alone.
+Short matches are also available against Ottoman from the **Corta** selector next to
+A 15 / A 30 (ADR 0069). Two-robot screenshots:
+`cd entorno && py -3 -m sim.capturas ../docs/screenshots/step2 jpg robots`.
+
 ## Phase 2 network dependency
 
 The phase 2 network and policy require PyTorch on CPU. Install it separately with
