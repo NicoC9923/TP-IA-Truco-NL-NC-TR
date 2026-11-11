@@ -101,6 +101,9 @@ def _red_publicada(root):
         return None
     shipped = {k: sidecar.get(k) for k in ('run', 'generation', 'selection', 'temperature', 'profile_prior')}
     shipped['selection'] = shipped['selection'] or 'sampled'
+    if shipped['run'] == 'run3':
+        _agregar_examen_corrida3(root, shipped)
+        return shipped
     try:
         exam = json.loads((root / 'experiments/phase2-final-exam/part-e/results.json').read_text(encoding='utf-8'))
         part_t = json.loads((root / 'experiments/phase2-final-exam/part-t/results.json').read_text(encoding='utf-8'))
@@ -113,6 +116,32 @@ def _red_publicada(root):
     except (OSError, ValueError, UnicodeDecodeError, KeyError, TypeError):
         pass
     return shipped
+
+
+def _agregar_examen_corrida3(root, shipped):
+    """Run 3 generation 73 (ADR 0063): its exam (C1 against the retired run 2 baseline B), the direct duel
+    from the all-vs-all, and the one guardrail it failed. Numbers are read from the recorded results."""
+    shipped['retired'] = {'run': 'run2', 'generation': 38}
+    try:
+        analysis = json.loads((root / 'experiments/phase2-run3-exam/part-e/results.json').read_text(encoding='utf-8'))['analysis']
+        rates = analysis['win_rates']
+        shipped['exam'] = {'opponents': EXAM_OPPONENTS,
+                           'shipped': [r['mean'] for r in rates['C1']],
+                           'retired': [r['mean'] for r in rates['B']]}
+        failed = [g for g in analysis['candidates']['C1']['guardrails'] if not g['pass']]
+        if failed:
+            g = failed[0]
+            shipped['failed_guardrail'] = {'opponent': EXAM_OPPONENTS[g['k']], 'gain': g['gain'],
+                                           'lower': g['lower'], 'upper': g['upper']}
+    except (OSError, ValueError, UnicodeDecodeError, KeyError, TypeError, IndexError):
+        pass
+    try:
+        pairs = json.loads((root / 'experiments/all-vs-all/output/results.json').read_text(encoding='utf-8'))['analysis']['pairs']
+        duel = next(p for p in pairs if p['row'] == 'phase2_run3_g73' and p['col'] == 'phase2_run2_g38')
+        shipped['duel'] = {'opponent_generation': 38, 'win_rate': duel['mean'], 'lower': duel['lower'],
+                           'upper': duel['upper'], 'pairs': duel['n']}
+    except (OSError, ValueError, UnicodeDecodeError, KeyError, TypeError, StopIteration):
+        pass
 
 
 def _comparacion_publicada(root):

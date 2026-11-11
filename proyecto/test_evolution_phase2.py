@@ -377,11 +377,29 @@ class ShippedRun2Tests(unittest.TestCase):
     def test_comparison_reports_the_shipped_network_and_exam(self):
         from servidor_truco import _comparacion_publicada
         shipped = _comparacion_publicada(REPO)['shipped']
-        self.assertEqual((shipped['run'], shipped['generation'], shipped['selection']), ('run2', 38, 'greedy'))
+        self.assertEqual((shipped['run'], shipped['generation'], shipped['selection']), ('run3', 73, 'greedy'))
         self.assertEqual(shipped['exam']['opponents'], ['adaptive_utility', 'reactive', 'phase1', 'held_out_1', 'held_out_2'])
-        self.assertEqual(shipped['exam']['shipped'][:3], [0.715, 0.993, 0.9245])
-        self.assertEqual(shipped['exam']['retired'][0], 0.346)
-        self.assertEqual(shipped['exam']['temperature_mean'], {'0.05': 0.6741666666666667, 'greedy': 0.83})
+        self.assertEqual(shipped['exam']['shipped'], [0.858, 0.9965, 0.926, 0.9215, 0.903])
+        self.assertEqual(shipped['exam']['retired'], [0.7215, 0.995, 0.9225, 0.9215, 0.94])
+        self.assertEqual(shipped['retired'], {'run': 'run2', 'generation': 38})
+        self.assertEqual(shipped['duel']['opponent_generation'], 38)
+        self.assertEqual(shipped['duel']['win_rate'], 0.655)
+        self.assertEqual(shipped['duel']['pairs'], 1000)
+        failed = shipped['failed_guardrail']
+        self.assertEqual(failed['opponent'], 'held_out_2')
+        self.assertAlmostEqual(failed['gain'], -0.037)
+        self.assertLess(failed['upper'], -0.02)
+
+    def test_example_hand_of_the_shipped_network_has_all_1635_inputs_grouped(self):
+        from phase2_example_hand import example_hand_payload
+        payload = example_hand_payload(REPO, directory=REPO / 'champions/phase2')
+        self.assertTrue(payload['available'])
+        self.assertEqual(payload['generation'], 73)
+        trace = next(step['trace'] for step in payload['steps'] if 'trace' in step)
+        self.assertEqual(len(trace['input']), 1635)
+        for unit in trace['calculations'][0]:
+            self.assertEqual(len(unit['groups']), 7)
+            self.assertAlmostEqual(sum(unit['groups']) + unit['bias'], unit['sum'], places=4)
 
     def test_comparison_probe_belongs_to_retired_run1_champion(self):
         from servidor_truco import _comparacion_publicada

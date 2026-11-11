@@ -75,12 +75,14 @@ def decision_trace(model, inputs, probabilities, action):
     # over all their inputs. This does not change the model or policy.
     groups = [(0, 70), (70, 190), (190, 202), (202, 1618),
               (1618, 1623), (1623, 1628)]
+    if tensor.numel() > 1628:
+        groups.append((1628, tensor.numel()))  # run 3 hand facts (encoder v2/v3)
     calculations = []
     for layer, source in ((model.layers[0], tensor), (model.layers[2], first)):
         units = []
         for index in range(3):
             products = layer.weight[index].detach() * source
-            ranges = groups if source.numel() == 1628 else [(0, source.numel())]
+            ranges = groups if source.numel() == tensor.numel() else [(0, source.numel())]
             units.append({'bias': float(layer.bias[index].detach()),
                           'groups': [float(products[a:b].sum()) for a, b in ranges],
                           'sum': float(products.sum() + layer.bias[index].detach())})
