@@ -1,0 +1,22 @@
+DRAFT for the coordinator to freeze. All-vs-all round robin, descriptive only.
+
+PURPOSE AND LIMITS
+- Describe how 8 playable agents do against each other. No selection, ranking-based decision, shipping decision, rerun, extension or threshold. One run; an interrupted run may only be resumed to finish its missing pairs.
+- Reactive, Adaptive Utility (AU) and the phase 1 shipped network were familiar training or selection opponents for some of the phase 2 networks, so results against them are not an independent strength test. Phase 2 runs differ in inputs, target and training; differences are not an isolated comparison of training algorithms.
+
+AGENTS (index order; tool: proyecto/round_robin_all.py; identities, hashes and Spanish display names in experiments/all-vs-all/config.json; the tool refuses on any hash mismatch)
+0 Reactive (fixed initial state). 1 Adaptive Utility (AdaptiveUtilityPolicy, fixed initial state, fresh history). 2 Phase 1 shipped g48, champions/phase1/reigning_champion.npy (encoder v1, default profile and sampling). 3 Phase 2 run 1 g28 (retired). 4 Phase 2 run 2 g38 (shipped). 5 Phase 2 run 2 g49 (read-only archive file). 6 Phase 2 run 3 g73 (run 3 champion). 7 Phase 2 run 3 g100 (last checked generation).
+- Every phase 2 network plays GREEDY with adaptation on and profile prior 5, loaded with the encoder matching its input width (1628 = v1, 1635 = v3).
+
+PROTOCOL
+- 28 pairings (every unordered pair once, lexicographic order; pairing index = position). 1000 mirror pairs per pairing (56,000 games), 12 workers at most.
+- Pair i = 0..999: target 15 if i is even, 30 if odd; start 0-0; validation deal partition 0. The same deal seed for both games of a pair, seats swapped (game 0: lower-index agent first; game 1: second). Every game builds new policies, profiles and action RNGs; nothing is carried between games or pairs.
+- Deal seed = 2*((94001 + pairing_index)*10^9 + i). Action seed = 2^134 + (((pairing_index*1000 + i)*2 + game)*2 + seat). Audited by the tool against every earlier namespace including the run 3 exam (deal bases 93001-93005, action exponent 133).
+- Durability: partial.jsonl (flush every record, fsync every 32 and per pairing), config.json (git revision, hashes of all project .py files, rule, tool, config, every model file), started.lock, resume finishes only missing pairs; results.json and complete.txt only after validating all 28 x 1000 = 28,000 unique valid pairs.
+
+STATISTICS (descriptive)
+- Pair score of the row agent = (its wins over the pair's two games)/2. Per ordered pair: mean over the 1000 pairs with normal 95% interval mean +/- 1.96*sample SD/sqrt(1000). Intervals are unadjusted for multiple comparisons.
+- Per agent: equal-weight mean over its 7 opponents (SE = sqrt(sum of SE^2)/7).
+- Bradley-Terry rating fitted on all games (0.5 pseudo-win per side per pairing, Elo scale, mean 0). Descriptive: it assumes transitive strength.
+
+RUN: py proyecto/round_robin_all.py experiments/all-vs-all/config.json --workers 12   (resume: add --resume; dry audit: --check, plays nothing). Output in experiments/all-vs-all/output/.

@@ -1,0 +1,25 @@
+DRAFT for the coordinator to freeze. Per-run evolution of the phase 2 reinforcement-learning runs, descriptive only.
+
+PURPOSE AND LIMITS
+- Describe how selected generations of each phase 2 run do against fixed reference agents and against each other. No selection, shipping decision, rerun, extension or threshold. One run; an interrupted run may only be resumed to finish missing pairs.
+- Reactive, Adaptive Utility (AU) and the phase 1 network were familiar training or selection opponents for some runs; results against them are not an independent strength test. Generations were chosen for coverage of each run's course, not by result.
+
+AGENTS (tool: proyecto/round_robin_all.py; hashes and Spanish names in experiments/run-evolution/config.json; refuses on any mismatch; archive files are read-only)
+- Group A, all greedy, adaptation on, prior 5, encoder by input width: run 1 g4, g10, g20, g28, g47 (archive phase2-run1/phase2); run 2 g10, g20, g30, g38 (the shipped champions/phase2/reigning_champion.pt), g49 (archive phase2-run2/training_output); run 3 g11, g25, g50, g73, g100 (training_output/phase2-run3).
+- Group B: Reactive, Adaptive Utility (fixed initial state, fresh history), phase 1 shipped g48 (encoder v1), and run 2 g38 (shipped) as a common yardstick.
+
+PAIRINGS (index = position; unordered pairs listed once)
+- Cross: every group A agent against every group B agent, in A order then B order (60, minus the g38-vs-g38 self pair = 59).
+- Within: all unordered pairs inside each run separately (3 x 10 = 30, minus the 4 run 2 g38 pairs already in the cross part = 26).
+- 85 pairings, 1000 mirror pairs each (170,000 games), 12 workers at most.
+
+PROTOCOL
+- Pair i: target 15 if even, 30 if odd; start 0-0; validation partition 0; same deal seed for both games, seats swapped (game 0: first agent of the pairing first); new policies, profiles and RNGs every game.
+- Deal seed = 2*((95001 + pairing_index)*10^9 + i). Action seed = 2^135 + (((pairing_index*1000 + i)*2 + game)*2 + seat). Audited by the tool against every earlier namespace, including the all-vs-all (94001.., exponent 134).
+- Durability and completion as in experiments/all-vs-all/RULE.txt; complete only after validating all 85 x 1000 unique pairs.
+
+STATISTICS (descriptive)
+- Pair score of the row agent = (its wins over the two games)/2; mean over 1000 pairs with normal 95% interval +/- 1.96*sample SD/sqrt(1000); unadjusted for multiple comparisons.
+- results.json analysis.runs: for each run a table generation x group B opponent (mean, interval) and the within-run matrix (row generation's score against column generation). No rating is fitted.
+
+RUN: py proyecto/round_robin_all.py experiments/run-evolution/config.json --workers 12   (resume: --resume; dry audit: --check). Output in experiments/run-evolution/output/.

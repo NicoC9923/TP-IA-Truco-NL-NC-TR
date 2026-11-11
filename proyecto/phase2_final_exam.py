@@ -185,18 +185,23 @@ SEED_AUDITS = {'run2': (EARLIER_SCHEDULE_SEEDS, EARLIER_ACTION_RANGES),
                               EARLIER_ACTION_RANGES + SINCE_RUN2_ACTION_RANGES)}
 
 
+def audit_plan(plan, schedule_seeds, action_ranges):
+    """Refuse if a plan's deal ids or action seeds overlap the given earlier schedule seeds or action ranges."""
+    (deal_lo, deal_hi), (action_lo, action_hi) = seed_ranges(plan)
+    for seed in sorted(schedule_seeds):
+        if not (2 * (seed * 10 ** 9 + 10 ** 9 - 1) < deal_lo or 2 * seed * 10 ** 9 > deal_hi):
+            raise ValueError(f'plan {plan["part"]}: deal ids overlap earlier schedule seed {seed}')
+    for lo, hi in action_ranges:
+        if not (hi < action_lo or lo > action_hi):
+            raise ValueError(f'plan {plan["part"]}: action seeds overlap earlier range {lo}-{hi}')
+
+
 def audit_exam_seeds(exam):
     """Refuse if a plan's deal ids or action seeds overlap an earlier namespace or another plan of the same exam."""
     schedule_seeds, action_ranges = SEED_AUDITS[exam['seed_audit']]
     plans = [plan for plan in (exam['part_t'], exam['part_e']) if plan]
     for plan in plans:
-        (deal_lo, deal_hi), (action_lo, action_hi) = seed_ranges(plan)
-        for seed in sorted(schedule_seeds):
-            if not (2 * (seed * 10 ** 9 + 10 ** 9 - 1) < deal_lo or 2 * seed * 10 ** 9 > deal_hi):
-                raise ValueError(f'plan {plan["part"]}: deal ids overlap earlier schedule seed {seed}')
-        for lo, hi in action_ranges:
-            if not (hi < action_lo or lo > action_hi):
-                raise ValueError(f'plan {plan["part"]}: action seeds overlap earlier range {lo}-{hi}')
+        audit_plan(plan, schedule_seeds, action_ranges)
     for first, second in zip(plans, plans[1:]):
         (a_deals, a_actions), (b_deals, b_actions) = all_seeds(first), all_seeds(second)
         if a_deals & b_deals or a_actions & b_actions:
@@ -576,7 +581,8 @@ def _scores(records, plan, names):
 
 
 def _run_part(*, part, plan, evaluated, models, needed, root, output, workers, resume, rule_path, analyze, extra=None,
-              check=None):
+              check=None, play_jobs=None):
+    play_jobs = play_jobs or _play_jobs
     if type(workers) is not int or not 1 <= workers <= MAX_WORKERS:
         raise ValueError(f'workers must be between 1 and {MAX_WORKERS}')
     output = Path(output)
@@ -616,7 +622,7 @@ def _run_part(*, part, plan, evaluated, models, needed, root, output, workers, r
         for block in range(blocks):
             jobs = [(block, i) for i in range(count) if (block, i) not in done]
             if jobs:
-                for record in _play_jobs(config, jobs, workers):
+                for record in play_jobs(config, jobs, workers):
                     stream.write(json.dumps(record, sort_keys=True) + '\n')
                     stream.flush()
                     written += 1

@@ -1,0 +1,301 @@
+{
+  "name": "run-evolution",
+  "rule": "experiments/run-evolution/RULE.txt",
+  "output": "experiments/run-evolution/output",
+  "seed_audit": "since_all_vs_all",
+  "pairing": {
+    "mode": "cross",
+    "a": [
+      "phase2_run1_g4",
+      "phase2_run1_g10",
+      "phase2_run1_g20",
+      "phase2_run1_g28",
+      "phase2_run1_g47",
+      "phase2_run2_g10",
+      "phase2_run2_g20",
+      "phase2_run2_g30",
+      "phase2_run2_g38",
+      "phase2_run2_g49",
+      "phase2_run3_g11",
+      "phase2_run3_g25",
+      "phase2_run3_g50",
+      "phase2_run3_g73",
+      "phase2_run3_g100"
+    ],
+    "b": [
+      "reactive",
+      "adaptive_utility",
+      "phase1_g48",
+      "phase2_run2_g38"
+    ],
+    "within": [
+      {
+        "name": "run1",
+        "agents": [
+          "phase2_run1_g4",
+          "phase2_run1_g10",
+          "phase2_run1_g20",
+          "phase2_run1_g28",
+          "phase2_run1_g47"
+        ]
+      },
+      {
+        "name": "run2",
+        "agents": [
+          "phase2_run2_g10",
+          "phase2_run2_g20",
+          "phase2_run2_g30",
+          "phase2_run2_g38",
+          "phase2_run2_g49"
+        ]
+      },
+      {
+        "name": "run3",
+        "agents": [
+          "phase2_run3_g11",
+          "phase2_run3_g25",
+          "phase2_run3_g50",
+          "phase2_run3_g73",
+          "phase2_run3_g100"
+        ]
+      }
+    ]
+  },
+  "plan": {
+    "deal_base": 95001,
+    "action_exp": 135,
+    "count": 1000,
+    "targets": [
+      15,
+      30
+    ]
+  },
+  "agents": [
+    {
+      "id": "reactive",
+      "name": "Reactivo",
+      "model": "R"
+    },
+    {
+      "id": "adaptive_utility",
+      "name": "Utilidad adaptativa",
+      "model": "AU"
+    },
+    {
+      "id": "phase1_g48",
+      "name": "Genético publicado (gen 48)",
+      "model": "P1"
+    },
+    {
+      "id": "phase2_run1_g4",
+      "name": "Refuerzo corrida 1 · gen 4",
+      "model": "R1G4"
+    },
+    {
+      "id": "phase2_run1_g10",
+      "name": "Refuerzo corrida 1 · gen 10",
+      "model": "R1G10"
+    },
+    {
+      "id": "phase2_run1_g20",
+      "name": "Refuerzo corrida 1 · gen 20",
+      "model": "R1G20"
+    },
+    {
+      "id": "phase2_run1_g28",
+      "name": "Refuerzo corrida 1 · gen 28",
+      "model": "R1G28"
+    },
+    {
+      "id": "phase2_run1_g47",
+      "name": "Refuerzo corrida 1 · gen 47",
+      "model": "R1G47"
+    },
+    {
+      "id": "phase2_run2_g10",
+      "name": "Refuerzo corrida 2 · gen 10",
+      "model": "R2G10"
+    },
+    {
+      "id": "phase2_run2_g20",
+      "name": "Refuerzo corrida 2 · gen 20",
+      "model": "R2G20"
+    },
+    {
+      "id": "phase2_run2_g30",
+      "name": "Refuerzo corrida 2 · gen 30",
+      "model": "R2G30"
+    },
+    {
+      "id": "phase2_run2_g38",
+      "name": "Refuerzo corrida 2 · gen 38 (en el juego)",
+      "model": "R2G38"
+    },
+    {
+      "id": "phase2_run2_g49",
+      "name": "Refuerzo corrida 2 · gen 49",
+      "model": "R2G49"
+    },
+    {
+      "id": "phase2_run3_g11",
+      "name": "Refuerzo corrida 3 · gen 11",
+      "model": "R3G11"
+    },
+    {
+      "id": "phase2_run3_g25",
+      "name": "Refuerzo corrida 3 · gen 25",
+      "model": "R3G25"
+    },
+    {
+      "id": "phase2_run3_g50",
+      "name": "Refuerzo corrida 3 · gen 50",
+      "model": "R3G50"
+    },
+    {
+      "id": "phase2_run3_g73",
+      "name": "Refuerzo corrida 3 · gen 73",
+      "model": "R3G73"
+    },
+    {
+      "id": "phase2_run3_g100",
+      "name": "Refuerzo corrida 3 · gen 100",
+      "model": "R3G100"
+    }
+  ],
+  "models": {
+    "R": {
+      "kind": "reactive"
+    },
+    "AU": {
+      "kind": "au"
+    },
+    "P1": {
+      "kind": "phase1",
+      "path": "champions/phase1/reigning_champion.npy",
+      "sha256": "0b3e04fad09334f60d2d416b9c6848c7b3aabcfa6bb0d6593ac825feb32e47f7"
+    },
+    "R2G38": {
+      "kind": "phase2",
+      "path": "champions/phase2/reigning_champion.pt",
+      "sha256": "95eee708e8839233c27e4b3d710b6b5da74f3a149f7fe5ce8deef4cb720b60bf",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "sidecar": {
+        "path": "champions/phase2/reigning_champion.json",
+        "sha256": "2a2de83be30467cdf8d73ae502e01fe777de07fb578077b0d833f7e5d1a67f77",
+        "require": {
+          "generation": 38,
+          "selection": "greedy",
+          "profile_prior": 5.0
+        }
+      }
+    },
+    "R1G4": {
+      "kind": "phase2",
+      "path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/phase2-run1/phase2/generation_000004.pt",
+      "sha256": "818ae82f15e08bbd6ebc98fc7229d4e78dba723c89e84b948ca19a8575204805",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "external_read_only": true
+    },
+    "R1G10": {
+      "kind": "phase2",
+      "path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/phase2-run1/phase2/generation_000010.pt",
+      "sha256": "0bf75b100602aaeec9012f14a3bb17d8fabe84025e7be8d8974265c5fea94ada",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "external_read_only": true
+    },
+    "R1G20": {
+      "kind": "phase2",
+      "path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/phase2-run1/phase2/generation_000020.pt",
+      "sha256": "455ef0fd3860860554ba90c743efaca707e545b3673c7d270e53b68220ea79fd",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "external_read_only": true
+    },
+    "R1G28": {
+      "kind": "phase2",
+      "path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/phase2-run1/phase2/generation_000028.pt",
+      "sha256": "66ed791f4dd113e350dc99e141c1ecead1917b3055e79a47d5b09920d54ad57f",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "external_read_only": true
+    },
+    "R1G47": {
+      "kind": "phase2",
+      "path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/phase2-run1/phase2/generation_000047.pt",
+      "sha256": "fd31df88a6b66d22e2998fcc1abee642bc5327e1147cf35a5436ad68d707c95e",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "external_read_only": true
+    },
+    "R2G10": {
+      "kind": "phase2",
+      "path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/phase2-run2/training_output/phase2-run2/generation_000010.pt",
+      "sha256": "63ac660954ad144f56631ec65058cd798ac84dcd5b40892c787a3d5e0db0e0e4",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "external_read_only": true
+    },
+    "R2G20": {
+      "kind": "phase2",
+      "path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/phase2-run2/training_output/phase2-run2/generation_000020.pt",
+      "sha256": "6bac075e0d916554d81080a141f5cc785a103a425995e86d19e158aacbf38752",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "external_read_only": true
+    },
+    "R2G30": {
+      "kind": "phase2",
+      "path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/phase2-run2/training_output/phase2-run2/generation_000030.pt",
+      "sha256": "200cefc623f02e4cf0f0f511b6d1b8859d4fe87b08c1ce30cf0f5c3d06f4a974",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "external_read_only": true
+    },
+    "R2G49": {
+      "kind": "phase2",
+      "path": "E:/Tools/GitHub-Repositories/TP-IA-Truco-training-archive/phase2-run2/training_output/phase2-run2/generation_000049.pt",
+      "sha256": "e789d7b1a171ab73e33766101f8bbf62204649d79db0cb9b20052acfd5264f44",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "external_read_only": true
+    },
+    "R3G11": {
+      "kind": "phase2",
+      "path": "training_output/phase2-run3/generation_000011.pt",
+      "sha256": "b7a76ffc7cfcd3e5018790400c76ebd830143631678aa7e3586439d0e6d44bd7",
+      "profile_prior": 5,
+      "input_size": 1635
+    },
+    "R3G25": {
+      "kind": "phase2",
+      "path": "training_output/phase2-run3/generation_000025.pt",
+      "sha256": "ac04babeac97f996a0caa26add9d898184ad16bce45cee0393c88dd23e346aa4",
+      "profile_prior": 5,
+      "input_size": 1635
+    },
+    "R3G50": {
+      "kind": "phase2",
+      "path": "training_output/phase2-run3/generation_000050.pt",
+      "sha256": "bbb89adae8e6d42e6a4d7444da41dae4894c10fd20b756f824b8d69d9b4e50d7",
+      "profile_prior": 5,
+      "input_size": 1635
+    },
+    "R3G73": {
+      "kind": "phase2",
+      "path": "training_output/phase2-run3/generation_000073.pt",
+      "sha256": "3949141192c4024396b0a86a84120197845ebb276f65a797461dca9d45a24811",
+      "profile_prior": 5,
+      "input_size": 1635
+    },
+    "R3G100": {
+      "kind": "phase2",
+      "path": "training_output/phase2-run3/generation_000100.pt",
+      "sha256": "a57a6b5cd6e3b95f4ab2fbc8b221e948c9e4ca97ea9e9547b76deddbac16358e",
+      "profile_prior": 5,
+      "input_size": 1635
+    }
+  }
+}
