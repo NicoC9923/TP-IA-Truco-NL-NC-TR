@@ -322,6 +322,14 @@ def _check_hash(where, value, allow_none=False):
         raise ValueError(f'{where}: sha256 is not a filled-in 64-digit hash ({value!r})')
 
 
+def _refuse_placeholders(node):
+    if isinstance(node, dict):
+        for value in node.values():
+            _refuse_placeholders(value)
+    elif isinstance(node, str) and ('TODO' in node or 'NNNNNN' in node):
+        raise ValueError(f'config still has a placeholder: {node!r}')
+
+
 def load_exam_config(path, root=REAL_ROOT):
     """An exam config (JSON, paths relative to `root`) as plans, resolved model identities and evaluated networks.
     Refuses placeholder hashes and evaluated networks without an explicit temperature (null = greedy)."""
@@ -347,6 +355,7 @@ def load_exam_config(path, root=REAL_ROOT):
             entry['sidecar']['path'] = _resolve(root, entry['sidecar']['path'])
         if 'last_checked' in entry:
             entry['last_checked']['log'] = _resolve(root, entry['last_checked']['log'])
+    _refuse_placeholders(models)
     evaluated = raw['evaluated']
     for item in evaluated:
         if set(item) != {'name', 'model', 'temperature'}:

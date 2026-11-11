@@ -1,0 +1,111 @@
+{
+  "name": "phase2-run3-exam",
+  "rule": "experiments/phase2-run3-exam/RULE.txt",
+  "seed_audit": "since_run2",
+  "part_t": null,
+  "part_e": {
+    "deal_base": 93001,
+    "action_exp": 133,
+    "count": 1000,
+    "targets": [
+      15,
+      30
+    ],
+    "opponents": [
+      "AU",
+      "R",
+      "P1",
+      "H1",
+      "H2"
+    ]
+  },
+  "output_t": null,
+  "output_e": "experiments/phase2-run3-exam/part-e",
+  "evaluated": [
+    {
+      "name": "C1",
+      "model": "C1",
+      "temperature": null
+    },
+    {
+      "name": "C2",
+      "model": "C2",
+      "temperature": null
+    },
+    {
+      "name": "B",
+      "model": "B",
+      "temperature": null
+    }
+  ],
+  "models": {
+    "C1": {
+      "kind": "phase2",
+      "path": "champions/phase2-run3/reigning_champion.pt",
+      "sha256": "TODO-coordinator-fills-after-training: sha256 of the run 3 champion",
+      "profile_prior": 5,
+      "input_size": 1635,
+      "equals": {
+        "path": "training_output/phase2-run3/generation_NNNNNN.pt",
+        "sha256": "TODO-coordinator-fills-after-training: sha256 of the champion generation snapshot (TODO: replace NNNNNN with the sidecar generation)"
+      },
+      "sidecar": {
+        "path": "champions/phase2-run3/reigning_champion.json",
+        "sha256": null,
+        "require": {
+          "generation": "TODO-set-to-the-champion-generation",
+          "selection": "greedy",
+          "profile_prior": 5.0
+        }
+      }
+    },
+    "C2": {
+      "kind": "phase2",
+      "path": "training_output/phase2-run3/generation_NNNNNN.pt",
+      "sha256": "TODO-coordinator-fills-after-training: sha256 of the last fully checked generation (TODO: replace NNNNNN)",
+      "profile_prior": 5,
+      "input_size": 1635,
+      "last_checked": {
+        "log": "training_output/phase2-run3/generations.jsonl",
+        "generation": "TODO-last-generation-with-a-check"
+      }
+    },
+    "B": {
+      "kind": "phase2",
+      "path": "champions/phase2/reigning_champion.pt",
+      "sha256": "95eee708e8839233c27e4b3d710b6b5da74f3a149f7fe5ce8deef4cb720b60bf",
+      "profile_prior": 5,
+      "input_size": 1628,
+      "sidecar": {
+        "path": "champions/phase2/reigning_champion.json",
+        "sha256": "2a2de83be30467cdf8d73ae502e01fe777de07fb578077b0d833f7e5d1a67f77",
+        "require": {
+          "generation": 38,
+          "selection": "greedy",
+          "profile_prior": 5.0
+        }
+      }
+    },
+    "AU": {
+      "kind": "au"
+    },
+    "R": {
+      "kind": "reactive"
+    },
+    "P1": {
+      "kind": "phase1",
+      "path": "champions/phase1/reigning_champion.npy",
+      "sha256": "0b3e04fad09334f60d2d416b9c6848c7b3aabcfa6bb0d6593ac825feb32e47f7"
+    },
+    "H1": {
+      "kind": "phase1",
+      "path": "experiments/phase1-seed1/reigning_champion.npy",
+      "sha256": "413542520b893418371fa0ff29b4b693d0675ef60cd4be55f8e782dd544db31c"
+    },
+    "H2": {
+      "kind": "phase1",
+      "path": "experiments/phase1-seed2/reigning_champion.npy",
+      "sha256": "5f00bfbaa27d7ee9fcedd7610ca36b092c71b8e935218a8f337a7cc1e25a3e79"
+    }
+  }
+}
