@@ -1,0 +1,589 @@
+{
+  "analysis": {
+    "candidates": {
+      "C1": {
+        "balance": {
+          "mean": 0.020900000000000002,
+          "pass": true
+        },
+        "gains": [
+          {
+            "gain": 0.1365,
+            "lower": 0.11644253629567662,
+            "n": 1000,
+            "se": 0.010233399849144589,
+            "upper": 0.1565574637043234
+          },
+          {
+            "gain": 0.0015,
+            "lower": -0.002541595092397417,
+            "n": 1000,
+            "se": 0.002062038312447662,
+            "upper": 0.005541595092397418
+          },
+          {
+            "gain": 0.0035,
+            "lower": -0.010673123079188222,
+            "n": 1000,
+            "se": 0.007231185244483787,
+            "upper": 0.01767312307918822
+          },
+          {
+            "gain": 0.0,
+            "lower": -0.013866227759281624,
+            "n": 1000,
+            "se": 0.007074605999633481,
+            "upper": 0.013866227759281624
+          },
+          {
+            "gain": -0.037,
+            "lower": -0.051293787530321065,
+            "n": 1000,
+            "se": 0.007292748739959727,
+            "upper": -0.02270621246967893
+          }
+        ],
+        "guardrails": [
+          {
+            "gain": 0.0015,
+            "k": 1,
+            "lower": -0.002541595092397417,
+            "n": 1000,
+            "pass": true,
+            "se": 0.002062038312447662,
+            "upper": 0.005541595092397418
+          },
+          {
+            "gain": 0.0035,
+            "k": 2,
+            "lower": -0.010673123079188222,
+            "n": 1000,
+            "pass": true,
+            "se": 0.007231185244483787,
+            "upper": 0.01767312307918822
+          },
+          {
+            "gain": 0.0,
+            "k": 3,
+            "lower": -0.013866227759281624,
+            "n": 1000,
+            "pass": true,
+            "se": 0.007074605999633481,
+            "upper": 0.013866227759281624
+          },
+          {
+            "gain": -0.037,
+            "k": 4,
+            "lower": -0.051293787530321065,
+            "n": 1000,
+            "pass": false,
+            "se": 0.007292748739959727,
+            "upper": -0.02270621246967893
+          }
+        ],
+        "guardrails_pass": false,
+        "passes": false,
+        "primary": {
+          "holm_rejected": true,
+          "p": 6.894380510723002e-41,
+          "z": 13.338675514707857
+        }
+      },
+      "C2": {
+        "balance": {
+          "mean": 0.0144,
+          "pass": true
+        },
+        "gains": [
+          {
+            "gain": 0.1285,
+            "lower": 0.10814564813018995,
+            "n": 1000,
+            "se": 0.010384873402964314,
+            "upper": 0.14885435186981005
+          },
+          {
+            "gain": 0.0045,
+            "lower": 0.0012600764353607498,
+            "n": 1000,
+            "se": 0.0016530222268567602,
+            "upper": 0.0077399235646392495
+          },
+          {
+            "gain": -0.0035,
+            "lower": -0.018464962094522343,
+            "n": 1000,
+            "se": 0.007635184742103235,
+            "upper": 0.011464962094522342
+          },
+          {
+            "gain": -0.0075,
+            "lower": -0.022134455141113975,
+            "n": 1000,
+            "se": 0.007466558745466314,
+            "upper": 0.007134455141113976
+          },
+          {
+            "gain": -0.05,
+            "lower": -0.06499861855500562,
+            "n": 1000,
+            "se": 0.007652356405615107,
+            "upper": -0.035001381444994394
+          }
+        ],
+        "guardrails": [
+          {
+            "gain": 0.0045,
+            "k": 1,
+            "lower": 0.0012600764353607498,
+            "n": 1000,
+            "pass": true,
+            "se": 0.0016530222268567602,
+            "upper": 0.0077399235646392495
+          },
+          {
+            "gain": -0.0035,
+            "k": 2,
+            "lower": -0.018464962094522343,
+            "n": 1000,
+            "pass": true,
+            "se": 0.007635184742103235,
+            "upper": 0.011464962094522342
+          },
+          {
+            "gain": -0.0075,
+            "k": 3,
+            "lower": -0.022134455141113975,
+            "n": 1000,
+            "pass": false,
+            "se": 0.007466558745466314,
+            "upper": 0.007134455141113976
+          },
+          {
+            "gain": -0.05,
+            "k": 4,
+            "lower": -0.06499861855500562,
+            "n": 1000,
+            "pass": false,
+            "se": 0.007652356405615107,
+            "upper": -0.035001381444994394
+          }
+        ],
+        "guardrails_pass": false,
+        "passes": false,
+        "primary": {
+          "holm_rejected": true,
+          "p": 1.812093583197583e-35,
+          "z": 12.373766632852767
+        }
+      }
+    },
+    "decision": "B",
+    "win_rates": {
+      "B": [
+        {
+          "above_half": true,
+          "lower": 0.7041602558517397,
+          "lower_above_half": true,
+          "mean": 0.7215,
+          "n": 1000,
+          "se": 0.008846808238908314,
+          "upper": 0.7388397441482604
+        },
+        {
+          "above_half": true,
+          "lower": 0.9919149590800967,
+          "lower_above_half": true,
+          "mean": 0.995,
+          "n": 1000,
+          "se": 0.0015740004693383918,
+          "upper": 0.9980850409199032
+        },
+        {
+          "above_half": true,
+          "lower": 0.9110247016390652,
+          "lower_above_half": true,
+          "mean": 0.9225,
+          "n": 1000,
+          "se": 0.005854744061701419,
+          "upper": 0.9339752983609347
+        },
+        {
+          "above_half": true,
+          "lower": 0.9100508697717694,
+          "lower_above_half": true,
+          "mean": 0.9215,
+          "n": 1000,
+          "se": 0.005841392973587026,
+          "upper": 0.9329491302282306
+        },
+        {
+          "above_half": true,
+          "lower": 0.9299242985475075,
+          "lower_above_half": true,
+          "mean": 0.94,
+          "n": 1000,
+          "se": 0.005140664006373731,
+          "upper": 0.9500757014524924
+        }
+      ],
+      "C1": [
+        {
+          "above_half": true,
+          "lower": 0.8437459495035426,
+          "lower_above_half": true,
+          "mean": 0.858,
+          "n": 1000,
+          "se": 0.007272474743090476,
+          "upper": 0.8722540504964573
+        },
+        {
+          "above_half": true,
+          "lower": 0.9939149617366811,
+          "lower_above_half": true,
+          "mean": 0.9965,
+          "n": 1000,
+          "se": 0.0013188970731218906,
+          "upper": 0.999085038263319
+        },
+        {
+          "above_half": true,
+          "lower": 0.91490285870393,
+          "lower_above_half": true,
+          "mean": 0.926,
+          "n": 1000,
+          "se": 0.005661806783709248,
+          "upper": 0.9370971412960701
+        },
+        {
+          "above_half": true,
+          "lower": 0.9098841475375921,
+          "lower_above_half": true,
+          "mean": 0.9215,
+          "n": 1000,
+          "se": 0.005926455337963231,
+          "upper": 0.9331158524624079
+        },
+        {
+          "above_half": true,
+          "lower": 0.890661238691399,
+          "lower_above_half": true,
+          "mean": 0.903,
+          "n": 1000,
+          "se": 0.0062952863819393185,
+          "upper": 0.915338761308601
+        }
+      ],
+      "C2": [
+        {
+          "above_half": true,
+          "lower": 0.8352599977046248,
+          "lower_above_half": true,
+          "mean": 0.85,
+          "n": 1000,
+          "se": 0.007520409334375128,
+          "upper": 0.8647400022953752
+        },
+        {
+          "above_half": true,
+          "lower": 0.9985200000000001,
+          "lower_above_half": true,
+          "mean": 0.9995,
+          "n": 1000,
+          "se": 0.0005,
+          "upper": 1.00048
+        },
+        {
+          "above_half": true,
+          "lower": 0.9074087956441784,
+          "lower_above_half": true,
+          "mean": 0.919,
+          "n": 1000,
+          "se": 0.005913879773378384,
+          "upper": 0.9305912043558217
+        },
+        {
+          "above_half": true,
+          "lower": 0.9022171326765358,
+          "lower_above_half": true,
+          "mean": 0.914,
+          "n": 1000,
+          "se": 0.006011667001767492,
+          "upper": 0.9257828673234643
+        },
+        {
+          "above_half": true,
+          "lower": 0.8769333333333333,
+          "lower_above_half": true,
+          "mean": 0.89,
+          "n": 1000,
+          "se": 0.006666666666666667,
+          "upper": 0.9030666666666667
+        }
+      ]
+    }
+  },
+  "config": {
+    "deal_partition": 0,
+    "engine_version": 2,
+    "evaluated": [
+      {
+        "model": "C1",
+        "name": "C1",
+        "temperature": null
+      },
+      {
+        "model": "C2",
+        "name": "C2",
+        "temperature": null
+      },
+      {
+        "model": "B",
+        "name": "B",
+        "temperature": null
+      }
+    ],
+    "git_revision": "9586b443e9d0367774d43ce6dade07f4058d53af",
+    "max_workers": 12,
+    "models": {
+      "AU": {
+        "kind": "au"
+      },
+      "B": {
+        "input_size": 1628,
+        "kind": "phase2",
+        "path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-run2\\champions\\phase2\\reigning_champion.pt",
+        "profile_prior": 5,
+        "sha256": "95eee708e8839233c27e4b3d710b6b5da74f3a149f7fe5ce8deef4cb720b60bf",
+        "sidecar": {
+          "path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-run2\\champions\\phase2\\reigning_champion.json",
+          "require": {
+            "generation": 38,
+            "profile_prior": 5.0,
+            "selection": "greedy"
+          },
+          "sha256": "2a2de83be30467cdf8d73ae502e01fe777de07fb578077b0d833f7e5d1a67f77"
+        }
+      },
+      "C1": {
+        "equals": {
+          "path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-run2\\training_output\\phase2-run3\\generation_000073.pt",
+          "sha256": "3949141192c4024396b0a86a84120197845ebb276f65a797461dca9d45a24811"
+        },
+        "input_size": 1635,
+        "kind": "phase2",
+        "path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-run2\\champions\\phase2-run3\\reigning_champion.pt",
+        "profile_prior": 5,
+        "sha256": "9866d6e406ef23502976d201cf185702aae9aec46388c37ba3a32ce050c20a47",
+        "sidecar": {
+          "path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-run2\\champions\\phase2-run3\\reigning_champion.json",
+          "require": {
+            "generation": 73,
+            "profile_prior": 5.0,
+            "selection": "greedy"
+          },
+          "sha256": "ef03b3d98e96a2437d25233c349c5fc97430d0c46ed7f05a07d4bfb5291ef67a"
+        }
+      },
+      "C2": {
+        "input_size": 1635,
+        "kind": "phase2",
+        "last_checked": {
+          "generation": 100,
+          "log": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-run2\\training_output\\phase2-run3\\generations.jsonl"
+        },
+        "path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-run2\\training_output\\phase2-run3\\generation_000100.pt",
+        "profile_prior": 5,
+        "sha256": "a57a6b5cd6e3b95f4ab2fbc8b221e948c9e4ca97ea9e9547b76deddbac16358e"
+      },
+      "H1": {
+        "kind": "phase1",
+        "path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-run2\\experiments\\phase1-seed1\\reigning_champion.npy",
+        "sha256": "413542520b893418371fa0ff29b4b693d0675ef60cd4be55f8e782dd544db31c"
+      },
+      "H2": {
+        "kind": "phase1",
+        "path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-run2\\experiments\\phase1-seed2\\reigning_champion.npy",
+        "sha256": "5f00bfbaa27d7ee9fcedd7610ca36b092c71b8e935218a8f337a7cc1e25a3e79"
+      },
+      "P1": {
+        "kind": "phase1",
+        "path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-run2\\champions\\phase1\\reigning_champion.npy",
+        "sha256": "0b3e04fad09334f60d2d416b9c6848c7b3aabcfa6bb0d6593ac825feb32e47f7"
+      },
+      "R": {
+        "kind": "reactive"
+      }
+    },
+    "part": "E",
+    "plan": {
+      "action_exp": 133,
+      "count": 1000,
+      "deal_base": 93001,
+      "opponents": [
+        "AU",
+        "R",
+        "P1",
+        "H1",
+        "H2"
+      ],
+      "part": "E",
+      "targets": [
+        15,
+        30
+      ]
+    },
+    "record_layout": "winners[name] = [winner of game 0, winner of game 1]; game 0 seats the evaluated network first, game 1 second",
+    "rule_sha256": "ef44fae223bd36ec12b52ec26467a98cc25e99cb3bb8aaeb4faf341fc4265a36",
+    "settings": "phase2: adapt=true, default weighted beliefs, profile_prior as recorded; phase1: encoder v1, default sampling and profile; AU/R: fixed initial state, fresh history",
+    "sha256": {
+      "proyecto/behavior_diversity.py": "ae77c17c15409f722de9dcd04acdcd894b34bddeec48dcd4dd6fb070122e78c0",
+      "proyecto/bench_phase2.py": "f946d85ee70a87c25504b08e45184ce634a183f0fc264c7baeb8e07adad1ecee",
+      "proyecto/bench_phase2_speed.py": "da521d7a0f0460c59842a5a5f954a8c62100cfd2be3a6983011090d4f904fc6a",
+      "proyecto/control_voz.py": "84f93d53d528b451c532906e102471387367a043f4e9e36f7e7fbc58747125cd",
+      "proyecto/ejemplo.py": "39807070ce419b610dcbfb92adf88811ffba762f031ce0e3884adfa6c762dabd",
+      "proyecto/engine_policies.py": "fd8e8cd740e94861523d97ba3773157be60c0911c48291f9140b6a678751c216",
+      "proyecto/entrenar_truco_stats.py": "b5571f474395b3b984be77ac99b093f9bb7f39a5816e5d1bd4f4de2585ab79fb",
+      "proyecto/generar_baraja.py": "d5b3f43588ae7d172728bada8e981ba9a7148eab954efa67bdbb5bf41a6be2d3",
+      "proyecto/golden_phase2_speed.py": "6285dd07e59ba0031485383ee4a9c1d10564c7e7c947551a8a9c1f9cc972667f",
+      "proyecto/historial_truco.py": "a83d37f59aac86cf2fd1c360004ea409e2677f9d57970399b8c49e94755faa9f",
+      "proyecto/inference_demo.py": "bd158738231816de0030e39104c5314fb182c5137ace9869a46b97ede37cfd5f",
+      "proyecto/input_audit.py": "37cd9400f5224959d7452a287ea27f03ac49cf977e5ade0be5b81a1b3faf79c8",
+      "proyecto/match_runner.py": "61292662373c7127d656af7242676d8c03538b1f36c2e6e5214b1766851bb0f5",
+      "proyecto/measuring_analysis.py": "a4ffda68070fe1e1c157468c776747a3a3f5466650db7efa4d3d743bed3a42b4",
+      "proyecto/offspring_diagnostic.py": "c8f7ff921a4fed82ab2c97897ccef502d117e966ef9195a4baf4b06c9b7c4ff2",
+      "proyecto/opponent_inference.py": "ff86059201483e8d05d818d89cfaa3a84e3a1488dc1642f36ec21477e908cf89",
+      "proyecto/opponent_profile.py": "949d13df905604af4c40c4c149a7747066d101b8ecb5e967d7978a2faa489f2b",
+      "proyecto/panel_evaluation.py": "378b97d4d445a894fc64ec27befe0029f00d99841cc4821d428cc878be1e4efa",
+      "proyecto/parent_selection_diagnostic.py": "c78649b2f48631fb4e2c439ede320931b31649c15767f6b7b5c4742aab7e0e01",
+      "proyecto/partida_truco.py": "71aa2ca7386527c7998f1a70f5d4a572e3ebad5efe0de62b51ceeba17e2b3ebe",
+      "proyecto/phase1_network.py": "e6393845b02465fa937ecbfd56c22e94287a292e06725bb3a9bde1010b36ef29",
+      "proyecto/phase1_trainer.py": "40e03152fd9a205cc61765c31ba94e56c5c3b172380db605d05070c127a8b577",
+      "proyecto/phase2_acceptance.py": "d9292402cf642c984a0d16537f8d55a9427fdee6df3782db6da136371cf8ffd1",
+      "proyecto/phase2_card_metrics.py": "5c6c6fee3e5670b8fdc76dd7cbcb471bde1545888bc949d6e215618fff2f7e7d",
+      "proyecto/phase2_equity.py": "917049a01ea9f5e82ea9bb1577f759e90118ee8bd186949b4adb2bb92679c8c3",
+      "proyecto/phase2_example_hand.py": "c332c73182ab95d30b50d7178a844d8a741143f556efe4a622d8a90d950ea2e2",
+      "proyecto/phase2_final_exam.py": "c48a160e5e0c4ad29f5184d97fffcfcfaa3d1987b87fa7935a9eba629618d56b",
+      "proyecto/phase2_game_policy.py": "98d065d11c64b50a951e34c6f9842ba9859dc85d0c542af142aa00865dfe54de",
+      "proyecto/phase2_hand_facts.py": "3bcb6c159122bf186b7307f45309f4e384513db93b2fd1ed88a56a5c60d10c3a",
+      "proyecto/phase2_league.py": "746472d506e43cc1355e95c10d4e2026e59082cfaf1340e83785de5f80194f39",
+      "proyecto/phase2_loader.py": "3027553e0fd7aa963dabfdda0138db50ef3817930117568ef399912cb281f9d3",
+      "proyecto/phase2_network.py": "59b84c0d4b171c377f83b1649786888b69fb7682f6323aaa239d9d142586ea7e",
+      "proyecto/phase2_probe.py": "d3e745b6249ac20bc13bfea2bb1f80cbfa58edd6f02583d5cbfa04ec0dec7330",
+      "proyecto/phase2_progress.py": "f7bb15760a73bac54412fd991f82c01950732e17bac058b963f04216a82fc891",
+      "proyecto/phase2_promotion.py": "76674acf4de4d06945d2e9ae8e3f5eea9dbf74bee945b59501439f66e8fecc71",
+      "proyecto/phase2_reference_evaluation.py": "5aa6ad3a4aad44101cb490de85edc523b1e09232cd22971cfddc9c88c218484c",
+      "proyecto/phase2_run3_pilot.py": "e05731668bf5c8d9c1ae35893778a292d1e627bdaa842e1996f57e8f2e127baf",
+      "proyecto/phase2_schedule.py": "1915e92574316600e3ef249907211c6a7b89b45e2696aa359d4e5ab14bda30fd",
+      "proyecto/phase2_target.py": "9b378a602030509f2df25d32c177e14e41351e4da5e17dcf7f65189d8ad4d8cf",
+      "proyecto/phase2_torch.py": "b104bc10bf34d874e762d49b7ebd883e02ebe4ce4ce00450b41b1082a25eb40b",
+      "proyecto/phase2_trainer.py": "5122ad94fca307115387abea5bdf3f83adaf35a51cd76d475e89b77b2ddd5430",
+      "proyecto/phase2_trainer_checks.py": "6e5cb71ff0497ece258a5465f8c1931bb7f3557b2197f32b23c576bc67d78ca5",
+      "proyecto/ranking_reliability.py": "302c5c63c00f4c586a07e5983e270f714ce2389f27d42ce342745c115c11d857",
+      "proyecto/reference_evaluation.py": "f68e559e64dec88e8f8807ba6c88c7bbc86427128ca39af4de3ad7fd81ba93d2",
+      "proyecto/reference_tournament.py": "d6caf04ef16ab0907a03b6c4fa5d7745158fd66ea5609e238254ac2dba7353f5",
+      "proyecto/robot.py": "e82d1c0ce974fb76a85b636ae34b1af660edeb23e747e00428964e0752c845d8",
+      "proyecto/run_phase1.py": "13ad73c7c743adc494d9082317b761c6a59296a0f6b598d300489d65b233be26",
+      "proyecto/servidor_truco.py": "3d92231b1b44ff9c1b62c2c3ea1509254c1a9e2ff7a483aa532760b6a60d4e9c",
+      "proyecto/symmetric_engine.py": "b2d3763ee097e609dcda772bb2e8c77ace896732469396baa9f93262bacab2bc",
+      "proyecto/test_behavior_diversity.py": "d83d37c6dfabd2abc55c2b6c7e7f92e03ba97a53076497a4114946bf03ddf651",
+      "proyecto/test_diagnostic_encoders.py": "9537a0402ed22e564bab19ae3a77b7d80e355de3c23aff0efa8cfb91e83ce74d",
+      "proyecto/test_early_stopping.py": "601df1d51cc6cc90700609e376d9ac563d32d12fee6ca80ea154a769617f2a7c",
+      "proyecto/test_encoder_metadata.py": "67e9d0a80306715e5785c991b44ae2ac6952bf9bb5150286f7515f7420d4037c",
+      "proyecto/test_encoder_v3.py": "65fb37406246b12d5adbf4a65192e07f91ff41f5843a0d0594dc499d6e4d7018",
+      "proyecto/test_encoder_v3_chunk2.py": "f634f8485ee9a5cfc244a5526f4382fd79fbab5dc5d5d843f0d97395bc248e87",
+      "proyecto/test_encoder_versions.py": "5e874154c87f0790c27cb023a1f4fad7497d3d84ca4a068ff28f596c19b2f675",
+      "proyecto/test_evolution.py": "b9ef801a0debc0c6d45f80f758f767e981fea6c08edd51a8a23524d807d7e669",
+      "proyecto/test_evolution_phase2.py": "650407e5bdf22e23bb40faccd91c94f219deef5ce9dc5f7d947c66cc03d182da",
+      "proyecto/test_inference_arrays.py": "761fc30038bb62cf31e40c317487a6a10e69c3017671252431798d5d607f97d6",
+      "proyecto/test_inference_evidence_filter.py": "3b3790be621138618c3c76d456ee6fc4861fda4a6444833287957311c1e4400e",
+      "proyecto/test_inference_fast_paths.py": "8b8be7233bea753d533a11225604cd79e9d6ec73908c4fbec388a0ecbded71e6",
+      "proyecto/test_inference_summary_order.py": "271405e1f08685d18327dedbc9e7cc3ad947c6018cdb4b90ca7d70a54a9f9416",
+      "proyecto/test_input_audit.py": "3e7618c2560f12d1921eb2b90d0d90ceae5befd011e39546a9d0a1ea4757f862",
+      "proyecto/test_measuring_analysis.py": "95ebd35e3e269c44baba981b50f7fb0bac69bde7857f0365946ccfc37b2f5e66",
+      "proyecto/test_network_explanation.py": "66be752c53d6ea0bb5217e4a5c612763f88042256afa253fca0c7e4d6d1047e6",
+      "proyecto/test_network_modes.py": "e425de89afd66b8ecec1209d2b13aa587562d56626d63c184dedda5e744c4be9",
+      "proyecto/test_offspring_diagnostic.py": "1d9eb87b04991281188ea345af877baa49541387a2101862dca7c78902a07084",
+      "proyecto/test_offspring_interpretation.py": "2f5f35acd96da331622ee3b06311a408ca1b45c40abafd4861f4babdd86327dd",
+      "proyecto/test_opponent_inference.py": "b7a9c31dfbb399fa8598e2bbf0e1b3f1cb0175623cffedb318d7a647e8711696",
+      "proyecto/test_opponent_profile.py": "3b5f639c9d851a4c9eae425feadfc1c73fdaaac05fe491dde3bbde7f573f1745",
+      "proyecto/test_panel_evaluation.py": "4b14c0df846ca21897ff428ceb3176011989564353fca5223e7cc8f120df97fa",
+      "proyecto/test_parent_selection_diagnostic.py": "9968bddcf4e073980d56602cba116fa2bc8cba9a8a3ae3cafd171c8ce3edb1c4",
+      "proyecto/test_patience_extension.py": "d1112dc40405560df2231a0f2494075fff7b951a7da62fbe73ab92f00df825a8",
+      "proyecto/test_persistent_profile.py": "67343ccd70f15b830fcfb092910170bd023d97695001b065f69909c14d4f395f",
+      "proyecto/test_phase1.py": "59b54db29bdfba76a860197673b0fa7a2516d220978b92720c0bb33d83d349bd",
+      "proyecto/test_phase1_defaults.py": "e03971e4b9302fdd3584588135a40bfb4fc25dc6dddd7c8a6488012d8a3033f7",
+      "proyecto/test_phase1_extraction_golden.py": "e648b4b8db5f58df127e41c2136058d51806958966d129f922dce87230c84dbb",
+      "proyecto/test_phase1_golden.py": "aef366f7fcb29b0a227eb92cb5ceeb0b4443d21a3948350371b336f2f4923fc3",
+      "proyecto/test_phase2_acceptance.py": "adc026fb2eaea5d0d29f77e80b00cd6fae32cb9c0b93319e82e3a4c6c1d6bdfa",
+      "proyecto/test_phase2_auxiliary.py": "cae6dd39834977cf387838cd32d06a27d02515620348a3f20062b5cf7021d63d",
+      "proyecto/test_phase2_card_metrics.py": "dfb8e2d407221349edfb356c0a2971b69184761ba3f0ec3d0aac117e6b02b6b2",
+      "proyecto/test_phase2_combination_scores.py": "67983dfc1eae541c985d1fd444ffa75090b4136a577e24eafcd86d193098bd15",
+      "proyecto/test_phase2_deal_partition.py": "23ba4d1ba702ba4dd415a794a61f44e0b6616e8982a1049f9c968d4553a2dcbe",
+      "proyecto/test_phase2_encoder.py": "14db00b84475dbb3b9b0523ee86f040c943e33442337abd132328007aeec76b2",
+      "proyecto/test_phase2_encoder_reuse.py": "5bfaad26e073df0d5d1f46ab65b928ad6fbb2a15982077d881173d251e2e36b4",
+      "proyecto/test_phase2_equity.py": "a7be85a7a7ad4fb914e1d031dd5921fe4addd0e880a191840ed939144f03eb0b",
+      "proyecto/test_phase2_extension.py": "d542e6726ce21a94c9aa1d0369d56e5e1b26e1a6d1bfa00bfdd5952edb431243",
+      "proyecto/test_phase2_fast_paths.py": "db311a8711ec233728aab62b9b8b839511430a381e04ed34e290874c47646ce3",
+      "proyecto/test_phase2_final_exam.py": "26169b06f65a483677a797ede3d5e31417f0b05f2ad667706ec89043b1e23735",
+      "proyecto/test_phase2_final_exam_run3.py": "8e36334c8ffe60a3d8f399b259d861a37aa161159546450a054d66000cbaac80",
+      "proyecto/test_phase2_generation_size.py": "f88ce5359353c9acd65e9e72736e97243cb7075954f08d6dd454f8e7e52d57b9",
+      "proyecto/test_phase2_hand_facts.py": "d43fcba8af53d7e3386118b644187f7ebc1507fba67452bca625d624be28b4ff",
+      "proyecto/test_phase2_league.py": "5214cee70aa8ac5397aa8bec74855afed05d911b4c4823bfb8e0975141ac4b65",
+      "proyecto/test_phase2_optimization_golden.py": "9143141d1000384d3071958a2eee67b80367fbfeef4b9ab616b6448da6260893",
+      "proyecto/test_phase2_optional.py": "973d214df59a97adf06b5c557564e56d35c45dafea7001bc9d41166a632341a7",
+      "proyecto/test_phase2_policy.py": "91d3386dcbf1e06c4a1a7875e8bb522347d29afe2be64dc375879ff0060e241d",
+      "proyecto/test_phase2_policy_prior.py": "7819e642c9bcf6aaa2a4bd4461a3f40942ee7497dbe825c55462b7ee38f03a78",
+      "proyecto/test_phase2_probe.py": "dd188180f9c92902a9a2ac68b2c955813304c375f8e795704ea6a0d6c1994678",
+      "proyecto/test_phase2_profile.py": "370e65d0b8bbf97fd4a268e00411238bcce26410d7df84ddaeb040c66dd5d867",
+      "proyecto/test_phase2_progress.py": "79d84d0a69a6d22ab9fb68d49e4c82d8ec6e58678b0162aa9b565f316c1d5b1f",
+      "proyecto/test_phase2_promotion.py": "6f3e69b37a0946a1b1b18a97fa6960756b2cdcea3a95c1c94329c0d9dec4bf7d",
+      "proyecto/test_phase2_promotion_cluster.py": "233a2dccac46471e3984ae3bb03e1871d3c67dad6566fdf12d20c6362518eedb",
+      "proyecto/test_phase2_reference_evaluation.py": "1a72a8f51d1d95ceee9be838bd8c3c13afc0b1734acda6ae32800fbee36fcb12",
+      "proyecto/test_phase2_reference_league.py": "c8951994833426310b07183724c79ec513b05d4cedaa5ccf4f497684c1b4b104",
+      "proyecto/test_phase2_reference_panel.py": "d333dc52602308ffea2a0bfde85e87d4eead1aba47e991d028d32a98380c8531",
+      "proyecto/test_phase2_robustness.py": "2ac0cc4839dcd6c3a56d032dc474f16ebd10c7612e7cb9d3667a0e9d666f0cb2",
+      "proyecto/test_phase2_run2.py": "6786b635d63a87c455d9e5200073207a77ef53fdabf53463b7802c09b537f0f7",
+      "proyecto/test_phase2_run3_pilot.py": "e770aeb4bf7c4604c5ac5b1cd7da14ed3535948b46dd8d78fdcbd7519ef99faf",
+      "proyecto/test_phase2_run3_trainer.py": "42e268e0d8b3f8bcf851656e006b37901de8fe265d1fae8aea95c496af8901c4",
+      "proyecto/test_phase2_selection.py": "8f3251ac4aa49bfa4c819fbe8ea5b3a196a75ebb991d2671b35397f522040df3",
+      "proyecto/test_phase2_selection_integration.py": "0125f163222da8bd5f5ff7e6ab3cd7edf747581f2182ff10ad7cb555c623ce0a",
+      "proyecto/test_phase2_speed_golden.py": "5123a328748a0f4ee2e74af54d15e5a3c469f2c7fac2a30bf08ec96e4c1a039a",
+      "proyecto/test_phase2_target.py": "2f06cdd1043474fc11c38b15df238821e83066891934acf70f55aedc04b1cb3b",
+      "proyecto/test_phase2_trainer.py": "226d4a10caf846bde53d4c6ad80f91fba7aaf6bb0956e0a0361858e1015cea38",
+      "proyecto/test_phase2_trainer_prior.py": "45d669ba016dd806b327aa57f4ff0d8b35e484e9fc94c2c93ff6e463553aeef7",
+      "proyecto/test_phase2_warm_start.py": "5eb375d71888f57262fb989172f76c9180bd9198c8aaa27b884412d964b2742c",
+      "proyecto/test_pipeline_logging.py": "8c7698ce87ca3e03659b1b070a0397ed5407088cbdc8a2214a3c332ff0f848d7",
+      "proyecto/test_raise_acceptance.py": "8c06d624b0c352548f638898269fe35761135754ceae0a5ef2fd12aa15f08a46",
+      "proyecto/test_ranking_reliability.py": "cde5acce21be71c3c55dfbcd8d20c9653e4990e496c4c9d149fb19a46586b70c",
+      "proyecto/test_reference_evaluation.py": "2e0335c77586b497019a35871f784e35dc4029c00fe7007e8a2563ab9e129a29",
+      "proyecto/test_reference_tournament.py": "2f37adfee76f90d22e5583977cac44986eb0382c5342c95d29a06d84ee8c54dd",
+      "proyecto/test_review_acceptance.py": "f5a0e2da40611aacd762cbe141be9c2936d5e55ebdad07443814a45cc2e35428",
+      "proyecto/test_review_adapter.py": "4d1864d9e7be3db9996bbdf8cfdd8bb50198dbd4e4b4479596eeb4ded78e073b",
+      "proyecto/test_review_observation.py": "88ecc4a7f259309ad59caff5aa362c5a277a57d9c0df2bb6cb4727999e41ff30",
+      "proyecto/test_review_schedule.py": "1bc6214cf160aeb77c7935b2263227dcb650317286fed875a63de717bf131221",
+      "proyecto/test_review_tournament.py": "71dd5335d602d2fb3aa80eedcf40a9c1526f72d28ac12c18a9986b93eca09810",
+      "proyecto/test_review_trainer.py": "cba4c0ed474b4e2d8ebdc3c240ac0568f9ddff2fa86aeab84ffa51b00a7f35b2",
+      "proyecto/test_summary_cache.py": "2145cc96984abd76fc965994556242f4a1db9552bb01dcf3d7942827991c08c0",
+      "proyecto/test_symmetric_engine.py": "d59e4f24a5d105277b2df251046263fc147497ef5d7cb3c02f36db5ac5f617f9",
+      "proyecto/test_training_golden.py": "3db52945f368ae8c9388b37648d7afed0cbf163e95cab37bda55900e374050c9",
+      "proyecto/test_truco.py": "2dcd0db916e6da829ef8bb6abcb5c2e5d004417e1cc23012ecf4679afaaa9d9d",
+      "proyecto/test_truco_strength.py": "a46b9d9930c7c62283c87ff3cc13d1654f1b2477b6c0460674452f186c7db5cd",
+      "proyecto/test_v3_encoding_golden.py": "8499e6a55568c01b40ea2b735392e709c8f59010e7ab7acb31f041f3a5884030",
+      "proyecto/test_v3_pipeline.py": "8b9d0c8fb5bde75607f4b3f6f9651292022dc9ebfc038527d7c0fef052549c2d",
+      "proyecto/test_validation_preprocessing.py": "ddc26115eed3fb126a97c2a75025114e6ef05c92bb255acf1dd15b32e40ada91",
+      "proyecto/truco_ia.py": "04857b0331c2d9bb35f95fbc0bbbae8e4dbbf32b833419a3f71a164f7dd5520d",
+      "proyecto/truco_reglas.py": "24479b32d5386089570815219af3e7849f93c1b28dce5c3a427be9ff8d2fa343",
+      "proyecto/truco_strength.py": "b6b545f06d99c18a5c711071cfa8c2ff148efdc6e62912d1ab97ac01dcd54fad",
+      "proyecto/truco_vision.py": "b6a243bdedaaed125df73da6d926a9d3ba9b8f2d1b25dc1bf3157e16cbbf54ab",
+      "proyecto/validation_schedule.py": "14554e2f8bd7b223e5fcd169d03e93a04fafb43fd397216b2afe571844ba317d"
+    },
+    "starting_score": [
+      0,
+      0
+    ]
+  },
+  "pair_count": 5000,
+  "raw_file": "partial.jsonl",
+  "raw_sha256": "cb0002571f4373098e07cb3450a7624f73cbdba2a467b6e304bf8de151fd060f"
+}

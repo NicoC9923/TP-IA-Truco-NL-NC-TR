@@ -46,3 +46,7 @@ Bit-exact speed-ups made training about 4 times faster (docs/perf/phase2-speed.m
 ## Amendment (2026-11-10): training temperature 0.02
 
 The run 3 pilot passed (greedy 68.67% vs fixed Adaptive Utility, warm start 69.33% on the same 300 pairs) but logged `greedy_disagreement` = 0.55: at T = 0.05, 55% of learner decisions in training differed from the greedy action, while the deployed policy is greedy and Part T showed T = 0.05 playing about 21 points below greedy against Adaptive Utility. Decision (user, with a Claude Sonnet 5.5 advisor opinion): training rollouts use **T = 0.02** (65.7% in Part T, about 7 points below greedy). Lower temperatures and greedy training were rejected because only the taken action's value is corrected, so rarely tried actions would never be re-evaluated; epsilon-greedy was rejected because it needs new code and explores clearly bad actions as often as close ones. The pilot is repeated once at T = 0.02 with the same seeds and the same pass rule, and its measured throughput sets matches per generation.
+
+## Outcome (2026-11-11)
+
+Run 3 ended on the 12-hour cap with champion generation 73. In the ADR 0061 exam (experiments/phase2-run3-exam/README.md), against run 2 g38, both candidates gained about 13 points against fixed Adaptive Utility and passed the primary and balance tests. Both failed the guardrail against held-out phase 1 network v1s2-g2 (g73: −3.7 points, interval [−5.1, −2.3]). Run 2 generation 38 stays shipped. Run 3's changes improved play against a training opponent without transferring to every unseen style.
