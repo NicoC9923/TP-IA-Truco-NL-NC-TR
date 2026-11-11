@@ -55,14 +55,20 @@ class ServidorTruco(ThreadingHTTPServer):
         with self.lock:
             if self._espectador is None:
                 from espectador import Reproductor
-                self._espectador = Reproductor(champions_dir=self.evolution_root / "champions")
+                self._espectador = Reproductor(champions_dir=self.evolution_root / "champions",
+                                               al_perder_robot=self.perder_robot)
             return self._espectador
 
     def mesa_para_espectador(self):
         """A spectator match starts: the 3D table follows it."""
         with self.lock:
             self.mesa_en_espectador = True
-            self.espectador.mesa.robot = self.asegurar_robot()
+            ya_conectado = self.robot
+            robot = self.asegurar_robot()
+            # A fresh connection was already handed over (and resynced) by asegurar_robot;
+            # setting it again could undo a loss the table worker just reported.
+            if robot is None or robot is ya_conectado:
+                self.espectador.mesa.robot = robot
 
     def mesa_para_humano(self):
         """The human plays again: pause the spectator match and give the table back."""
@@ -72,7 +78,9 @@ class ServidorTruco(ThreadingHTTPServer):
             self.mesa_en_espectador = False
             if self._espectador is not None:
                 self._espectador.pausar()
-                self._espectador.mesa.robot = None
+                # Drop the spectator's queued moves and wait for one in flight, so a
+                # late modo_mesa('robots') or camera change never lands on the human's table.
+                self._espectador.mesa.soltar()
             self.partida.sincronizar_mesa_3d()
 
     def perder_robot(self):
@@ -543,7 +551,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _procesar_espectador(self, datos):
         """POST /espectador/*: the spectator match controls (ADR 0064)."""
-        from espectador import Largo, MODELOS, VELOCIDADES, modelo_disponible
+        from espectador import Largo, MODELOS, ModeloNoCargado, VELOCIDADES, modelo_disponible
         from sim.cartas import CAMARAS
         reproductor = self.server.espectador
         accion = self.path[len("/espectador/"):]
@@ -559,8 +567,12 @@ class Handler(BaseHTTPRequestHandler):
                 largo = Largo.de_dict(datos.get("largo", {"tipo": "puntos", "meta": 15}))
             except ValueError as error:
                 return 400, {"error": str(error)}
-            self.server.mesa_para_espectador()
-            return 200, reproductor.empezar(ias, largo)
+            # The table switches to the spectator match only once both AIs loaded.
+            try:
+                return 200, reproductor.empezar(ias, largo, al_cargar=self.server.mesa_para_espectador)
+            except ModeloNoCargado as error:
+                print(f"  [AVISO] {error}")
+                return 409, {"error": "No se pudo cargar esa IA", "ia": error.clave}
         if accion == "velocidad":
             velocidad = datos.get("velocidad")
             if isinstance(velocidad, bool) or velocidad not in VELOCIDADES:
@@ -575,8 +587,11 @@ class Handler(BaseHTTPRequestHandler):
         if accion == "revancha":
             if reproductor.partida is None:
                 return 409, {"error": "No hay partida para revancha"}
-            self.server.mesa_para_espectador()
-            return 200, reproductor.revancha()
+            try:
+                return 200, reproductor.revancha(al_cargar=self.server.mesa_para_espectador)
+            except ModeloNoCargado as error:
+                print(f"  [AVISO] {error}")
+                return 409, {"error": "No se pudo cargar esa IA", "ia": error.clave}
         acciones = {"pausa": reproductor.pausar, "seguir": reproductor.seguir,
                     "paso": reproductor.paso, "detener": reproductor.detener}
         if accion not in acciones:
@@ -658,6 +673,8 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
+        if server._espectador is not None:
+            server._espectador.cerrar()
         server.server_close()
         if server.robot is not None:
             try:

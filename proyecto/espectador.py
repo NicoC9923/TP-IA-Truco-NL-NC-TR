@@ -21,7 +21,10 @@ Every event is a JSON-ready dict::
 KIND is one of ``deal``, ``think``, ``call``, ``respond``, ``play``, ``fold``,
 ``tanto``, ``hand_end``, ``match_end`` (see `KINDS`). ``t`` is seconds since the
 match started. ``label`` is the short Spanish text a player would say or the
-table would show; the reasoning (``think`` events) is on-screen only (ADR 0066).
+table would show. A ``think`` event only says who is deciding and how many
+actions are legal: the reasoning (``razonamiento``) travels on the action event
+that follows it, so the panel never shows the choice before the move appears.
+The reasoning is on-screen only (ADR 0066).
 
 A pacing object needs one method, ``demora(evento) -> float``: the seconds to wait
 after showing that event, at speed x1. The driver divides by the chosen speed
@@ -76,7 +79,7 @@ def modelo_disponible(clave, champions_dir=CHAMPIONS):
     if clave == 'refuerzo':
         try:
             import torch  # noqa: F401
-        except ImportError:
+        except Exception:                                   # noqa: BLE001  (Windows: OSError WinError 126)
             return False
         return (champions_dir / 'phase2/reigning_champion.pt').is_file()
     if clave == 'genetico':
@@ -96,9 +99,14 @@ def nombre_accion(accion, mano=None):
     return ETIQUETAS.get(accion, accion)
 
 
-def _top(valores, mano, n=3):
-    orden = sorted(valores.items(), key=lambda kv: kv[1], reverse=True)[:n]
-    return [(nombre_accion(a, mano), a, v) for a, v in orden]
+def _top(valores, mano, n=3, elegida=None):
+    """The `n` best actions; the chosen one is added at the end if a sampling
+    network picked an action outside them, so the panel always shows it."""
+    orden = sorted(valores.items(), key=lambda kv: kv[1], reverse=True)
+    top = orden[:n]
+    if elegida is not None and elegida in valores and all(a != elegida for a, _ in top):
+        top.append((elegida, valores[elegida]))
+    return [(nombre_accion(a, mano), a, v) for a, v in top]
 
 
 class _Red:
@@ -109,19 +117,14 @@ class _Red:
 
 
 def _crear_refuerzo(seed, champions_dir):
-    import torch
     from phase2_game_policy import GamePhase2Policy
-    from phase2_torch import _q_values
     from phase1_network import ACTIONS
 
     class RedRefuerzo(GamePhase2Policy):
-        def record_decision(self, inputs, action):
-            with torch.no_grad():
-                self.last_values = _q_values(self.model, torch.from_numpy(inputs)).numpy()
-
         def explicar(self, obs, legal, accion):
-            valores = {a: float(self.last_values[ACTIONS.index(a)]) for a in legal}
-            opciones = [{'accion': a, 'etiqueta': e, 'valor': round(v, 3)} for e, a, v in _top(valores, obs['hand'])]
+            # The Q-values of the forward pass that chose the action (no second pass).
+            valores = {a: float(self.last_q_values[ACTIONS.index(a)]) for a in legal}
+            opciones = [{'accion': a, 'etiqueta': e, 'valor': round(v, 3)} for e, a, v in _top(valores, obs['hand'], elegida=accion)]
             nota = ('Elige siempre la jugada de mayor valor.' if self.greedy
                     else 'Sortea entre las jugadas según su valor.')
             return {'tipo': 'red', 'opciones': opciones, 'nota': nota}
@@ -135,23 +138,47 @@ def _crear_genetico(seed, champions_dir):
     class RedGenetica(NetworkPolicy):
         def explicar(self, obs, legal, accion):
             opciones = [{'accion': a, 'etiqueta': e, 'probabilidad': round(p, 4)}
-                        for e, a, p in _top(self.last_probabilities, obs['hand'])]
+                        for e, a, p in _top(self.last_probabilities, obs['hand'], elegida=accion)]
             return {'tipo': 'red', 'opciones': opciones, 'nota': 'Sortea la jugada con estas probabilidades.'}
 
     return RedGenetica.load(Path(champions_dir) / 'phase1/reigning_champion.npy', seed=seed, explain=True)
 
 
-def _explicar_agente(policy, tipo):
-    """Utilidad adaptativa / Reactivo: the last step of their own reasoning trace."""
-    traza = policy.agent.traza_razonamiento
-    paso = traza[-1] if traza else None
+def _paso_de_la_accion(traza, accion):
+    """The trace step that decided `accion` (one call may log several steps, e.g.
+    "no canta envido" and then the card), else the last one."""
+    if accion.startswith('card_'):
+        quiere = ('JUGAR',)
+    elif accion == 'envido':
+        quiere = ('ENVIDO', 'ENVIDO_ENVIDO')
+    else:
+        quiere = (accion.upper(),)
+    for paso in reversed(traza):
+        decision = str(paso.get('decision', '')).upper().split()
+        if decision and decision[0] in quiere:
+            return paso
+    return traza[-1] if traza else None
+
+
+def _texto_coherente(texto, accion):
+    """The agents' trace says "se va al mazo" for a "no quiero" to a truco; the
+    panel shows the action as "No quiero", so its text says that too."""
+    if accion != 'no_quiero' or not texto:
+        return texto
+    return (texto.replace('se va al mazo cediendo', 'no quiere y cede')
+            .replace('se va al mazo', 'no quiere'))
+
+
+def _explicar_agente(policy, tipo, accion):
+    """Utilidad adaptativa / Reactivo: the step of their own reasoning trace that chose `accion`."""
+    paso = _paso_de_la_accion(policy.agent.traza_razonamiento, accion)
     if paso is None:
         return {'tipo': tipo, 'explicacion': 'Juega la carta según su regla de cartas.'}
     if tipo == 'regla':
-        return {'tipo': 'regla', 'regla': paso.get('explicacion') or paso.get('umbral', ''),
-                'fase': paso.get('fase', '')}
+        return {'tipo': 'regla', 'fase': paso.get('fase', ''),
+                'regla': _texto_coherente(paso.get('explicacion') or paso.get('umbral', ''), accion)}
     return {'tipo': 'umbral', 'fase': paso.get('fase', ''), 'metrica': paso.get('metrica', ''),
-            'umbral': paso.get('umbral', ''), 'explicacion': paso.get('explicacion', '')}
+            'umbral': paso.get('umbral', ''), 'explicacion': _texto_coherente(paso.get('explicacion', ''), accion)}
 
 
 def crear_politica(clave, seed, champions_dir=CHAMPIONS):
@@ -171,10 +198,25 @@ def crear_politica(clave, seed, champions_dir=CHAMPIONS):
                 return super().__call__(obs, legal)
 
             def explicar(self, obs, legal, accion):
-                return _explicar_agente(self, tipo)
+                return _explicar_agente(self, tipo, accion)
 
         return Agente(seed)
     raise ValueError(f'Modelo desconocido: {clave!r}')
+
+
+class ModeloNoCargado(Exception):
+    """A model could not be loaded (missing file, broken PyTorch install...)."""
+
+    def __init__(self, clave, causa):
+        super().__init__(f'No se pudo cargar {clave!r}: {causa!r}')
+        self.clave = clave
+
+
+def _cargar(clave, seed, champions_dir):
+    try:
+        return crear_politica(clave, seed, champions_dir)
+    except Exception as error:                               # noqa: BLE001
+        raise ModeloNoCargado(clave, error) from error
 
 
 # ------------------------------------------------------------- envido rule
@@ -248,7 +290,8 @@ class _Jugador:
             razon = {'tipo': 'nada'}
         if len(permitidas) < len(legal):
             razon['envido_bloqueado'] = 'No puede cantar envido: ya jugó su primera carta.'
-        self.partida._salida.put(('decision', self.seat, obs, permitidas, accion, razon))
+        self.partida._salida.put(('decision', self.seat, obs, permitidas, accion, razon,
+                                  len(permitidas) < len(legal)))
         if self.partida._entrada.get() == 'cancelar':
             raise _Cancelado()
         return accion
@@ -262,6 +305,8 @@ class _Jugador:
 class PartidaEspectador:
     """One AI-vs-AI match that advances one event at a time (no clock)."""
 
+    ESPERA_MOTOR = 0.5                 # seconds between checks that the engine thread is alive
+
     def __init__(self, ias, largo=Largo(), seed=None, mesa=None, champions_dir=CHAMPIONS):
         if len(ias) != 2 or any(clave not in MODELOS for clave in ias):
             raise ValueError('Hacen falta dos modelos válidos')
@@ -270,7 +315,7 @@ class PartidaEspectador:
         self.seed = random.randrange(2**31) if seed is None else seed
         self.mesa = mesa                         # optional 3D table (MesaRemota)
         rng = random.Random(self.seed)
-        self.politicas = [crear_politica(clave, rng.randrange(2**31), champions_dir) for clave in self.ias]
+        self.politicas = [_cargar(clave, rng.randrange(2**31), champions_dir) for clave in self.ias]
         self._salida: queue.Queue = queue.Queue()
         self._entrada: queue.Queue = queue.Queue()
         self._cola: deque = deque()
@@ -304,15 +349,17 @@ class PartidaEspectador:
 
     # ---- engine thread ----
     def _correr(self):
-        jugadores = [_Jugador(seat, p, self) for seat, p in enumerate(self.politicas)]
         try:
+            jugadores = [_Jugador(seat, p, self) for seat, p in enumerate(self.politicas)]
             result = play_match(jugadores[0], jugadores[1], seed=self.seed, target=self.largo.meta,
                                 max_hands=self.largo.manos, on_event=self._salida.put)
             self._salida.put(('fin', result))
         except _Cancelado:
             pass
-        except Exception as error:                           # noqa: BLE001
+        except BaseException as error:                       # noqa: BLE001  (never leave the driver waiting)
             self._salida.put(('error', error))
+        finally:
+            self._salida.put(('cerrado',))
 
     def cancelar(self):
         if not self._fin_motor:
@@ -327,7 +374,12 @@ class PartidaEspectador:
     def _leer_motor(self):
         """Turns engine output into queued events, up to the next decision or the end."""
         while True:
-            item = self._salida.get()
+            try:
+                item = self._salida.get(timeout=self.ESPERA_MOTOR)
+            except queue.Empty:
+                if self._hilo.is_alive():
+                    continue
+                item = ('cerrado',)                     # the thread died without a word
             if isinstance(item, dict):                  # on_event from the engine
                 if item['kind'] == 'deal':
                     self._mano_motor = item['hand_index']
@@ -346,11 +398,16 @@ class PartidaEspectador:
                                                    ganados=ganados))
                 continue
             tipo = item[0]
+            if tipo == 'cerrado':
+                if self._fin_motor:
+                    return
+                item, tipo = ('error', RuntimeError('El motor se detuvo sin terminar la partida')), 'error'
             if tipo == 'decision':
-                _, seat, obs, legal, accion, razon = item
-                self._pendiente = (seat, obs, legal, accion)
-                self._cola.append(self._evento('think', seat, label='Pensando…', razonamiento=razon,
-                                               legales=len(legal), _obs=obs))
+                _, seat, obs, legal, accion, razon, bloqueado = item
+                self._pendiente = (seat, obs, legal, accion, razon)
+                extra = {'envido_bloqueado': razon['envido_bloqueado']} if bloqueado else {}
+                self._cola.append(self._evento('think', seat, label='Pensando…', legales=len(legal),
+                                               _obs=obs, **extra))
                 return
             self._fin_motor = True
             if tipo == 'fin':
@@ -364,21 +421,21 @@ class PartidaEspectador:
             return
 
     def _revelar_accion(self):
-        seat, obs, _legal, accion = self._pendiente
+        seat, obs, _legal, accion, razon = self._pendiente
         self._pendiente = None
         pending = obs['pending']
         if accion.startswith('card_'):
             carta = obs['hand'][int(accion[-1])]
-            self._cola.append(self._evento('play', seat, accion, rules.nombre_carta(*carta),
+            self._cola.append(self._evento('play', seat, accion, rules.nombre_carta(*carta), razonamiento=razon,
                                            carta={'valor': carta[0], 'palo': carta[1]}))
         elif accion == 'fold':
-            self._cola.append(self._evento('fold', seat, accion, ETIQUETAS['fold']))
+            self._cola.append(self._evento('fold', seat, accion, ETIQUETAS['fold'], razonamiento=razon))
         else:
             kind = 'respond' if pending else 'call'
             label = ETIQUETAS[accion]
             if accion == 'envido' and pending and pending.get('call') == 'envido':
                 label = 'Envido'
-            self._cola.append(self._evento(kind, seat, accion, label))
+            self._cola.append(self._evento(kind, seat, accion, label, razonamiento=razon))
             if accion == 'quiero' and pending and pending['kind'] == 'envido':
                 hands = self._manos_motor
                 values = [rules.calcular_envido([{'valor': v, 'palo': p} for v, p in h]) for h in hands]
@@ -458,15 +515,17 @@ class PartidaEspectador:
                 self.mesa.repartir(self.cartas)
         elif kind == 'think':
             self.turno = seat
-            self.razonamiento[seat] = {'decision': None, **ev['razonamiento']}
+            # Only that it is thinking: what it considered arrives with its move.
+            self.razonamiento[seat] = {'tipo': 'pensando', 'decision': None}
+            if ev.get('envido_bloqueado'):
+                self.razonamiento[seat]['envido_bloqueado'] = ev['envido_bloqueado']
             self.puntos = list(obs['score'])
             self.truco = obs['truco']
             self.pendiente = obs['pending']
             self.mesa_cartas = list(obs['table'])
             self.bazas = list(obs['tricks'])
         elif kind in ACCIONES_DE_JUEGO:
-            if self.razonamiento[seat] is not None:
-                self.razonamiento[seat]['decision'] = ev['label']
+            self.razonamiento[seat] = {**ev.get('razonamiento', {'tipo': 'nada'}), 'decision': ev['label']}
             self.turno = None
             if kind == 'play':
                 carta = (ev['carta']['valor'], ev['carta']['palo'])
@@ -550,24 +609,48 @@ class MesaRemota:
     """Feeds the MuJoCo table like PartidaTruco does, in order, never blocking.
 
     `robot` is a `sim.robot.Robot` (or None). Seat 0 of the engine sits in
-    3D seat 1, seat 1 in seat 2."""
+    3D seat 1, seat 1 in seat 2. `al_perder_robot` is called (from the worker)
+    when the simulator connection dies, so the server drops it and the next
+    request reconnects and rebuilds the table."""
 
-    def __init__(self, robot=None):
+    ESPERA_SOLTAR = 2.0                # seconds `soltar` waits for a move already in flight
+
+    def __init__(self, robot=None, al_perder_robot=None):
         self.robot = robot
+        self.al_perder_robot = al_perder_robot
         self._cola: queue.Queue = queue.Queue()
-        self._hilo = None
+        self._lock = threading.Lock()
+        # One worker for the table's whole life: sends never race to start two.
+        self._hilo = threading.Thread(target=self._trabajar, daemon=True, name='espectador-mesa')
+        self._hilo.start()
 
     def _enviar(self, metodo, *args):
-        if self.robot is None or not hasattr(self.robot, metodo):
-            return
-        self._cola.put((metodo, args))
-        if self._hilo is None or not self._hilo.is_alive():
-            self._hilo = threading.Thread(target=self._trabajar, daemon=True, name='espectador-mesa')
-            self._hilo.start()
+        with self._lock:
+            if self.robot is None or not hasattr(self.robot, metodo):
+                return
+            self._cola.put((metodo, args))
+
+    def soltar(self, espera=None):
+        """Hands the table over: drops what is queued, stops sending and waits
+        (briefly) for a move already in flight. True if the worker is idle."""
+        listo = threading.Event()
+        with self._lock:
+            self.robot = None
+            while True:
+                try:
+                    self._cola.get_nowait()
+                except queue.Empty:
+                    break
+            self._cola.put(listo)
+        return listo.wait(self.ESPERA_SOLTAR if espera is None else espera)
 
     def _trabajar(self):
         while True:
-            metodo, args = self._cola.get()
+            item = self._cola.get()
+            if isinstance(item, threading.Event):
+                item.set()
+                continue
+            metodo, args = item
             robot = self.robot
             if robot is None:
                 continue
@@ -575,7 +658,14 @@ class MesaRemota:
                 getattr(robot, metodo)(*args)
             except Exception as error:                       # noqa: BLE001
                 if isinstance(error, OSError) or type(error).__name__ in ('ErrorTransporte', 'NoHaySimulador'):
-                    self.robot = None
+                    with self._lock:
+                        if self.robot is robot:
+                            self.robot = None
+                    if self.al_perder_robot is not None:
+                        try:
+                            self.al_perder_robot()
+                        except Exception:                    # noqa: BLE001
+                            pass
 
     def empezar(self):
         self._enviar('modo_mesa', 'robots')
@@ -598,11 +688,11 @@ class MesaRemota:
 class Reproductor:
     """Plays spectator matches at human pace. Thread-safe; one per server."""
 
-    def __init__(self, ritmo=None, oyentes=(), champions_dir=CHAMPIONS, robot=None):
+    def __init__(self, ritmo=None, oyentes=(), champions_dir=CHAMPIONS, robot=None, al_perder_robot=None):
         self.ritmo = ritmo or RitmoSimple()
         self.oyentes = list(oyentes)
         self.champions_dir = champions_dir
-        self.mesa = MesaRemota(robot)
+        self.mesa = MesaRemota(robot, al_perder_robot)
         self.partida: PartidaEspectador | None = None
         self.estado = 'sin_partida'          # sin_partida | jugando | pausa | terminada
         self.velocidad = 1.0
@@ -613,23 +703,34 @@ class Reproductor:
         self._hilo.start()
 
     # ---- controls ----
-    def empezar(self, ias, largo=Largo(), seed=None):
+    def empezar(self, ias, largo=Largo(), seed=None, al_cargar=None):
+        """Loads both AIs (raises `ModeloNoCargado` naming the one that failed,
+        leaving the current match untouched), calls `al_cargar()` (the server
+        hands the 3D table over there) and starts the match."""
         partida = PartidaEspectador(ias, largo, seed, self.mesa, self.champions_dir)
+        if al_cargar is not None:
+            try:
+                al_cargar()
+            except BaseException:
+                partida.cancelar()
+                raise
         with self._lock_partida:
             if self.partida is not None:
                 self.partida.cancelar()
             self.partida = partida
             partida.iniciar()
-        with self._cond:
-            self._generacion += 1
-            self.estado = 'jugando'
-            self._cond.notify_all()
+            # Same critical section as the swap: the clock never shows an event
+            # of the new match under the old generation (no zero-gap after Revancha).
+            with self._cond:
+                self._generacion += 1
+                self.estado = 'jugando'
+                self._cond.notify_all()
         return self.snapshot()
 
-    def revancha(self):
+    def revancha(self, al_cargar=None):
         if self.partida is None:
             raise ValueError('No hay partida')
-        return self.empezar(self.partida.ias, self.partida.largo)
+        return self.empezar(self.partida.ias, self.partida.largo, al_cargar=al_cargar)
 
     def detener(self):
         """Back to choosing the AIs."""
@@ -637,10 +738,10 @@ class Reproductor:
             if self.partida is not None:
                 self.partida.cancelar()
             self.partida = None
-        with self._cond:
-            self._generacion += 1
-            self.estado = 'sin_partida'
-            self._cond.notify_all()
+            with self._cond:
+                self._generacion += 1
+                self.estado = 'sin_partida'
+                self._cond.notify_all()
         return self.snapshot()
 
     def pausar(self):
@@ -665,11 +766,13 @@ class Reproductor:
         with self._lock_partida:
             if self.partida is None:
                 return self.snapshot()
-            for evento in self.partida.avanzar_jugada():
-                self._avisar(evento)
+            mostrados = self.partida.avanzar_jugada()
             if self.partida.terminada:
                 with self._cond:
                     self.estado = 'terminada'
+        # Listeners (voice, gestures) run outside the lock: a slow one never blocks the page.
+        for evento in mostrados:
+            self._avisar(evento)
         return self.snapshot()
 
     def poner_velocidad(self, velocidad):
@@ -714,8 +817,13 @@ class Reproductor:
                     return
                 generacion = self._generacion
             with self._lock_partida:
+                with self._cond:
+                    # Paused, stopped or restarted while waiting for the lock: show nothing.
+                    vigente = self.estado == 'jugando' and self._generacion == generacion
                 partida = self.partida
-                evento = partida.siguiente_evento() if partida is not None else None
+                evento = partida.siguiente_evento() if vigente and partida is not None else None
+            if not vigente:
+                continue
             if evento is None:
                 with self._cond:
                     if self._generacion == generacion and self.estado == 'jugando':

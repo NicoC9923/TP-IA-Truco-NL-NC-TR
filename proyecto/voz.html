@@ -159,6 +159,7 @@
     padding: 3px 6px; font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.04em; cursor: pointer;
   }
   .sel-manos.activa { background: var(--txt); color: var(--ink-0); }
+  .manos-texto { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--txt-2); }
   .track { position: relative; width: 132px; display: grid; gap: 3px; }
   .track span { display: block; height: 5px; background: var(--ink-4); border-radius: 3px; overflow: hidden; }
   .track span i { display: block; height: 100%; width: 0; transition: width 0.8s var(--ease-out); }
@@ -860,7 +861,8 @@
             <option value="10">10 manos</option>
           </select>
         </div>
-        <div class="track" title="Avance hacia la meta">
+        <span class="manos-texto" id="manos-texto" hidden></span>
+        <div class="track" id="track" title="Avance hacia la meta">
           <span class="t-vos"><i id="track-vos"></i></span>
           <span class="t-ott"><i id="track-ott"></i></span>
           <b class="mitad" id="track-mitad" title="Malas | Buenas" hidden></b>
@@ -1287,6 +1289,14 @@
       el.textContent = t[k];
       puntosPrevios[k] = t[k];
     });
+    // A short match is counted in hands, not points: "Mano 2 de 5" / "Desempate" instead of the bar.
+    $('track').hidden = !!manosElegidas;
+    $('manos-texto').hidden = !manosElegidas;
+    if (manosElegidas) {
+      const actual = (t.manos_jugadas || 0) + (data.mano_terminada || data.partido_terminado ? 0 : 1);
+      $('manos-texto').textContent = actual > manosElegidas ? 'Desempate'
+        : `Mano ${Math.max(1, actual)} de ${manosElegidas}`;
+    }
     $('track-vos').style.width = Math.min(100, (t.humano / meta) * 100) + '%';
     $('track-ott').style.width = Math.min(100, (t.robot / meta) * 100) + '%';
     $('track-mitad').hidden = meta !== 30;

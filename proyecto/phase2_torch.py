@@ -161,6 +161,7 @@ class Phase2Policy:
         inputs = self.encode(observation, legal_actions)
         with torch.no_grad():
             values = _q_values(self.model, torch.from_numpy(inputs)).numpy()
+        self.last_q_values = values          # kept for explanations (spectator panel)
         scores = []
         for action in legal_actions:
             offset = 0.0

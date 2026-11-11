@@ -14,6 +14,7 @@ import urllib.request
 import threading
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from unittest import mock
 from unittest.mock import MagicMock
 
 import robot  # noqa: F401  (puts entorno/ on sys.path, as the server does)
@@ -58,6 +59,41 @@ class TestMotorLargo(unittest.TestCase):
         for malo in (0, -1, 1.5, True):
             with self.assertRaises(ValueError):
                 play_match(RandomPolicy(1), RandomPolicy(2), max_hands=malo)
+
+
+class TestFaltaEnvidoEnPartidaCorta(unittest.TestCase):
+    """ADR 0069 (user decision Q26 = A): with the internal target of 30, an
+    accepted falta envido ends a short match and its winner goes to 30."""
+
+    class _Canta:
+        def __call__(self, obs, legal):
+            return 'falta_envido' if 'falta_envido' in legal else legal[0]
+
+    class _Quiere:
+        def __call__(self, obs, legal):
+            return 'quiero' if 'quiero' in legal else legal[0]
+
+    def test_motor(self):
+        for manos in (1, 5, 10):
+            r = play_match(self._Canta(), self._Quiere(), seed=manos, target=30, max_hands=manos)
+            self.assertEqual(len(r.deals), 1, manos)
+            self.assertEqual(max(r.points), 30)
+            self.assertLess(min(r.points), 30)
+
+    def test_regla_de_la_falta(self):
+        import truco_reglas as rules
+        for lider, otro in ((0, 0), (3, 1), (14, 9)):
+            for ganador, propios in (('humano', lider), ('robot', otro)):
+                puntos, por_el_partido = rules.puntos_falta_envido(lider, otro, 30, ganador)
+                self.assertTrue(por_el_partido)
+                self.assertEqual(propios + puntos, 30)
+
+    def test_en_el_espectador(self):
+        with mock.patch.object(E, 'crear_politica', side_effect=[self._Canta(), self._Quiere()]):
+            p = _partida(('reactivo', 'reactivo'), E.Largo('manos', 30, 5), seed=1)
+        p.jugar_hasta_el_final()
+        self.assertEqual([e['kind'] for e in p.eventos].count('deal'), 1)
+        self.assertEqual(max(p.puntos), 30)
 
 
 class TestReglaEnvido(unittest.TestCase):
@@ -161,7 +197,7 @@ class TestPartidaEspectador(unittest.TestCase):
         p.jugar_hasta_el_final()
         tipos = {}
         for e in p.eventos:
-            if e['kind'] == 'think':
+            if e['kind'] in E.ACCIONES_DE_JUEGO:
                 tipos.setdefault(e['seat'], e['razonamiento'])
         self.assertEqual(tipos[0]['tipo'], 'umbral')
         self.assertTrue(tipos[0]['metrica'] and tipos[0]['umbral'])
@@ -213,18 +249,275 @@ class TestModelos(unittest.TestCase):
             self.assertTrue(p.terminada, ias)
             self.assertIsNone(p.error)
             self.assertGreaterEqual(max(p.puntos), 15)
-        red = next(e['razonamiento'] for e in p.eventos if e['kind'] == 'think')
+        red = next(e['razonamiento'] for e in p.eventos if e['kind'] in E.ACCIONES_DE_JUEGO)
         self.assertEqual(red['tipo'], 'red')
-        self.assertLessEqual(len(red['opciones']), 3)
+        self.assertLessEqual(len(red['opciones']), 4)
         self.assertIn('valor', red['opciones'][0])
 
     def test_genetico_da_probabilidades(self):
         p = _partida(('genetico', 'reactivo'), seed=2)
-        ev = p.avanzar_jugada()[-1]
+        self.assertEqual(p.avanzar_jugada()[-1]['seat'], 0)
+        ev = next(e for e in p.avanzar_jugada() if e['kind'] in E.ACCIONES_DE_JUEGO)
         self.assertEqual(ev['seat'], 0)
-        probs = [o['probabilidad'] for o in ev['razonamiento']['opciones']]
+        opciones = ev['razonamiento']['opciones']
+        probs = [o['probabilidad'] for o in opciones[:3]]
         self.assertEqual(probs, sorted(probs, reverse=True))
+        self.assertIn(ev['action'], [o['accion'] for o in opciones])    # the chosen one is always shown
         p.cancelar()
+
+
+class TestPanelNoAdelantaLaJugada(unittest.TestCase):
+    """While an AI is thinking, nothing the page receives tells what it chose."""
+
+    def test_el_razonamiento_llega_con_la_jugada(self):
+        p = _partida(('utilidad', 'reactivo'), seed=3)
+        vistos = 0
+        while True:
+            ev = p.siguiente_evento()
+            if ev is None:
+                break
+            if ev['kind'] == 'think':
+                self.assertNotIn('razonamiento', ev)
+                self.assertNotIn('razonamiento', p.ultimo_evento)
+                panel = p.estado()['asientos'][ev['seat']]['razonamiento']
+                self.assertEqual((panel['tipo'], panel['decision']), ('pensando', None))
+                self.assertEqual(set(panel) - {'tipo', 'decision', 'envido_bloqueado'}, set())
+                vistos += 1
+            elif ev['kind'] in E.ACCIONES_DE_JUEGO:
+                self.assertIn(ev['razonamiento']['tipo'], ('umbral', 'regla'))
+                panel = p.estado()['asientos'][ev['seat']]['razonamiento']
+                self.assertEqual(panel['decision'], ev['label'])
+        self.assertGreater(vistos, 5)
+
+    def test_el_snapshot_durante_la_pausa_tampoco(self):
+        r = E.Reproductor(ritmo=RitmoLento())
+        try:
+            r.empezar(('reactivo', 'utilidad'), seed=4)
+            r.pausar()
+            snap = r.snapshot()
+            while not snap['eventos'] or snap['eventos'][-1]['kind'] != 'think':
+                snap = r.paso()
+            self.assertNotIn('razonamiento', snap['ultimo_evento'])
+            self.assertTrue(all('razonamiento' not in e for e in snap['eventos'] if e['kind'] == 'think'))
+            seat = snap['ultimo_evento']['seat']
+            self.assertEqual(snap['partida']['asientos'][seat]['razonamiento']['tipo'], 'pensando')
+        finally:
+            r.cerrar()
+
+
+class TestExplicacionCoherente(unittest.TestCase):
+    class _Politica:
+        def __init__(self, traza):
+            self.agent = MagicMock(traza_razonamiento=traza)
+
+    def test_no_quiero_no_dice_que_se_va_al_mazo(self):
+        traza = [{'decision': 'NO_QUIERO', 'fase': 'Respuesta a TRUCO', 'metrica': 'Fuerza', 'umbral': 'Umbral 44%',
+                  'explicacion': 'Fuerza (20%) inferior al umbral (44.0%): se va al mazo cediendo 1 pto.'}]
+        r = E._explicar_agente(self._Politica(traza), 'umbral', 'no_quiero')
+        self.assertNotIn('mazo', r['explicacion'])
+        self.assertIn('no quiere', r['explicacion'])
+        regla = [{'decision': 'NO_QUIERO', 'explicacion': 'Regla reactiva: se va al mazo porque 5 < 8.'}]
+        self.assertNotIn('mazo', E._explicar_agente(self._Politica(regla), 'regla', 'no_quiero')['regla'])
+        # Going to the deck for real keeps its words.
+        self.assertIn('mazo', E._texto_coherente('se va al mazo', 'fold'))
+
+    def test_usa_el_paso_que_eligio_la_accion(self):
+        traza = [{'decision': 'Jugar 4 de Copa', 'explicacion': 'carta'},
+                 {'decision': 'NO CANTAR', 'explicacion': 'no canta truco'}]
+        self.assertEqual(E._explicar_agente(self._Politica(traza), 'umbral', 'card_1')['explicacion'], 'carta')
+        self.assertEqual(E._explicar_agente(self._Politica(traza), 'umbral', 'truco')['explicacion'], 'no canta truco')
+
+    @unittest.skipUnless(HAY_TORCH, "PyTorch no instalado")
+    def test_refuerzo_explica_sin_segunda_pasada(self):
+        import phase2_torch
+        original = phase2_torch._q_values
+        llamadas = []
+
+        def contar(*args):
+            llamadas.append(1)
+            return original(*args)
+
+        with mock.patch.object(phase2_torch, '_q_values', contar):
+            p = _partida(('refuerzo', 'reactivo'), E.Largo('manos', 30, 1), seed=5)
+            p.jugar_hasta_el_final()
+        decisiones = sum(1 for e in p.eventos if e['kind'] == 'think' and e['seat'] == 0)
+        self.assertEqual(len(llamadas), decisiones)
+        self.assertIsNone(p.error)
+
+
+class TestModeloQueNoCarga(unittest.TestCase):
+    def test_torch_que_falla_al_importar(self):
+        importar = __import__
+
+        def falso(nombre, *args, **kwargs):
+            if nombre == 'torch':
+                raise OSError('[WinError 126] No se puede encontrar el módulo especificado')
+            return importar(nombre, *args, **kwargs)
+
+        with mock.patch('builtins.__import__', falso):
+            self.assertFalse(E.modelo_disponible('refuerzo'))
+            modelos = {m['clave']: m['disponible'] for m in E.lista_modelos()}
+        self.assertFalse(modelos['refuerzo'])
+        self.assertTrue(modelos['reactivo'] and modelos['utilidad'])
+
+    def test_el_error_nombra_la_ia(self):
+        crear = E.crear_politica
+
+        def falla(clave, *args):
+            if clave == 'genetico':
+                raise OSError('[WinError 126]')
+            return crear(clave, *args)
+
+        with mock.patch.object(E, 'crear_politica', falla):
+            with self.assertRaises(E.ModeloNoCargado) as ctx:
+                E.PartidaEspectador(('reactivo', 'genetico'), seed=1)
+        self.assertEqual(ctx.exception.clave, 'genetico')
+
+
+class TestMotorQueSeCae(unittest.TestCase):
+    """The engine thread dying can never leave the driver waiting under its lock."""
+
+    def _en_hilo(self, funcion, limite=5):
+        resultado = []
+        hilo = threading.Thread(target=lambda: resultado.append(funcion()), daemon=True)
+        hilo.start()
+        hilo.join(limite)
+        self.assertFalse(hilo.is_alive(), f'{funcion} hung')
+        return resultado[0]
+
+    def test_excepcion_base_en_el_motor(self):
+        def explota(*args, **kwargs):
+            raise SystemExit('motor caído')
+
+        with mock.patch.object(E, 'play_match', explota):
+            p = _partida(('reactivo', 'reactivo'))
+            self._en_hilo(p.jugar_hasta_el_final)
+        self.assertTrue(p.terminada)
+        self.assertIn('motor caído', p.error)
+        self.assertEqual(p.eventos[-1]['kind'], 'match_end')
+
+    def test_hilo_que_muere_sin_avisar(self):
+        class Muda(E.PartidaEspectador):
+            ESPERA_MOTOR = 0.05
+
+            def _correr(self):
+                pass
+
+        p = Muda(('reactivo', 'reactivo'), seed=1)
+        self._en_hilo(p.jugar_hasta_el_final)
+        self.assertTrue(p.terminada)
+        self.assertIsNotNone(p.error)
+
+    def test_el_reproductor_sigue_respondiendo(self):
+        def explota(*args, **kwargs):
+            raise KeyboardInterrupt()
+
+        r = E.Reproductor(ritmo=E.RitmoSimple(escala=0))
+        try:
+            with mock.patch.object(E, 'play_match', explota):
+                self._en_hilo(lambda: r.empezar(('reactivo', 'reactivo'), seed=1))
+                self._en_hilo(r.paso)
+                self.assertTrue(self._en_hilo(r.snapshot)['partida']['terminada'])
+                self._en_hilo(r.detener)
+            self.assertEqual(self._en_hilo(lambda: r.empezar(('reactivo', 'reactivo'), seed=2))['estado'],
+                             'jugando')
+        finally:
+            r.cerrar()
+
+
+class RobotGrabador:
+    """Records the 3D calls in the order they land; one call can be made slow."""
+
+    def __init__(self, lento=None):
+        self.llamadas, self.lento = [], lento
+        self._lock = threading.Lock()
+
+    def _llamar(self, *args):
+        if args == self.lento:
+            time.sleep(0.3)
+        with self._lock:
+            self.llamadas.append(args)
+
+    def conectar(self): pass
+    def modo_mesa(self, modo): self._llamar('modo_mesa', modo)
+    def sentarse(self): self._llamar('sentarse')
+    def elegir_camara(self, nombre): self._llamar('elegir_camara', nombre)
+    def repartir_cartas(self, *manos): self._llamar('repartir_cartas')
+    def tirar_carta(self, carta, asiento=1): self._llamar('tirar_carta', asiento)
+
+
+class TestMesaRemota(unittest.TestCase):
+    def _servidor(self, sin_robot=True):
+        import servidor_truco
+        from partida_truco import PartidaTruco
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        partida = PartidaTruco(robot=None, historial_path=str(Path(tmp.name) / 'h.json'), rng=random.Random(1))
+        srv = servidor_truco.crear_servidor(partida, 0, sin_robot=sin_robot)
+        self.addCleanup(srv.server_close)
+        self.addCleanup(lambda: srv._espectador is not None and srv._espectador.cerrar())
+        return srv
+
+    def _esperar(self, condicion, limite=5):
+        fin = time.monotonic() + limite
+        while not condicion() and time.monotonic() < fin:
+            time.sleep(0.01)
+        self.assertTrue(condicion())
+
+    def test_soltar_vacia_la_cola_y_espera_lo_que_esta_en_vuelo(self):
+        robot = RobotGrabador(lento=('modo_mesa', 'robots'))
+        mesa = E.MesaRemota(robot)
+        mesa.empezar()                          # modo_mesa('robots') goes in flight, slowly
+        mesa.camara('detras_robot_1')
+        time.sleep(0.05)
+        self.assertTrue(mesa.soltar())
+        self.assertEqual(robot.llamadas, [('modo_mesa', 'robots')])   # landed before soltar returned
+        mesa.camara('detras_robot_2')
+        time.sleep(0.1)
+        self.assertEqual(robot.llamadas, [('modo_mesa', 'robots')])
+
+    def test_lo_del_espectador_no_cae_en_la_mesa_del_humano(self):
+        srv = self._servidor()
+        robot = RobotGrabador(lento=('modo_mesa', 'robots'))
+        srv.partida.robot = robot
+        srv.mesa_en_espectador = True
+        mesa = srv.espectador.mesa
+        mesa.robot = robot
+        mesa.empezar()
+        mesa.camara('detras_robot_1')
+        time.sleep(0.05)
+        srv.mesa_para_humano()
+        self._esperar(lambda: ('modo_mesa', 'humano') in robot.llamadas)
+        time.sleep(0.5)
+        humano = robot.llamadas.index(('modo_mesa', 'humano'))
+        self.assertNotIn(('elegir_camara', 'detras_robot_1'), robot.llamadas)
+        self.assertTrue(all(v not in ('robots', 'detras_robot_1') for c in robot.llamadas[humano:] for v in c[1:2]))
+
+    def test_el_hilo_unico_mantiene_el_orden(self):
+        robot = RobotGrabador()
+        mesa = E.MesaRemota(robot)
+        hilos = [threading.Thread(target=lambda i=i: [mesa.jugar(i % 2, (1, 'Oro')) for _ in range(50)])
+                 for i in range(4)]
+        for h in hilos:
+            h.start()
+        for h in hilos:
+            h.join()
+        self._esperar(lambda: len(robot.llamadas) == 200)
+
+    def test_tras_reiniciar_el_simulador_vuelve_el_3d(self):
+        import servidor_truco
+        srv = self._servidor(sin_robot=False)
+        caido = MagicMock()
+        caido.modo_mesa.side_effect = OSError('conexión perdida')
+        nuevo = RobotGrabador()
+        with mock.patch.object(servidor_truco, 'Robot', side_effect=[caido, nuevo]):
+            srv.espectador                      # created before the table switches
+            srv.mesa_para_espectador()          # connects `caido`; its first move fails
+            self._esperar(lambda: srv.robot is None)
+            self.assertIsNone(srv.espectador.mesa.robot)
+            srv.asegurar_robot()                # what the next /espectador/estado does
+        self.assertIs(srv.espectador.mesa.robot, nuevo)
+        self._esperar(lambda: ('modo_mesa', 'robots') in nuevo.llamadas)
 
 
 class RitmoLento:
@@ -264,6 +557,35 @@ class TestReproductor(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.r.poner_velocidad(3)
         self.assertEqual(self.r.seguir()['estado'], 'jugando')
+
+    def test_tras_pausa_no_sale_ningun_evento(self):
+        r = E.Reproductor(ritmo=E.RitmoSimple(escala=0))
+        try:
+            r.empezar(('reactivo', 'reactivo'), seed=3)
+            self._esperar(lambda: len(r.partida.eventos) > 3)
+            r.pausar()
+            with r._lock_partida:               # an event already being shown finishes
+                antes = len(r.partida.eventos)
+            time.sleep(0.2)
+            self.assertEqual(len(r.partida.eventos), antes)
+        finally:
+            r.cerrar()
+
+    def test_paso_avisa_a_los_oyentes_sin_el_lock(self):
+        bloqueados = []
+
+        def oyente(evento):
+            hilo = threading.Thread(target=self.r.snapshot, daemon=True)
+            hilo.start()
+            hilo.join(1)
+            bloqueados.append(hilo.is_alive())
+
+        self.r.oyentes.append(oyente)
+        self.r.empezar(('reactivo', 'utilidad'), seed=1)
+        self.r.pausar()
+        self.r.paso()
+        self.assertTrue(bloqueados)
+        self.assertFalse(any(bloqueados))
 
     def test_hasta_el_final_revancha_y_cambiar(self):
         r = E.Reproductor(ritmo=E.RitmoSimple(escala=0))
@@ -348,6 +670,23 @@ class TestEndpoints(unittest.TestCase):
         self.assertEqual(self._post('/espectador/revancha', {})[0], 200)
         self.assertEqual(self._post('/espectador/detener', {})[1]['estado'], 'sin_partida')
 
+    def test_una_ia_que_no_carga(self):
+        crear = E.crear_politica
+
+        def falla(clave, *args):
+            if clave == 'genetico':
+                raise OSError('[WinError 126]')
+            return crear(clave, *args)
+
+        self.srv.mesa_para_humano()
+        antes = self.srv.espectador.partida
+        with mock.patch.object(E, 'crear_politica', falla), mock.patch.object(E, 'modelo_disponible', lambda *a: True):
+            estado, d = self._post('/espectador/empezar', {'ias': ['genetico', 'reactivo']})
+        self.assertEqual(estado, 409)
+        self.assertEqual(d, {'error': 'No se pudo cargar esa IA', 'ia': 'genetico'})
+        self.assertFalse(self.srv.mesa_en_espectador)          # the table stays with the human
+        self.assertIs(self.srv.espectador.partida, antes)
+
     def test_partida_corta_contra_el_humano(self):
         estado, d = self._post('/truco/reiniciar', {'manos': 3})
         self.assertEqual(estado, 200)
@@ -355,6 +694,10 @@ class TestEndpoints(unittest.TestCase):
         self.assertEqual(self._post('/truco/reiniciar', {'manos': 11})[0], 400)
         d = self._post('/truco/reiniciar', {'meta_puntos': 15})[1]
         self.assertIsNone(d['estado']['tanteador']['manos'])
+        pagina = self._get('/')[1].decode('utf-8')
+        # Short match: hands counted ("Mano 2 de 5" / "Desempate"), no bar towards 30.
+        self.assertIn('id="manos-texto"', pagina)
+        self.assertIn("'Desempate'", pagina)
 
 
 class TestPartidaCortaHumana(unittest.TestCase):
