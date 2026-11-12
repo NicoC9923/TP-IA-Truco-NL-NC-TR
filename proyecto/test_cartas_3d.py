@@ -9,6 +9,7 @@ import time
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import robot  # noqa: F401  (puts entorno/ on sys.path, as the server does)
@@ -21,6 +22,70 @@ from partida_truco import PartidaTruco
 
 DIR_CARTAS = Path(__file__).resolve().parent / "cartas"
 HAY_MUJOCO = importlib.util.find_spec("mujoco") is not None
+
+
+@unittest.skipUnless(HAY_MUJOCO, "MuJoCo not installed")
+class TestViewerCameraKeys(unittest.TestCase):
+    def setUp(self):
+        import mujoco
+        from sim.escena_cartas import EscenaCartas
+
+        self.mj = mujoco
+        self.scene = EscenaCartas.__new__(EscenaCartas)
+        self.scene.mj = mujoco
+        self.scene.mesa = C.MesaCartas()
+        self.scene.camaras = {name: i for i, name in enumerate(C.CAMARAS)}
+        self.viewer = SimpleNamespace(
+            cam=mujoco.MjvCamera(), opt=mujoco.MjvOption(),
+            user_scn=SimpleNamespace(flags=[1, 0, 1, 0]),
+        )
+        self.scene.sincronizar_visor(self.viewer.cam)
+
+    def test_camera_key_avoids_mujoco_shortcuts(self):
+        # MuJoCo 3.12.0: simulate.cc, simulate.h and engine_vis_init.c.
+        # All letters, F1-F7, digits 0-5 and punctuation have viewer bindings.
+        self.assertEqual(C.TECLA_CAMARA, 297)  # GLFW F8, unbound in the viewer
+        self.assertNotIn(C.TECLA_CAMARA, range(290, 297))
+        for _, _, shortcut in (*self.mj.mjVISSTRING, *self.mj.mjRNDSTRING):
+            if shortcut:
+                self.assertNotEqual(C.TECLA_CAMARA, ord(shortcut))
+
+    def test_camera_cycle_preserves_visual_options(self):
+        import copy
+        import numpy as np
+
+        self.scene.mesa.poner_modo(C.MODO_ROBOTS)
+        self.viewer.opt.label = self.mj.mjtLabel.mjLABEL_JOINT
+        self.viewer.opt.frame = self.mj.mjtFrame.mjFRAME_BODY
+        self.viewer.opt.flags[0] = 1
+        before = copy.deepcopy(self.viewer.opt)
+        render_flags = self.viewer.user_scn.flags.copy()
+        for expected in (*C.CAMARAS[1:], C.CAMARA_GENERAL):
+            self.scene.tecla(297)
+            self.scene.sincronizar_visor(self.viewer.cam)
+            self.assertEqual(self.scene.mesa.camara, expected)
+            self.assertEqual(self.viewer.cam.fixedcamid, self.scene.camaras[expected])
+            for attr in ("label", "frame", "flags", "geomgroup", "sitegroup",
+                         "jointgroup", "tendongroup", "actuatorgroup", "flexgroup"):
+                np.testing.assert_equal(getattr(self.viewer.opt, attr), getattr(before, attr))
+            self.assertEqual(self.viewer.user_scn.flags, render_flags)
+
+    def test_human_mode_corrects_brackets_and_keeps_escape_free_camera(self):
+        for name in C.CAMARAS:
+            self.viewer.cam.type = self.mj.mjtCamera.mjCAMERA_FIXED
+            self.viewer.cam.fixedcamid = self.scene.camaras[name]
+            self.scene.sincronizar_visor(self.viewer.cam)
+            self.assertEqual(self.viewer.cam.fixedcamid, self.scene.camaras["general"])
+        self.scene.tecla(297)
+        self.scene.sincronizar_visor(self.viewer.cam)
+        self.assertEqual(self.scene.mesa.camara, "general")
+        # Emulate MuJoCo's Esc handling, which precedes the callback.
+        self.viewer.cam.type = self.mj.mjtCamera.mjCAMERA_FREE
+        for key in (256, 91, 93, 296):  # Esc, [, ], old F7
+            self.scene.tecla(key)
+            self.scene.sincronizar_visor(self.viewer.cam)
+            self.assertEqual(self.viewer.cam.type, self.mj.mjtCamera.mjCAMERA_FREE)
+            self.assertEqual(self.scene.mesa.camara, "general")
 
 
 class TestBaraja(unittest.TestCase):

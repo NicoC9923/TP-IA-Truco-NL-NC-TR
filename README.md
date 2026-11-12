@@ -83,7 +83,7 @@ Linux + Python 3.10), `--puerto`, `--solo-revisar`.
 The deck in `proyecto/cartas/` is drawn by code (`py -3 proyecto/generar_baraja.py`);
 the same PNGs texture the cards on the 3D table. Ottoman holds its fan of cards with
 both hands, pulls each card out with the right hand and lays it on the table; your cards
-appear on your side as you play them. In the viewer, **F7** cycles the cameras
+appear on your side as you play them. In the viewer, **F8** cycles the cameras
 (`general`, `detras_robot_1`, `detras_robot_2`); against a human only `general`
 is available, and the robot's hand shows card backs. Offscreen screenshots:
 `cd entorno && py -3 -m sim.capturas ../docs/screenshots/step1 jpg`. See ADR 0067.
@@ -102,7 +102,7 @@ spoken), the 3D camera, and at the end Revancha or Cambiar IAs.
 The match runs on the training engine (`proyecto/espectador.py`, ADR 0064), so the
 AIs play exactly as they were measured, plus the envido rule of ADR 0068. With the
 simulator open, a second G1 in a light-blue poncho sits in seat 2 and both robots
-hold and play their cards; every camera is allowed (F7 cycles `general`,
+hold and play their cards; every camera is allowed (F8 cycles `general`,
 `detras_robot_1`, `detras_robot_2`, `mesa`). Without MuJoCo the page works alone.
 Short matches are also available against Ottoman from the **Corta** selector next to
 A 15 / A 30 (ADR 0069). Two-robot screenshots:

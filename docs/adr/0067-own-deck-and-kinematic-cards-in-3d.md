@@ -21,7 +21,9 @@ The MuJoCo scene showed the robot at the table, but the cards on it were two pla
 
 Arm poses come from a small damped least-squares IK solved once at startup, then interpolated. The place motion lasts 0.8 s (`Ritmo.llevar`), reach and return 0.45 s each, all configurable. The two-hand handoff worked, so no fallback was needed.
 
-**Seats and cameras.** Seat 1 (Ottoman) faces seat 2 across the table; seat 2 has a chair and a camera already, for the second robot of step 2. Three named cameras: `general`, `detras_robot_1`, `detras_robot_2`. F7 in the viewer cycles them; the game server can ask for one through the simulator socket (`Robot.elegir_camara`).
+**Seats and cameras.** Seat 1 (Ottoman) faces seat 2 across the table; seat 2 has a chair and a camera already, for the second robot of step 2. Three named cameras: `general`, `detras_robot_1`, `detras_robot_2`. F8 in the viewer cycles them; the game server can ask for one through the simulator socket (`Robot.elegir_camara`).
+
+Amended (2026-11-11): use F8, which has no built-in MuJoCo 3.12 viewer binding. The original F7 also cycled MuJoCo's label visualization before our callback ran; a passive-viewer callback cannot consume that event. Camera handling only requests a camera and updates `cam`, preserving visualization and rendering options. See the [versioned shortcut audit](../mujoco-viewer-shortcuts.md).
 
 **Human vs robot.** In that mode (the default) the behind-robot cameras are disabled: asking for one returns the overview, and the viewer is pulled back if MuJoCo's own `[`/`]` keys land on one. As a second guarantee, the robot's cards in hand show their backs on both faces, so not even a free camera reveals them.
 

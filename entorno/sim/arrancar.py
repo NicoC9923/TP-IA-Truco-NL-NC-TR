@@ -336,7 +336,7 @@ class SimuladorOficial:
                 v.cam.elevation = -20
             self.iniciar_transporte()
             if self.cartas is not None and self.verboso:
-                print("  [CARTAS] F7 cambia de camara (general / detras de cada robot).")
+                print("  [CARTAS] F8 cambia de camara (general / detras de cada robot).")
                 print("           Contra un humano, las camaras detras del robot no se muestran.")
             periodo = self.cfg.VIEWER_DT
             while v.is_running():
