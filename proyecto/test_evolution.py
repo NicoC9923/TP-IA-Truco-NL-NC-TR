@@ -107,11 +107,16 @@ class EvolutionPageContentTests(unittest.TestCase):
 
     def test_has_three_tabs_and_required_texts(self):
         for text in ('Fase 1 · Algoritmos genéticos', 'Fase 2 · Aprendizaje por refuerzo', 'Comparación',
-                     'Algoritmos genéticos vs Aprendizaje por refuerzo', 'Ver una mano de ejemplo de la campeona',
+                     'Comparación de las dos técnicas', 'Ver una mano de ejemplo de la campeona',
                      'Disponible cuando la fase 2 tenga campeona evaluada',
-                     'Mejora sobre la campeona contra el panel fijo', 'Resultado del control contra la campeona',
+                     '¿Mejora la red con las generaciones?', '¿Le gana cada generación a la campeona?',
+                     '¿Ganó de verdad la red nueva?', 'Para curiosos', 'Ver detalle', '← Volver al juego',
                      'la fase 2 entrenó también contra redes de la fase 1'):
             self.assertIn(text, self.page)
+
+    def test_plain_language_rules(self):
+        for text in ('farol', 'escritos a mano', 'Aceptación independiente', 'Error medio de entrenamiento'):
+            self.assertNotIn(text, self.page)
 
     def test_polls_every_five_seconds_only_while_training(self):
         self.assertIn('POLL_MS = 5000', self.page)
