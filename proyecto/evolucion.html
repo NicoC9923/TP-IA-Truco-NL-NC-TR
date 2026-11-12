@@ -18,26 +18,26 @@ header{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-betw
 h1{margin:0;font-size:24px;font-weight:700;letter-spacing:-.01em}
 h2{margin:0;font-size:18px;font-weight:600}
 .sub{margin:4px 0 0;font-size:14px;color:var(--muted)}
-.back{display:inline-flex;align-items:center;min-height:44px;font-size:14px}
+.back{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;margin-bottom:12px;border-radius:10px;background:var(--blue);color:#fff;font-size:16px;font-weight:600;text-decoration:none}.back:hover{background:var(--blue-ink)}
 nav{display:flex;flex-wrap:wrap;background:var(--track);border-radius:10px;padding:4px;gap:4px}
 nav button{min-height:44px;padding:0 18px;border:none;border-radius:8px;font-size:14px;font-weight:500;color:var(--ink2);background:transparent;cursor:pointer}
 nav button[aria-selected=true]{background:var(--card);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(20,24,29,.08)}
 .stack{display:flex;flex-direction:column;gap:28px}
 .status{display:flex;flex-wrap:wrap;align-items:center;gap:12px;font-size:15px}
-.pill{padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600;background:#ECEFF2;color:var(--ink2)}
+.pill{padding:4px 10px;border-radius:999px;font-size:14px;font-weight:600;background:#ECEFF2;color:var(--ink2)}
 .pill.on{background:var(--blue-tint);color:var(--blue-ink)}
 .bar{display:flex;flex-direction:column;gap:8px}
 .track{height:6px;background:var(--line);border-radius:4px;overflow:hidden}
 .fill{height:6px;background:var(--blue)}
-.small{margin:0;font-size:13px;color:var(--muted)}
+.small{margin:0;font-size:14px;color:var(--muted)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
 .kpi{display:flex;flex-direction:column;gap:6px}
-.kpi span:first-child{font-size:13px;color:var(--muted)}
+.kpi span:first-child{font-size:14px;color:var(--muted)}
 .kpi span:last-child{font-size:28px;font-weight:700;letter-spacing:-.01em}
 section.card{padding:28px;display:flex;flex-direction:column;gap:16px}
 .head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}
-.legend{display:flex;flex-wrap:wrap;align-items:center;gap:16px;font-size:13px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;align-items:center;gap:16px;font-size:14px;color:var(--muted)}
 .legend span{display:flex;align-items:center;gap:6px}
 .sw-line{width:14px;height:2px;background:var(--blue)}
 .sw-band{width:14px;height:10px;background:var(--blue);opacity:.2}
@@ -56,18 +56,26 @@ section.card.hand{padding:0;gap:0}
 .row .act{flex:1;min-width:180px;font-weight:600}
 .row .why{color:var(--muted)}
 select,.step-button{font:inherit;color:var(--ink);background:white;border:1px solid #aeb7c3;border-radius:6px;padding:10px}
-.stack,section.card,.network-scroll,.table-scroll{min-width:0}#decision-status{overflow-wrap:anywhere}.network-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}.network-svg{min-width:720px}.network-svg .layer-node{cursor:pointer}.network-svg .layer-node:focus{outline:none}.network-svg .layer-node:focus rect,.network-svg .layer-node:hover rect{stroke:#1F5FBF;stroke-width:3}.network-svg text{fill:var(--ink);font-size:14px}.network-svg .edge{stroke:#98a7b9;stroke-width:1.3}.network-svg .neuron{stroke:#6b7482;stroke-width:1}.switch-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.switch-row input{width:22px;height:22px;accent-color:var(--blue)}.layer-details{padding:12px;background:var(--soft);border-radius:8px}.trace-legend{display:flex;gap:8px;align-items:center}.scale{width:100px;height:12px;background:linear-gradient(90deg,#e8eef8,#1f5fbf);border:1px solid #aeb7c3}.network-svg .sample-selected{stroke:#C2410C;stroke-width:3}.network-svg .inactive{fill:#fff}.trace-table td,.trace-table th{white-space:nowrap}.table-title{margin:0;font-weight:600}.scroll-hint{display:none}@media(max-width:640px){.scroll-hint{display:block}}
+.stack,section.card,.network-scroll,.table-scroll{min-width:0}#decision-status{overflow-wrap:anywhere}.network-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}.network-svg{min-width:960px}.network-svg .layer-node{cursor:pointer}.network-svg .layer-node:focus{outline:none}.network-svg .layer-node:focus rect,.network-svg .layer-node:hover rect{stroke:#1F5FBF;stroke-width:3}.network-svg text{fill:var(--ink);font-size:14px}.network-svg .edge{stroke:#98a7b9;stroke-width:1.3}.network-svg .neuron{stroke:#6b7482;stroke-width:1}.switch-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.switch-row input{width:22px;height:22px;accent-color:var(--blue)}.layer-details{padding:12px;background:var(--soft);border-radius:8px}.trace-legend{display:flex;gap:8px;align-items:center}.scale{width:100px;height:12px;background:linear-gradient(90deg,#e8eef8,#1f5fbf);border:1px solid #aeb7c3}.network-svg .sample-selected{stroke:#C2410C;stroke-width:3}.network-svg .inactive{fill:#fff}.trace-table td,.trace-table th{white-space:nowrap}.table-title{margin:0;font-weight:600}.scroll-hint{display:none}@media(max-width:640px){.scroll-hint{display:block}}
 .stage-list{display:flex;flex-wrap:wrap;gap:8px}.stage-list button[aria-pressed=true]{background:#e6eefa;border-color:#1f5fbf}.example{border-top:1px solid var(--line);padding-top:12px}.example h3{margin:0;font-size:16px}.network-svg circle[role=button]{cursor:pointer}.network-svg circle:focus{outline:none;stroke:#1f5fbf;stroke-width:4}.run-select{display:flex;align-items:center;flex-wrap:wrap;gap:10px}.diagram{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}.diagram div{flex:1 1 150px;background:var(--soft);padding:14px;border-radius:8px}.diagram strong{display:block}.table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line)}.step-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.step-button:disabled{opacity:.5}
 .compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .pair{border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px}
 .pair p{margin:0;font-size:14px;font-weight:600}
 .line{display:flex;align-items:center;gap:12px}
-.line .lbl{width:150px;font-size:13px;color:var(--muted)}
+.line .lbl{width:150px;font-size:14px;color:var(--muted)}
 .line .rail{flex:1;height:10px;background:var(--soft);border-radius:6px}
 .line .rail div{height:10px;border-radius:6px}
 .line .val{width:64px;text-align:right;font-size:14px;font-weight:600}
 table.wide th,table.wide td{white-space:nowrap;padding-right:16px}
 [hidden]{display:none!important}
+.hero{gap:14px}.hero .tag{margin:0;font-size:14px;font-weight:600;color:var(--blue-ink)}.hero .lead{font-size:30px;line-height:1.2;font-weight:700;letter-spacing:-.01em}
+.bigs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}.big{display:flex;flex-direction:column;gap:4px;background:var(--blue-tint);border-radius:12px;padding:16px}.big .bv{font-size:40px;font-weight:700;color:var(--blue-ink);line-height:1.1}.big .bl{font-size:16px;color:var(--ink2)}
+details.fold>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;cursor:pointer;font-size:16px;font-weight:600;color:var(--ink);list-style:none}details.fold>summary::-webkit-details-marker{display:none}details.fold>summary::after{content:'Mostrar ▾';font-size:14px;font-weight:500;color:var(--blue-ink);white-space:nowrap}details.fold[open]>summary::after{content:'Ocultar ▴'}
+.fold-body{display:flex;flex-direction:column;gap:16px;padding:8px 0 4px;min-width:0}
+details.fold.top{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 24px}
+details.fold.top section.card{border:none;padding:0;background:none}
+.mini{display:block;font-size:14px;font-weight:400;color:var(--muted)}
+.sw-name{display:flex;flex-direction:column;line-height:1.25}.sw-name b{font-weight:600;color:var(--ink2)}
 @media(max-width:640px){
  .page{padding:24px 16px 48px;gap:20px}
  nav{width:100%}nav button{flex:1 1 auto;padding:0 12px}
@@ -76,6 +84,7 @@ table.wide th,table.wide td{white-space:nowrap;padding-right:16px}
  section.card{padding:20px 16px}
  .hand>button{padding:0 16px}.hand-body{padding:0 16px 20px}
  .compare{grid-template-columns:1fr}
+ .hero .lead{font-size:23px}.big .bv{font-size:34px}details.fold.top{padding:4px 16px}
  .line{flex-wrap:wrap}.line .lbl{width:100%}
  .row .who{width:100%}.row .act{min-width:0}
 }
@@ -118,6 +127,7 @@ const state = {
   layer: 0,
   neuron: 0,
   open: { p1: false, p2: false },
+  det: {},
   hand: { p2: null },
   loaded: false,
   failed: false,
@@ -221,28 +231,41 @@ function svg(tag, attrs, text) {
   return n;
 }
 const legendItem = (cls, text) => el('span', {}, el('span', { class: cls }), text);
+/* Collapsible block whose open/closed state survives re-rendering. */
+function fold(key, title, ...kids) {
+  const d = el('details', { class: 'fold' }, el('summary', { text: title }), el('div', { class: 'fold-body' }, ...kids));
+  if (state.det[key]) d.open = true;
+  d.addEventListener('toggle', () => { state.det[key] = d.open; });
+  return d;
+}
+function foldCard(key, title, ...kids) { const d = fold(key, title, ...kids); d.classList.add('top'); return d; }
+const bigNums = (items) => el('div', { class: 'bigs' }, ...items.map(([v, l]) => el('div', { class: 'big' }, el('span', { class: 'bv', text: v }), el('span', { class: 'bl', text: l }))));
+function hero(tag, sentence, items) {
+  return el('section', { class: 'card hero' }, el('p', { class: 'tag', text: tag }), el('h2', { class: 'lead', text: sentence }), items && items.length ? bigNums(items) : null);
+}
+const withMini = (name, detail) => { const n = document.createDocumentFragment(); n.append(name); if (detail) n.append(el('span', { class: 'mini', text: detail })); return n; };
 
 function chart(phase, rows) {
   const isP2 = phase === 'p2';
   const base = isP2 ? 0 : 50;
-  const title = isP2 ? 'Mejora sobre la campeona contra el panel fijo' : 'Resultado del control contra la campeona';
+  const title = isP2 ? '¿Mejora la red con las generaciones?' : '¿Le gana cada generación a la campeona?';
   const rule = 'Asciende con +1 punto o más, margen por encima de cero y al menos 47,5 % de partidas ganadas cara a cara.';
   const note = isP2
-    ? 'Puntos porcentuales por encima de la campeona vigente, con su margen. ' + (state.p2.gens.some((g) => g.measuring_only) ? 'Panel de medición provisorio: no cambia durante la corrida y sirve para medir, no para elegir la campeona final. ' : '') + rule
+    ? 'Puntos de ventaja sobre la campeona vigente, con su margen de error. ' + (state.p2.gens.some((g) => g.measuring_only) ? 'Panel de medición provisorio: no cambia durante la corrida y sirve para medir, no para elegir la campeona final. ' : '') + rule
     : 'Porcentaje de partidas ganadas a la campeona vigente, con su margen. Asciende con 55 % o más.';
-  const legend = el('div', { class: 'legend' }, legendItem('sw-line', 'por generación'), legendItem('sw-band', 'margen'), legendItem('sw-dot', 'ascenso'));
-  if (isP2 && rows.some((r) => r.boundary !== null)) legend.append(legendItem('sw-dash', 'cambio de panel'));
+  const legend = el('div', { class: 'legend' }, legendItem('sw-line', 'resultado de cada generación'), legendItem('sw-band', 'margen de error'), legendItem('sw-dot', 'pasó a ser la campeona'));
+  if (isP2 && rows.some((r) => r.boundary !== null)) legend.append(legendItem('sw-dash', 'cambio de rivales de prueba'));
   const measuring = isP2 && state.p2.gens.some((g) => g.measuring_only);
   const heading = el('div', { style: 'display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px' }, el('h2', { text: title }), measuring ? el('span', { class: 'pill', text: 'Panel de medición (provisorio)' }) : null);
   const box = el('section', { class: 'card', 'aria-label': title }, el('div', { class: 'head' }, heading, legend));
   if (!rows.length) {
     box.append(el('p', { class: 'empty', text: isP2 ? 'Todavía no hay controles de promoción. Aparecen desde la generación 2.' : 'Todavía no hay datos de entrenamiento.' }));
-    box.append(el('p', { class: 'small', text: note }));
+    box.append(fold('data-' + phase, 'Ver detalle', el('p', { class: 'small', text: note })));
     return box;
   }
   const narrow = window.innerWidth < 640;
-  const W = narrow ? 360 : 1000, H = narrow ? 280 : 320, L = narrow ? 58 : 64, R = W - (narrow ? 12 : 20), T = 20, B = H - 30;
-  const F = narrow ? 13 : 13;
+  const W = narrow ? 320 : 1000, H = narrow ? 280 : 320, L = narrow ? 62 : 68, R = W - (narrow ? 12 : 20), T = 20, B = H - 32;
+  const F = 14;
   const lowest = Math.min(base, ...rows.map((r) => r.lo)), highest = Math.max(base, ...rows.map((r) => r.hi));
   const { ticks, lo, hi } = niceTicks(lowest, highest, base);
   const gmin = rows[0].gen, gmax = rows[rows.length - 1].gen;
@@ -256,7 +279,7 @@ function chart(phase, rows) {
   }
   for (const r of rows.filter((x) => x.boundary !== null)) {
     s.append(svg('line', { x1: X(r.gen), y1: T, x2: X(r.gen), y2: B, stroke: '#5A626E', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }));
-    s.append(svg('text', { x: X(r.gen) + 5, y: T + 12, 'font-size': narrow ? 13 : 12, fill: '#3A414B' }, `panel v${r.boundary}`));
+    s.append(svg('text', { x: X(r.gen) + 5, y: T + 12, 'font-size': 14, fill: '#3A414B' }, `rivales v${r.boundary}`));
   }
   const up = rows.map((r) => `${X(r.gen).toFixed(1)},${Y(r.hi).toFixed(1)}`);
   const down = rows.map((r) => `${X(r.gen).toFixed(1)},${Y(r.lo).toFixed(1)}`).reverse();
@@ -269,9 +292,9 @@ function chart(phase, rows) {
   }
   s.append(svg('text', { x: L, y: H - 8, 'font-size': F, fill: '#5A626E' }, `gen ${gmin}`));
   s.append(svg('text', { x: R, y: H - 8, 'text-anchor': 'end', 'font-size': F, fill: '#5A626E' }, `gen ${gmax}`));
-  const table = el('table', {}, el('caption', {text:'Datos del control por generación'}), el('tr', {}, ...['Generación','Resultado','Intervalo','Ascenso'].map(t => el('th', {scope:'col',text:t}))));
+  const table = el('table', {}, el('caption', {text:'Datos del control por generación'}), el('tr', {}, ...['Generación','Resultado','Margen de error','Pasó a campeona'].map(t => el('th', {scope:'col',text:t}))));
   rows.forEach(r => table.append(el('tr', {}, ...[r.gen, r.v.toFixed(1), `${r.lo.toFixed(1)} a ${r.hi.toFixed(1)}`, r.promoted ? 'Sí' : 'No'].map(v => el('td',{text:String(v)})))));
-  box.append(s, el('details', {}, el('summary', {text:'Ver datos del gráfico'}), el('div',{class:'table-scroll'},table)), el('p', { class: 'small', text: note }));
+  box.append(s, fold('data-' + phase, 'Ver detalle', el('p', { class: 'small', text: note }), el('div',{class:'table-scroll'},table)));
   return box;
 }
 
@@ -315,10 +338,10 @@ function kpis(phase) {
   const p = state[phase];
   const s = summary(phase, p.gens, phase === 'p2' ? p.progress : {});
   const third = phase === 'p2'
-    ? ['Partidas por segundo', num(p.progress.matches_per_s) ? String(Math.round(p.progress.matches_per_s)) : '—']
-    : ['Generaciones', s.generation ? String(s.generation) : '—'];
-  const items = [['Campeona actual', s.champion === null ? '—' : `gen ${s.champion}`], ['Ascensos', phase === 'p2' && num(p.progress.promotions) ? String(p.progress.promotions) : (p.gens.length ? String(s.promos) : '—')], third];
-  if (phase === 'p2' && state.run === 'run3' && num(p.progress.generation)) items.unshift(['Generación', String(p.progress.generation)]);
+    ? ['Partidas jugadas por segundo', num(p.progress.matches_per_s) ? String(Math.round(p.progress.matches_per_s)) : '—']
+    : ['Generaciones entrenadas', s.generation ? String(s.generation) : '—'];
+  const items = [['Mejor red hasta ahora', s.champion === null ? '—' : `gen ${s.champion}`], ['Veces que una red nueva superó a la anterior', phase === 'p2' && num(p.progress.promotions) ? String(p.progress.promotions) : (p.gens.length ? String(s.promos) : '—')], third];
+  if (phase === 'p2' && state.run === 'run3' && num(p.progress.generation)) items.unshift(['Generación actual', String(p.progress.generation)]);
   if (phase === 'p2' && state.run === 'run3' && num(p.progress.elapsed) && num(p.progress.time_cap)) items.splice(2, 0, [`Tiempo (tope ${duration(p.progress.time_cap)})`, duration(p.progress.elapsed)]);
   if (phase === 'p2') items.push(['Partidas', num(p.progress.matches) ? p.progress.matches.toLocaleString('es-AR') : '—']);
   return el('div', { class: 'kpis' }, ...items.map(([l, v]) => el('div', { class: 'card kpi' }, el('span', { text: l }), el('span', { text: v }))));
@@ -383,40 +406,77 @@ function handView(phase) {
   return wrap;
 }
 
+function exampleStat(e, key) { const i = e.opponents.indexOf(key); return i >= 0 ? e.shipped[i] : null; }
+const trainingNowFor = (phase) => (phase === 'p1' ? phase1Training() : state.p2.progress.status === 'training');
+function headline(phase) {
+  const p = state[phase];
+  if (phase === 'p2' && state.run === 'run3') {
+    const sh = (state.comparison || {}).shipped, e = sh && sh.exam;
+    if (sh && sh.run === 'run3' && e && e.shipped) {
+      const au = exampleStat(e, 'adaptive_utility'), re = exampleStat(e, 'reactive'), ga = exampleStat(e, 'phase1');
+      if (num(au) && num(re) && num(ga)) return hero('Aprendizaje por refuerzo · corrida 3 · generación 73 (la que se juega)', `La red publicada gana ${pct(au)} de las partidas contra Utilidad adaptativa.`,
+        [[pct(au), 'gana contra Utilidad adaptativa'], [pct(re), 'gana contra Reactivo'], [pct(ga), 'gana contra Algoritmos genéticos']]);
+    }
+  }
+  if (phase === 'p2' && state.run === 'run2') {
+    const a = p.acceptance || {};
+    if (a.decision && a.direct && num(a.direct.mean) && a.held_out && num(a.held_out.mean)) {
+      const sentence = { ships: 'Resultado: la red nueva es mejor.', inconclusive: 'Resultado: no mejoró.', regression: 'Resultado: empeoró.' }[a.decision] || `Resultado: ${a.decision}`;
+      const gen = a.config && a.config.candidate && num(a.config.candidate.generation) ? a.config.candidate.generation : null;
+      return hero('Aprendizaje por refuerzo · corrida 2' + (gen ? ` · generación ${gen}` : ''), sentence,
+        [[pct(a.direct.mean), 'gana cara a cara contra la red anterior'], [pts(a.held_out.mean), 'de diferencia contra rivales nuevos'], gen ? [String(gen), 'generación evaluada'] : null].filter(Boolean));
+    }
+  }
+  const s = summary(phase, p.gens, phase === 'p2' ? p.progress : {});
+  const name = phase === 'p2' ? 'Aprendizaje por refuerzo' : 'Algoritmos genéticos';
+  const promos = phase === 'p2' && num(p.progress.promotions) ? p.progress.promotions : s.promos;
+  const tag = name + (phase === 'p2' && state.run ? ' · ' + state.run.replace('run', 'corrida ') : '');
+  if (!p.gens.length) return hero(tag, 'Todavía no hay datos de esta técnica.', []);
+  const sentence = trainingNowFor(phase) ? `Está entrenando: va por la generación ${s.generation}.` : `Después de ${s.generation} generaciones, la mejor red es la generación ${s.champion}.`;
+  return hero(tag, sentence,
+    [['gen ' + (s.champion === null ? '—' : s.champion), 'es la mejor red hasta ahora'], [String(promos), 'veces que una red nueva superó a la anterior'], [String(s.generation ?? '—'), 'generaciones entrenadas']]);
+}
+
 function phaseView(phase) {
   const status = statusBlock(phase);
   const running = status.running;
   const wrap = el('div', {class:'stack'});
-  if (phase === 'p2') wrap.append(shippedNetwork(), runSelector());
+  wrap.append(headline(phase));
+  if (phase === 'p2') wrap.append(runSelector());
   status.wrap.id = 'phase-status';
-  const metrics = kpis(phase); metrics.id = 'phase-metrics';
-  wrap.append(status.wrap, metrics);
-  if (phase === 'p2' && state.run === 'run3') wrap.append(runThreeNotes());
+  wrap.append(status.wrap);
   wrap.append(chart(phase, seriesFor(phase, state[phase].gens)));
-  if (phase === 'p2' && state.run === 'run3') wrap.append(runThreeGenerations(), runThreePanel());
-  if (phase === 'p2') wrap.append(lossChart(), acceptanceView(), architecture());
+  if (phase === 'p2' && state.run === 'run2') wrap.append(acceptanceView());
   wrap.append(handView(phase));
+  if (phase === 'p2') {
+    const metrics = kpis(phase); metrics.id = 'phase-metrics';
+    const inner = [metrics];
+    if (state.run === 'run3') inner.push(runThreeNotes(), runThreeGenerations(), runThreePanel());
+    inner.push(lossChart(), shippedNetwork());
+    wrap.append(foldCard('detail-p2', 'Ver detalle del entrenamiento', ...inner), foldCard('curious', 'Para curiosos: cómo decide la red por dentro', architecture()));
+  }
   return { node: wrap, running };
 }
 
-const EXAM_RIVALS = {adaptive_utility:'Utilidad adaptativa', reactive:'Reactivo', phase1:'Algoritmos genéticos (fase 1)', held_out_1:'Genético semilla 1 (gen 23)', held_out_2:'Genético semilla 2 (gen 2, casi sin entrenar)'};
+const EXAM_RIVALS = {adaptive_utility:['Utilidad adaptativa'], reactive:['Reactivo'], phase1:['Algoritmos genéticos','fase 1'], held_out_1:['Algoritmos genéticos','generación 23'], held_out_2:['Algoritmos genéticos','generación 2 · casi sin entrenar']};
+const rivalName = (k) => (EXAM_RIVALS[k] || [k])[0];
 const points = (v) => (v * 100).toFixed(1).replace('.', ',').replace('-', '−');
 function shippedNetwork() {
   const s = (state.comparison || {}).shipped;
-  const box = el('section',{class:'card'},el('h2',{text:'Red publicada en el juego · corrida 3, generación 73'}));
+  const box = el('section',{class:'card'},el('h2',{},withMini('Red publicada en el juego','Aprendizaje por refuerzo · corrida 3 · generación 73')));
   if (!s || s.run !== 'run3') { box.append(el('p',{class:'empty',text:'No hay datos de la red publicada.'})); return box; }
   box.append(el('p',{text:'El modo «Red neuronal · Aprendizaje por refuerzo» usa la generación 73 de la corrida 3. Juega siempre la acción de mayor valor entre las permitidas (en empate, la primera de la lista); no sortea. Recibe 1635 números por decisión: los 1628 originales más siete datos de su propia mano (por ejemplo, sus tantos de envido y la fuerza de sus cartas). La generación 38 de la corrida 2 y la generación 28 de la corrida 1 quedaron retiradas.'}));
   const e = s.exam;
   if (e && e.shipped && e.retired) {
-    const table = el('table',{},el('caption',{text:'Examen final de la corrida 3: partidas ganadas en 1000 pares de manos repartidas'}),el('tr',{},...['Rival','Generación 73, voraz','Generación 38 (retirada)'].map(t=>el('th',{scope:'col',text:t}))));
-    e.opponents.forEach((o,i)=>{ if (EXAM_RIVALS[o]) table.append(el('tr',{},el('td',{text:EXAM_RIVALS[o]}),el('td',{text:pct(e.shipped[i])}),el('td',{text:pct(e.retired[i])}))); });
+    const table = el('table',{},el('caption',{text:'Examen final de la corrida 3: partidas ganadas en 1000 pares de manos repartidas'}),el('tr',{},el('th',{scope:'col',text:'Rival'}),el('th',{scope:'col'},withMini('Aprendizaje por refuerzo','corrida 3 · generación 73')),el('th',{scope:'col'},withMini('Aprendizaje por refuerzo','corrida 2 · generación 38 · retirada'))));
+    e.opponents.forEach((o,i)=>{ if (EXAM_RIVALS[o]) table.append(el('tr',{},el('td',{},withMini(EXAM_RIVALS[o][0],EXAM_RIVALS[o][1])),el('td',{text:pct(e.shipped[i])}),el('td',{text:pct(e.retired[i])}))); });
     box.append(el('div',{class:'table-scroll',tabindex:'0',role:'region','aria-label':'Resultados del examen final de la corrida 3'},table));
   }
   const d = s.duel;
   if (d) box.append(el('p',{text:`Duelo directo entre las dos redes, ambas voraces (${d.pairs} pares de manos): la generación 73 le ganó a la generación 38 en ${pct(d.win_rate)} de los pares, con intervalo de ${pct(d.lower)} a ${pct(d.upper)}.`}));
   const f = s.failed_guardrail;
   const notes = [];
-  if (f) notes.push(`No pasó una de las condiciones de seguridad del examen: contra ${EXAM_RIVALS[f.opponent] || f.opponent} jugó ${points(Math.abs(f.gain))} puntos peor que la generación 38 (intervalo de ${points(f.lower)} a ${points(f.upper)} puntos). Por la regla fijada de antemano, la generación 38 seguía publicada. Se publicó la generación 73 por decisión del usuario (ADR 0063), después de ver el examen: es una decisión de criterio, no un examen aprobado.`);
+  if (f) notes.push(`No pasó una de las condiciones de seguridad del examen: contra ${rivalName(f.opponent)} jugó ${points(Math.abs(f.gain))} puntos peor que la generación 38 (intervalo de ${points(f.lower)} a ${points(f.upper)} puntos). Por la regla fijada de antemano, la generación 38 seguía publicada. Se publicó la generación 73 por decisión del usuario (ADR 0063), después de ver el examen: es una decisión de criterio, no un examen aprobado.`);
   notes.push('Utilidad adaptativa fue rival de entrenamiento de la corrida 3: esa mejora es contra un rival conocido.');
   notes.push('El examen decide qué red se publica; no mide la fuerza general de la red.');
   box.append(el('ul',{class:'small'},...notes.map(c=>el('li',{text:c}))));
@@ -424,7 +484,7 @@ function shippedNetwork() {
 }
 
 function runSelector() {
-  const select = el('select', {id:'run-select','aria-label':'Corrida de fase 2'});
+  const select = el('select', {id:'run-select','aria-label':'Corrida de aprendizaje por refuerzo'});
   [['run3','Corrida 3 · publicada (generación 73)'],['run2','Corrida 2 · retirada (generación 38)'],['run1','Corrida 1 · retirada (generación 28)']].forEach(([v,t]) => select.append(el('option',{value:v,text:t})));
   select.value = state.run;
   select.addEventListener('change', async () => {
@@ -433,7 +493,7 @@ function runSelector() {
     const url = new URL(location.href); url.searchParams.set('run',state.run); history.replaceState(null,'',url);
     render(); await refreshPhase2(); render(); schedule();
   });
-  return el('div',{class:'run-select'},el('label',{for:'run-select',text:'Corrida de fase 2'}),select);
+  return el('div',{class:'run-select'},el('label',{for:'run-select',text:'Corrida de aprendizaje por refuerzo'}),select);
 }
 /* ---------- run 3 (live) ---------- */
 const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
@@ -442,7 +502,7 @@ const memberName = (id) => MEMBER_NAMES[id] || `Red ${id}`;
 const pts = (v) => signed(v * 100) + ' pts';
 
 function runThreeNotes() {
-  const box = el('section', { class: 'card' }, el('h2', { text: 'Corrida 3: cómo leer estos números' }));
+  const box = el('section', { class: 'card' }, el('h2', { text: 'Cómo leer los números de la corrida 3' }));
   const notes = [
     'Los controles de la corrida 3 juegan «voraz» (siempre la acción de mayor valor) y con 300 pares de manos por integrante del panel. Por eso sus resultados no se pueden comparar con los de la corrida 2, que sorteaba con temperatura 0,05 y usaba menos pares.',
     'Para aprender, la red sí sortea acciones, pero con temperatura 0,02: casi siempre elige la de mayor valor y explora muy poco. «Desacuerdo voraz» es el porcentaje de decisiones de entrenamiento en las que el sorteo eligió algo distinto de la acción voraz.',
@@ -458,7 +518,7 @@ function genSeconds(g) {
 
 function runThreeGenerations() {
   const rows = state.p2.gens.filter((g) => num(g.generation) && g.check && num(g.check.gain));
-  const box = el('section', { class: 'card' }, el('h2', { text: 'Resultado de cada generación' }),
+  const box = el('section', { class: 'card' }, el('h2', { text: '¿Cómo le fue a cada generación?' }),
     el('p', { class: 'small', text: 'Mejora: puntos porcentuales sobre la campeona vigente en el panel, con su intervalo del 95 %. Asciende con +1 punto o más, intervalo por encima de cero y al menos 47,5 % cara a cara.' }));
   if (!rows.length) { box.append(el('p', { class: 'empty', text: 'Todavía no hay controles. El primero aparece al terminar la generación 2.' })); return box; }
   const table = el('table', { class: 'wide' }, el('caption', { text: 'Controles por generación de la corrida 3' }),
@@ -474,7 +534,7 @@ function runThreeGenerations() {
 
 function runThreePanel() {
   const rows = state.p2.gens.filter((g) => num(g.generation) && g.check && g.check.members);
-  const box = el('section', { class: 'card' }, el('h2', { text: 'Resultados por integrante del panel' }));
+  const box = el('section', { class: 'card' }, el('h2', { text: '¿Contra quién juega mejor o peor?' }));
   if (!rows.length) { box.append(el('p', { class: 'empty', text: 'Todavía no hay resultados por integrante.' })); return box; }
   const last = rows[rows.length - 1], ids = Object.keys(last.check.members);
   const score = (m, k) => (m && Array.isArray(m[k]) && m[k].length ? mean(m[k]) : null);
@@ -492,33 +552,35 @@ function runThreePanel() {
     const m = g.check.members[id], a = score(m, 'challenger'), c = score(m, 'champion');
     return el('td', { text: a === null || c === null ? '—' : pts(a - c) });
   }))));
-  box.append(el('details', {}, el('summary', { text: 'Ver el historial por integrante' }), el('div', { class: 'table-scroll' }, hist)));
+  box.append(fold('hist-panel', 'Ver el historial por rival', el('div', { class: 'table-scroll' }, hist)));
   return box;
 }
 
 function lossChart() {
   const rows = state.p2.gens.filter(g => num(g.generation) && num(g.mean_loss));
-  const box = el('section',{class:'card'},el('h2',{text:'Error medio de entrenamiento'}),el('p',{class:'small',text:'Menor error de entrenamiento no demuestra que juegue mejor. Se mide por separado del rendimiento contra el panel.'}));
-  if (!rows.length) { box.append(el('p',{class:'empty',text:'Todavía no hay error medio por generación.'})); return box; }
-  const W=800,H=220,L=60,R=780,T=20,B=185, min=Math.min(...rows.map(r=>r.mean_loss)), max=Math.max(...rows.map(r=>r.mean_loss)), span=max-min || 1;
+  const box = el('section',{class:'card'},el('h2',{text:'¿Cuánto se equivoca la red al practicar?'}),el('p',{class:'small',text:'Cuanto más baja la línea, menos se equivoca al practicar. Eso no prueba que juegue mejor: el rendimiento se mide aparte.'}));
+  if (!rows.length) { box.append(el('p',{class:'empty',text:'Todavía no hay datos de error por generación.'})); return box; }
+  const nar=window.innerWidth<640, W=nar?320:800,H=nar?240:220,L=nar?12:60,R=W-20,T=24,B=nar?190:185, min=Math.min(...rows.map(r=>r.mean_loss)), max=Math.max(...rows.map(r=>r.mean_loss)), span=max-min || 1;
   const x=(i)=>rows.length===1?(L+R)/2:L+(R-L)*i/(rows.length-1), y=(v)=>B-(B-T)*(v-min)/span;
-  const graph=svg('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Error medio por generación; los datos están disponibles en la tabla'});
+  const graph=svg('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Error al practicar por generación; los datos están disponibles en la tabla'});
   graph.append(svg('line',{x1:L,y1:B,x2:R,y2:B,stroke:'#aeb7c3'}),svg('polyline',{points:rows.map((r,i)=>`${x(i)},${y(r.mean_loss)}`).join(' '),fill:'none',stroke:'#1F5FBF','stroke-width':2}));
   rows.forEach((r,i)=>{const dot=svg('circle',{cx:x(i),cy:y(r.mean_loss),r:4,fill:'#1F5FBF'});dot.append(svg('title',{},`Generación ${r.generation}: ${r.mean_loss.toFixed(4)}`));graph.append(dot);});
-  graph.append(svg('text',{x:L,y:14,fill:'#3A414B','font-size':13},`máx. ${max.toFixed(4)}`),svg('text',{x:L,y:210,fill:'#3A414B','font-size':13},`mín. ${min.toFixed(4)} · generaciones ${rows[0].generation}–${rows[rows.length-1].generation}`));
-  const table=el('table',{},el('caption',{text:'Error medio por generación'}),el('tr',{},el('th',{scope:'col',text:'Generación'}),el('th',{scope:'col',text:'Error medio'})));
+  graph.append(svg('text',{x:L,y:16,fill:'#3A414B','font-size':14},`más alto: ${max.toFixed(4)}`),svg('text',{x:L,y:H-26,fill:'#3A414B','font-size':14},`más bajo: ${min.toFixed(4)}`),svg('text',{x:L,y:H-6,fill:'#3A414B','font-size':14},`generaciones ${rows[0].generation} a ${rows[rows.length-1].generation}`));
+  const table=el('table',{},el('caption',{text:'Error al practicar, por generación'}),el('tr',{},el('th',{scope:'col',text:'Generación'}),el('th',{scope:'col',text:'Error'})));
   rows.forEach(r=>table.append(el('tr',{},el('td',{text:String(r.generation)}),el('td',{text:r.mean_loss.toFixed(4)}))));
-  box.append(graph,el('details',{},el('summary',{text:'Ver datos del gráfico'}),el('div',{class:'table-scroll'},table)));return box;
+  box.append(graph,fold('data-loss','Ver detalle',el('div',{class:'table-scroll'},table)));return box;
 }
 function acceptanceView() {
   const a=state.p2.acceptance || {};
-  const box=el('section',{class:'card'},el('h2',{text:'Aceptación independiente'}));
-  if (state.run === 'run3') { box.append(el('p',{text:'No aplica a la corrida 3: se juzgó con su propio examen final con partidas nuevas, y sus resultados están en «Red publicada en el juego».'})); return box; }
-  if (state.run !== 'run2') { box.append(el('p',{text:'La prueba de aceptación compara la corrida 2 con la campeona de esta corrida.'})); return box; }
-  const interval = v => v && num(v.mean) && num(v.lower) && num(v.upper) ? `${pct(v.mean)} (intervalo 95 %: ${pct(v.lower)} a ${pct(v.upper)})` : 'pendiente';
-  if (!a.decision || !a.direct || !a.held_out) box.append(el('p',{text:'Pendiente: todavía no hay resultados completos de aceptación.'}));
-  else box.append(el('p',{text:`Decisión: ${{ships:'Se adopta', inconclusive:'No se demostró mejora', regression:'Regresión clara'}[a.decision] || a.decision}`}),el('p',{text:`Cara a cara: ${interval(a.direct)}. Diferencia contra rivales reservados: ${interval(a.held_out)}.`}));
-  box.append(el('p',{class:'small',text:'El panel fijo contiene rivales familiares del entrenamiento: sirve para controlar el desarrollo, no es un examen independiente. La aceptación usa rivales reservados y una comparación directa.'}));return box;
+  const box=el('section',{class:'card'},el('h2',{text:'¿Ganó de verdad la red nueva?'}));
+  if (state.run === 'run3') { box.append(el('p',{text:'No aplica a la corrida 3: se juzgó con su propio examen final con partidas nuevas. Sus resultados están arriba y en «Ver detalle del entrenamiento».'})); return box; }
+  if (state.run !== 'run2') { box.append(el('p',{text:'Este examen compara la corrida 2 con la red anterior. Elegí la corrida 2 para verlo.'})); return box; }
+  const interval = v => v && num(v.mean) && num(v.lower) && num(v.upper) ? `${pct(v.mean)} (margen de error: ${pct(v.lower)} a ${pct(v.upper)})` : 'pendiente';
+  const note = el('p',{class:'small',text:'Los rivales del gráfico de arriba son conocidos del entrenamiento: sirven para seguir el progreso, no como examen. Este examen usa rivales que la red nunca vio y una comparación directa con la red anterior.'});
+  if (!a.decision || !a.direct || !a.held_out) { box.append(el('p',{text:'Pendiente: todavía no hay resultados completos de este examen.'}), note); return box; }
+  box.append(el('p',{style:'margin:0;font-size:22px;font-weight:700',text:`Resultado: ${{ships:'la red nueva es mejor', inconclusive:'no mejoró', regression:'empeoró claramente'}[a.decision] || a.decision}`}),
+    fold('detail-accept','Ver detalle',el('p',{text:`Cara a cara contra la red anterior: ${interval(a.direct)}.`}),el('p',{text:`Diferencia contra rivales nuevos: ${interval(a.held_out)}.`}),note));
+  return box;
 }
 const LAYERS = [
   ['Información de la partida', 'Una red recibe números, no ve cartas como una persona. Se traducen las cartas propias, el marcador y el estado de la mano, las acciones permitidas y los hechos públicos de esta mano. El perfil resume lo observado del rival en partidas anteriores y cuántas observaciones lo respaldan. Las cartas ocultas del rival no entran.'],
@@ -532,7 +594,7 @@ const INPUT_GROUPS = [['Estado y perfil',0,70],['Cartas propias',70,190],['Accio
 function architecture() {
   const h = state.hand.p2, step = h && h.available && h.steps[state.step];
   const trace = state.showDecision && step && step.by === 'champion' ? step.trace : null;
-  const box = el('section',{class:'card'},el('h2',{text:'Cómo decide la red de fase 2'}));
+  const box = el('section',{class:'card'},el('h2',{text:'Cómo decide la red por dentro'}));
   const toggle = el('input',{type:'checkbox',id:'real-decision','aria-describedby':'decision-status'});
   toggle.checked=state.showDecision; toggle.disabled=state.run !== 'run1' || (h && !h.available);
   toggle.addEventListener('change',()=>{state.showDecision=toggle.checked;if(state.showDecision){state.open.p2=true;if(h===null)loadHand();}render();document.getElementById('real-decision')?.focus();});
@@ -585,24 +647,24 @@ function comparisonChart(title, series, maximum, ylabel) {
   const box=el('section',{class:'card'},el('h2',{text:title}));
   const points=series.flatMap(s=>s.rows).filter(r=>num(r.generation)&&num(r.value));
   if(!points.length){box.append(el('p',{class:'empty',text:'Sin datos registrados.'}));return box;}
-  const maxGen=Math.max(...points.map(r=>r.generation)), narrow=window.innerWidth<640, W=narrow?360:800,H=250,L=narrow?50:55,R=W-20,T=20,B=215;
+  const maxGen=Math.max(...points.map(r=>r.generation)), narrow=window.innerWidth<640, W=narrow?320:800,H=narrow?260:250,L=narrow?52:58,R=W-20,T=20,B=H-35;
   const x=g=>L+(R-L)*(g-1)/Math.max(1,maxGen-1), y=v=>B-(B-T)*v/maximum;
   const graph=svg('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':`${title}. Datos completos en la tabla.`});
-  for(let i=0;i<=4;i++){const v=maximum*i/4;graph.append(svg('line',{x1:L,y1:y(v),x2:R,y2:y(v),stroke:'#e3e6ea'}),svg('text',{x:L-8,y:y(v)+4,'text-anchor':'end','font-size':12,fill:'#5a626e'},`${Math.round(v)}${ylabel}`));}
-  const table=el('table',{},el('caption',{text:`Datos: ${title}`}),el('tr',{},...['Modo','Generación','Resultado','Intervalo 95 %'].map(t=>el('th',{scope:'col',text:t}))));
+  for(let i=0;i<=4;i++){const v=maximum*i/4;graph.append(svg('line',{x1:L,y1:y(v),x2:R,y2:y(v),stroke:'#e3e6ea'}),svg('text',{x:L-8,y:y(v)+4,'text-anchor':'end','font-size':14,fill:'#5a626e'},`${Math.round(v)}${ylabel}`));}
+  const table=el('table',{},el('caption',{text:`Datos: ${title}`}),el('tr',{},...['Técnica','Generación','Resultado','Margen de error'].map(t=>el('th',{scope:'col',text:t}))));
   series.forEach(s=>{const rows=s.rows.filter(r=>num(r.generation)&&num(r.value)).sort((a,b)=>a.generation-b.generation);
     if(!rows.length)return;
     graph.append(svg('polyline',{points:rows.map(r=>`${x(r.generation)},${y(r.value)}`).join(' '),fill:'none',stroke:s.color,'stroke-width':2.5,'stroke-dasharray':s.dash||''}));
     rows.filter(r=>num(r.lower)&&num(r.upper)).forEach(r=>graph.append(svg('line',{x1:x(r.generation),x2:x(r.generation),y1:y(r.lower),y2:y(r.upper),stroke:s.color,'stroke-width':1.2})));
-    rows.forEach(r=>{const dot=svg('circle',{cx:x(r.generation),cy:y(r.value),r:4,fill:s.color,tabindex:'0'});dot.append(svg('title',{},`${s.name}, generación ${r.generation}: ${r.value.toFixed(1)}${ylabel}`));graph.append(dot);table.append(el('tr',{},...[s.name,r.generation,r.value.toFixed(1)+ylabel,num(r.lower)&&num(r.upper)?`${r.lower.toFixed(1)} a ${r.upper.toFixed(1)}${ylabel}`:'No disponible'].map(v=>el('td',{text:String(v)}))));});
+    rows.forEach(r=>{const dot=svg('circle',{cx:x(r.generation),cy:y(r.value),r:4,fill:s.color,tabindex:'0'});dot.append(svg('title',{},`${s.name}${s.detail ? ' (' + s.detail + ')' : ''}, generación ${r.generation}: ${r.value.toFixed(1)}${ylabel}`));graph.append(dot);table.append(el('tr',{},...[s.name + (s.detail ? ' (' + s.detail + ')' : ''),r.generation,r.value.toFixed(1)+ylabel,num(r.lower)&&num(r.upper)?`${r.lower.toFixed(1)} a ${r.upper.toFixed(1)}${ylabel}`:'No disponible'].map(v=>el('td',{text:String(v)}))));});
   });
-  graph.append(svg('text',{x:L,y:H-8,'font-size':12,fill:'#5a626e'},'generación 1'),svg('text',{x:R,y:H-8,'text-anchor':'end','font-size':12,fill:'#5a626e'},`generación ${maxGen}`));
-  box.append(el('div',{class:'legend'},...series.map(s=>el('span',{},el('span',{style:`width:18px;border-top:3px ${s.dash?'dashed':'solid'} ${s.color}`}),s.name))),graph,el('details',{},el('summary',{text:'Ver datos del gráfico'}),el('div',{class:'table-scroll'},table)));
+  graph.append(svg('text',{x:L,y:H-8,'font-size':14,fill:'#5a626e'},'generación 1'),svg('text',{x:R,y:H-8,'text-anchor':'end','font-size':14,fill:'#5a626e'},`generación ${maxGen}`));
+  box.append(el('div',{class:'legend'},...series.map(s=>el('span',{},el('span',{style:`width:22px;flex:none;border-top:4px ${s.dash?'dashed':'solid'} ${s.color}`}),el('span',{class:'sw-name'},el('b',{text:s.name}),s.detail?el('span',{text:s.detail}):null)))),graph,fold('data-'+title,'Ver detalle',el('div',{class:'table-scroll'},table)));
   return box;
 }
 
 function probeSnapshot(report) {
-  const box=el('section',{class:'card'},el('h2',{text:'Sonda posterior al entrenamiento · foto final · corrida 1, generación 28'}),
+  const box=el('section',{class:'card'},el('h2',{text:'¿Puede la red adivinar las cartas ocultas del rival?'}),el('p',{class:'small',text:'Aprendizaje por refuerzo · corrida 1 · generación 28'}),
     el('p',{text:'Una sonda pequeña observa las características ya calculadas por la campeona, sin cambiarla. Intenta predecir las cartas que aún no se ven; las cartas reales se usan solamente como respuesta para comprobarla.'}),
     el('p',{class:'small',text:'El error logarítmico mide qué probabilidad se asignó a la mano real: menor es mejor. El acierto top-N mide cuántas cartas ocultas aparecen entre las N más probables: mayor es mejor. Los intervalos al 95 % agrupan decisiones de una misma partida.'}));
   if(!report || !report.predictors || !report.test_scored){box.append(el('p',{class:'empty',text:'Todavía no hay una sonda compatible con la campeona de la corrida 1 (generación 28).'}));return box;}
@@ -616,24 +678,28 @@ function probeSnapshot(report) {
     const suits=['Espada','Basto','Oro','Copa'], vals=[1,2,3,4,5,6,7,10,11,12];
     const list=el('ul');
     Object.entries(labels).forEach(([key,label])=>{const marg=example.marginals[key];const top=marg.map((v,id)=>({v,id})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v).slice(0,3);list.append(el('li',{text:`${label}: ${top.map(x=>`${cardName([vals[x.id%10],suits[Math.floor(x.id/10)]])} (${pct(x.v)})`).join(', ')}`}));});
-    box.append(el('details',{},el('summary',{text:`Situación compartida ${i+1} · ver predicciones y respuesta`}),el('p',{class:'small',text:'Probabilidades marginales de cartas aún ocultas en el mismo momento de juego.'}),list,el('p',{text:`Respuesta revelada solo para evaluar: ${example.label.original_hand.map(cardName).join(', ')}.`})));
+    box.append(fold('probe-'+i,`Situación ${i+1} · ver predicciones y respuesta`,el('p',{class:'small',text:'Probabilidades de cartas aún ocultas en el mismo momento de juego.'}),list,el('p',{text:`Respuesta revelada solo para evaluar: ${example.label.original_hand.map(cardName).join(', ')}.`})));
   });return box;
 }
 
 function comparison() {
   const data=state.comparison || {}, refs1=data.phase1_reference||[], refs2=data.phase2_reference||[];
-  const root=el('div',{class:'stack'},el('section',{class:'card'},el('h2',{text:'Algoritmos genéticos vs Aprendizaje por refuerzo'}),el('p',{text:'Comparación de las corridas registradas. En particular, la fase 2 entrenó también contra redes de la fase 1 en la corrida 1. Los rivales de referencia sirvieron para evaluarla, no participaron en su entrenamiento: estas mediciones no aíslan los algoritmos ni demuestran superioridad general.'}),el('p',{class:'small',text:'Fase 1: corrida 1. Fase 2: corrida 1 (retirada; la red publicada ahora es la corrida 3, generación 73, ver la pestaña de fase 2). Contra cada rival se muestra el porcentaje ganado; fase 2 solo tiene mediciones registradas en las generaciones 4, 10 y 28. Las líneas unen mediciones disponibles, no inventan otras.'})));
+  const lastOf=(rows)=>rows.reduce((a,r)=>!a||r.generation>=a.generation?r:a,null);
+  const g78=lastOf(refs1.filter(r=>r.reference_opponent==='adaptive_utility'&&num(r.win_rate))), r28=lastOf(refs2.filter(r=>r.reference_opponent==='adaptive_utility'&&r.adaptation==='on'&&num(r.win_rate)));
+  const top=g78&&r28?hero('Comparación de las dos técnicas',`Contra Utilidad adaptativa, Aprendizaje por refuerzo gana ${pct(r28.win_rate)} y Algoritmos genéticos ${pct(g78.win_rate)}.`,
+    [[pct(g78.win_rate),'Algoritmos genéticos ganan contra Utilidad adaptativa'],[pct(r28.win_rate),'Aprendizaje por refuerzo gana contra Utilidad adaptativa'],[signed((r28.win_rate-g78.win_rate)*100)+' pts','de ventaja del refuerzo']]):hero('Comparación de las dos técnicas','Todavía no hay datos para comparar.',[]);
+  const root=el('div',{class:'stack'},top,fold('cmp-intro','Ver detalle de la comparación',el('p',{text:'Comparación de las corridas registradas. En particular, la fase 2 entrenó también contra redes de la fase 1 en la corrida 1. Los rivales de referencia sirvieron para evaluarla, no participaron en su entrenamiento: estas mediciones no aíslan las técnicas ni demuestran superioridad general.'}),el('p',{class:'small',text:'Algoritmos genéticos: corrida 1. Aprendizaje por refuerzo: corrida 1 (retirada; la red publicada ahora es la corrida 3, generación 73, ver la pestaña de fase 2). Contra cada rival se muestra el porcentaje ganado; el refuerzo solo tiene mediciones registradas en las generaciones 4, 10 y 28. Las líneas unen mediciones disponibles, no inventan otras.'})));
   if (!refs2.length) root.append(el('p',{class:'empty',text:'Disponible cuando la fase 2 tenga campeona evaluada.'}));
   for(const opponent of ['reactive','adaptive_utility']) {
     const p1=refs1.filter(r=>r.reference_opponent===opponent).map(r=>({generation:r.generation,value:r.win_rate*100,lower:num(r.margin_of_error)?(r.win_rate-r.margin_of_error)*100:null,upper:num(r.margin_of_error)?(r.win_rate+r.margin_of_error)*100:null}));
     const p2=refs2.filter(r=>r.reference_opponent===opponent&&r.adaptation==='on').map(r=>({generation:r.generation,value:r.win_rate*100,lower:num(r.lower)?r.lower*100:null,upper:num(r.upper)?r.upper*100:null}));
-    root.append(comparisonChart(`Contra ${OPPONENTS[opponent]}`, [{name:'Algoritmos genéticos',color:'#C2410C',rows:p1},{name:'Refuerzo · corrida 1 · adaptación activa',color:'#1F5FBF',dash:'6 4',rows:p2}],100,' %'));
+    root.append(comparisonChart(`¿Qué porcentaje le gana cada técnica a ${OPPONENTS[opponent]}?`, [{name:'Algoritmos genéticos',detail:'campeona de cada generación',color:'#C2410C',rows:p1},{name:'Aprendizaje por refuerzo',detail:'corrida 1 · adaptación activa',color:'#1F5FBF',dash:'6 4',rows:p2}],100,' %'));
   }
-  root.append(comparisonChart('Sucesión de campeonas · misma escala de generaciones',[
-    {name:'Algoritmos genéticos',color:'#C2410C',rows:(data.phase1_champions||[]).map(r=>({generation:r.generation,value:r.champion}))},
-    {name:'Refuerzo · corrida 1',color:'#1F5FBF',dash:'6 4',rows:(data.phase2_champions||[]).map(r=>({generation:r.generation,value:r.champion}))}],80,''));
-  const adapt=el('section',{class:'card'},el('h2',{text:'Adaptación activa y desactivada · fase 2, corrida 1'}),el('p',{class:'small',text:'Evaluaciones registradas de las campeonas 4, 10 y 28 contra los mismos rivales; no se volvieron a jugar partidas.'}));
-  const tbl=el('table',{},el('tr',{},...['Generación','Rival','Activa','Desactivada'].map(v=>el('th',{scope:'col',text:v}))));
+  root.append(comparisonChart('¿Qué generación ocupa el lugar de campeona en cada momento?',[
+    {name:'Algoritmos genéticos',detail:'corrida 1',color:'#C2410C',rows:(data.phase1_champions||[]).map(r=>({generation:r.generation,value:r.champion}))},
+    {name:'Aprendizaje por refuerzo',detail:'corrida 1',color:'#1F5FBF',dash:'6 4',rows:(data.phase2_champions||[]).map(r=>({generation:r.generation,value:r.champion}))}],80,''));
+  const adapt=el('section',{class:'card'},el('h2',{text:'¿Sirve adaptarse al rival durante la partida?'}),el('p',{class:'small',text:'Aprendizaje por refuerzo, corrida 1: campeonas 4, 10 y 28 contra los mismos rivales, con la adaptación activa y desactivada. No se volvieron a jugar partidas.'}));
+  const tbl=el('table',{},el('tr',{},...['Generación','Rival','Adaptándose','Sin adaptarse'].map(v=>el('th',{scope:'col',text:v}))));
   for(const gen of [4,10,28])for(const opponent of ['reactive','adaptive_utility']){const on=refs2.find(r=>r.generation===gen&&r.reference_opponent===opponent&&r.adaptation==='on'),off=refs2.find(r=>r.generation===gen&&r.reference_opponent===opponent&&r.adaptation==='off');if(on&&off)tbl.append(el('tr',{},...[gen,OPPONENTS[opponent],`${pct(on.win_rate)} (${pct(on.lower)}–${pct(on.upper)})`,`${pct(off.win_rate)} (${pct(off.lower)}–${pct(off.upper)})`].map(v=>el('td',{text:String(v)}))));}
   adapt.append(el('div',{class:'table-scroll'},tbl));root.append(adapt,probeSnapshot(data.probe));return root;
 }
