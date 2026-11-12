@@ -2,6 +2,8 @@
 
 Status: accepted (2026-11-11). Step 1 of the 3D card and arm work; step 2 adds a second G1 in seat 2, step 3 tunes pacing.
 
+Amended (2026-11-11, user decision): both robots hold the fan with both hands in front of the chest, like a person holding a hand of cards; the right hand pulls the chosen card out, lays it in its slot and goes back to the remaining cards (still two hands with one card left). Gestures lift both hands together while they hold cards. The one-hand hold below is superseded.
+
 ## Context
 
 The MuJoCo scene showed the robot at the table, but the cards on it were two plain white boxes that never changed: the 3D view did not show the match being played.
@@ -12,7 +14,7 @@ The MuJoCo scene showed the robot at the table, but the cards on it were two pla
 
 **Cards in 3D.** The same PNGs texture thin card meshes in the scene. Cards are mocap bodies moved kinematically every frame, never grasped physically:
 
-- the robot holds its three cards fanned in the left hand, faces toward itself and the fan turned about 75 degrees toward the overview camera, so a human at the table sees three card backs rather than edge-on slivers (the overview camera sits closer to the table for the same reason);
+- the robot holds its three cards fanned in the left hand (superseded by the two-hand hold above: now turned about 50 degrees and more upright), faces toward itself and the fan turned about 75 degrees toward the overview camera, so a human at the table sees three card backs rather than edge-on slivers (the overview camera sits closer to the table for the same reason);
 - to play, the right hand reaches the chosen card, the card rides on the right palm, and it is laid face up in the next table slot of the robot's side; earlier bazas stay in a row;
 - a human's card (there is no human body) slides in from the human's edge to that side's slot;
 - a new hand resets every card.
@@ -29,5 +31,5 @@ Arm poses come from a small damped least-squares IK solved once at startup, then
 
 - Pillow joins `requirements.txt`, only to redraw the deck and to take screenshots; the PNGs are committed.
 - `py -3 -m sim.capturas <dir> jpg` (from `entorno/`) renders each camera at key moments offscreen with the live pose code; `docs/screenshots/step1/` holds the reviewed set.
-- The robot's left arm keeps the holding pose while it has cards, so gestures only move the right arm then.
+- While the robot has cards both arms keep the two-hand holding pose; a gesture that raises the arms lifts both together with the fan (up to 0.45 rad of shoulder pitch) instead of waving one arm.
 - Card faces in the robot's hand are hidden in human mode even from a camera behind the robot that a later mode might allow; robot-vs-robot mode shows them.

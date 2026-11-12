@@ -4,7 +4,10 @@ Everything is kinematic. Cards are mocap bodies whose pose is written every
 frame; a card "in a hand" is placed relative to that hand's palm site. The
 robot's arm poses for holding the fan, reaching a card and laying it on the
 table are solved once with a small damped least-squares IK on a scratch copy
-of the model, then interpolated. Each seated G1 (Ottoman in seat 1 and, in
+of the model, then interpolated. The fan is held with both hands in front of
+the chest, like a person holding a hand of cards (ADR 0067): the left palm
+carries it and the right palm grips its other side, leaving it only to pull a
+card out and lay it on the table. Each seated G1 (Ottoman in seat 1 and, in
 robot-vs-robot mode, the rival in seat 2) has its own arms and play state.
 """
 
@@ -25,11 +28,18 @@ BRAZO_IZQ = (G1_L_SHOULDER_P, G1_L_SHOULDER_R, G1_L_SHOULDER_Y, G1_L_ELBOW,
 BRAZO_DER = (G1_R_SHOULDER_P, G1_R_SHOULDER_R, G1_R_SHOULDER_Y, G1_R_ELBOW,
              G1_R_WRIST_R, G1_R_WRIST_P, G1_R_WRIST_Y)
 
-# Where the fan is held, in the seat's frame (x forward, y left, z up).
-MANO_ABANICO = (0.25, 0.13, 0.89)
-INCLINACION_ABANICO = math.radians(38)     # face tilted up toward the eyes
-GIRO_ABANICO = math.radians(75)            # fan turned toward the side camera, backs visible
+# Where the fan is held, in the seat's frame (x forward, y left, z up): the
+# bottom of the fan (where the cards meet), in front of the chest.
+CENTRO_ABANICO = (0.27, 0.0, 0.88)
+SEPARACION_MANOS = 0.15                    # palm to palm, one on each side of the fan
+MANOS_DETRAS = 0.055                        # palms behind the cards (fingers on the backs)
+MANOS_ARRIBA = 0.04                       # palms a little above the bottom of the fan
+INCLINACION_ABANICO = math.radians(15)     # face tilted up a little toward the eyes
+GIRO_ABANICO = math.radians(50)            # backs toward the overview camera, faces toward the behind-robot one
 APERTURA_ABANICO = math.radians(24)        # angle between neighbouring cards
+ELEVACION_GESTO = 0.45                     # most a gesture may lift both arms while holding
+ANGULO_DEDOS = math.radians(5)            # fingers lean in from vertical along the fan
+LARGO_MANO = 0.10                          # wrist to palm site
 ALTURA_SOBRE_MESA = 0.045                   # palm above the slot when laying a card
 ELEVACION_VIAJE = 0.07                      # extra lift halfway to the table
 
@@ -38,6 +48,8 @@ SEMILLA_IZQ = {G1_L_SHOULDER_P: -0.75, G1_L_SHOULDER_R: 0.25, G1_L_SHOULDER_Y: -
                G1_L_ELBOW: 0.1, G1_L_WRIST_R: 0.0, G1_L_WRIST_P: 0.0, G1_L_WRIST_Y: 0.0}
 SEMILLA_DER = {G1_R_SHOULDER_P: -0.6, G1_R_SHOULDER_R: -0.2, G1_R_SHOULDER_Y: 0.2,
                G1_R_ELBOW: 0.3, G1_R_WRIST_R: 0.0, G1_R_WRIST_P: 0.0, G1_R_WRIST_Y: 0.0}
+SEMILLA_SOSTENER_DER = {G1_R_SHOULDER_P: -0.75, G1_R_SHOULDER_R: -0.25, G1_R_SHOULDER_Y: 0.2,
+                        G1_R_ELBOW: 0.1, G1_R_WRIST_R: 0.0, G1_R_WRIST_P: 0.0, G1_R_WRIST_Y: 0.0}
 
 
 def suave(t: float) -> float:
@@ -75,7 +87,7 @@ def orientacion_abanico(asiento: int) -> np.ndarray:
     arriba = np.array([s * math.sin(a), 0.0, math.cos(a)])
     derecha = np.cross(arriba, normal)
     base = np.column_stack([derecha, arriba, normal])
-    # Seat 2 is seat 1 turned half a turn (same left hand), so the turn is the same.
+    # Seat 2 is seat 1 turned half a turn (same hands), so the turn is the same.
     return _rot_z(-GIRO_ABANICO) @ base
 
 
@@ -89,6 +101,42 @@ def a_mundo(asiento: int, punto) -> np.ndarray:
     s = C.ASIENTO_SENTIDO[asiento]
     x, y, z = punto
     return np.array([C.ASIENTO_X[asiento] + s * x, s * y, z])
+
+
+def manos_en_abanico(asiento: int) -> tuple[np.ndarray, np.ndarray]:
+    """Where the left and right palms grip the fan (world): one on each side of
+    its bottom, a little behind the cards, in the fan's plane."""
+    rot0 = orientacion_abanico(asiento)
+    normal = rot0[:, 2]
+    izquierda = np.array([0.0, C.ASIENTO_SENTIDO[asiento], 0.0])        # the owner's left
+    izquierda = izquierda - normal * float(izquierda @ normal)
+    izquierda /= np.linalg.norm(izquierda)
+    base = (a_mundo(asiento, CENTRO_ABANICO) + rot0[:, 1] * MANOS_ARRIBA - normal * MANOS_DETRAS)
+    lado = izquierda * SEPARACION_MANOS / 2
+    return base + lado, base - lado
+
+
+def _plano_abanico(asiento: int):
+    rot0 = orientacion_abanico(asiento)
+    normal = rot0[:, 2]
+    izquierda = np.array([0.0, C.ASIENTO_SENTIDO[asiento], 0.0])
+    izquierda = izquierda - normal * float(izquierda @ normal)
+    izquierda /= np.linalg.norm(izquierda)
+    arriba = np.cross(normal, izquierda)
+    if arriba[2] < 0:
+        arriba = -arriba
+    return izquierda, arriba, normal
+
+
+def munecas_en_abanico(asiento: int) -> tuple[np.ndarray, np.ndarray]:
+    """Where each wrist goes so the fingers point up along the fan's sides,
+    leaning in toward its middle (a person's grip on a hand of cards)."""
+    izquierda, arriba, normal = _plano_abanico(asiento)
+    izq, der = manos_en_abanico(asiento)
+    a = ANGULO_DEDOS
+    hacia_izq = arriba * math.cos(a) - izquierda * math.sin(a)        # left fingers lean right
+    hacia_der = arriba * math.cos(a) + izquierda * math.sin(a)
+    return izq - hacia_izq * LARGO_MANO - normal * 0.01, der - hacia_der * LARGO_MANO - normal * 0.01
 
 
 class BrazosRobot:
@@ -108,7 +156,10 @@ class BrazosRobot:
         self.qvel_art = int(model.jnt_dofadr[base]) + 6
         self.sitio_izq = mj.mj_name2id(model, obj.mjOBJ_SITE, prefijo + "mano_izq")
         self.sitio_der = mj.mj_name2id(model, obj.mjOBJ_SITE, prefijo + "mano_der")
-        self.pose_sostener: dict[int, float] = {}
+        self.pose_sostener: dict[int, float] = {}       # left arm, carrying the fan
+        self.pose_sostener_der: dict[int, float] = {}   # right arm, gripping its other side
+        self.sentado: dict[int, float] = {}             # both arms seated, no gesture
+        self.offset_abanico = np.zeros(3)               # fan bottom relative to the left palm
         self.pose_alcanzar: dict[tuple[int, int], dict[int, float]] = {}
         self.pose_elevar: dict[int, dict[int, float]] = {}
         self.pose_apoyar: dict[int, dict[int, float]] = {}
@@ -164,10 +215,17 @@ class EscenaCartas:
         d = mj.MjData(m)
         d.qpos[:] = base_qpos
         for asiento, r in self.robots.items():
-            r.pose_sostener = self._ik(d, r, r.sitio_izq, BRAZO_IZQ,
-                                       a_mundo(asiento, MANO_ABANICO), SEMILLA_IZQ)
+            r.sentado = {idx: float(base_qpos[r.qpos_art + idx]) for idx in BRAZO_IZQ + BRAZO_DER}
+            izq, der = manos_en_abanico(asiento)
+            muneca_izq, muneca_der = munecas_en_abanico(asiento)
+            r.pose_sostener = self._ik(d, r, r.sitio_izq, BRAZO_IZQ, izq, SEMILLA_IZQ, muneca=muneca_izq)
+            r.pose_sostener_der = self._ik(d, r, r.sitio_der, BRAZO_DER, der, SEMILLA_SOSTENER_DER,
+                                           muneca=muneca_der)
             self._fijar(d, r, r.pose_sostener)
+            self._fijar(d, r, r.pose_sostener_der)
             mj.mj_kinematics(m, d)
+            # The fan rides on the left palm; the right one only grips it.
+            r.offset_abanico = a_mundo(asiento, CENTRO_ABANICO) - d.site_xpos[r.sitio_izq]
             fan, _ = self.pose_en_abanico(asiento, 0, 1, d)
             for n in range(1, C.CARTAS_POR_ASIENTO + 1):
                 for k in range(n):
@@ -188,23 +246,32 @@ class EscenaCartas:
             d.qpos[r.qpos_art + idx] = valor
 
     def _ik(self, d, r: BrazosRobot, sitio: int, cadena, objetivo, semilla,
-            iteraciones: int = 160) -> dict[int, float]:
+            iteraciones: int = 160, muneca=None) -> dict[int, float]:
+        """Joints that put the palm `sitio` on `objetivo`. With `muneca` (a world
+        point), the wrist is also pulled there, which sets where the fingers point."""
         mj, m = self.mj, self.model
         cols = [m.jnt_dofadr[r.junta(idx)] for idx in cadena]
         rangos = [m.jnt_range[r.junta(idx)] for idx in cadena]
         q = np.array([semilla[idx] for idx in cadena], dtype=float)
         nominal = q.copy()
         jacp = np.zeros((3, m.nv))
-        for _ in range(iteraciones):
+        jacm = np.zeros((3, m.nv))
+        cuerpo = int(m.site_bodyid[sitio])
+        for _ in range(iteraciones * (2 if muneca is not None else 1)):
             for idx, v in zip(cadena, q):
                 d.qpos[r.qpos_art + idx] = v
             mj.mj_kinematics(m, d)
             mj.mj_comPos(m, d)
             error = objetivo - d.site_xpos[sitio]
-            if np.linalg.norm(error) < 1e-4:
-                break
             mj.mj_jacSite(m, d, jacp, None, sitio)
             J = jacp[:, cols]
+            if muneca is not None:
+                mj.mj_jac(m, d, jacm, None, d.xpos[cuerpo], cuerpo)
+                peso = 0.6
+                error = np.concatenate([error, peso * (np.asarray(muneca) - d.xpos[cuerpo])])
+                J = np.vstack([J, peso * jacm[:, cols]])
+            if np.linalg.norm(error) < 1e-4:
+                break
             lam, mu = 1e-3, 2e-3
             A = J.T @ J + (lam + mu) * np.eye(len(cadena))
             dq = np.linalg.solve(A, J.T @ error + mu * (nominal - q))
@@ -214,10 +281,12 @@ class EscenaCartas:
 
     # ------------------------------------------------------------ geometry
     def pose_en_abanico(self, asiento: int, k: int, n: int, d=None):
-        """World position and rotation of card k of a fan of n in the left hand."""
+        """World position and rotation of card k of a fan of n (held by both hands,
+        carried by the left one)."""
         d = self.data if d is None else d
         rot0 = orientacion_abanico(asiento)
-        pivote = d.site_xpos[self.robots[asiento].sitio_izq] + rot0[:, 2] * 0.03 - rot0[:, 1] * 0.01
+        r = self.robots[asiento]
+        pivote = d.site_xpos[r.sitio_izq] + r.offset_abanico
         giro = -(k - (n - 1) / 2) * APERTURA_ABANICO
         c, s = math.cos(giro), math.sin(giro)
         en_plano = np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
@@ -230,9 +299,13 @@ class EscenaCartas:
         """Overrides `asiento`'s arm targets for holding and playing. Returns exact joints.
 
         `objetivo` (the gesture/seated targets, indexed like the robot's 29
-        joints) is edited in place for the left arm's holding pose, which then
+        joints) is edited in place for the two-hand holding pose, which then
         blends in with the normal smoothing. The returned joints come from the
         play animation and are written as is.
+
+        While holding, a gesture cannot wave an arm (it would drop the cards):
+        if it raises the arms, both lift together with the fan instead, up to
+        `ELEVACION_GESTO` of shoulder pitch.
         """
         r = self.robots.get(asiento)
         if not self._calibrado or r is None:
@@ -240,9 +313,20 @@ class EscenaCartas:
         estado = self.mesa.estado()
         sostiene = any(c.asiento == asiento and c.lugar == "mano" for c in estado)
         jugada = self.mesa.jugada_activa(asiento)
+        elevar = 0.0
+        if r.sentado:
+            elevar = min(objetivo[G1_L_SHOULDER_P] - r.sentado[G1_L_SHOULDER_P],
+                         objetivo[G1_R_SHOULDER_P] - r.sentado[G1_R_SHOULDER_P])
+            elevar = max(-ELEVACION_GESTO, min(0.0, elevar))
         if sostiene or (jugada and jugada[0] in ("alcanzar", "llevar")):
             for idx, v in r.pose_sostener.items():
                 objetivo[idx] = v
+            objetivo[G1_L_SHOULDER_P] += elevar
+        if sostiene:
+            # The free hand goes back to the fan (also where "volver" ends).
+            for idx, v in r.pose_sostener_der.items():
+                objetivo[idx] = v
+            objetivo[G1_R_SHOULDER_P] += elevar
         if jugada is None or jugada[0] == "deslizar":
             r.fase_previa = None
             return {}

@@ -73,8 +73,8 @@ Linux + Python 3.10), `--puerto`, `--solo-revisar`.
 ## Truco cards in 3D
 
 The deck in `proyecto/cartas/` is drawn by code (`py -3 proyecto/generar_baraja.py`);
-the same PNGs texture the cards on the 3D table. Ottoman holds its cards fanned in
-the left hand and lays each one on the table with the right hand; your cards
+the same PNGs texture the cards on the 3D table. Ottoman holds its fan of cards with
+both hands, pulls each card out with the right hand and lays it on the table; your cards
 appear on your side as you play them. In the viewer, **F7** cycles the cameras
 (`general`, `detras_robot_1`, `detras_robot_2`); against a human only `general`
 is available, and the robot's hand shows card backs. Offscreen screenshots:

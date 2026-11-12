@@ -791,10 +791,12 @@ class TestEscenaDosRobotsMuJoCo(unittest.TestCase):
         self.assertAlmostEqual(base[0], C.ASIENTO_X[2], places=3)
         self.assertGreater(base[2], 0.3)
         palma = f.sim.data.site_xpos[rival.sitio_izq]
+        otra = f.sim.data.site_xpos[rival.sitio_der]          # two-hand hold (ADR 0067)
         for c in f.mesa.estado():
             if c.asiento == 2:
                 self.assertEqual(c.lugar, 'mano')
                 self.assertLess(np.linalg.norm(f.sim.data.mocap_pos[e.mocap[c.cuerpo]] - palma), 0.12)
+                self.assertLess(np.linalg.norm(f.sim.data.mocap_pos[e.mocap[c.cuerpo]] - otra), 0.14)
                 # Robot vs robot: faces are shown.
                 self.assertEqual(f.sim.model.geom_matid[e.geom_frente[c.cuerpo]], e.material[c.carta])
         f.mesa.jugar(2, mano[0])

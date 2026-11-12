@@ -12,8 +12,8 @@ The table sits between two seats on the x axis:
     seat 2  (x = 1.20)   the rival, facing -x: the human (no body), or in
                          robot-vs-robot mode a second G1 in a light-blue poncho
 
-Each seat owns three card bodies. A robot seat holds its cards fanned in the
-left hand; the human seat has no body, so its cards only appear when played.
+Each seat owns three card bodies. A robot seat holds its fan with both hands
+(carried by the left palm); the human seat has no body, so its cards only appear when played.
 
 Playing a card is kinematic, never physical grasping. For a robot seat:
 
