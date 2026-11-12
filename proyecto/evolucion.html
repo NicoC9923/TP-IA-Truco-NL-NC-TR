@@ -415,13 +415,13 @@ function headline(phase) {
     if (sh && sh.run === 'run3' && e && e.shipped) {
       const au = exampleStat(e, 'adaptive_utility'), re = exampleStat(e, 'reactive'), ga = exampleStat(e, 'phase1');
       if (num(au) && num(re) && num(ga)) return hero('Aprendizaje por refuerzo · corrida 3 · generación 73 (la que se juega)', `La red publicada gana ${pct(au)} de las partidas contra Utilidad adaptativa.`,
-        [[pct(au), 'gana contra Utilidad adaptativa'], [pct(re), 'gana contra Reactivo'], [pct(ga), 'gana contra Algoritmos genéticos']]);
+        [[pct(au), 'gana contra Utilidad adaptativa'], [pct(re), 'gana contra Reactivo'], [pct(ga), 'gana contra Algoritmos genéticos (generación 48)']]);
     }
   }
   if (phase === 'p2' && state.run === 'run2') {
     const a = p.acceptance || {};
     if (a.decision && a.direct && num(a.direct.mean) && a.held_out && num(a.held_out.mean)) {
-      const sentence = { ships: 'Resultado: la red nueva es mejor.', inconclusive: 'Resultado: no mejoró.', regression: 'Resultado: empeoró.' }[a.decision] || `Resultado: ${a.decision}`;
+      const sentence = { ships: 'Resultado: la red nueva es mejor.', inconclusive: 'Resultado: no se demostró una mejora.', regression: 'Resultado: empeoró.' }[a.decision] || `Resultado: ${a.decision}`;
       const gen = a.config && a.config.candidate && num(a.config.candidate.generation) ? a.config.candidate.generation : null;
       return hero('Aprendizaje por refuerzo · corrida 2' + (gen ? ` · generación ${gen}` : ''), sentence,
         [[pct(a.direct.mean), 'gana cara a cara contra la red anterior'], [pts(a.held_out.mean), 'de diferencia contra rivales nuevos'], gen ? [String(gen), 'generación evaluada'] : null].filter(Boolean));
@@ -578,7 +578,7 @@ function acceptanceView() {
   const interval = v => v && num(v.mean) && num(v.lower) && num(v.upper) ? `${pct(v.mean)} (margen de error: ${pct(v.lower)} a ${pct(v.upper)})` : 'pendiente';
   const note = el('p',{class:'small',text:'Los rivales del gráfico de arriba son conocidos del entrenamiento: sirven para seguir el progreso, no como examen. Este examen usa rivales que la red nunca vio y una comparación directa con la red anterior.'});
   if (!a.decision || !a.direct || !a.held_out) { box.append(el('p',{text:'Pendiente: todavía no hay resultados completos de este examen.'}), note); return box; }
-  box.append(el('p',{style:'margin:0;font-size:22px;font-weight:700',text:`Resultado: ${{ships:'la red nueva es mejor', inconclusive:'no mejoró', regression:'empeoró claramente'}[a.decision] || a.decision}`}),
+  box.append(el('p',{style:'margin:0;font-size:22px;font-weight:700',text:`Resultado: ${{ships:'la red nueva es mejor', inconclusive:'no se demostró una mejora', regression:'empeoró claramente'}[a.decision] || a.decision}`}),
     fold('detail-accept','Ver detalle',el('p',{text:`Cara a cara contra la red anterior: ${interval(a.direct)}.`}),el('p',{text:`Diferencia contra rivales nuevos: ${interval(a.held_out)}.`}),note));
   return box;
 }
@@ -687,7 +687,7 @@ function comparison() {
   const lastOf=(rows)=>rows.reduce((a,r)=>!a||r.generation>=a.generation?r:a,null);
   const g78=lastOf(refs1.filter(r=>r.reference_opponent==='adaptive_utility'&&num(r.win_rate))), r28=lastOf(refs2.filter(r=>r.reference_opponent==='adaptive_utility'&&r.adaptation==='on'&&num(r.win_rate)));
   const top=g78&&r28?hero('Comparación de las dos técnicas',`Contra Utilidad adaptativa, Aprendizaje por refuerzo gana ${pct(r28.win_rate)} y Algoritmos genéticos ${pct(g78.win_rate)}.`,
-    [[pct(g78.win_rate),'Algoritmos genéticos ganan contra Utilidad adaptativa'],[pct(r28.win_rate),'Aprendizaje por refuerzo gana contra Utilidad adaptativa'],[signed((r28.win_rate-g78.win_rate)*100)+' pts','de ventaja del refuerzo']]):hero('Comparación de las dos técnicas','Todavía no hay datos para comparar.',[]);
+    [[pct(g78.win_rate),`Algoritmos genéticos · generación ${g78.generation} contra Utilidad adaptativa`],[pct(r28.win_rate),`Aprendizaje por refuerzo · corrida 1, generación ${r28.generation} contra Utilidad adaptativa`],[signed((r28.win_rate-g78.win_rate)*100)+' pts','de ventaja del refuerzo']]):hero('Comparación de las dos técnicas','Todavía no hay datos para comparar.',[]);
   const root=el('div',{class:'stack'},top,fold('cmp-intro','Ver detalle de la comparación',el('p',{text:'Comparación de las corridas registradas. En particular, la fase 2 entrenó también contra redes de la fase 1 en la corrida 1. Los rivales de referencia sirvieron para evaluarla, no participaron en su entrenamiento: estas mediciones no aíslan las técnicas ni demuestran superioridad general.'}),el('p',{class:'small',text:'Algoritmos genéticos: corrida 1. Aprendizaje por refuerzo: corrida 1 (retirada; la red publicada ahora es la corrida 3, generación 73, ver la pestaña de fase 2). Contra cada rival se muestra el porcentaje ganado; el refuerzo solo tiene mediciones registradas en las generaciones 4, 10 y 28. Las líneas unen mediciones disponibles, no inventan otras.'})));
   if (!refs2.length) root.append(el('p',{class:'empty',text:'Disponible cuando la fase 2 tenga campeona evaluada.'}));
   for(const opponent of ['reactive','adaptive_utility']) {
