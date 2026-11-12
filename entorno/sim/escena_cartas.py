@@ -410,7 +410,7 @@ class EscenaCartas:
         return self.camaras[nombre or self.mesa.camara]
 
     def tecla(self, codigo: int) -> None:
-        """Viewer key callback: F7 switches to the next allowed camera."""
+        """F8 requests the next allowed camera without changing visual options."""
         if codigo == C.TECLA_CAMARA:
             self.mesa.elegir_camara(C.camara_siguiente(self.mesa.camara, self.mesa.modo))
             self._camara_mostrada = None          # apply even if it is the same

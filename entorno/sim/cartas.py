@@ -169,10 +169,12 @@ def camara_valida(nombre: str, modo: str) -> str:
     return nombre if nombre in camaras_permitidas(modo) else CAMARA_GENERAL
 
 
-# F7 in the MuJoCo viewer cycles through the allowed cameras (GLFW key code).
+# F8 cycles the allowed cameras (GLFW key code), with no MuJoCo 3.12 binding.
+# The passive viewer handles its own shortcuts before our callback: F7 changes
+# labels, so it cannot safely double as our camera key. See docs/mujoco-viewer-shortcuts.md.
 # MuJoCo's own [ and ] also cycle cameras; the sim loop sends a forbidden one
 # back to the overview. Esc returns to the free camera, as usual.
-TECLA_CAMARA = 296
+TECLA_CAMARA = 297
 
 
 def camara_siguiente(actual: str, modo: str) -> str:
