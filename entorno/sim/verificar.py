@@ -168,6 +168,13 @@ def verificar(dds: bool = False) -> Resultado:
               f"baraja o sacar capturas.\n          Instalalo con instalar.bat (o instalar.sh), "
               f"o con:\n          {_pip('pillow')}")
 
+    # PyTorch is optional for the simulator and the other Truco AIs.
+    if _tiene("torch"):
+        _ok("PyTorch", "IA de aprendizaje por refuerzo disponible")
+    else:
+        print("  [AVISO] PyTorch no está disponible: la IA de aprendizaje por "
+              "refuerzo aparece desactivada. Ejecutá instalar.bat (o instalar.sh).")
+
     # 3 y 4. CycloneDDS y el SDK de Unitree: SOLO en modo --dds.
     #
     # CycloneDDS 0.10.2 solo publica wheels hasta cp310 (con 3.11+ pip intenta

@@ -428,6 +428,32 @@ class TestAvisoSinMuJoCo(unittest.TestCase):
         self.assertIn("mujoco==3.12.0", porque)
 
 
+class TestPyTorchEnvironmentCheck(unittest.TestCase):
+    def test_optional_torch_is_reported_without_blocking(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from sim import verificar
+
+        for available in (True, False):
+            with self.subTest(available=available):
+                output = StringIO()
+                real_import = verificar.importlib.import_module
+
+                def import_module(name):
+                    if name == "torch":
+                        if not available:
+                            raise ImportError("No module named torch")
+                        return object()
+                    return real_import(name)
+
+                with patch.object(verificar.importlib, "import_module", side_effect=import_module), \
+                     redirect_stdout(output):
+                    result = verificar.verificar()
+                self.assertTrue(result.todo_bien)
+                self.assertIn("PyTorch", output.getvalue())
+                self.assertIn("disponible" if available else "desactivada", output.getvalue())
+
+
 class TestPartidaMueveLasCartas3D(unittest.TestCase):
     def test_reparto_y_jugadas_llegan_a_la_mesa_en_orden(self):
         with tempfile.TemporaryDirectory() as tmp:

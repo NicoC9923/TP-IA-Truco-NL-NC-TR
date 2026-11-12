@@ -15,11 +15,19 @@ Python. Proyecto personal.
 
 Una vez por máquina, doble click en `instalar.bat` (o `./instalar.sh` en
 Linux/macOS). Instala lo que lista `requirements.txt` (MuJoCo para la vista 3D,
-NumPy, OpenCV para la cámara y Pillow para dibujar la baraja) y después revisa el entorno. Es lo mismo que:
+NumPy, OpenCV para la cámara y Pillow para dibujar la baraja), además de PyTorch
+para la IA de aprendizaje por refuerzo, y después revisa el entorno. En Windows,
+los comandos equivalentes son:
 
 ```bash
 py -3 -m pip install --user -r requirements.txt
+py -3 -m pip install --user torch --index-url https://download.pytorch.org/whl/cpu
 ```
+
+En Linux se usa `python3` con el mismo índice de CPU; en macOS se instala
+PyTorch desde el índice predeterminado de pip. Si PyTorch ya se puede importar,
+el instalador omite ese paso. Si falla su instalación, las otras tres IA siguen
+disponibles.
 
 Los lanzadores nunca instalan nada: si falta algo, avisan y dicen qué correr.
 Sin OpenCV el Truco funciona igual, pero la cámara queda desactivada.
@@ -102,6 +110,7 @@ A 15 / A 30 (ADR 0069). Two-robot screenshots:
 
 ## Phase 2 network dependency
 
-The phase 2 network and policy require PyTorch on CPU. Install it separately with
-`python -m pip install torch --index-url https://download.pytorch.org/whl/cpu`.
+The phase 2 network and policy require PyTorch. The one-time installers install
+it automatically (using the CPU index on Windows and Linux), unless it is already
+available. If installation fails, rerun the installer or use the commands above.
 The game, phase 1, and the phase 2 observation encoder do not require PyTorch.
