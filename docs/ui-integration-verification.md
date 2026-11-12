@@ -36,4 +36,3 @@ The screenshot server and an extra server started while checking CLI help were s
 Command from the worktree root: `PYTHONPATH=proyecto py -m unittest discover -s proyecto -p "test*.py"` (PYTHONPATH set through PowerShell).
 
 Passed: 824 tests in 346.704 seconds; OK.
-
