@@ -28,8 +28,15 @@ The reasoning is on-screen only (ADR 0066).
 
 A pacing object needs one method, ``demora(evento) -> float``: the seconds to wait
 after showing that event, at speed x1. The driver divides by the chosen speed
-(x0.5 / x1 / x2). Listeners (``oyentes``) are called with each event as it is
-shown, from the driver's thread: that is where voice and gestures hook in.
+(x0.5 / x1 / x2). A ``think`` event handed to it also carries ``decision``
+(``{"accion", "pendiente"}``, `ritmo` names) so a big call gets a longer think;
+that field never reaches the page. `RitmoEspectador` (the default) is that
+object over `ritmo.Ritmo` (ADR 0070), the same numbers as the human match.
+
+Listeners (``oyentes``) are called with each event as it is shown, from the
+driver's thread: `VozEspectador` turns events into what a player says aloud
+(`voz_jugador`, ADR 0066) and `GestosEspectador` makes the seat's robot gesture
+on calls. A listener with a ``snapshot()`` method adds its keys to the page state.
 """
 
 from __future__ import annotations
@@ -43,7 +50,9 @@ from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 
+import ritmo as R
 import truco_reglas as rules
+import voz_jugador as vj
 from symmetric_engine import play_match
 
 KINDS = ('deal', 'think', 'call', 'respond', 'play', 'fold', 'tanto', 'hand_end', 'match_end')
@@ -435,17 +444,22 @@ class PartidaEspectador:
             label = ETIQUETAS[accion]
             if accion == 'envido' and pending and pending.get('call') == 'envido':
                 label = 'Envido'
-            self._cola.append(self._evento(kind, seat, accion, label, razonamiento=razon))
+            extra = {'responde_a': _nombre_pendiente(pending)} if pending else {}
+            self._cola.append(self._evento(kind, seat, accion, label, razonamiento=razon, **extra))
             if accion == 'quiero' and pending and pending['kind'] == 'envido':
                 hands = self._manos_motor
                 values = [rules.calcular_envido([{'valor': v, 'palo': p} for v, p in h]) for h in hands]
                 mano = obs['mano']
                 pie = 1 - mano
-                self._cola.append(self._evento('tanto', mano, label=str(values[mano]), tanto=values[mano]))
+                # The mano says its number; the pie only if it beats it (a tie goes to the mano).
+                self._cola.append(self._evento('tanto', mano, label=str(values[mano]), tanto=values[mano],
+                                               es_mano=True))
                 if values[pie] > values[mano]:
-                    self._cola.append(self._evento('tanto', pie, label=str(values[pie]), tanto=values[pie]))
+                    self._cola.append(self._evento('tanto', pie, label=str(values[pie]), tanto=values[pie],
+                                                   es_mano=False))
                 else:
-                    self._cola.append(self._evento('tanto', pie, label='Son buenas', tanto='son buenas'))
+                    self._cola.append(self._evento('tanto', pie, label='Son buenas', tanto='son buenas',
+                                                   es_mano=False))
         self._entrada.put('seguir')
 
     def iniciar(self):
@@ -476,6 +490,14 @@ class PartidaEspectador:
             del self.eventos[:100]
         self.ultimo_evento = evento
         return evento
+
+    def para_ritmo(self, evento):
+        """`evento` as the pacing object sees it: a ``think`` also says what is being
+        decided (only to time it; the page never gets it before the move)."""
+        if evento['kind'] != 'think' or self._pendiente is None:
+            return evento
+        _seat, obs, _legal, accion, _razon = self._pendiente
+        return {**evento, 'decision': {'accion': accion, 'pendiente': _nombre_pendiente(obs['pending'])}}
 
     def avanzar_jugada(self):
         """Step: reveals the pending action (if an AI is thinking) and shows events
@@ -585,8 +607,62 @@ class PartidaEspectador:
 
 # ------------------------------------------------------------------ pacing
 
+_NIVEL_A_CANTO = {2: 'truco', 3: 'retruco', 4: 'vale_cuatro'}
+
+
+def _nombre_pendiente(pending):
+    """The call being answered, as a `ritmo` / `voz_jugador` action name (or None)."""
+    if not pending:
+        return None
+    if pending.get('kind') == 'truco':
+        return _NIVEL_A_CANTO.get(pending.get('level'))
+    return pending.get('call')
+
+
+class RitmoEspectador:
+    """Spectator pacing over `ritmo.Ritmo` (ADR 0070), at speed x1 (the driver scales it).
+
+    - ``think``: an ordinary 1.5-3 s think, 2.5-4.5 s for a big call or answering one;
+      only a short `SEGUIR` pause when the same AI acts again right after its own
+      answer (quiero, then its card) or when it has a single legal action.
+    - ``call`` / ``respond`` / ``fold`` / ``tanto``: a `SEGUIR` beat, so the phrase is heard.
+    - ``play``: the arm reaching and laying the card (`CARTA`), plus `BAZA` when it closes a baza.
+    - ``deal``: `BAZA`; ``hand_end``: `MANO`.
+    """
+
+    def __init__(self, ritmo=None, rng=None):
+        self.ritmo = ritmo or R.Ritmo.humano(1.0)
+        self.rng = rng or random.Random()
+        self._encadena = None          # seat that just answered and may act again at once
+        self._cartas = 0               # cards laid this hand
+
+    def demora(self, evento):
+        kind, seat, r = evento['kind'], evento.get('seat'), self.ritmo
+        if kind == 'deal':
+            self._encadena, self._cartas = None, 0
+            return r.retraso(R.BAZA, self.rng)
+        if kind == 'think':
+            if evento.get('legales', 2) <= 1 or (seat is not None and seat == self._encadena):
+                return r.retraso(R.SEGUIR, self.rng)
+            decision = evento.get('decision') or {}
+            return r.retraso_pensar([decision.get('accion')], decision.get('pendiente'), self.rng)
+        if kind in ('call', 'respond', 'fold'):
+            self._encadena = seat
+            return r.retraso(R.SEGUIR, self.rng)
+        if kind == 'play':
+            self._encadena = None
+            self._cartas += 1
+            espera = r.retraso(R.CARTA, self.rng)
+            return espera + (r.retraso(R.BAZA, self.rng) if self._cartas % 2 == 0 else 0.0)
+        if kind == 'tanto':
+            return r.retraso(R.SEGUIR, self.rng)
+        if kind == 'hand_end':
+            return r.retraso(R.MANO, self.rng)
+        return 0.0
+
+
 class RitmoSimple:
-    """Default pacing until step 3's `ritmo` plugs in: fixed delays at speed x1.
+    """Fixed delays at speed x1 (tests and tools).
 
     `escala` multiplies every delay (0 = no waiting at all, for tests)."""
 
@@ -601,6 +677,81 @@ class RitmoSimple:
         if evento['kind'] == 'think' and evento.get('legales', 2) <= 1:
             base = 0.6                       # nothing to decide: short pause
         return base * self.escala
+
+
+# ------------------------------------------------- voice and gestures
+
+def accion_de_voz(evento):
+    """The `voz_jugador` action of a call / respond / fold event (None for others)."""
+    kind, accion = evento['kind'], evento.get('action')
+    if kind == 'fold':
+        return vj.MAZO
+    if kind not in ('call', 'respond') or not accion:
+        return None
+    if accion == 'envido' and evento.get('responde_a') == 'envido':
+        return vj.ENVIDO_ENVIDO        # "envido" over an envido, said as in the human match
+    return accion if accion in vj.ACCIONES else None
+
+
+class VozEspectador:
+    """Listener: what each AI says aloud, per event (ADR 0066). Only calls, answers,
+    the tanto as the rules announce it and short card phrases; never the reasoning.
+
+    Each phrase gets an increasing ``id`` and its seat's voice profile (seat 0 of
+    the engine is profile 1, seat 1 profile 2), so the page says it exactly once."""
+
+    MAXIMO = 12
+
+    def __init__(self, rng=None):
+        self.rng = rng or random.Random()
+        self._lock = threading.Lock()
+        self._frases: list[dict] = []
+        self._id = 0
+
+    def frase(self, evento):
+        """The phrase for `evento`, or None (silence)."""
+        kind = evento['kind']
+        if kind == 'play':
+            return vj.frase(vj.CARTA, self.rng)
+        if kind == 'tanto':
+            tanto = evento.get('tanto')
+            if isinstance(tanto, int):
+                # The driver already applied the announcement rule: this seat says its number.
+                return vj.frase_tanto(tanto, None, robot_es_mano=True)
+            return vj.frase(vj.SON_BUENAS, self.rng)
+        accion = accion_de_voz(evento)
+        return vj.frase(accion, self.rng) if accion else None
+
+    def __call__(self, evento):
+        seat = evento.get('seat')
+        if seat not in (0, 1):
+            return
+        frase = self.frase(evento)
+        if not frase:
+            return
+        with self._lock:
+            self._id += 1
+            self._frases.append({'id': self._id, 'asiento': seat + 1, 'evento': evento.get('id'),
+                                 'tipo': evento['kind'], 'frase': frase,
+                                 'perfil': vj.perfil_voz(seat + 1)})
+            del self._frases[:-self.MAXIMO]
+
+    def snapshot(self):
+        with self._lock:
+            return {'voz': [dict(f) for f in self._frases]}
+
+
+class GestosEspectador:
+    """Listener: the seat's robot gestures on calls (desafiar) and on no quiero / mazo."""
+
+    def __init__(self, mesa):
+        self.mesa = mesa
+
+    def __call__(self, evento):
+        accion = accion_de_voz(evento)
+        metodo = vj.gesto(accion) if accion else None
+        if metodo and evento.get('seat') in (0, 1):
+            self.mesa.gesto(evento['seat'], metodo)
 
 
 # ------------------------------------------------------------- 3D table
@@ -682,17 +833,23 @@ class MesaRemota:
     def camara(self, nombre):
         self._enviar('elegir_camara', nombre)
 
+    def gesto(self, seat, metodo):
+        """`metodo` is a `Robot` gesture ('desafiar', 'gesto_mazo') made by the seat's G1.
+        It does not wait: a gesture never holds up the next card move."""
+        self._enviar(metodo, False, seat + 1)
+
 
 # ---------------------------------------------------------------- the clock
 
 class Reproductor:
     """Plays spectator matches at human pace. Thread-safe; one per server."""
 
-    def __init__(self, ritmo=None, oyentes=(), champions_dir=CHAMPIONS, robot=None, al_perder_robot=None):
-        self.ritmo = ritmo or RitmoSimple()
-        self.oyentes = list(oyentes)
+    def __init__(self, ritmo=None, oyentes=None, champions_dir=CHAMPIONS, robot=None, al_perder_robot=None):
+        """`oyentes=None` gives the default voice and gestures; a list replaces them."""
+        self.ritmo = ritmo or RitmoEspectador()
         self.champions_dir = champions_dir
         self.mesa = MesaRemota(robot, al_perder_robot)
+        self.oyentes = [VozEspectador(), GestosEspectador(self.mesa)] if oyentes is None else list(oyentes)
         self.partida: PartidaEspectador | None = None
         self.estado = 'sin_partida'          # sin_partida | jugando | pausa | terminada
         self.velocidad = 1.0
@@ -822,6 +979,7 @@ class Reproductor:
                     vigente = self.estado == 'jugando' and self._generacion == generacion
                 partida = self.partida
                 evento = partida.siguiente_evento() if vigente and partida is not None else None
+                contexto = partida.para_ritmo(evento) if evento is not None else None
             if not vigente:
                 continue
             if evento is None:
@@ -835,7 +993,7 @@ class Reproductor:
                     if self._generacion == generacion:
                         self.estado = 'terminada'
                 continue
-            self._esperar(self.ritmo.demora(evento), generacion)
+            self._esperar(self.ritmo.demora(contexto), generacion)
 
     def _esperar(self, segundos, generacion):
         """Waits `segundos` of x1 time: paused time does not count, speed scales it."""
@@ -862,4 +1020,8 @@ class Reproductor:
                 datos['partida'] = partida.estado()
                 datos['eventos'] = [e for e in partida.eventos if e['id'] > desde][-60:]
                 datos['ultimo_evento'] = partida.ultimo_evento
-            return json.loads(json.dumps(datos, default=list))
+        for oyente in self.oyentes:
+            extra = getattr(oyente, 'snapshot', None)
+            if callable(extra):
+                datos.update(extra())
+        return json.loads(json.dumps(datos, default=list))

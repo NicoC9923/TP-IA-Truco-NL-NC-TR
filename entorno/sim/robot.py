@@ -358,10 +358,19 @@ class Robot:
         return self.verificar_estado()
 
     def hacer_gesto(self, nombre: str, duracion: float = 2.0,
-                    esperar: bool = True) -> EstadoRobot:
-        """Ejecuta un gesto expresivo ('festejando', 'desafiando', 'mazo', 'saludando', 'dar_la_mano')."""
+                    esperar: bool = True, asiento: int = 1) -> EstadoRobot:
+        """Ejecuta un gesto expresivo ('festejando', 'desafiando', 'mazo', 'saludando', 'dar_la_mano').
+
+        `asiento=2` is the rival G1 of robot-vs-robot mode (local simulator only;
+        elsewhere it does nothing)."""
         self._exigir_conexion()
         metodo = getattr(self._cliente, "Gesto", None)
+        if asiento != 1:
+            if metodo is not None and getattr(self._cliente, "GESTO_POR_ASIENTO", False):
+                metodo(nombre, duracion=duracion, asiento=int(asiento))
+                if esperar:
+                    time.sleep(duracion)
+            return self.verificar_estado()
         if metodo is not None:
             metodo(nombre, duracion=duracion)
             if esperar:
@@ -371,17 +380,17 @@ class Robot:
             return self.saludar()
         return self.verificar_estado()
 
-    def festejar(self, esperar: bool = True) -> EstadoRobot:
+    def festejar(self, esperar: bool = True, asiento: int = 1) -> EstadoRobot:
         """Levanta ambos brazos en señal de festejo."""
-        return self.hacer_gesto("festejando", duracion=2.2, esperar=esperar)
+        return self.hacer_gesto("festejando", duracion=2.2, esperar=esperar, asiento=asiento)
 
-    def desafiar(self, esperar: bool = True) -> EstadoRobot:
+    def desafiar(self, esperar: bool = True, asiento: int = 1) -> EstadoRobot:
         """Pose desafiante al cantar Truco o Falta Envido."""
-        return self.hacer_gesto("desafiando", duracion=1.8, esperar=esperar)
+        return self.hacer_gesto("desafiando", duracion=1.8, esperar=esperar, asiento=asiento)
 
-    def gesto_mazo(self, esperar: bool = True) -> EstadoRobot:
+    def gesto_mazo(self, esperar: bool = True, asiento: int = 1) -> EstadoRobot:
         """Cruza brazos y gira el torso al irse al mazo o rechazar."""
-        return self.hacer_gesto("mazo", duracion=1.8, esperar=esperar)
+        return self.hacer_gesto("mazo", duracion=1.8, esperar=esperar, asiento=asiento)
 
     def repartir(self, esperar: bool = True) -> EstadoRobot:
         """Se sienta en la mesa (si no lo estaba) y ejecuta la animacion de repartir cartas."""

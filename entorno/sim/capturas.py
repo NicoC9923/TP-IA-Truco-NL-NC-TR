@@ -119,6 +119,13 @@ def capturar_robots(destino: str, camaras=C.CAMARAS, ancho: int = 960, alto: int
     f.correr(1.5)
     momento("1_dos_robots_con_cartas")
 
+    # Robot 2 calls truco with its cards in hand: both arms lift together with the fan.
+    f.sim.mundo.gesto_rival("desafiando", 60.0)
+    f.correr(1.0)
+    momento("1b_robot_2_canta_con_cartas", (C.CAMARA_MESA, C.CAMARA_GENERAL))
+    f.sim.mundo.accion_rival = "quieto"
+    f.correr(1.0)
+
     r = f.mesa.ritmo
     f.mesa.jugar(1, uno[1])
     f.correr(r.alcanzar + r.llevar * 0.5)

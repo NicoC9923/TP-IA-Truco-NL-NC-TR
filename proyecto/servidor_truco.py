@@ -33,6 +33,7 @@ PUERTO_DEFAULT = 8080
 DIR_PROYECTO = Path(__file__).resolve().parent
 PAGINA = DIR_PROYECTO / "voz.html"
 PAGINA_ESPECTADOR = DIR_PROYECTO / "espectador.html"
+SCRIPT_VOZ = DIR_PROYECTO / "voz_robots.js"     # the robots' speech, shared by both pages
 DIR_CARTAS = DIR_PROYECTO / "cartas"
 DIR_FUENTES = DIR_PROYECTO / "fuentes"
 
@@ -70,9 +71,13 @@ class ServidorTruco(ThreadingHTTPServer):
             return self._espectador
 
     def mesa_para_espectador(self):
-        """A spectator match starts: the 3D table follows it."""
+        """A spectator match starts: the 3D table follows it.
+
+        The human match keeps its state (a robot turn being thought finishes),
+        but sends nothing to the table until it is handed back."""
         with self.lock:
             self.mesa_en_espectador = True
+            self.partida.ceder_mesa_3d()
             ya_conectado = self.robot
             robot = self.asegurar_robot()
             # A fresh connection was already handed over (and resynced) by asegurar_robot;
@@ -91,7 +96,7 @@ class ServidorTruco(ThreadingHTTPServer):
                 # Drop the spectator's queued moves and wait for one in flight, so a
                 # late modo_mesa('robots') or camera change never lands on the human's table.
                 self._espectador.mesa.soltar()
-            self.partida.sincronizar_mesa_3d()
+            self.partida.recuperar_mesa_3d()        # resyncs the human's hand
 
     def perder_robot(self):
         """The simulator connection died: drop it so the next request reconnects."""
@@ -355,6 +360,14 @@ class Handler(BaseHTTPRequestHandler):
             cuerpo = PAGINA_ESPECTADOR.read_bytes()
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(cuerpo)))
+            self.end_headers()
+            self.wfile.write(cuerpo)
+        elif ruta_limpia == "/voz_robots.js":
+            cuerpo = SCRIPT_VOZ.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
             self.send_header("Content-Length", str(len(cuerpo)))
             self.end_headers()
             self.wfile.write(cuerpo)

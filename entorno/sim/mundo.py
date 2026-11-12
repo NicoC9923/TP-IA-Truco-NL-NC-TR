@@ -45,6 +45,9 @@ class Mundo:
             self.accion = "quieto"
             self._vence_en = 0.0
             self._gesto_hasta = 0.0
+            # The rival G1 (seat 2, robot-vs-robot mode): seated, gestures only.
+            self.accion_rival = "quieto"
+            self._gesto_rival_hasta = 0.0
             self._ultimo_avance = time.monotonic()
             # Arranca sentado frente a la mesa de Truco
             self.de_pie = False
@@ -149,6 +152,17 @@ class Mundo:
                 self.accion = nombre
                 self._gesto_hasta = time.monotonic() + duracion
 
+    # Gestures the seated rival may make: no sitting, standing or dealing.
+    GESTOS_RIVAL = ("desafiando", "mazo", "festejando")
+
+    def gesto_rival(self, nombre: str, duracion: float = 2.0) -> None:
+        """A gesture of the rival G1 in seat 2. Unknown names are ignored."""
+        if nombre not in self.GESTOS_RIVAL:
+            return
+        with self._lock:
+            self.accion_rival = nombre
+            self._gesto_rival_hasta = time.monotonic() + max(0.0, float(duracion))
+
     # ---------- lo llama el bucle del simulador ----------
     SUBPASO = 0.005
 
@@ -165,6 +179,9 @@ class Mundo:
             if self._gesto_hasta and ahora >= self._gesto_hasta:
                 self._gesto_hasta = 0.0
                 self.accion = "quieto"
+            if self._gesto_rival_hasta and ahora >= self._gesto_rival_hasta:
+                self._gesto_rival_hasta = 0.0
+                self.accion_rival = "quieto"
 
             restante = dt
             while restante > 1e-9:
@@ -199,6 +216,7 @@ class Mundo:
                 "z": ALTURA_BASE,
                 "yaw": round(self.yaw, 4),
                 "accion": self.accion,
+                "accion_rival": self.accion_rival,
                 "altura": self.altura,
                 "de_pie": self.de_pie,
                 "moviendose": abs(self.vx) + abs(self.vy) + abs(self.vyaw) > 1e-6,

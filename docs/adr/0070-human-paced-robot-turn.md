@@ -20,3 +20,12 @@ The robot answered inside the same HTTP request, so every move was instant and i
 - Both robots of spectator mode can use `ritmo.py` and `voz_jugador.py` unchanged.
 - The robot's decision uses the state at the moment the human acted; since the human cannot act meanwhile, it equals deciding after the wait.
 - A chain of robot moves (answer, tanto, card) takes one think plus a short `SEGUIR` pause per extra step, not the sum of full think times.
+
+## Spectator mode plugs into the same pacing and voice (amended 2026-11-11)
+
+Spectator mode (ADR 0064) uses `ritmo.py` and `voz_jugador.py` unchanged, through its driver's seam:
+
+- **Pacing:** `espectador.RitmoEspectador` is the driver's pacing object over `ritmo.Ritmo` at x1; the driver applies the page's x0.5 / x1 / x2. A think takes `retraso_pensar` from the action about to be shown (a big call or answering one thinks longer); the same AI acting again right after its own answer, or with a single legal action, takes only `SEGUIR`; a card takes `CARTA`, plus `BAZA` when it closes a baza; a new hand waits `MANO`. The action reaches the pacing object only, never the page, before it is shown.
+- **Voice:** the `VozEspectador` listener turns each shown event into the phrase a player says (calls, answers, the tanto with the announcement rule, card phrases), with an increasing id and the seat's `perfil_voz` (seat 1 / seat 2). Both pages speak through the same `voz_robots.js` (voice choice by profile, seat 2 avoiding seat 1's voice), each phrase once. The reasoning panel stays on screen only.
+- **Gestures:** the `GestosEspectador` listener makes the caller's G1 gesture on its calls, robot 2 included (the local simulator animates the rival seat; holding cards, a gesture lifts both arms with the fan, at most 0.45 rad).
+- **One 3D table:** when spectator mode takes the table, the human match keeps playing (a pending robot turn finishes, so its chained steps are not lost) but sends no cards or gestures until the table is handed back; then the human's hand is rebuilt, from the frozen view while the robot is still thinking.

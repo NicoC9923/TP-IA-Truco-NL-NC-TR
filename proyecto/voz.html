@@ -1131,6 +1131,7 @@
   </div>
 </section>
 
+<script src="/voz_robots.js"></script>
 <script>
   const NOMBRE_CANTO = {
     ENVIDO: 'Envido', ENVIDO_ENVIDO: 'Envido envido', REAL_ENVIDO: 'Real envido', FALTA_ENVIDO: 'Falta envido',
@@ -1194,60 +1195,12 @@
   });
 
   // ==================== VOZ DE OTTOMAN (TTS) ====================
-  // Cada frase llega una sola vez en `voz` (con id creciente) y se dice con el perfil de su robot.
-  let ultimoVozId = null;       // null hasta el primer estado: no repetimos el historial al cargar
-  let ultimaVoz = null;
-  let vocesEs = [];
-  const sinAcento = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  function cargarVoces() {
-    try { vocesEs = (window.speechSynthesis.getVoices() || []).filter(v => /^es/i.test(v.lang)); } catch (e) { vocesEs = []; }
-  }
-  if ('speechSynthesis' in window) {
-    cargarVoces();
-    try { window.speechSynthesis.addEventListener('voiceschanged', cargarVoces); } catch (e) {}
-  }
-  // Whole words: "male" must not match "Female".
-  const palabras = (t) => ` ${sinAcento(t).replace(/[^a-z0-9]+/g, ' ').trim()} `;
-  const perfilesAsiento = {};
-  function elegirVoz(perfil, evitar = null) {
-    const prefs = (perfil?.preferencias || []).map(p => palabras(p));
-    const todas = evitar && vocesEs.some(v => v !== evitar) ? vocesEs.filter(v => v !== evitar) : vocesEs;
-    const ar = todas.filter(v => /^es[-_]AR/i.test(v.lang));
-    const buscar = (lista) => {
-      for (const p of prefs) { const v = lista.find(x => palabras(x.name).includes(p)); if (v) return v; }
-      return null;
-    };
-    return buscar(ar) || buscar(todas) || ar[0] || todas[0] || null;
-  }
-  function vozDeAsiento(perfil, asiento) {
-    if (perfil) perfilesAsiento[asiento] = perfil;
-    // Seat 2 keeps a different voice from seat 1 when there is one.
-    const evitar = asiento !== 1 && perfilesAsiento[1] ? elegirVoz(perfilesAsiento[1]) : null;
-    return elegirVoz(perfil, evitar);
-  }
-  function hablarPerfil(frase, perfil, asiento = 1) {
-    if (!frase || !ttsActivo || !('speechSynthesis' in window)) return;
-    try {
-      const u = new SpeechSynthesisUtterance(frase);
-      const voz = vozDeAsiento(perfil, asiento);
-      if (voz) u.voice = voz;
-      u.lang = voz?.lang || perfil?.idioma || 'es-AR';
-      u.pitch = perfil?.tono ?? 1;
-      u.rate = perfil?.velocidad ?? 1;
-      window.speechSynthesis.speak(u);
-    } catch (e) {}
-  }
-  function procesarVoz(data) {
-    const lista = Array.isArray(data.voz) ? data.voz : [];
-    const maxId = lista.reduce((m, v) => Math.max(m, v.id), 0);
-    if (lista.length) ultimaVoz = lista[lista.length - 1];
-    if (ultimoVozId === null || maxId < ultimoVozId) { ultimoVozId = maxId; return; }
-    lista.filter(v => v.id > ultimoVozId).forEach(v => hablarPerfil(v.frase, v.perfil, v.asiento ?? 1));
-    ultimoVozId = maxId;
-  }
-  function repetirVozRobot() {
-    if (ultimaVoz) hablarPerfil(ultimaVoz.frase, ultimaVoz.perfil, ultimaVoz.asiento ?? 1);
-  }
+  // Cada frase llega una sola vez en `voz` (con id creciente) y se dice con el perfil de su robot
+  // (voz_robots.js, compartido con el modo espectador).
+  const vozRobots = VozRobots(() => ttsActivo);
+  const hablarPerfil = (frase, perfil, asiento = 1) => vozRobots.hablar(frase, perfil, asiento);
+  const procesarVoz = (data) => vozRobots.procesar(data.voz);
+  const repetirVozRobot = () => vozRobots.repetir();
   $('btn-tts').addEventListener('click', () => {
     ttsActivo = !ttsActivo;
     const b = $('btn-tts');
@@ -1382,8 +1335,10 @@
       const titulo = ganador === 'robot' ? 'Mano para Ottoman' : ganador === 'humano' ? 'Mano para vos' : 'Mano terminada';
       const re = data.resultado_envido;
       let envTxt = '';
-      if (re && re.pts_robot !== undefined && re.pts_humano !== undefined) {
-        envTxt = `<span class="chip">Envido: Ottoman <b>${esc(re.pts_robot)}</b> · Vos <b>${esc(re.pts_humano)}</b></span>`;
+      // The server sends Ottoman's tanto only once it is public (said aloud, or the hand is over).
+      if (re && re.pts_humano !== undefined) {
+        const ott = re.pts_robot !== undefined ? `<b>${esc(re.pts_robot)}</b>` : 'son buenas';
+        envTxt = `<span class="chip">Envido: Ottoman ${ott} · Vos <b>${esc(re.pts_humano)}</b></span>`;
       }
       const farolesHTML = bluffs.length === 0
         ? `<span class="derecho">Jugó derecho: ninguna mentira esta mano</span>`
@@ -1474,8 +1429,9 @@
       const re = cp.reanudado_tras_envido && data.resultado_envido;
       // Ottoman's tanto only once it said it (it is mano, or it won), or when the hand is over:
       // after "Son buenas" a player keeps its number to itself.
-      const ottDijo = re && (data.es_mano === 'robot' || re.ganador === 'robot' || data.mano_terminada);
-      const tantos = re && re.pts_humano !== undefined && re.pts_robot !== undefined
+      // The server leaves pts_robot out until then.
+      const ottDijo = re && re.pts_robot !== undefined;
+      const tantos = re && re.pts_humano !== undefined
         ? ` · Tus tantos: ${esc(re.pts_humano)}${ottDijo ? ` · Ottoman: ${esc(re.pts_robot)}` : ' · Ottoman: son buenas'}` : '';
       const resultadoEnvido = re ? `<span class="canto-pts">${re.motivo ? esc(re.motivo) + ' · ' : 'Envido querido · '}${re.ganador === 'humano' ? 'Ganaste' : 'Ganó Ottoman'} ${esc(re.puntos_ganados)} ${re.puntos_ganados === 1 ? 'punto' : 'puntos'}${tantos}</span>` : '';
       zona.innerHTML = `

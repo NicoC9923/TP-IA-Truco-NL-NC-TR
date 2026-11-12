@@ -118,7 +118,9 @@ class SimuladorOficial:
     def _escribir_pose_rival(self, dt: float) -> None:
         """The second G1: seated in seat 2 against another robot, else under the floor.
 
-        It has no gestures or walking: it sits, holds its cards and plays them.
+        It does not walk: it sits, holds its cards, plays them and makes the
+        gestures of its calls (`Mundo.gesto_rival`). While it holds cards a
+        gesture lifts both arms with the fan instead (`ajustar_articulaciones`).
         """
         rival = self.cartas.robots.get(2) if self.cartas is not None else None
         if rival is None:
@@ -139,6 +141,14 @@ class SimuladorOficial:
         for pose in (self.robot.pose_de_pie, self.robot.pose_sentado):
             for idx, valor in pose.items():
                 objetivo[idx] = valor
+        accion = self.mundo.leer().get("accion_rival", "quieto")
+        gestos = getattr(self.robot, "gestos", None) or {}
+        if accion in gestos:
+            for idx, valor in gestos[accion].items():
+                if idx < n:
+                    objetivo[idx] = valor
+            if accion == "mazo" and 12 < n:
+                objetivo[12] = 0.28 * math.sin(self.reloj() * 5.5 * 0.9)
         actual = self._art_rival if self._art_rival is not None else objetivo
         exactas = self.cartas.ajustar_articulaciones(objetivo, actual, asiento=2)
         if self._art_rival is None:

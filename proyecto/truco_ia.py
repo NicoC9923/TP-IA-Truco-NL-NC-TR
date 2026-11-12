@@ -38,12 +38,12 @@ class AgenteTrucoIA:
         "reactivo": {
             "codigo": "reactivo",
             "nombre": "Reactivo",
-            "subtitulo": "Reglas fijas condición-acción (sin probabilidades 474k, sin farol ni aprendizaje)",
+            "subtitulo": "Reglas fijas condición-acción (sin probabilidades 474k, sin mentiras ni aprendizaje)",
         },
         "utilidad_adaptativa": {
             "codigo": "utilidad_adaptativa",
             "nombre": "Utilidad adaptativa",
-            "subtitulo": "Utilidad esperada (474k) + cuota dinámica de farol + modelado online del rival humano",
+            "subtitulo": "Utilidad esperada (474k) + cuota dinámica de mentira + modelado online del rival humano",
         },
         "neuroevolucion": {
             "codigo": "neuroevolucion", "nombre": "Red neuronal · Algoritmos genéticos",
@@ -219,7 +219,7 @@ class AgenteTrucoIA:
         if tasa_bluff_h >= 28.0:
             perfil_humano = "Agresivo / Mentiroso (Ottoman te paga más seguido)"
         elif tasa_fold_env >= 60.0 or tasa_fold_tru >= 60.0:
-            perfil_humano = "Cauteloso / Conservador (Ottoman te presiona con más faroles)"
+            perfil_humano = "Cauteloso / Conservador (Ottoman te presiona con más mentiras)"
         else:
             perfil_humano = "Equilibrado (Ottoman balancea estadística y engaño)"
 
@@ -480,14 +480,14 @@ class AgenteTrucoIA:
             prob_f = self.prob_farol_envido if not es_mano else (self.prob_farol_envido * 0.65)
             if self.rng.random() < prob_f:
                 self.ultimo_canto_fue_farol = True
-                self.ultimo_detalle_farol = f"Cantó ENVIDO de farol con {tantos} tantos"
+                self.ultimo_detalle_farol = f"Cantó ENVIDO de mentira con {tantos} tantos"
                 self._registrar_razonamiento(
                     fase="Evaluación de Envido (1ra ronda)",
                     decision="ENVIDO (MENTIRA)",
                     metrica=metrica_str,
                     umbral="P(ganar) < 68.0% (activación de bluff)",
                     farol_info=f"Mentira activada (p={round(prob_f * 100, 1)}%)",
-                    explicacion=f"Mano baja ({tantos} tantos), pero la política adaptativa ejecuta un farol para presionar al rival.",
+                    explicacion=f"Mano baja ({tantos} tantos), pero la política adaptativa canta de mentira para presionar al rival.",
                 )
                 return "ENVIDO", "¡Envido! A ver si te animás..."
 
@@ -605,7 +605,7 @@ class AgenteTrucoIA:
                 return "QUIERO", f"¡Quiero! Tengo {tantos}."
             if usa_aprendizaje and self.rng.random() < (self.prob_farol_envido * 0.55):
                 self.ultimo_canto_fue_farol = True
-                self.ultimo_detalle_farol = f"Subió a REAL ENVIDO de farol con {tantos} tantos"
+                self.ultimo_detalle_farol = f"Subió a REAL ENVIDO de mentira con {tantos} tantos"
                 self._registrar_razonamiento(
                     fase="Respuesta a ENVIDO",
                     decision="REAL_ENVIDO (MENTIRA)",
@@ -811,14 +811,14 @@ class AgenteTrucoIA:
                 prob_f = self.prob_farol_truco if len(ganadores_ronda) >= 1 else (self.prob_farol_truco * 0.45)
                 if self.rng.random() < prob_f:
                     self.ultimo_canto_fue_farol = True
-                    self.ultimo_detalle_farol = f"Cantó TRUCO de farol (fuerza {int(fuerza * 100)}%)"
+                    self.ultimo_detalle_farol = f"Cantó TRUCO de mentira (fuerza {int(fuerza * 100)}%)"
                     self._registrar_razonamiento(
                         fase="Evaluación de Truco",
                         decision="TRUCO (MENTIRA)",
                         metrica=metrica_str,
                         umbral="Fuerza < 72.0% (disparo de mentira)",
                         farol_info=f"Mentira ejecutada (p={round(prob_f * 100, 1)}%)",
-                        explicacion=f"Mano débil/media ({fuerza_pct}%), pero la política adaptativa lanza un farol de Truco.",
+                        explicacion=f"Mano débil/media ({fuerza_pct}%), pero la política adaptativa canta Truco de mentira.",
                     )
                     return "TRUCO", "¡Truco te canto, a ver qué tenés!"
         elif nivel_actual == "TRUCO":
@@ -834,14 +834,14 @@ class AgenteTrucoIA:
                 return "RETRUCO", "¡Quiero Retruco!"
             if usa_aprendizaje and self.rng.random() < (self.prob_farol_truco * 0.35):
                 self.ultimo_canto_fue_farol = True
-                self.ultimo_detalle_farol = f"Cantó RETRUCO de farol (fuerza {int(fuerza * 100)}%)"
+                self.ultimo_detalle_farol = f"Cantó RETRUCO de mentira (fuerza {int(fuerza * 100)}%)"
                 self._registrar_razonamiento(
                     fase="Evaluación de Retruco",
                     decision="RETRUCO (MENTIRA)",
                     metrica=metrica_str,
                     umbral="Fuerza < 86.0% (disparo de mentira)",
                     farol_info=f"Mentira de Retruco activada",
-                    explicacion=f"Fuerza real {fuerza_pct}%, pero presiona con Retruco de farol según perfil del rival.",
+                    explicacion=f"Fuerza real {fuerza_pct}%, pero presiona con Retruco de mentira según perfil del rival.",
                 )
                 return "RETRUCO", "¡Quiero Retruco!"
         elif nivel_actual == "RETRUCO":
@@ -940,7 +940,7 @@ class AgenteTrucoIA:
                 return "QUIERO", "¡Quiero!"
             if usa_aprendizaje and self.rng.random() < (self.prob_farol_truco * 0.6):
                 self.ultimo_canto_fue_farol = True
-                self.ultimo_detalle_farol = f"Retrucó de farol con fuerza baja ({int(fuerza * 100)}%)"
+                self.ultimo_detalle_farol = f"Retrucó de mentira con fuerza baja ({int(fuerza * 100)}%)"
                 self._registrar_razonamiento(
                     fase="Respuesta a TRUCO",
                     decision="RETRUCO (MENTIRA)",

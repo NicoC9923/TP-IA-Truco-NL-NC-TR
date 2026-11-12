@@ -27,3 +27,4 @@ Spectator mode uses the symmetric engine for the rules and a separate driver for
 - The AIs play the same way as in training and in the network-vs-network checks, since the policy and the engine are the same ones.
 - Two drivers exist (human match, spectator), each owning its own pacing. Shared pieces (speech, gestures, cards) are reused, not duplicated.
 - The engine today ends a match at a points target only; the "N hands" length needs an end condition added there or in the driver, plus a tie-break hand if points are level.
+- (2026-11-11) The pacing, voice and gestures plug into the driver's seam (`Reproductor(ritmo=..., oyentes=[...])`) with the human match's own modules; see ADR 0070. The only change to `PartidaTruco` is giving up the shared 3D table while a spectator match shows on it (`ceder_mesa_3d` / `recuperar_mesa_3d`).
