@@ -161,7 +161,7 @@
   .sel-manos.activa { background: var(--txt); color: var(--ink-0); }
   .manos-texto { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--txt-2); }
   .seg-vel { flex-shrink: 0; }
-  .seg-vel button { font-size: 13px; padding: 4px 8px; }
+  .seg-vel button { font-size: 16px; padding: 8px 12px; }
   .seg-vel .por { font-family: system-ui, sans-serif; font-weight: 600; }
   .track { position: relative; width: 132px; display: grid; gap: 3px; }
   .track span { display: block; height: 5px; background: var(--ink-4); border-radius: 3px; overflow: hidden; }
@@ -824,6 +824,7 @@
     display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px;
     background: transparent; border: 0; border-radius: 4px; cursor: pointer; text-align: left; color: var(--txt); font-size: 15px; font-weight: 600;
   }
+  .menu-velocidad { display: grid; gap: 6px; padding: 8px 12px; font-size: 15px; font-weight: 600; }
   .menu-item span { flex: 1; }
   .menu-item em { font-style: normal; font-weight: 800; color: var(--ok); }
   .menu-item[aria-pressed="false"] em { color: var(--txt-3); }
@@ -936,11 +937,14 @@
       <div class="menu">
         <button type="button" class="btn-ghost" id="btn-opciones" aria-haspopup="true" aria-expanded="false" aria-controls="menu-opciones"><svg class="i"><use href="#i-menu"/></svg>Opciones</button>
         <div class="menu-panel" id="menu-opciones" hidden>
-      <div class="seg seg-vel" id="sel-velocidad" role="group" aria-label="Velocidad de Ottoman" title="Velocidad de Ottoman">
-        <button type="button" data-vel="0.5" aria-pressed="false"><span class="por">×</span>0,5</button>
-        <button type="button" data-vel="1" aria-pressed="true"><span class="por">×</span>1</button>
-        <button type="button" data-vel="2" aria-pressed="false"><span class="por">×</span>2</button>
-      </div>
+          <div class="menu-velocidad">
+            <span id="velocidad-label">Velocidad de Ottoman</span>
+            <div class="seg seg-vel" id="sel-velocidad" role="group" aria-labelledby="velocidad-label">
+              <button type="button" data-vel="0.5" aria-pressed="false"><span class="por">×</span>0,5</button>
+              <button type="button" data-vel="1" aria-pressed="true"><span class="por">×</span>1</button>
+              <button type="button" data-vel="2" aria-pressed="false"><span class="por">×</span>2</button>
+            </div>
+          </div>
           <button type="button" class="menu-item toggle-voz" id="btn-tts" aria-pressed="true"><svg class="i"><use href="#i-vol"/></svg><span>Voz de Ottoman</span><em>Sí</em></button>
         </div>
       </div>
