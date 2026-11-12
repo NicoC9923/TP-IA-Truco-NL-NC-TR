@@ -515,6 +515,7 @@ class TestMesaRemota(unittest.TestCase):
             srv.mesa_para_espectador()          # connects `caido`; its first move fails
             self._esperar(lambda: srv.robot is None)
             self.assertIsNone(srv.espectador.mesa.robot)
+            srv._ultimo_intento = None          # the 2 s reconnect throttle has passed
             srv.asegurar_robot()                # what the next /espectador/estado does
         self.assertIs(srv.espectador.mesa.robot, nuevo)
         self._esperar(lambda: ('modo_mesa', 'robots') in nuevo.llamadas)

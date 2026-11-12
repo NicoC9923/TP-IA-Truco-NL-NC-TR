@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import sys
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,6 +25,7 @@ from urllib.parse import parse_qs, urlsplit
 from robot import Robot, aviso_sin_mujoco
 from control_voz import AgenteRobot
 from partida_truco import PartidaTruco
+from ritmo import Ritmo, desde_entorno
 from truco_ia import AgenteTrucoIA
 from truco_vision import DetectorCartas, MENSAJE_SIN_OPENCV
 
@@ -33,17 +36,24 @@ PAGINA_ESPECTADOR = DIR_PROYECTO / "espectador.html"
 DIR_CARTAS = DIR_PROYECTO / "cartas"
 DIR_FUENTES = DIR_PROYECTO / "fuentes"
 
+# Seconds between two attempts to reach the simulator.
+INTERVALO_RECONEXION = 2.0
+
+
 class ServidorTruco(ThreadingHTTPServer):
     def __init__(self, direccion, partida, sin_robot, evolution_root=None):
         super().__init__(direccion, Handler)
         self.evolution_root = Path(evolution_root) if evolution_root is not None else DIR_PROYECTO.parent
-        self.lock = threading.RLock()
+        # Shared with the game so the robot's worker and the requests never interleave.
+        self.lock = getattr(partida, 'lock', None) or threading.RLock()
         self.partida = partida
         self.robot = partida.robot
         self.sin_robot = sin_robot
         self.agente = AgenteRobot(self.robot)
         self.detector = DetectorCartas()
         self.error_conexion = None
+        self._ultimo_intento = None   # monotonic time of the last connection attempt
+        self._conectando = False
         partida.al_perder_robot = self.perder_robot
         self._espectador = None
         # Which match the 3D table shows: the human one, or a spectator match.
@@ -95,29 +105,47 @@ class ServidorTruco(ThreadingHTTPServer):
                 self._espectador.mesa.robot = None
 
     def asegurar_robot(self):
+        """Returns the simulator's robot, trying to (re)connect when there is none.
+
+        Polls call this several times a second, so attempts are throttled to one
+        every INTERVALO_RECONEXION seconds and the connect itself runs outside
+        the game lock: a slow or missing simulator never stalls the game.
+        """
         with self.lock:
             if self.sin_robot or self.robot is not None:
                 return self.robot
-            try:
-                robot = Robot()
-                robot.conectar()
-                self.error_conexion = None
-                self.robot = robot
-                self.agente.robot = robot
-                self.agente.ejecutor.robot = robot
-                self.partida.robot = robot
-                if self.mesa_en_espectador and self._espectador is not None:
-                    self._espectador.resincronizar_mesa(robot)
-                else:
-                    self.partida.sincronizar_mesa_3d()
-                print("  [OK] Conectado dinámicamente al simulador del Robot.")
-                return robot
-            except Exception as error:
+            ahora = time.monotonic()
+            if self._conectando or (self._ultimo_intento is not None
+                                    and ahora - self._ultimo_intento < INTERVALO_RECONEXION):
+                return None
+            self._ultimo_intento = ahora
+            self._conectando = True
+        try:
+            robot = Robot()
+            robot.conectar()
+        except Exception as error:
+            with self.lock:
+                self._conectando = False
                 tipo = type(error).__name__
                 if tipo != self.error_conexion:
                     print(f"  [AVISO] Error al conectar el simulador: {tipo}")
                     self.error_conexion = tipo
-                return None
+            return None
+        with self.lock:
+            self._conectando = False
+            if self.robot is not None:
+                return self.robot
+            self.error_conexion = None
+            self.robot = robot
+            self.agente.robot = robot
+            self.agente.ejecutor.robot = robot
+            self.partida.robot = robot
+            if self.mesa_en_espectador and self._espectador is not None:
+                self._espectador.resincronizar_mesa(robot)
+            else:
+                self.partida.sincronizar_mesa_3d()
+            print("  [OK] Conectado dinámicamente al simulador del Robot.")
+            return robot
 
 
 def _leer_jsonl(path):
@@ -336,8 +364,7 @@ class Handler(BaseHTTPRequestHandler):
         elif ruta_limpia == "/espectador/estado":
             desde = parse_qs(urlsplit(self.path).query).get("desde", ["0"])[0]
             if self.server.mesa_en_espectador:
-                with self.server.lock:
-                    self.server.asegurar_robot()
+                self.server.asegurar_robot()  # throttled; connects outside the lock
             self._responder(200, self.server.espectador.snapshot(int(desde) if desde.isdecimal() else 0))
         elif ruta_limpia in ("/", "/voz.html"):
             cuerpo = PAGINA.read_bytes()
@@ -375,8 +402,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_response(404)
                 self.end_headers()
         elif ruta_limpia == "/truco/estado":
+            self.server.asegurar_robot()
             with self.server.lock:
-                self.server.asegurar_robot()
                 est = copy.deepcopy(partida_truco.estado_publico())
                 est["robot_conectado"] = self.server.robot is not None
             self._responder(200, est)
@@ -440,6 +467,10 @@ class Handler(BaseHTTPRequestHandler):
             if manos is None and (type(meta) is not int or meta not in (15, 30)):
                 self._responder(400, {"error": "Meta inválida"})
                 return
+        if self.path == "/truco/ritmo" and (type(datos.get("velocidad")) not in (int, float)
+                                            or datos["velocidad"] not in (0.5, 1, 2)):
+            self._responder(400, {"error": "Velocidad inválida (0.5, 1 o 2)"})
+            return
         if self.path == "/truco/adaptacion" and type(datos.get('activa')) is not bool:
             self._responder(400, {"error": "Estado de adaptación inválido"})
             return
@@ -451,6 +482,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._responder(400, {"error": "Carta inválida"})
                 return
 
+        self.server.asegurar_robot()  # outside the lock: connecting can be slow
         with self.server.lock:
             codigo, respuesta = self._procesar_post(datos)
             if respuesta is not None:
@@ -467,7 +499,6 @@ class Handler(BaseHTTPRequestHandler):
         detector_vision = self.server.detector
         if self.path.startswith("/truco/"):
             self.server.mesa_para_humano()
-        self.server.asegurar_robot()
         if self.path == "/comando":
             texto = str(datos.get("texto", "")).strip()
             idioma = str(datos.get("idioma", "es"))
@@ -537,6 +568,12 @@ class Handler(BaseHTTPRequestHandler):
                 return 409, {"error": "Modo no disponible"}
             est = partida_truco.cambiar_modo_ia(modo)
             return 200, {"mensaje": f"Modo de IA actualizado a {modo}", "estado": est}
+
+        elif self.path == "/truco/ritmo":
+            # Choosing a speed always means human pacing, even if started with --ritmo=0.
+            partida_truco.ritmo = (Ritmo.humano(datos["velocidad"]) if partida_truco.ritmo.es_instantaneo
+                                   else partida_truco.ritmo.con_velocidad(datos["velocidad"]))
+            return 200, {"estado": partida_truco.estado_publico()}
 
         elif self.path == "/truco/adaptacion":
             partida_truco.adapt_to_opponent = datos['activa']
@@ -636,7 +673,11 @@ def main() -> None:
         if arg.startswith("--puerto="):
             puerto = int(arg.split("=", 1)[1])
 
-    partida_truco = PartidaTruco(None)
+    ritmo = desde_entorno(os.environ.get("TRUCO_RITMO"))
+    for arg in sys.argv:
+        if arg.startswith("--ritmo="):
+            ritmo = desde_entorno(arg.split("=", 1)[1])
+    partida_truco = PartidaTruco(None, ritmo=ritmo)
     server = crear_servidor(partida_truco, puerto, sin_robot_flag)
     if not sin_robot_flag and server.asegurar_robot() is None:
         print("  [AVISO] Simulador aún no detectado. Se conectará automáticamente en cuanto abras sim.bat.")
