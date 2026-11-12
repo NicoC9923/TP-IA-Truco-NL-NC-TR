@@ -4,8 +4,9 @@ Integra:
 1. Juego completo de Truco Argentino (/truco/estado, /truco/jugar, /truco/envido,
    /truco/truco, /truco/responder, /truco/mazo, /truco/voz, /truco/nuevo,
    /truco/reiniciar, /truco/detectar).
-2. Control libre por voz bilingüe (/comando).
-3. Conexión automática (y reconexión en caliente) con el simulador MuJoCo.
+2. Modo espectador: dos IAs juegan entre sí (/espectador, /espectador/*; ADR 0064).
+3. Control libre por voz bilingüe (/comando).
+4. Conexión automática (y reconexión en caliente) con el simulador MuJoCo.
 """
 
 from __future__ import annotations
@@ -31,6 +32,8 @@ from truco_vision import DetectorCartas, MENSAJE_SIN_OPENCV
 PUERTO_DEFAULT = 8080
 DIR_PROYECTO = Path(__file__).resolve().parent
 PAGINA = DIR_PROYECTO / "voz.html"
+PAGINA_ESPECTADOR = DIR_PROYECTO / "espectador.html"
+SCRIPT_VOZ = DIR_PROYECTO / "voz_robots.js"     # the robots' speech, shared by both pages
 DIR_CARTAS = DIR_PROYECTO / "cartas"
 DIR_FUENTES = DIR_PROYECTO / "fuentes"
 
@@ -53,6 +56,47 @@ class ServidorTruco(ThreadingHTTPServer):
         self._ultimo_intento = None   # monotonic time of the last connection attempt
         self._conectando = False
         partida.al_perder_robot = self.perder_robot
+        self._espectador = None
+        # Which match the 3D table shows: the human one, or a spectator match.
+        self.mesa_en_espectador = False
+        self._mesa_lock = threading.RLock()
+
+    @property
+    def espectador(self):
+        """The spectator-mode driver, created on first use (it loads no model until a match)."""
+        with self.lock:
+            if self._espectador is None:
+                from espectador import Reproductor
+                self._espectador = Reproductor(champions_dir=self.evolution_root / "champions",
+                                               al_perder_robot=self.perder_robot)
+            return self._espectador
+
+    def mesa_para_espectador(self):
+        """A spectator match starts: the 3D table follows it.
+
+        The human match keeps its state (a robot turn being thought finishes),
+        but sends nothing to the table until it is handed back."""
+        with self._mesa_lock:
+            with self.lock:
+                self.mesa_en_espectador = True
+            # Draining can wait for transport or gesture workers that need the game lock.
+            self.partida.ceder_mesa_3d(espera=None)
+            self.asegurar_robot()
+            with self.lock:
+                self.espectador.mesa.robot = self.robot
+
+    def mesa_para_humano(self):
+        """Pause spectator playback and drain its table before rebuilding the human hand."""
+        with self._mesa_lock:
+            with self.lock:
+                if not self.mesa_en_espectador:
+                    return
+                self.mesa_en_espectador = False
+                reproductor = self._espectador
+            if reproductor is not None:
+                reproductor.pausar()
+                reproductor.mesa.soltar(espera=None)
+            self.partida.recuperar_mesa_3d()
 
     def perder_robot(self):
         """The simulator connection died: drop it so the next request reconnects."""
@@ -62,6 +106,8 @@ class ServidorTruco(ThreadingHTTPServer):
             self.agente.robot = None
             self.agente.ejecutor.robot = None
             self.error_conexion = None
+            if self._espectador is not None:
+                self._espectador.mesa.robot = None
 
     def asegurar_robot(self):
         """Returns the simulator's robot, trying to (re)connect when there is none.
@@ -99,7 +145,10 @@ class ServidorTruco(ThreadingHTTPServer):
             self.agente.robot = robot
             self.agente.ejecutor.robot = robot
             self.partida.robot = robot
-            self.partida.sincronizar_mesa_3d()
+            if self.mesa_en_espectador and self._espectador is not None:
+                self._espectador.resincronizar_mesa(robot)
+            else:
+                self.partida.sincronizar_mesa_3d()
             print("  [OK] Conectado dinámicamente al simulador del Robot.")
             return robot
 
@@ -307,6 +356,29 @@ class Handler(BaseHTTPRequestHandler):
         elif ruta_limpia == "/evolucion/phase2/example-hand":
             from phase2_example_hand import example_hand_payload
             self._responder(200, example_hand_payload(self.server.evolution_root))
+        elif ruta_limpia in ("/espectador", "/espectador.html"):
+            cuerpo = PAGINA_ESPECTADOR.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(cuerpo)))
+            self.end_headers()
+            self.wfile.write(cuerpo)
+        elif ruta_limpia == "/voz_robots.js":
+            cuerpo = SCRIPT_VOZ.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Content-Length", str(len(cuerpo)))
+            self.end_headers()
+            self.wfile.write(cuerpo)
+        elif ruta_limpia == "/espectador/modelos":
+            from espectador import lista_modelos
+            self._responder(200, {"modelos": lista_modelos(self.server.evolution_root / "champions")})
+        elif ruta_limpia == "/espectador/estado":
+            desde = parse_qs(urlsplit(self.path).query).get("desde", ["0"])[0]
+            if self.server.mesa_en_espectador:
+                self.server.asegurar_robot()  # throttled; connects outside the lock
+            self._responder(200, self.server.espectador.snapshot(int(desde) if desde.isdecimal() else 0))
         elif ruta_limpia in ("/", "/voz.html"):
             cuerpo = PAGINA.read_bytes()
             self.send_response(200)
@@ -395,9 +467,17 @@ class Handler(BaseHTTPRequestHandler):
             if not (valor is None or isinstance(valor, str)) or valor not in permitidos:
                 self._responder(400, {"error": f"{campo} inválido"})
                 return
+        if self.path.startswith("/espectador/"):
+            codigo, respuesta = self._procesar_espectador(datos)
+            self._responder(codigo, respuesta)
+            return
         if self.path == "/truco/reiniciar":
             meta = datos.get("meta_puntos", 15)
-            if type(meta) is not int or meta not in (15, 30):
+            manos = datos.get("manos")
+            if manos is not None and (type(manos) is not int or not 1 <= manos <= 10):
+                self._responder(400, {"error": "Cantidad de manos inválida"})
+                return
+            if manos is None and (type(meta) is not int or meta not in (15, 30)):
                 self._responder(400, {"error": "Meta inválida"})
                 return
         if self.path == "/truco/ritmo" and (type(datos.get("velocidad")) not in (int, float)
@@ -416,6 +496,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
         self.server.asegurar_robot()  # outside the lock: connecting can be slow
+        if self.path.startswith("/truco/"):
+            self.server.mesa_para_humano()
         with self.server.lock:
             codigo, respuesta = self._procesar_post(datos)
             if respuesta is not None:
@@ -485,6 +567,10 @@ class Handler(BaseHTTPRequestHandler):
             return 200, est if "error" in est else {"mensaje": "Nueva mano repartida", "estado": est}
 
         elif self.path == "/truco/reiniciar":
+            manos = datos.get("manos")
+            if manos is not None:
+                est = partida_truco.reiniciar_partido(manos=manos)
+                return 200, {"mensaje": f"Partida corta de {manos} manos", "estado": est}
             meta = int(datos.get("meta_puntos", 15))
             est = partida_truco.reiniciar_partido(meta_puntos=meta)
             return 200, {"mensaje": f"Partido reiniciado a {meta} puntos", "estado": est}
@@ -512,6 +598,59 @@ class Handler(BaseHTTPRequestHandler):
 
         else:
             return 404, None
+
+    def _procesar_espectador(self, datos):
+        """POST /espectador/*: the spectator match controls (ADR 0064)."""
+        from espectador import Largo, MODELOS, ModeloNoCargado, VELOCIDADES, modelo_disponible
+        from sim.cartas import CAMARAS
+        reproductor = self.server.espectador
+        accion = self.path[len("/espectador/"):]
+        if accion == "empezar":
+            ias = datos.get("ias")
+            if (not isinstance(ias, list) or len(ias) != 2
+                    or any(not isinstance(c, str) or c not in MODELOS for c in ias)):
+                return 400, {"error": "Elegí dos IAs válidas"}
+            root = self.server.evolution_root / "champions"
+            if not all(modelo_disponible(c, root) for c in ias):
+                return 409, {"error": "Esa IA no está disponible en esta instalación"}
+            try:
+                largo = Largo.de_dict(datos.get("largo", {"tipo": "puntos", "meta": 15}))
+            except ValueError as error:
+                return 400, {"error": str(error)}
+            # The table switches to the spectator match only once both AIs loaded.
+            try:
+                return 200, reproductor.empezar(ias, largo, al_cargar=self.server.mesa_para_espectador)
+            except ModeloNoCargado as error:
+                print(f"  [AVISO] {error}")
+                return 409, {"error": "No se pudo cargar esa IA", "ia": error.clave}
+        if accion == "velocidad":
+            velocidad = datos.get("velocidad")
+            if isinstance(velocidad, bool) or velocidad not in VELOCIDADES:
+                return 400, {"error": "Velocidad inválida"}
+            return 200, reproductor.poner_velocidad(velocidad)
+        if accion == "camara":
+            nombre = datos.get("nombre")
+            if nombre not in CAMARAS:
+                return 400, {"error": "Cámara inválida"}
+            reproductor.mesa.camara(nombre)
+            return 200, reproductor.snapshot()
+        if accion == "revancha":
+            if reproductor.partida is None:
+                return 409, {"error": "No hay partida para revancha"}
+            try:
+                return 200, reproductor.revancha(al_cargar=self.server.mesa_para_espectador)
+            except ModeloNoCargado as error:
+                print(f"  [AVISO] {error}")
+                return 409, {"error": "No se pudo cargar esa IA", "ia": error.clave}
+        if (accion in ("seguir", "paso") and reproductor.partida is not None
+                and not self.server.mesa_en_espectador):
+            self.server.mesa_para_espectador()
+            reproductor.resincronizar_mesa(self.server.robot)
+        acciones = {"pausa": reproductor.pausar, "seguir": reproductor.seguir,
+                    "paso": reproductor.paso, "detener": reproductor.detener}
+        if accion not in acciones:
+            return 404, {"error": "Acción desconocida"}
+        return 200, acciones[accion]()
 
     @staticmethod
     def _origen_run(root, run):
@@ -592,6 +731,8 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
+        if server._espectador is not None:
+            server._espectador.cerrar()
         server.server_close()
         if server.robot is not None:
             try:

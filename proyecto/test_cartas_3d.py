@@ -106,16 +106,16 @@ class TestEscenaXML(unittest.TestCase):
         mallas = {m.get("name"): m for m in self.raiz.iter("mesh")}
         self.assertIn("texcoord", mallas["malla_carta"].attrib)
 
-    def test_tres_camaras_y_el_asiento_de_enfrente(self):
+    def test_camaras_y_el_asiento_de_enfrente(self):
         camaras = {c.get("name") for c in self.raiz.iter("camera")}
-        self.assertEqual(camaras, {"general", "detras_robot_1", "detras_robot_2"})
+        self.assertEqual(camaras, {"general", "detras_robot_1", "detras_robot_2", "mesa"})
         self.assertIn("silla_asiento_2", {b.get("name") for b in self.raiz.iter("body")})
 
     @unittest.skipUnless(HAY_MUJOCO, "MuJoCo no instalado")
     def test_la_escena_carga_en_mujoco(self):
         import mujoco
         m = mujoco.MjModel.from_xml_path(str(self.ruta))
-        self.assertEqual(m.ncam, 3)
+        self.assertEqual(m.ncam, 4)
         self.assertEqual(m.nmocap, 6)
         for n in ("mano_izq", "mano_der"):
             self.assertGreaterEqual(mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_SITE, n), 0)
@@ -231,12 +231,13 @@ class TestCamaras(unittest.TestCase):
         # And whatever the viewer shows, the robot's hand shows only backs.
         self.assertTrue(mesa.ocultar_caras_en_mano(1))
 
-    def test_robot_contra_robot_habilita_las_tres(self):
+    def test_robot_contra_robot_habilita_todas(self):
         mesa = C.MesaCartas()
         mesa.poner_modo(C.MODO_ROBOTS)
         self.assertEqual(mesa.elegir_camara("detras_robot_1"), "detras_robot_1")
         self.assertEqual(C.camara_siguiente("detras_robot_1", C.MODO_ROBOTS), "detras_robot_2")
-        self.assertEqual(C.camara_siguiente("detras_robot_2", C.MODO_ROBOTS), "general")
+        self.assertEqual(C.camara_siguiente("detras_robot_2", C.MODO_ROBOTS), "mesa")
+        self.assertEqual(C.camara_siguiente("mesa", C.MODO_ROBOTS), "general")
         self.assertFalse(mesa.ocultar_caras_en_mano(1))
         # Back to a human: the behind camera turns itself off.
         mesa.poner_modo(C.MODO_HUMANO)
@@ -321,6 +322,78 @@ class TestEscenaMuJoCo(unittest.TestCase):
             centro = d.mocap_pos[e.mocap[self._cuerpo(carta)]]
             self.assertLess(np.linalg.norm(centro - palma), 0.12)
             self.assertGreater(centro[2], C.MESA_Z + 0.1)       # above the table
+
+    def _manos(self, asiento=1):
+        e, d = self.f.sim.cartas, self.f.sim.data
+        r = e.robots[asiento]
+        return d.site_xpos[r.sitio_izq].copy(), d.site_xpos[r.sitio_der].copy()
+
+    def _centro_abanico(self, asiento=1):
+        import numpy as np
+        e, d = self.f.sim.cartas, self.f.sim.data
+        centros = [d.mocap_pos[e.mocap[c.cuerpo]] for c in self.f.mesa.estado()
+                   if c.asiento == asiento and c.lugar == "mano"]
+        return np.mean(centros, axis=0)
+
+    def test_sostiene_el_abanico_con_las_dos_manos(self):
+        """ADR 0067 (two-hand hold): one palm on each side of the fan, behind the cards."""
+        import numpy as np
+        from sim.escena_cartas import orientacion_abanico
+        izq, der = self._manos()
+        centro = self._centro_abanico()
+        for palma in (izq, der):
+            self.assertLess(np.linalg.norm(palma - centro), 0.12)
+        self.assertGreater(izq[1] - der[1], 0.06)               # left palm on the robot's left
+        normal = orientacion_abanico(1)[:, 2]                   # toward the robot
+        for palma in (izq, der):
+            self.assertLess(float((palma - centro) @ normal), 0.0)
+
+    def test_la_derecha_saca_la_carta_y_vuelve_al_abanico(self):
+        import numpy as np
+        f = self.f
+        r = f.mesa.ritmo
+        f.mesa.jugar(1, MANO[0])
+        f.correr(r.alcanzar + r.llevar * 0.7)
+        izq, der = self._manos()
+        centro = self._centro_abanico()
+        self.assertGreater(np.linalg.norm(der - centro), 0.15)  # away, laying the card
+        self.assertLess(np.linalg.norm(izq - centro), 0.12)     # the left one keeps the fan
+        f.correr(r.llevar * 0.3 + r.volver + 0.6)
+        izq, der = self._manos()
+        centro = self._centro_abanico()
+        self.assertLess(np.linalg.norm(der - centro), 0.12)     # back on the two remaining cards
+        # Down to one card: still both hands.
+        f.mesa.jugar(1, MANO[1])
+        f.correr(r.alcanzar + r.llevar + r.volver + 0.6)
+        izq, der = self._manos()
+        centro = self._centro_abanico()
+        self.assertLess(np.linalg.norm(izq - centro), 0.12)
+        self.assertLess(np.linalg.norm(der - centro), 0.12)
+        # No cards left: both hands let go.
+        f.mesa.jugar(1, MANO[2])
+        f.correr(r.alcanzar + r.llevar + r.volver + 1.0)
+        izq_vacia, der_vacia = self._manos()
+        self.assertGreater(np.linalg.norm(der_vacia - der), 0.05)
+        self.assertGreater(np.linalg.norm(izq_vacia - izq), 0.05)
+
+    def test_un_gesto_levanta_las_dos_manos_juntas(self):
+        from sim.robots import G1_L_SHOULDER_P, G1_R_SHOULDER_P
+        from sim.escena_cartas import ELEVACION_GESTO
+        e = self.f.sim.cartas
+        rb = e.robots[1]
+        objetivo = [0.0] * 29
+        for idx, v in rb.sentado.items():
+            objetivo[idx] = v
+        quieto = list(objetivo)
+        e.ajustar_articulaciones(quieto, quieto)
+        self.assertAlmostEqual(quieto[G1_L_SHOULDER_P], rb.pose_sostener[G1_L_SHOULDER_P])
+        self.assertAlmostEqual(quieto[G1_R_SHOULDER_P], rb.pose_sostener_der[G1_R_SHOULDER_P])
+        festejo = list(objetivo)
+        festejo[G1_L_SHOULDER_P] -= 1.0                       # a gesture raising both arms
+        festejo[G1_R_SHOULDER_P] -= 1.2
+        e.ajustar_articulaciones(festejo, festejo)
+        self.assertAlmostEqual(festejo[G1_L_SHOULDER_P], rb.pose_sostener[G1_L_SHOULDER_P] - ELEVACION_GESTO)
+        self.assertAlmostEqual(festejo[G1_R_SHOULDER_P], rb.pose_sostener_der[G1_R_SHOULDER_P] - ELEVACION_GESTO)
 
     def test_el_visor_nunca_queda_en_una_camara_prohibida(self):
         import mujoco

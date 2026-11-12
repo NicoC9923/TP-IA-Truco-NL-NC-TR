@@ -142,6 +142,9 @@ class ServidorLocal(socketserver.ThreadingTCPServer):
         return {"ok": True}
 
     def _orden_gesto(self, pedido: dict) -> dict:
+        if pedido.get("asiento", 1) == 2:
+            self.mundo.gesto_rival(pedido.get("nombre", ""), float(pedido.get("duracion", 2.0)))
+            return {"ok": True}
         self.mundo.gesto(pedido.get("nombre", ""),
                          float(pedido.get("duracion", 2.0)))
         return {"ok": True}
@@ -282,10 +285,14 @@ class ClienteLocal:
         return self._codigo(self._pedir({"orden": "gesto",
                                          "nombre": "dar_la_mano"}))
 
-    def Gesto(self, nombre: str, duracion: float = 2.0) -> int:
-        return self._codigo(self._pedir({"orden": "gesto",
-                                         "nombre": nombre,
-                                         "duracion": duracion}))
+    # The local simulator also animates the rival G1 (seat 2) of robot-vs-robot mode.
+    GESTO_POR_ASIENTO = True
+
+    def Gesto(self, nombre: str, duracion: float = 2.0, asiento: int = 1) -> int:
+        pedido = {"orden": "gesto", "nombre": nombre, "duracion": duracion}
+        if asiento != 1:
+            pedido["asiento"] = int(asiento)
+        return self._codigo(self._pedir(pedido))
 
     # The Truco table. Not part of Unitree's SDK: only the local simulator has it.
     def RepartirCartas(self, manos: dict) -> int:

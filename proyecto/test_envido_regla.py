@@ -47,9 +47,25 @@ class EnvidoSoloAntesDeTirar(unittest.TestCase):
             opciones = p.canto_pendiente["opciones"]
             self.assertFalse({"ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"} & set(opciones))
             self.assertIn("error", p.responder_canto_humano("ENVIDO"))
-            self.assertIn("error", p.cantar_envido_humano("ENVIDO"))
+            self.assertEqual(p.cantar_envido_humano("ENVIDO")["error"], "No podés cantar envido ahora.")
             self.assertIn("error", p.procesar_voz_truco("envido"))
             self.assertEqual(p.canto_pendiente["tipo"], "TRUCO")
+
+    def test_human_who_played_can_raise_the_robots_envido(self):
+        """ADR 0068 only limits starting the envido: raising the robot's call stays allowed."""
+        with tempfile.TemporaryDirectory() as tmp:
+            p = _partida(tmp)
+            with patch.object(PartidaTruco, "_avanzar_turno_robot_si_corresponde"):
+                p.jugar_carta_humano(p.cartas_humano_disponibles[0])
+            # A fresh opening is rejected...
+            self.assertEqual(p.cantar_envido_humano("ENVIDO")["error"], "No podés cantar envido ahora.")
+            # ...but once the robot (pie, still without its card) calls envido, the human may raise it.
+            p._robot_canta_envido("ENVIDO", "")
+            self.assertEqual(p.canto_pendiente["tipo"], "ENVIDO")
+            with patch.object(p.ia, "responder_envido", return_value=("QUIERO", "")):
+                res = p.cantar_envido_humano("REAL_ENVIDO")
+            self.assertNotIn("error", res)
+            self.assertTrue(p.envido_resuelto)
 
     def test_human_can_still_respond_envido_to_truco_before_playing(self):
         with tempfile.TemporaryDirectory() as tmp:

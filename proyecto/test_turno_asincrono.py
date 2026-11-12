@@ -375,6 +375,17 @@ class TestRitmoDeLasCadenas(Base):
             self.assertTrue(self.libre(partida))
         self.assertGreaterEqual(time.time() - inicio, 0.35)
 
+    def test_el_envido_esta_primero_tambien_es_una_decision_grande(self):
+        ritmo = Ritmo(pensar=(0.02, 0.02), pensar_grande=(0.4, 0.4), seguir=(0.02, 0.02),
+                      alcanzar=0.01, colocar=0.01, pausa_baza=0, pausa_mano=0)
+        partida = self.crear(ritmo)
+        with patch.object(partida.ia, "decidir_iniciar_envido", return_value=("ENVIDO", "")):
+            inicio = time.time()
+            partida.cantar_truco_humano()
+            self.assertTrue(self.libre(partida))
+        self.assertEqual(partida.estado_publico()["canto_pendiente"]["tipo"], "ENVIDO")
+        self.assertGreaterEqual(time.time() - inicio, 0.35)
+
     def test_querer_real_envido_piensa_mas_que_querer_envido(self):
         ritmo = Ritmo(pensar=(0.02, 0.02), pensar_grande=(0.4, 0.4), seguir=(0.02, 0.02),
                       alcanzar=0.01, colocar=0.01, pausa_baza=0, pausa_mano=0)
@@ -591,6 +602,194 @@ class TestServidorRitmo(unittest.TestCase):
             servidor.asegurar_robot()
             self.assertEqual(Robot.call_count, 2)
 
+
+class RobotMesa(RobotFalso):
+    """Also records the table mode."""
+
+    def modo_mesa(self, modo):
+        self.llamadas.append(("modo_mesa", modo))
+        return True
+
+
+class TestMesaCedidaAlEspectador(Base):
+    """The 3D table handover between the human match and spectator mode (ADR 0064)."""
+
+    def tiradas(self, robot, asiento=None):
+        return [l for l in robot.llamadas if l[0] == "tirar_carta" and (asiento is None or l[3] == asiento)]
+
+    def test_la_carta_pendiente_del_robot_no_cae_en_la_mesa_del_espectador(self):
+        robot = RobotMesa()
+        partida = self.crear(LENTO, robot=robot)
+        self.sin_cantos(partida)
+        carta = partida.cartas_humano[0]
+        partida.jugar_carta_humano(carta)
+        self.assertEqual(partida.estado_publico()["robot"]["estado"], "pensando")
+        self.assertTrue(esperar(lambda: self.tiradas(robot)))   # the human's card already went out
+        self.assertTrue(partida.ceder_mesa_3d())                # within the think window
+        antes = len(robot.llamadas)
+        self.assertTrue(self.libre(partida))
+        time.sleep(0.15)
+        self.assertEqual(robot.llamadas[antes:], [])           # nothing of the robot's move landed
+        est = partida.estado_publico()
+        self.assertEqual([m["quien"] for m in est["mesa"]][:2], ["humano", "robot"])  # the match went on
+        # Handing the table back rebuilds this hand, robot's card included, once.
+        partida.recuperar_mesa_3d()
+        self.assertTrue(esperar(lambda: len(robot.llamadas) - antes >= 2 + len(est["mesa"])))
+        time.sleep(0.1)
+        tras = robot.llamadas[antes:]
+        self.assertEqual(tras[0], ("modo_mesa", "humano"))
+        self.assertEqual(tras[1], ("repartir_cartas",))
+        self.assertEqual([l[3] for l in tras if l[0] == "tirar_carta"],
+                         [1 if m["quien"] == "robot" else 2 for m in est["mesa"]])
+
+    def test_ceder_y_devolver_mientras_el_robot_piensa(self):
+        """Handed back before the robot finished thinking: the frozen hand, then its card once."""
+        robot = RobotMesa()
+        partida = self.crear(LENTO, robot=robot)
+        self.sin_cantos(partida)
+        self.robot_mano(partida)
+        partida.ceder_mesa_3d()
+        antes = len(robot.llamadas)
+        partida.recuperar_mesa_3d()
+        self.assertTrue(self.libre(partida))
+        self.assertTrue(esperar(lambda: self.tiradas(robot, 1)))
+        time.sleep(0.1)
+        self.assertEqual(len(self.tiradas(robot, 1)), 1)
+        self.assertEqual(robot.llamadas[antes], ("modo_mesa", "humano"))
+
+    def test_mientras_esta_cedida_no_hay_gestos_ni_cartas(self):
+        robot = RobotMesa()
+        partida = self.crear(Ritmo.instantaneo(), robot=robot)
+        partida.ceder_mesa_3d()
+        antes = len(robot.llamadas)
+        with patch.object(partida.ia, "decidir_iniciar_envido", return_value=(None, "")), \
+                patch.object(partida.ia, "responder_canto_truco", return_value=("NO_QUIERO", "")):
+            partida.cantar_truco_humano()
+        partida.nueva_mano()
+        time.sleep(0.1)
+        self.assertEqual(robot.llamadas[antes:], [])
+        self.assertTrue(partida.mesa_cedida)
+
+    def test_el_servidor_cede_y_recupera_la_mesa(self):
+        from servidor_truco import crear_servidor
+        robot = RobotMesa()
+        partida = self.crear(Ritmo.instantaneo(), robot=robot)
+        srv = crear_servidor(partida, puerto=0, sin_robot=True)
+        self.addCleanup(srv.server_close)
+        self.addCleanup(lambda: srv._espectador is not None and srv._espectador.cerrar())
+        srv.mesa_para_espectador()
+        self.assertTrue(partida.mesa_cedida)
+        srv.mesa_para_humano()
+        self.assertFalse(partida.mesa_cedida)
+        self.assertTrue(esperar(lambda: ("modo_mesa", "humano") in robot.llamadas))
+
+
+class TestRespaldos(Base):
+    """A broken robot decision never leaves a call of the human unanswered."""
+
+    def test_truco_del_humano_sin_respuesta_se_quiere(self):
+        partida = self.crear(RAPIDO)
+        self.sin_cantos(partida)
+        with patch.object(partida.ia, "responder_canto_truco", side_effect=RuntimeError("boom")):
+            partida.cantar_truco_humano()
+            self.assertTrue(self.libre(partida))
+        est = partida.estado_publico()
+        self.assertEqual(est["apuesta_truco"], "TRUCO")
+        self.assertEqual(est["puntos_truco_actuales"], 2)
+        self.assertIsNone(est["canto_pendiente"])
+        self.assertEqual(est["mesa"], [])                       # it answered: it did not play a card
+        self.assertEqual([v["frase"] for v in est["voz"]], ["¡Quiero!"])
+        self.assertTrue(any("[ERROR]" in linea for linea in est["log"]))
+        self.assertNotIn("error", partida.jugar_carta_humano(partida.cartas_humano[0]))
+
+    def test_truco_reanudado_tras_el_envido_se_quiere(self):
+        partida = self.crear(RAPIDO)
+        self.sin_cantos(partida)
+        partida.truco_en_espera = {"tipo": "TRUCO", "canto": "TRUCO", "quien_canto": "humano",
+                                   "puntos_quiero": 2, "puntos_no_quiero": 1, "opciones": ["QUIERO", "NO_QUIERO"]}
+        with patch.object(partida.ia, "responder_canto_truco", side_effect=RuntimeError("boom")):
+            with partida.lock:
+                partida._reanudar_truco()
+            self.assertTrue(self.libre(partida))
+        est = partida.estado_publico()
+        self.assertEqual(est["apuesta_truco"], "TRUCO")
+        self.assertIsNone(est["canto_pendiente"])
+        self.assertEqual([v["frase"] for v in est["voz"]], ["¡Quiero!"])
+
+    def test_envido_del_humano_sin_respuesta_se_quiere(self):
+        partida = self.crear(RAPIDO)
+        self.sin_cantos(partida)
+        with patch.object(partida.ia, "responder_envido", side_effect=RuntimeError("boom")):
+            partida.cantar_envido_humano("ENVIDO")
+            self.assertTrue(self.libre(partida))
+        est = partida.estado_publico()
+        self.assertTrue(est["envido_resuelto"])
+        self.assertEqual([v["frase"] for v in est["voz"]][0], "¡Quiero!")
+
+
+class TestCartaConSimuladorQueVuelve(Base):
+    def test_sin_simulador_al_decidir_la_carta_igual_llega_si_reconecta(self):
+        partida = self.crear(LENTO, robot=None)
+        self.sin_cantos(partida)
+        self.robot_mano(partida)
+        self.assertEqual(partida.estado_publico()["robot"]["estado"], "pensando")
+        robot = RobotMesa()
+        partida.robot = robot
+        partida.sincronizar_mesa_3d()            # what the server does on reconnect
+        self.assertTrue(self.libre(partida))
+        self.assertTrue(esperar(lambda: any(l[0] == "tirar_carta" for l in robot.llamadas)))
+        time.sleep(0.1)
+        self.assertEqual([l[3] for l in robot.llamadas if l[0] == "tirar_carta"], [1])
+
+    def test_sin_simulador_y_sin_turno_no_se_encola_nada(self):
+        partida = self.crear(LENTO, robot=None)
+        partida._mesa_3d("tirar_carta", {"valor": 1, "palo": "Oro"}, 2)
+        self.assertTrue(partida._cola_mesa.empty())
+
+
+class TestShortFaltaInBuenas(Base):
+    def test_trailing_winner_reaches_30_and_ends_match(self):
+        partida = self.crear(Ritmo.instantaneo())
+        self.sin_cantos(partida)
+        partida.reiniciar_partido(manos=10)
+        self.repartir(partida, TestTantoDeLaPartida.HUMANO_33,
+                      TestTantoDeLaPartida.ROBOT_27, robot_es_mano=False)
+        partida.puntos_humano, partida.puntos_robot = 16, 20
+        with patch.object(partida.ia, "responder_envido", return_value=("QUIERO", "")):
+            partida.cantar_envido_humano("FALTA_ENVIDO")
+        self.assertTrue(partida.partido_terminado)
+        self.assertEqual(partida.ganador_partido, "humano")
+        self.assertEqual(partida.puntos_humano, 30)
+
+
+class TestTantoDelRobotPrivado(Base):
+    """The robot's number reaches the page only once it said it, or when the hand is over."""
+
+    def test_el_pie_que_dijo_son_buenas_no_muestra_su_numero(self):
+        partida = self.crear(Ritmo.instantaneo())
+        self.sin_cantos(partida)
+        self.repartir(partida, TestTantoDeLaPartida.HUMANO_33, TestTantoDeLaPartida.ROBOT_27, robot_es_mano=False)
+        with patch.object(partida.ia, "responder_envido", return_value=("QUIERO", "")):
+            res = partida.cantar_envido_humano("ENVIDO")
+        self.assertNotIn("pts_robot", res)
+        re_ = partida.estado_publico()["resultado_envido"]
+        self.assertNotIn("pts_robot", re_)
+        self.assertEqual(re_["pts_humano"], 33)
+        self.assertTrue(re_["robot_son_buenas"])
+        self.assertIn("pts_robot", partida.resultado_envido_detalle)   # kept for learning
+        partida.irse_al_mazo_humano()
+        self.assertEqual(partida.estado_publico()["resultado_envido"]["pts_robot"], 27)
+
+    def test_mano_o_ganador_lo_dijo_y_se_ve(self):
+        t = TestTantoDeLaPartida
+        for humano, robot, robot_mano in ((t.HUMANO_33, t.ROBOT_32, True), (t.HUMANO_27, t.ROBOT_32, False)):
+            partida = self.crear(Ritmo.instantaneo())
+            self.sin_cantos(partida)
+            self.repartir(partida, humano, robot, robot_mano)
+            with patch.object(partida.ia, "responder_envido", return_value=("QUIERO", "")):
+                res = partida.cantar_envido_humano("ENVIDO")
+            self.assertEqual(res["pts_robot"], 32)
+            self.assertEqual(partida.estado_publico()["resultado_envido"]["pts_robot"], 32)
 
 if __name__ == "__main__":
     unittest.main()

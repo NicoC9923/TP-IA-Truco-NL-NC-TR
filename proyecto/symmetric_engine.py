@@ -36,9 +36,16 @@ class MatchResult:
     deals: list
 
 
-def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), deal_partition=None):
+def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), deal_partition=None,
+               max_hands=None, on_event=None):
+    """Play one match. It ends when a player reaches `target`, or, with `max_hands`,
+    after that many hands as soon as the points are not level (a short match: extra
+    hands are played one at a time until they are). `on_event`, if given, is called with
+    a dict at each deal and at each hand end; it never changes the play."""
     if deal_partition not in (None, 0, 1):
         raise ValueError("Invalid deal partition")
+    if max_hands is not None and (isinstance(max_hands, bool) or not isinstance(max_hands, int) or max_hands < 1):
+        raise ValueError('Invalid max_hands')
     if target <= 0 or len(starting_score) != 2 or min(starting_score) < 0 or max(starting_score) >= target:
         raise ValueError('Invalid target or starting score')
     rng = random.Random(seed)
@@ -46,7 +53,7 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
     policies = (policy_a, policy_b)
     decisions, deals = [], []
     mano = 0
-    while max(score) < target:
+    while max(score) < target and not (max_hands is not None and len(deals) >= max_hands and score[0] != score[1]):
         deck = [(v, p) for p in rules.PALOS for v in rules.VALORES]
         while True:
             rng.shuffle(deck)
@@ -55,6 +62,8 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
             if deal_partition is None or hashlib.sha256(repr(canonical).encode('utf-8')).digest()[0] % 2 == deal_partition:
                 break
         deals.append(tuple(tuple(h) for h in hands))
+        if on_event is not None:
+            on_event({'kind': 'deal', 'hand_index': len(deals) - 1, 'hands': deals[-1], 'mano': mano, 'score': tuple(score)})
         available = [list(range(3)), list(range(3))]
         table, tricks, history = [], [], []
         turn = mano
@@ -125,7 +134,8 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
                         declarations.append((pie, values[pie] if values[pie] > values[mano] else 'son buenas'))
                         envido_reveal = {'declarations': tuple(declarations)}
                         if pending['call'] == 'falta_envido':
-                            points = rules.puntos_falta_envido(score[0], score[1], target, ('humano', 'robot')[winner])[0]
+                            points = (target - score[winner] if max_hands is not None else
+                                      rules.puntos_falta_envido(score[0], score[1], target, ('humano', 'robot')[winner])[0])
                         else:
                             points = pending['accepted']
                     score[winner] += points
@@ -173,6 +183,8 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
                            'hand_index': d['hand_index'], 'revealed': d['revealed'],
                            'bluff': d['bluff'] if d['revealed'] else None}
                           for d in decisions[hand_start:]], 1-seat)
+        if on_event is not None:
+            on_event({'kind': 'hand_end', 'hand_index': len(deals) - 1, 'mano': mano, 'score': tuple(score)})
         mano = 1-mano
     return MatchResult(score.index(max(score)), tuple(score), decisions, deals)
 

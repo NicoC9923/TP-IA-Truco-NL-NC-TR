@@ -1,7 +1,8 @@
 <mujoco model="g1_29dof - mesa de truco">
   <!-- Generado por sim/robots.py. Incluye el modelo oficial g1_29dof.xml y
        agrega las sillas, la mesa de Truco con paño verde, los naipes
-       texturados y las tres camaras (general y detras de cada asiento). -->
+       texturados, las camaras y el segundo G1 (poncho celeste) del asiento 2,
+       que solo se sienta a la mesa en el modo robot contra robot. -->
   <include file="g1_29dof_gaucho.xml"/>
 
   <statistic center="0.28 0 0.6" extent="1.8"/>
@@ -104,6 +105,7 @@
     <texture name="tx_dorso" type="2d" file="../../../../../proyecto/cartas/dorso.png"/>
     <material name="mat_dorso" texture="tx_dorso" specular="0.05" shininess="0.1" reflectance="0"/>
     <material name="mat_canto" rgba="0.93 0.91 0.85 1"/>
+    <model name="rival" file="g1_29dof_gaucho_rival.xml"/>
   </asset>
 
   <worldbody>
@@ -112,6 +114,7 @@
     <camera name="general" pos="0.700 -0.950 1.450" xyaxes="0.9645 0.2640 -0.0000 -0.1454 0.5313 0.8346" fovy="50"/>
     <camera name="detras_robot_1" pos="-0.280 0.440 1.400" xyaxes="-0.5480 -0.8365 0.0000 0.5139 -0.3367 0.7890" fovy="50"/>
     <camera name="detras_robot_2" pos="1.480 -0.440 1.400" xyaxes="0.5480 0.8365 -0.0000 -0.5139 0.3367 0.7890" fovy="50"/>
+    <camera name="mesa" pos="0.600 -1.420 1.780" xyaxes="1.0000 -0.0000 0.0000 0.0000 0.5947 0.8039" fovy="50"/>
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
 
     <!-- Silla de madera donde se sienta Ottoman -->
@@ -151,7 +154,7 @@
       <geom name="mesa_pata4" type="cylinder" pos="0.27 -0.46 0.31" size="0.028 0.31" rgba="0.32 0.20 0.10 1"/>
     </body>
 
-    <!-- Asiento 2, enfrente: el humano hoy; un segundo G1 en el paso 2 -->
+    <!-- Asiento 2, enfrente: el humano, o el segundo G1 contra otro robot -->
     <body name="silla_asiento_2" pos="1.24 0 0" euler="0 0 3.14159">
       <geom name="silla2_asiento" type="box" pos="0 0 0.46" size="0.18 0.22 0.025" rgba="0.38 0.24 0.13 1"/>
       <geom name="silla2_respaldo" type="box" pos="-0.16 0 0.72" size="0.022 0.21 0.23" rgba="0.38 0.24 0.13 1"/>
@@ -186,5 +189,11 @@
       <geom name="carta_2_2_frente" type="mesh" mesh="malla_carta" pos="0 0 0.00030" material="mat_dorso" contype="0" conaffinity="0" group="2"/>
       <geom name="carta_2_2_dorso" type="mesh" mesh="malla_carta" pos="0 0 -0.00030" euler="0 3.14159 0" material="mat_dorso" contype="0" conaffinity="0" group="2"/>
     </body>
+
+    <!-- Segundo G1 (asiento 2). Cinematico: sim/arrancar.py escribe su pose y lo
+         guarda bajo el piso cuando juega un humano. -->
+    <frame pos="1.24 0 0" euler="0 0 3.14159">
+      <attach model="rival" body="pelvis" prefix="r2_"/>
+    </frame>
   </worldbody>
 </mujoco>

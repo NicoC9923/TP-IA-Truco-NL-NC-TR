@@ -13,7 +13,7 @@ A complete game between two players, ending when one reaches the target of 15 or
 _Avoid_: game, partido
 
 **Short match**:
-A match that lasts a chosen number of hands (1 to 10) instead of a points target. The player with more points after the last hand wins; if points are level, one extra hand decides. UI: "partida corta".
+A match that lasts a chosen number of hands (1 to 10) instead of a points target. The player with more points after the last hand wins; if points are level, extra hands are played one at a time until they are not (ADR 0069). UI: "partida corta".
 _Avoid_: quick game, demo match
 
 **Spectator mode**:
