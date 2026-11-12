@@ -1,0 +1,33 @@
+{
+ "warmup_seconds": 2.757007700012764,
+ "check_seconds": null,
+ "workers": 12,
+ "matches_per_round": 240,
+ "rounds": 5,
+ "round_seconds": [
+  0.5510606000025291,
+  0.6166132999933325,
+  0.5944030999962706,
+  0.5818827000039164,
+  0.5475707000005059
+ ],
+ "matches_per_s": 415.0051474476734,
+ "samples_per_s": 17663.310750618723,
+ "samples_per_round": [
+  10285,
+  11237,
+  9710,
+  9611,
+  10231
+ ],
+ "sample_digests": [
+  "87bcd90e23b283b297138a2872b34ea27405ccd495d973cb1850e1eda5be7e47",
+  "d6402c169168e289b0c62064cc2ca1eeaf083248b42f4e8ebce9ebd90bdf6f14",
+  "8291aa6938f81f4919050ed5930b28e573d51e01913796c7f14db7d7c8d5a38f",
+  "42f6624a574e8c01369de225a79b8c1484c81c49b21bd445aee4215cbf761f8f",
+  "c24cb6d4d309a9abcdee2535f60a4bc05180072818bd3f8c76ee5530df0ebc67"
+ ],
+ "first_round_pickle_bytes": 67696528,
+ "update_seconds": 0.010665549999976065,
+ "check_pairs": 0
+}

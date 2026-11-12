@@ -1,0 +1,15 @@
+# Phase 2 selection check execution and artifacts
+
+Status: accepted (2026-11-08). Supplements ADR 0047.
+
+A check uses the configured base schedule seed plus its zero-based check index; both the base and the resulting seed must not be in the reserved validation-seed list. A fresh schedule is used per check and deals are shared by challenger and champion. Action seeds are deterministic per pair. Consecutive seeds preserve distinct check schedules; rejecting reserved seeds prevents accidental reuse of earlier evaluation schedules.
+
+Each completed generation writes `generation_NNNNNN.pt` to the run directory as a weights-only state dictionary. The reigning champion is exported as `reigning_champion.pt` only on change. A checkpoint stores the incumbent, panel and panel history, snapshot records, saturation observations, patience counter, and elapsed run time alongside optimizer and random states. On a panel change the run writes `panel-vN.json` in its output directory and reserves the selected snapshot hashes; the league must exclude these hashes. Candidate snapshots are ranked by greatest mean recorded panel score, then hash; the distinct snapshot has the greatest L1 distance in per-member score vector from that candidate, then hash. Candidates must have comparable vectors and different weights, and zero behavioral distance postpones replacement.
+
+The run clock is monotonic wall time measured while the process is active. Its accumulated value is stored at round boundaries and restored on resume, excluding downtime between invocations. The cap is checked at round boundaries and after a complete promotion check, so a running round or check finishes before stopping. Patience counts completed checks without promotion and resets on promotion.
+
+The version 1 manifest remains unusable until the measuring run identifies its fourth member. An explicitly selected version 0 measuring-only manifest contains the three frozen phase 1 members and does not rotate; its logs identify panel version 0. Phase 1 policies use their native softmax and encoder, while phase 2 policies use the configured temperature. Checks send contiguous pair batches to the persistent actor pool and concatenate results in pair order, preserving deterministic results across worker counts without serializing a network for every pair.
+
+## Amendment (2026-11-09, run 2)
+
+Panel manifests may now hold reference members, identified by code and configuration instead of a weights file. A persisted no-rotation switch disables both saturation tracking and panel replacement (ADR 0057). Checkpoint resume validates both.

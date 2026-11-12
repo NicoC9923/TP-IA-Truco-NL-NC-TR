@@ -1,0 +1,289 @@
+{
+  "networks": [
+    {
+      "name": "run1-g48",
+      "path": "champions/phase1/reigning_champion.npy",
+      "sha256": "0b3e04fad09334f60d2d416b9c6848c7b3aabcfa6bb0d6593ac825feb32e47f7",
+      "encoder": "v1"
+    },
+    {
+      "name": "v1s1-g23",
+      "path": "experiments/phase1-seed1/reigning_champion.npy",
+      "sha256": "413542520b893418371fa0ff29b4b693d0675ef60cd4be55f8e782dd544db31c",
+      "encoder": "v1"
+    },
+    {
+      "name": "v1s2-g2",
+      "path": "experiments/phase1-seed2/reigning_champion.npy",
+      "sha256": "5f00bfbaa27d7ee9fcedd7610ca36b092c71b8e935218a8f337a7cc1e25a3e79",
+      "encoder": "v1"
+    },
+    {
+      "name": "gate53-g26",
+      "path": "experiments/phase1-gate53-seed1/reigning_champion.npy",
+      "sha256": "b00e64118ce54e8063b7eb61c8085ec6093f732c00112d61a26a608ee666f5fd",
+      "encoder": "v1"
+    },
+    {
+      "name": "v2s1-g46",
+      "path": "experiments/phase1-encoder-v2-seed1/reigning_champion.npy",
+      "sha256": "9659d27a3c70f369751d48a9ba4d97f555f4d8cf20931cbbd23f06c90ecd7fe6",
+      "encoder": "v2"
+    },
+    {
+      "name": "v2s2-g25",
+      "path": "experiments/phase1-seed2-matched/v2/reigning_champion.npy",
+      "sha256": "3f25fb0b59b5c7a10c4666bb2450717f822ad6d13c8283a217069645a7f68a06",
+      "encoder": "v2"
+    },
+    {
+      "name": "v3s1-g55",
+      "path": "experiments/phase1-encoder-v3-seed1/reigning_champion.npy",
+      "sha256": "24773046ba6753f1f13614fda74d15a31b1756c2976a76cc6eb384504a311763",
+      "encoder": "v3"
+    },
+    {
+      "name": "v3s2-g50",
+      "path": "experiments/phase1-seed2-matched/v3/reigning_champion.npy",
+      "sha256": "6664e68379ef90db275ab6432b2a2b3df3562104bfe24a239e671452d77bae38",
+      "encoder": "v3"
+    }
+  ],
+  "pairs": [
+    {
+      "a": "run1-g48",
+      "b": "v1s1-g23",
+      "seed": 9301,
+      "win_rate": 0.4815,
+      "margin_of_error": 0.01964974617965649,
+      "pairs": 1000
+    },
+    {
+      "a": "run1-g48",
+      "b": "v1s2-g2",
+      "seed": 9302,
+      "win_rate": 0.534,
+      "margin_of_error": 0.019741145438480087,
+      "pairs": 1000
+    },
+    {
+      "a": "run1-g48",
+      "b": "gate53-g26",
+      "seed": 9303,
+      "win_rate": 0.4565,
+      "margin_of_error": 0.019299253705612394,
+      "pairs": 1000
+    },
+    {
+      "a": "run1-g48",
+      "b": "v2s1-g46",
+      "seed": 9304,
+      "win_rate": 0.451,
+      "margin_of_error": 0.020007674163316072,
+      "pairs": 1000
+    },
+    {
+      "a": "run1-g48",
+      "b": "v2s2-g25",
+      "seed": 9305,
+      "win_rate": 0.4885,
+      "margin_of_error": 0.017276423913044712,
+      "pairs": 1000
+    },
+    {
+      "a": "run1-g48",
+      "b": "v3s1-g55",
+      "seed": 9306,
+      "win_rate": 0.483,
+      "margin_of_error": 0.018048588009291173,
+      "pairs": 1000
+    },
+    {
+      "a": "run1-g48",
+      "b": "v3s2-g50",
+      "seed": 9307,
+      "win_rate": 0.475,
+      "margin_of_error": 0.018590573132892096,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s1-g23",
+      "b": "v1s2-g2",
+      "seed": 9308,
+      "win_rate": 0.551,
+      "margin_of_error": 0.019940291211855803,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s1-g23",
+      "b": "gate53-g26",
+      "seed": 9309,
+      "win_rate": 0.482,
+      "margin_of_error": 0.019822013869277608,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s1-g23",
+      "b": "v2s1-g46",
+      "seed": 9310,
+      "win_rate": 0.477,
+      "margin_of_error": 0.02051742572445087,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s1-g23",
+      "b": "v2s2-g25",
+      "seed": 9311,
+      "win_rate": 0.476,
+      "margin_of_error": 0.018335327175227133,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s1-g23",
+      "b": "v3s1-g55",
+      "seed": 9312,
+      "win_rate": 0.506,
+      "margin_of_error": 0.019752829586585224,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s1-g23",
+      "b": "v3s2-g50",
+      "seed": 9313,
+      "win_rate": 0.4765,
+      "margin_of_error": 0.019082846523289742,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s2-g2",
+      "b": "gate53-g26",
+      "seed": 9314,
+      "win_rate": 0.4355,
+      "margin_of_error": 0.019272535230586925,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s2-g2",
+      "b": "v2s1-g46",
+      "seed": 9315,
+      "win_rate": 0.438,
+      "margin_of_error": 0.020299323933376506,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s2-g2",
+      "b": "v2s2-g25",
+      "seed": 9316,
+      "win_rate": 0.4565,
+      "margin_of_error": 0.018588788972804967,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s2-g2",
+      "b": "v3s1-g55",
+      "seed": 9317,
+      "win_rate": 0.4595,
+      "margin_of_error": 0.019324343348373983,
+      "pairs": 1000
+    },
+    {
+      "a": "v1s2-g2",
+      "b": "v3s2-g50",
+      "seed": 9318,
+      "win_rate": 0.467,
+      "margin_of_error": 0.019003410936651005,
+      "pairs": 1000
+    },
+    {
+      "a": "gate53-g26",
+      "b": "v2s1-g46",
+      "seed": 9319,
+      "win_rate": 0.5205,
+      "margin_of_error": 0.021286330718925595,
+      "pairs": 1000
+    },
+    {
+      "a": "gate53-g26",
+      "b": "v2s2-g25",
+      "seed": 9320,
+      "win_rate": 0.4985,
+      "margin_of_error": 0.01762132422570641,
+      "pairs": 1000
+    },
+    {
+      "a": "gate53-g26",
+      "b": "v3s1-g55",
+      "seed": 9321,
+      "win_rate": 0.521,
+      "margin_of_error": 0.019566519953816596,
+      "pairs": 1000
+    },
+    {
+      "a": "gate53-g26",
+      "b": "v3s2-g50",
+      "seed": 9322,
+      "win_rate": 0.513,
+      "margin_of_error": 0.018944636942123456,
+      "pairs": 1000
+    },
+    {
+      "a": "v2s1-g46",
+      "b": "v2s2-g25",
+      "seed": 9323,
+      "win_rate": 0.5085,
+      "margin_of_error": 0.018414199062873386,
+      "pairs": 1000
+    },
+    {
+      "a": "v2s1-g46",
+      "b": "v3s1-g55",
+      "seed": 9324,
+      "win_rate": 0.4995,
+      "margin_of_error": 0.01992589473225433,
+      "pairs": 1000
+    },
+    {
+      "a": "v2s1-g46",
+      "b": "v3s2-g50",
+      "seed": 9325,
+      "win_rate": 0.501,
+      "margin_of_error": 0.019560623108080592,
+      "pairs": 1000
+    },
+    {
+      "a": "v2s2-g25",
+      "b": "v3s1-g55",
+      "seed": 9326,
+      "win_rate": 0.5085,
+      "margin_of_error": 0.017338635259808444,
+      "pairs": 1000
+    },
+    {
+      "a": "v2s2-g25",
+      "b": "v3s2-g50",
+      "seed": 9327,
+      "win_rate": 0.4995,
+      "margin_of_error": 0.016318582528385722,
+      "pairs": 1000
+    },
+    {
+      "a": "v3s1-g55",
+      "b": "v3s2-g50",
+      "seed": 9328,
+      "win_rate": 0.489,
+      "margin_of_error": 0.018539203555397638,
+      "pairs": 1000
+    }
+  ],
+  "clear_cycles": [],
+  "mean_win_rate": {
+    "run1-g48": 0.48135714285714293,
+    "v1s1-g23": 0.4981428571428572,
+    "v1s2-g2": 0.4530714285714285,
+    "gate53-g26": 0.5255714285714286,
+    "v2s1-g46": 0.5175,
+    "v2s2-g25": 0.5114285714285713,
+    "v3s1-g55": 0.5016428571428572,
+    "v3s2-g50": 0.5112857142857143
+  }
+}

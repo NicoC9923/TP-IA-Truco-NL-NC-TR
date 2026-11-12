@@ -20,22 +20,38 @@ import truco_reglas as tr
 from historial_truco import HistorialTruco
 
 
+class _MemoryHistory:
+    """Fresh, non-persistent history for reference matches."""
+
+    def cargar(self, defaults):
+        return defaults
+
+    def guardar(self, data):
+        pass
+
+
+PHASE1_CHAMPION = Path('phase1/reigning_champion.npy')
+
+
 class AgenteTrucoIA:
     MODOS_DISPONIBLES = {
         "reactivo": {
             "codigo": "reactivo",
-            "nombre": "Agente Reactivo Simple",
-            "subtitulo": "Reglas fijas condición-acción (sin probabilidades 474k, sin farol ni aprendizaje)",
+            "nombre": "Reactivo",
+            "subtitulo": "Reglas fijas condición-acción (sin probabilidades 474k, sin mentiras ni aprendizaje)",
         },
-        "utilidad": {
-            "codigo": "utilidad",
-            "nombre": "Agente Basado en Utilidad (474k manos)",
-            "subtitulo": "Maximiza utilidad esperada con el corpus de 474.000 manos y tanteador (estático)",
+        "utilidad_adaptativa": {
+            "codigo": "utilidad_adaptativa",
+            "nombre": "Utilidad adaptativa",
+            "subtitulo": "Utilidad esperada (474k) + cuota dinámica de mentira + modelado online del rival humano",
         },
-        "aprendizaje": {
-            "codigo": "aprendizaje",
-            "nombre": "Agente Híbrido con Aprendizaje Adaptativo",
-            "subtitulo": "Utilidad esperada (474k) + cuota dinámica de farol + modelado online del rival humano",
+        "neuroevolucion": {
+            "codigo": "neuroevolucion", "nombre": "Red neuronal · Algoritmos genéticos",
+            "subtitulo": "Red entrenada mediante algoritmos genéticos",
+        },
+        "refuerzo": {
+            "codigo": "refuerzo", "nombre": "Red neuronal · Aprendizaje por refuerzo",
+            "subtitulo": "Red entrenada por aprendizaje por refuerzo",
         },
     }
 
@@ -44,11 +60,14 @@ class AgenteTrucoIA:
         stats_path: Optional[str] = None,
         historial_path: Optional[str] = None,
         prob_farol: float = 0.14,
-        modo_agente: str = "aprendizaje",
+        modo_agente: str = "utilidad_adaptativa",
         rng: random.Random | None = None,
+        fixed_initial_state: bool = False,
+        champions_dir=None,
     ):
         self.rng = rng if rng is not None else random.Random()
         base_dir = Path(__file__).resolve().parent
+        self.champions_dir = Path(champions_dir) if champions_dir is not None else base_dir.parent / 'champions'
         if stats_path is None:
             stats_path = str(base_dir / "truco_stats.json")
         usar_semilla = historial_path is None
@@ -56,14 +75,14 @@ class AgenteTrucoIA:
             historial_path = str(base_dir / "historial_partidas.json")
 
         self.historial_path = Path(historial_path)
-        self.historial = HistorialTruco(self.historial_path)
-        if usar_semilla:
+        self.historial = _MemoryHistory() if fixed_initial_state else HistorialTruco(self.historial_path)
+        if usar_semilla and not fixed_initial_state:
             self.historial.inicializar(base_dir / "historial_partidas.seed.json")
 
         with open(stats_path, "r", encoding="utf-8") as f:
             self.stats = json.load(f)
 
-        self.modo_agente = modo_agente if modo_agente in self.MODOS_DISPONIBLES else "aprendizaje"
+        self.modo_agente = modo_agente if modo_agente in self.MODOS_DISPONIBLES else "utilidad_adaptativa"
         self.prob_farol = prob_farol
         self.prob_farol_envido = prob_farol
         self.prob_farol_truco = prob_farol
@@ -83,11 +102,26 @@ class AgenteTrucoIA:
         self._sincronizar_atributos()
 
     def set_modo_agente(self, modo: str) -> Dict:
-        """Cambia la arquitectura activa del agente ('reactivo', 'utilidad', 'aprendizaje')."""
+        """Change the active agent mode."""
         modo_limpio = str(modo).strip().lower()
         if modo_limpio in self.MODOS_DISPONIBLES:
             self.modo_agente = modo_limpio
         return self.MODOS_DISPONIBLES[self.modo_agente]
+
+    def mode_available(self, mode):
+        if mode == 'neuroevolucion':
+            return (self.champions_dir / PHASE1_CHAMPION).is_file()
+        if mode == 'refuerzo':
+            if not (self.champions_dir / 'phase2/reigning_champion.pt').is_file():
+                return False
+            try:
+                from phase2_loader import load_phase2_metadata
+                load_phase2_metadata(self.champions_dir / 'phase2/reigning_champion.pt')
+                import torch
+                return torch is not None
+            except (ImportError, ValueError):
+                return False
+        return mode in self.MODOS_DISPONIBLES
 
     def limpiar_traza_mano(self) -> None:
         """Reinicia la traza de razonamiento XAI al comenzar una nueva mano."""
@@ -104,7 +138,7 @@ class AgenteTrucoIA:
         explicacion: str,
         es_accion_principal: bool = True,
     ) -> None:
-        info_modo = self.MODOS_DISPONIBLES.get(self.modo_agente, self.MODOS_DISPONIBLES["aprendizaje"])
+        info_modo = self.MODOS_DISPONIBLES.get(self.modo_agente, self.MODOS_DISPONIBLES["utilidad_adaptativa"])
         item = {
             "hora": datetime.datetime.now().strftime("%H:%M:%S"),
             "modo_codigo": self.modo_agente,
@@ -154,7 +188,7 @@ class AgenteTrucoIA:
 
     def guardar_historial(self) -> None:
         p = self.datos_historial["parametros_ia"]
-        if self.modo_agente == "aprendizaje":
+        if self.modo_agente == "utilidad_adaptativa":
             p["prob_farol_envido"] = round(self.prob_farol_envido, 3)
             p["prob_farol_truco"] = round(self.prob_farol_truco, 3)
             p["umbral_quiero_envido_offset"] = round(self.umbral_quiero_envido_offset, 3)
@@ -185,16 +219,16 @@ class AgenteTrucoIA:
         if tasa_bluff_h >= 28.0:
             perfil_humano = "Agresivo / Mentiroso (Ottoman te paga más seguido)"
         elif tasa_fold_env >= 60.0 or tasa_fold_tru >= 60.0:
-            perfil_humano = "Cauteloso / Conservador (Ottoman te presiona con más faroles)"
+            perfil_humano = "Cauteloso / Conservador (Ottoman te presiona con más mentiras)"
         else:
             perfil_humano = "Equilibrado (Ottoman balancea estadística y engaño)"
 
-        info_modo = self.MODOS_DISPONIBLES.get(self.modo_agente, self.MODOS_DISPONIBLES["aprendizaje"])
+        info_modo = self.MODOS_DISPONIBLES.get(self.modo_agente, self.MODOS_DISPONIBLES["utilidad_adaptativa"])
         return {
             "modo_agente": self.modo_agente,
             "arquitectura_nombre": info_modo["nombre"],
             "arquitectura_subtitulo": info_modo["subtitulo"],
-            "modos_disponibles": list(self.MODOS_DISPONIBLES.values()),
+            "modos_disponibles": [{**mode, "disponible": self.mode_available(code)} for code, mode in self.MODOS_DISPONIBLES.items()],
             "prob_farol_envido_pct": round(self.prob_farol_envido * 100.0, 1),
             "prob_farol_truco_pct": round(self.prob_farol_truco * 100.0, 1),
             "umbral_envido_offset": round(self.umbral_quiero_envido_offset, 3),
@@ -210,12 +244,16 @@ class AgenteTrucoIA:
             "perfil_humano_detectado": perfil_humano,
             "ultimo_razonamiento": self.ultimo_razonamiento,
             "traza_razonamiento": list(reversed(self.traza_razonamiento[-8:])),
-            "partidas": list(reversed(self.datos_historial.get("partidas", [])[-30:])),
+            "partidas": [
+                {**match, "modo_agente": "utilidad_adaptativa"}
+                if match.get("modo_agente") in ("utilidad", "aprendizaje") else match
+                for match in reversed(self.datos_historial.get("partidas", [])[-30:])
+            ],
         }
 
     def registrar_respuesta_humano_a_canto(self, tipo: str, quiso: bool, era_farol_robot: bool) -> None:
         """Ajusta en línea las probabilidades de farol de Ottoman según si el humano quiso o no."""
-        if self.modo_agente != "aprendizaje":
+        if self.modo_agente != "utilidad_adaptativa":
             return
         p = self.datos_historial["parametros_ia"]
         if tipo == "ENVIDO":
@@ -248,7 +286,7 @@ class AgenteTrucoIA:
         """Al terminar una mano, analiza si el humano mintió para adaptar los umbrales de aceptación."""
         p = self.datos_historial["parametros_ia"]
         p["manos_totales"] = int(p.get("manos_totales", 0)) + 1
-        if self.modo_agente != "aprendizaje":
+        if self.modo_agente != "utilidad_adaptativa":
             self.guardar_historial()
             return
 
@@ -346,7 +384,7 @@ class AgenteTrucoIA:
         tantos, prob = self.prob_envido(mano_completa, es_mano)
         pos_str = "mano" if es_mano else "pie"
 
-        # --- MODO 1: AGENTE REACTIVO SIMPLE (regla fija sin probabilidades ni farol) ---
+        # --- MODO 1: AGENTE REACTIVO SIMPLE (regla fija sin probabilidades ni mentira) ---
         if self.modo_agente == "reactivo":
             if tantos >= 28:
                 self._registrar_razonamiento(
@@ -374,11 +412,11 @@ class AgenteTrucoIA:
         falta_robot = meta_puntos - puntos_robot
         prob_pct = round(prob * 100.0, 1)
         metrica_str = f"{tantos} tantos → P(ganar | {pos_str}) = {prob_pct}% (corpus 474k)"
-        usa_aprendizaje = self.modo_agente == "aprendizaje"
+        usa_aprendizaje = self.modo_agente == "utilidad_adaptativa"
         farol_cfg_str = (
-            f"Cuota farol activa: {round(self.prob_farol_envido * 100, 1)}%"
+            f"Cuota de mentira activa: {round(self.prob_farol_envido * 100, 1)}%"
             if usa_aprendizaje
-            else "Farol desactivado (Utilidad pura)"
+            else "Mentira desactivada (Utilidad pura)"
         )
 
         if falta_humano <= 1 and prob >= 0.65:
@@ -442,14 +480,14 @@ class AgenteTrucoIA:
             prob_f = self.prob_farol_envido if not es_mano else (self.prob_farol_envido * 0.65)
             if self.rng.random() < prob_f:
                 self.ultimo_canto_fue_farol = True
-                self.ultimo_detalle_farol = f"Cantó ENVIDO de farol con {tantos} tantos"
+                self.ultimo_detalle_farol = f"Cantó ENVIDO de mentira con {tantos} tantos"
                 self._registrar_razonamiento(
                     fase="Evaluación de Envido (1ra ronda)",
-                    decision="ENVIDO (FAROL)",
+                    decision="ENVIDO (MENTIRA)",
                     metrica=metrica_str,
                     umbral="P(ganar) < 68.0% (activación de bluff)",
-                    farol_info=f"Farol activado (p={round(prob_f * 100, 1)}%)",
-                    explicacion=f"Mano baja ({tantos} tantos), pero la política adaptativa ejecuta un farol para presionar al rival.",
+                    farol_info=f"Mentira activada (p={round(prob_f * 100, 1)}%)",
+                    explicacion=f"Mano baja ({tantos} tantos), pero la política adaptativa canta de mentira para presionar al rival.",
                 )
                 return "ENVIDO", "¡Envido! A ver si te animás..."
 
@@ -459,7 +497,7 @@ class AgenteTrucoIA:
             metrica=metrica_str,
             umbral="P(ganar) < 68.0%",
             farol_info=farol_cfg_str,
-            explicacion=f"Utilidad insuficiente ({prob_pct}% < 68%) y sin disparo de farol; conserva silencio.",
+            explicacion=f"Utilidad insuficiente ({prob_pct}% < 68%) y sin disparo de mentira; conserva silencio.",
             es_accion_principal=False,
         )
         return None, ""
@@ -506,7 +544,7 @@ class AgenteTrucoIA:
 
         # --- MODOS 2 Y 3: UTILIDAD (474k) Y APRENDIZAJE ADAPTATIVO ---
         falta_humano = meta_puntos - puntos_humano
-        usa_aprendizaje = self.modo_agente == "aprendizaje"
+        usa_aprendizaje = self.modo_agente == "utilidad_adaptativa"
         off = self.umbral_quiero_envido_offset if usa_aprendizaje else 0.0
         off_str = f"{off:+.1%}" if usa_aprendizaje else "0.0% (estático)"
         metrica_str = f"{tantos} tantos → P(ganar | {pos_str}) = {prob_pct}% (474k)"
@@ -567,14 +605,14 @@ class AgenteTrucoIA:
                 return "QUIERO", f"¡Quiero! Tengo {tantos}."
             if usa_aprendizaje and self.rng.random() < (self.prob_farol_envido * 0.55):
                 self.ultimo_canto_fue_farol = True
-                self.ultimo_detalle_farol = f"Subió a REAL ENVIDO de farol con {tantos} tantos"
+                self.ultimo_detalle_farol = f"Subió a REAL ENVIDO de mentira con {tantos} tantos"
                 self._registrar_razonamiento(
                     fase="Respuesta a ENVIDO",
-                    decision="REAL_ENVIDO (FAROL)",
+                    decision="REAL_ENVIDO (MENTIRA)",
                     metrica=metrica_str,
                     umbral=umbral_str,
-                    farol_info=f"Contra-farol activado (cuota {round(self.prob_farol_envido * 100, 1)}%)",
-                    explicacion=f"P(ganar)={prob_pct}% no alcanza para pagar, pero ejecuta contra-farol subiendo a Real Envido.",
+                    farol_info=f"Contramentira activada (cuota {round(self.prob_farol_envido * 100, 1)}%)",
+                    explicacion=f"P(ganar)={prob_pct}% no alcanza para pagar, pero ejecuta una contramentira subiendo a Real Envido.",
                 )
                 return "REAL_ENVIDO", "¡Real Envido, si te da el cuero!"
             self._registrar_razonamiento(
@@ -582,7 +620,7 @@ class AgenteTrucoIA:
                 decision="NO_QUIERO",
                 metrica=metrica_str,
                 umbral=umbral_str,
-                farol_info="Sin farol",
+                farol_info="Sin mentira",
                 explicacion=f"P(ganar)={prob_pct}% es menor al umbral requerido ({round(umbral_q * 100, 1)}%); minimiza pérdida (-1 pto).",
             )
             return "NO_QUIERO", "Son buenas, no quiero."
@@ -750,12 +788,12 @@ class AgenteTrucoIA:
             return None, ""
 
         # --- MODOS 2 Y 3: UTILIDAD (474k) Y APRENDIZAJE ADAPTATIVO ---
-        usa_aprendizaje = self.modo_agente == "aprendizaje"
+        usa_aprendizaje = self.modo_agente == "utilidad_adaptativa"
         metrica_str = f"Fuerza efectiva = {fuerza_pct}% (percentil 474k + contexto baza)"
         farol_cfg_str = (
-            f"Cuota farol Truco: {round(self.prob_farol_truco * 100, 1)}%"
+            f"Cuota de mentira Truco: {round(self.prob_farol_truco * 100, 1)}%"
             if usa_aprendizaje
-            else "Farol desactivado (Utilidad pura)"
+            else "Mentira desactivada (Utilidad pura)"
         )
 
         if nivel_actual == "NADA":
@@ -773,14 +811,14 @@ class AgenteTrucoIA:
                 prob_f = self.prob_farol_truco if len(ganadores_ronda) >= 1 else (self.prob_farol_truco * 0.45)
                 if self.rng.random() < prob_f:
                     self.ultimo_canto_fue_farol = True
-                    self.ultimo_detalle_farol = f"Cantó TRUCO de farol (fuerza {int(fuerza * 100)}%)"
+                    self.ultimo_detalle_farol = f"Cantó TRUCO de mentira (fuerza {int(fuerza * 100)}%)"
                     self._registrar_razonamiento(
                         fase="Evaluación de Truco",
-                        decision="TRUCO (FAROL)",
+                        decision="TRUCO (MENTIRA)",
                         metrica=metrica_str,
-                        umbral="Fuerza < 72.0% (disparo de bluff)",
-                        farol_info=f"Farol ejecutado (p={round(prob_f * 100, 1)}%)",
-                        explicacion=f"Mano débil/media ({fuerza_pct}%), pero la política adaptativa lanza un farol de Truco.",
+                        umbral="Fuerza < 72.0% (disparo de mentira)",
+                        farol_info=f"Mentira ejecutada (p={round(prob_f * 100, 1)}%)",
+                        explicacion=f"Mano débil/media ({fuerza_pct}%), pero la política adaptativa canta Truco de mentira.",
                     )
                     return "TRUCO", "¡Truco te canto, a ver qué tenés!"
         elif nivel_actual == "TRUCO":
@@ -796,14 +834,14 @@ class AgenteTrucoIA:
                 return "RETRUCO", "¡Quiero Retruco!"
             if usa_aprendizaje and self.rng.random() < (self.prob_farol_truco * 0.35):
                 self.ultimo_canto_fue_farol = True
-                self.ultimo_detalle_farol = f"Cantó RETRUCO de farol (fuerza {int(fuerza * 100)}%)"
+                self.ultimo_detalle_farol = f"Cantó RETRUCO de mentira (fuerza {int(fuerza * 100)}%)"
                 self._registrar_razonamiento(
                     fase="Evaluación de Retruco",
-                    decision="RETRUCO (FAROL)",
+                    decision="RETRUCO (MENTIRA)",
                     metrica=metrica_str,
-                    umbral="Fuerza < 86.0% (disparo de bluff)",
-                    farol_info=f"Farol de Retruco activado",
-                    explicacion=f"Fuerza real {fuerza_pct}%, pero presiona con Retruco de farol según perfil del rival.",
+                    umbral="Fuerza < 86.0% (disparo de mentira)",
+                    farol_info=f"Mentira de Retruco activada",
+                    explicacion=f"Fuerza real {fuerza_pct}%, pero presiona con Retruco de mentira según perfil del rival.",
                 )
                 return "RETRUCO", "¡Quiero Retruco!"
         elif nivel_actual == "RETRUCO":
@@ -861,7 +899,7 @@ class AgenteTrucoIA:
 
         # --- MODOS 2 Y 3: UTILIDAD (474k) Y APRENDIZAJE ADAPTATIVO ---
         puntos_no_quiero = {"TRUCO": 1, "RETRUCO": 2, "VALE_CUATRO": 3}.get(canto_rival, 1)
-        usa_aprendizaje = self.modo_agente == "aprendizaje"
+        usa_aprendizaje = self.modo_agente == "utilidad_adaptativa"
         off = self.umbral_quiero_truco_offset if usa_aprendizaje else 0.0
         off_str = f"{off:+.1%}" if usa_aprendizaje else "0.0% (estático)"
         metrica_str = f"Fuerza efectiva = {fuerza_pct}% (percentil 474k + contexto baza)"
@@ -902,14 +940,14 @@ class AgenteTrucoIA:
                 return "QUIERO", "¡Quiero!"
             if usa_aprendizaje and self.rng.random() < (self.prob_farol_truco * 0.6):
                 self.ultimo_canto_fue_farol = True
-                self.ultimo_detalle_farol = f"Retrucó de farol con fuerza baja ({int(fuerza * 100)}%)"
+                self.ultimo_detalle_farol = f"Retrucó de mentira con fuerza baja ({int(fuerza * 100)}%)"
                 self._registrar_razonamiento(
                     fase="Respuesta a TRUCO",
-                    decision="RETRUCO (FAROL)",
+                    decision="RETRUCO (MENTIRA)",
                     metrica=metrica_str,
                     umbral=umbral_str,
-                    farol_info=f"Contra-farol activado (cuota {round(self.prob_farol_truco * 100, 1)}%)",
-                    explicacion=f"Con fuerza baja ({fuerza_pct}%), ejecuta un contra-farol de Retruco para hacer achicar al humano.",
+                    farol_info=f"Contramentira activada (cuota {round(self.prob_farol_truco * 100, 1)}%)",
+                    explicacion=f"Con fuerza baja ({fuerza_pct}%), ejecuta una contramentira de Retruco para hacer achicar al humano.",
                 )
                 return "RETRUCO", "¡Quiero Retruco, no me asustás!"
             self._registrar_razonamiento(
@@ -917,7 +955,7 @@ class AgenteTrucoIA:
                 decision="NO_QUIERO",
                 metrica=metrica_str,
                 umbral=umbral_str,
-                farol_info="Sin farol",
+                farol_info="Sin mentira",
                 explicacion=f"Fuerza ({fuerza_pct}%) inferior al umbral ({round(umbral_q * 100, 1)}%): se va al mazo cediendo 1 pto.",
             )
             return "NO_QUIERO", "Me voy al mazo, son buenas."

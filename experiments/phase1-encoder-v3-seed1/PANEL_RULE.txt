@@ -1,0 +1,6 @@
+Pre-registered (2026-11-08, before running): frozen v3 seed 1 champion gen 55 (training_output/phase1_encoder_v3_seed1/reigning_champion.npy, encoder v3)
+vs baseline v2 seed 1 champion gen 46 (experiments/phase1-encoder-v2-seed1/reigning_champion.npy, encoder v2), with panel-v1 (v1 members),
+using proyecto/panel_evaluation.py: 4000 direct mirror pairs (schedule seed 9201) and 1000 pairs per panel member (seed 9202), both never used before.
+Decision (ADR 0031): promising only if direct paired 95% lower bound > 50%, candidate panel mean > baseline panel mean on the same deals,
+and no panel member drops more than 2 points vs the baseline. Otherwise "no demonstrated benefit". One run, no retries, no other checkpoint.
+Reference results stay descriptive. Shipping still needs >= 55% vs run 1 gen 48 in a separate pre-registered test.

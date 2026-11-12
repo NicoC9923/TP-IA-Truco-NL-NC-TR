@@ -1,0 +1,6 @@
+Comparison  Mean  Lower  Upper
+Direct  0.518500  0.499752  0.537248
+Held-out equal weight  0.030750  0.015530  0.045970
+v1s1-g23  0.032000  0.010254  0.053746
+v1s2-g2  0.029500  0.009610  0.049390
+Decision: inconclusive

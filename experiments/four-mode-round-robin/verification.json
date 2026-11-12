@@ -1,0 +1,82 @@
+{
+  "revision": "1c793be41d4bc04afcc99413b3843a97c12c22ed",
+  "record_count": 6000,
+  "unique_deals": 6000,
+  "unique_action_seeds": 24000,
+  "all_configured_file_hashes_match": true,
+  "raw_sha256": "711228c0c4229bbd2f49c367c3bea3dff8aa2fc438ce738b105557bca16d3898",
+  "summaries": [
+    {
+      "matchup": [
+        "reactive",
+        "adaptive_utility"
+      ],
+      "pairs": 1000,
+      "target15": 500,
+      "target30": 500,
+      "mean": 0.1685,
+      "lower": 0.1535839408280464,
+      "upper": 0.1834160591719536
+    },
+    {
+      "matchup": [
+        "reactive",
+        "phase1"
+      ],
+      "pairs": 1000,
+      "target15": 500,
+      "target30": 500,
+      "mean": 0.5445,
+      "lower": 0.5231289309066159,
+      "upper": 0.565871069093384
+    },
+    {
+      "matchup": [
+        "reactive",
+        "phase2"
+      ],
+      "pairs": 1000,
+      "target15": 500,
+      "target30": 500,
+      "mean": 0.3185,
+      "lower": 0.29986472361552086,
+      "upper": 0.33713527638447915
+    },
+    {
+      "matchup": [
+        "adaptive_utility",
+        "phase1"
+      ],
+      "pairs": 1000,
+      "target15": 500,
+      "target30": 500,
+      "mean": 0.797,
+      "lower": 0.7799280886906078,
+      "upper": 0.8140719113093923
+    },
+    {
+      "matchup": [
+        "adaptive_utility",
+        "phase2"
+      ],
+      "pairs": 1000,
+      "target15": 500,
+      "target30": 500,
+      "mean": 0.6305,
+      "lower": 0.6126109807812555,
+      "upper": 0.6483890192187444
+    },
+    {
+      "matchup": [
+        "phase1",
+        "phase2"
+      ],
+      "pairs": 1000,
+      "target15": 500,
+      "target30": 500,
+      "mean": 0.214,
+      "lower": 0.19774584718037005,
+      "upper": 0.23025415281962994
+    }
+  ]
+}

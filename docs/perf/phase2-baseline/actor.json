@@ -1,0 +1,13 @@
+{
+  "wall": 2.0274091999999655,
+  "matches": 4,
+  "samples": 206,
+  "environment": {
+    "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "torch": "2.15.0+cpu",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "cpu": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
+    "logical_cpus": 16,
+    "revision": "7ed6b76078e7cb8c1527200ed0c9a7f3b732cda5"
+  }
+}

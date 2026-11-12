@@ -1,0 +1,4 @@
+Pre-registered (2026-11-07, before running): seed 1 near-miss generations 66, 87, 121 and final 123 vs seed 1 champion gen 23,
+network only, 2000 mirror pairs, validation partition, schedule seed 4242 (never used by any gate, reference eval or h2h).
+A candidate counts as genuinely better only if win_rate - margin > 0.50. If none do, the near-misses were noise/deal overfitting
+and a lower gate is unlikely to help; if some do, the gate is a bottleneck and the 53% experiment is justified.

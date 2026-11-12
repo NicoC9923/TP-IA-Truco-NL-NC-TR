@@ -119,7 +119,7 @@
   }
   .mano-tag {
     font-family: var(--ui); font-style: normal; font-weight: 700;
-    font-size: 11px; letter-spacing: 0.12em;
+    font-size: 14px; letter-spacing: 0.12em;
     padding: 2px 6px; border-radius: 3px; width: max-content;
     background: currentColor;
   }
@@ -152,6 +152,17 @@
   }
   .seg button[aria-pressed="true"] { background: var(--txt); color: var(--ink-0); }
   .seg button:hover:not([aria-pressed="true"]) { background: var(--ink-3); color: var(--txt); }
+  .largo-partida { display: flex; align-items: center; gap: 6px; }
+  .largo-partida .seg, .largo-partida .seg button { white-space: nowrap; flex: none; }
+  .sel-manos {
+    background: var(--ink-1); color: var(--txt-2); border: 1px solid var(--line); border-radius: 4px;
+    padding: 3px 6px; font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.04em; cursor: pointer;
+  }
+  .sel-manos.activa { background: var(--txt); color: var(--ink-0); }
+  .manos-texto { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--txt-2); }
+  .seg-vel { flex-shrink: 0; }
+  .seg-vel button { font-size: 16px; padding: 8px 12px; }
+  .seg-vel .por { font-family: system-ui, sans-serif; font-weight: 600; }
   .track { position: relative; width: 132px; display: grid; gap: 3px; }
   .track span { display: block; height: 5px; background: var(--ink-4); border-radius: 3px; overflow: hidden; }
   .track span i { display: block; height: 100%; width: 0; transition: width 0.8s var(--ease-out); }
@@ -160,7 +171,7 @@
   .track .mitad { position: absolute; top: -3px; bottom: -3px; left: 50%; width: 2px; background: var(--txt-2); }
   .stake { display: flex; flex-direction: column; gap: 5px; min-width: 120px; }
   .stake-lbl, .lbl {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--txt-3);
+    font-size: 14px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--txt-3);
   }
   .stake-row { display: flex; align-items: flex-end; gap: 10px; }
   .stake-name { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 26px; line-height: 0.9; text-transform: uppercase; }
@@ -173,7 +184,7 @@
     display: inline-flex; align-items: center; gap: 7px;
     background: transparent; border: 1px solid var(--line); border-radius: 4px;
     padding: 7px 11px; cursor: pointer; color: var(--txt-2);
-    font-size: 13px; font-weight: 600; white-space: nowrap;
+    font-size: 14px; font-weight: 600; white-space: nowrap;
   }
   .btn-ghost:hover:not(:disabled) { background: var(--ink-3); color: var(--txt); border-color: var(--ink-4); }
   .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -236,16 +247,16 @@
   }
   .pip .guia::after {
     content: "Encuadrá tu carta"; position: absolute; left: 50%; bottom: -1px; transform: translate(-50%, 100%);
-    font-size: 11px; font-weight: 600; white-space: nowrap; color: #fff; text-shadow: 0 1px 3px #000; padding-top: 3px;
+    font-size: 14px; font-weight: 600; white-space: nowrap; color: #fff; text-shadow: 0 1px 3px #000; padding-top: 3px;
   }
   .pip .rec {
     position: absolute; top: 8px; left: 8px; display: flex; align-items: center; gap: 5px;
-    font-family: var(--display); font-weight: 800; font-size: 13px; letter-spacing: 0.1em;
+    font-family: var(--display); font-weight: 800; font-size: 14px; letter-spacing: 0.1em;
     background: rgba(4, 11, 28, 0.75); padding: 2px 7px; border-radius: 3px;
   }
   .pip .rec i { width: 7px; height: 7px; border-radius: 50%; background: var(--live); }
-  .pip-sin { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; color: var(--txt-2); font-size: 13px; background: var(--ink-2); }
-  .det { margin: 9px 0 0; font-size: 13px; color: var(--txt-2); min-height: 2.6em; }
+  .pip-sin { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; text-align: center; color: var(--txt-2); font-size: 14px; background: var(--ink-2); }
+  .det { margin: 9px 0 0; font-size: 14px; color: var(--txt-2); min-height: 2.6em; }
   .det b { color: var(--txt); }
   .det .err { color: #ff8a8a; }
 
@@ -274,11 +285,11 @@
   .ptt .mic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--ink-4); flex: none; transition: background 0.15s; }
   .ptt .mic svg { width: 20px; height: 20px; }
   .ptt b { display: block; font-size: 14px; }
-  .ptt small { display: block; font-size: 12px; color: var(--txt-3); }
+  .ptt small { display: block; font-size: 14px; color: var(--txt-3); }
   .ptt.escuchando { background: #3a0f17; border-color: var(--live); }
   .ptt.escuchando .mic { background: var(--live); animation: onda 1.2s infinite var(--ease-out); }
   @keyframes onda { 0% { box-shadow: 0 0 0 0 rgba(240,60,60,0.6); } 100% { box-shadow: 0 0 0 14px rgba(240,60,60,0); } }
-  .hint { margin: 9px 0 0; font-size: 12.5px; color: var(--txt-3); }
+  .hint { margin: 9px 0 0; font-size: 14px; color: var(--txt-3); }
   .hint i { color: var(--txt-2); font-style: normal; }
   .campo { display: flex; gap: 6px; margin-top: 9px; }
   .campo input {
@@ -290,7 +301,7 @@
   .btn-icon { padding: 9px 11px; }
 
   .relato { flex: 1; min-height: 120px; display: flex; flex-direction: column; }
-  .relato-lista { flex: 1; overflow-y: auto; padding: 4px 12px 10px; margin: 0; list-style: none; font-size: 12.5px; color: var(--txt-2); }
+  .relato-lista { flex: 1; overflow-y: auto; padding: 4px 12px 10px; margin: 0; list-style: none; font-size: 14px; color: var(--txt-2); }
   .relato-lista li { padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
   .relato-lista li:first-child { color: var(--txt); }
   .relato-lista li:last-child { border-bottom: 0; }
@@ -312,7 +323,7 @@
   .quien-nombre.ott { color: var(--ott); }
   .quien-nombre.vos { color: var(--vos); }
   .turno {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    font-size: 14px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
     padding: 3px 7px; border-radius: 3px; width: max-content; background: var(--ink-3); color: var(--txt-2);
   }
   .turno.ott { background: var(--ott); color: var(--ott-ink); }
@@ -340,7 +351,7 @@
   .revelada { display: grid; justify-items: center; gap: 5px; perspective: 700px; }
   .revelada .naipe { height: var(--card-ott-h); }
   .revelada.guardada .naipe { outline: 3px solid var(--ott); outline-offset: 2px; }
-  .revelada .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
+  .revelada .tag { font-size: 14px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
   .revelada.guardada .tag { color: var(--ott); }
   .revelada.gira .naipe { animation: gira 0.75s var(--ease-out) both; }
   @keyframes gira { 0% { transform: rotateY(90deg) scale(0.9); } 100% { transform: none; } }
@@ -348,14 +359,14 @@
   .veredicto-t { font-family: var(--display); font-weight: 900; font-style: italic; font-size: 22px; text-transform: uppercase; line-height: 1; }
   .veredicto-t.ott { color: var(--ott); } .veredicto-t.vos { color: var(--vos); }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 3px; background: var(--ink-3); color: var(--txt-2); }
+  .chip { font-size: 14px; font-weight: 600; padding: 3px 8px; border-radius: 3px; background: var(--ink-3); color: var(--txt-2); }
   .chip b { color: var(--txt); }
   .farol {
-    display: inline-flex; align-items: baseline; gap: 6px; font-size: 12.5px; font-weight: 600;
+    display: inline-flex; align-items: baseline; gap: 6px; font-size: 14px; font-weight: 600;
     padding: 4px 9px 4px 0; border-radius: 3px; background: #3a0f17; color: #ffd2d2; overflow: hidden;
   }
   .farol b { background: var(--live); color: #fff; padding: 4px 8px; margin: -4px 0; font-family: var(--display); font-weight: 900; font-style: italic; letter-spacing: 0.06em; font-size: 14px; }
-  .derecho { background: #0b3322; color: #c9f5dd; padding: 4px 9px; border-radius: 3px; font-size: 12.5px; font-weight: 600; }
+  .derecho { background: #0b3322; color: #c9f5dd; padding: 4px 9px; border-radius: 3px; font-size: 14px; font-weight: 600; }
 
   .bazas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; min-height: 0; align-items: stretch; }
   .baza {
@@ -367,7 +378,7 @@
   .baza-h { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-bottom: 6px; }
   .baza-n { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
   .baza.activa .baza-n { color: var(--ott); }
-  .gana { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; }
+  .gana { font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; }
   .gana.ott { background: var(--ott); color: var(--ott-ink); }
   .gana.vos { background: var(--vos); color: var(--vos-ink); }
   .gana.parda { background: var(--txt-2); color: var(--ink-0); }
@@ -377,7 +388,7 @@
   .baza-cartas .slot.vos { bottom: 0; transform: translateX(-38%) rotate(3deg); }
   .baza-cartas .slot .naipe { height: 100%; }
   .slot.vacio { border: 1.5px dashed rgba(179, 193, 223, 0.16); border-radius: 6px; }
-  .slot .who { position: absolute; top: 50%; font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; transform: translateY(-50%); white-space: nowrap; }
+  .slot .who { position: absolute; top: 50%; font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; transform: translateY(-50%); white-space: nowrap; }
   .slot.ott .who { right: calc(100% + 6px); color: var(--ott); }
   .slot.vos .who { left: calc(100% + 6px); color: var(--vos); }
   .slot.pierde .naipe { filter: brightness(0.62) saturate(0.7); }
@@ -393,7 +404,7 @@
     flex: none;
   }
   .zocalo-tab b { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 24px; letter-spacing: 0.02em; line-height: 1; text-transform: uppercase; }
-  .zocalo-tab small { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  .zocalo-tab small { font-size: 14px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
   .zocalo-body {
     flex: 1; min-width: 0; margin-left: calc(var(--cut) * -1);
     background: var(--txt); color: var(--ink-0);
@@ -403,9 +414,9 @@
   }
   .frase { flex: 1; min-width: 0; }
   .frase q { display: block; font-size: 19px; font-weight: 700; line-height: 1.2; quotes: "“" "”"; text-wrap: balance; }
-  .prueba { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 12px; color: #33466f; }
+  .prueba { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; font-size: 14px; color: #33466f; }
   .prueba b { color: var(--ink-0); font-weight: 700; }
-  .prueba .dec { background: var(--ink-1); color: var(--txt); padding: 1px 6px; border-radius: 3px; font-weight: 700; font-size: 11px; letter-spacing: 0.06em; }
+  .prueba .dec { background: var(--ink-1); color: var(--txt); padding: 1px 6px; border-radius: 3px; font-weight: 700; font-size: 14px; letter-spacing: 0.06em; }
   .prueba .dec.farol-dec { background: var(--live); }
   .repetir { background: var(--ink-1); color: var(--txt); border: 0; border-radius: 4px; padding: 8px; cursor: pointer; display: grid; place-items: center; }
   .repetir:hover { background: var(--ink-3); }
@@ -425,7 +436,7 @@
   }
   .canto.entra { animation: cortina 0.6s var(--ease-out) both; }
   @keyframes cortina { 0% { clip-path: polygon(0 0, 0 0, 0 100%, 0 100%); } 100% { clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); } }
-  .canto-quien { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; grid-column: 1; }
+  .canto-quien { font-size: 14px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; grid-column: 1; }
   .canto-que {
     grid-column: 1; grid-row: 2; margin: 0;
     font-family: var(--display); font-style: italic; font-weight: 900; font-size: clamp(40px, 6.4vh, 64px);
@@ -434,7 +445,7 @@
   .canto.entra .canto-que { animation: golpe 0.7s 0.15s var(--ease-out) both; }
   @keyframes golpe { 0% { transform: translateX(-40px) skewX(-8deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
   .canto-resp { grid-column: 2; grid-row: 1 / span 2; display: grid; gap: 8px; justify-items: end; }
-  .canto-pts { font-size: 12.5px; font-weight: 700; }
+  .canto-pts { font-size: 14px; font-weight: 700; }
   .canto-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
   .btn-resp {
     border: 0; border-radius: 4px; cursor: pointer; padding: 10px 14px;
@@ -499,7 +510,7 @@
   }
   .final-cab.ott { background: var(--ott); color: var(--ott-ink); }
   .final-cab.vos { background: var(--vos); color: var(--vos-ink); }
-  .final-cab small { font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
+  .final-cab small { font-size: 14px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
   .final-cab h2 { margin: 2px 0 0; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 54px; line-height: 0.9; text-transform: uppercase; }
   .final-score { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 30px; }
   .filas { display: grid; gap: 1px; background: var(--line-soft); border-radius: 4px; overflow: hidden; }
@@ -517,39 +528,39 @@
   }
   .agente:hover { background: var(--ink-3); }
   .agente .n { grid-row: span 2; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 26px; line-height: 1; color: var(--txt-3); }
-  .agente b { font-size: 13.5px; }
-  .agente small { font-size: 11.5px; color: var(--txt-3); line-height: 1.3; }
+  .agente b { font-size: 14px; }
+  .agente small { font-size: 14px; color: var(--txt-3); line-height: 1.3; }
   @media (max-height: 860px) { .agente:not([aria-checked="true"]) small { display: none; } .agente:not([aria-checked="true"]) .n { grid-row: auto; font-size: 20px; } }
   .agente[aria-checked="true"] { background: var(--ott); border-color: var(--ott); color: var(--ott-ink); }
   .agente[aria-checked="true"] .n, .agente[aria-checked="true"] small { color: #4a3a00; }
   .medidores { display: grid; gap: 12px; padding: 12px; }
-  .medidor-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 13px; color: var(--txt-2); }
+  .medidor-h { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; font-size: 14px; color: var(--txt-2); }
   .medidor-h b { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 24px; color: var(--ott); line-height: 1; }
   .barra { position: relative; height: 8px; background: var(--ink-3); border-radius: 2px; }
   .barra i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ott); border-radius: 2px; transition: width 0.8s var(--ease-out); }
   .barra .base { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--txt); }
-  .medidor small { display: block; margin-top: 4px; font-size: 11.5px; color: var(--txt-3); }
-  .faroles-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .faroles-tabla th { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); text-align: right; padding: 0 0 4px; }
+  .medidor small { display: block; margin-top: 4px; font-size: 14px; color: var(--txt-3); }
+  .faroles-tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .faroles-tabla th { font-size: 14px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); text-align: right; padding: 0 0 4px; }
   .faroles-tabla th:first-child, .faroles-tabla td:first-child { text-align: left; }
   .faroles-tabla td { padding: 5px 0; border-top: 1px solid var(--line-soft); text-align: right; font-weight: 700; }
   .faroles-tabla td:first-child { font-weight: 600; color: var(--txt-2); }
-  .perfil { padding: 0 12px 12px; font-size: 13px; color: var(--txt-2); }
+  .perfil { padding: 0 12px 12px; font-size: 14px; color: var(--txt-2); }
   .perfil b { color: var(--txt); }
   .traza { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .traza-lista { flex: 1; overflow-y: auto; padding: 8px 12px 12px; display: grid; gap: 8px; align-content: start; }
   .paso { background: var(--ink-2); border-radius: 4px; padding: 9px 10px; display: grid; gap: 5px; }
   .paso-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .paso-fase { font-size: 13px; font-weight: 700; }
+  .paso-fase { font-size: 14px; font-weight: 700; }
   .paso-fase small { color: var(--txt-3); font-weight: 500; margin-left: 4px; }
-  .paso-dec { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; background: var(--vos); color: var(--vos-ink); white-space: nowrap; }
+  .paso-dec { font-size: 14px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; background: var(--vos); color: var(--vos-ink); white-space: nowrap; }
   .paso-dec.farol-dec { background: var(--live); color: #fff; }
-  .paso dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; font-size: 12px; }
+  .paso dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; font-size: 14px; }
   .paso dt { color: var(--txt-3); }
   .paso dd { margin: 0; color: var(--txt-2); }
-  .paso p { margin: 0; font-size: 12.5px; color: var(--txt); }
-  .vacio-txt { color: var(--txt-3); font-size: 13px; margin: 0; }
-  .modo-nombre { font-size: 11.5px; color: var(--txt-3); font-weight: 600; text-align: right; }
+  .paso p { margin: 0; font-size: 14px; color: var(--txt); }
+  .vacio-txt { color: var(--txt-3); font-size: 14px; margin: 0; }
+  .modo-nombre { font-size: 14px; color: var(--txt-3); font-weight: 600; text-align: right; }
   .calc { display: grid; gap: 8px; }
   .calc .escaneo { margin: 0; }
 
@@ -559,7 +570,7 @@
   .cab-vista h2 { margin: 0; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 46px; line-height: 0.95; text-transform: uppercase; }
   .cab-vista p { margin: 8px 0 0; max-width: 68ch; color: var(--txt-2); }
   .perfil-plate { background: var(--vos); color: var(--vos-ink); padding: 10px 26px 10px 14px; clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); max-width: 420px; }
-  .perfil-plate small { display: block; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
+  .perfil-plate small { display: block; font-size: 14px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; }
   .perfil-plate b { font-family: var(--display); font-weight: 900; font-size: 22px; font-style: italic; line-height: 1.05; }
   .h2h { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 18px; }
   .ficha { padding: 12px 16px; }
@@ -567,26 +578,26 @@
   .ficha-fila:last-child { border-bottom: 0; }
   .ficha-fila span { color: var(--txt-2); font-size: 14px; }
   .ficha-fila b { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 30px; line-height: 1; color: var(--ott); }
-  .ficha-fila small { grid-column: 1 / -1; color: var(--txt-3); font-size: 12px; }
+  .ficha-fila small { grid-column: 1 / -1; color: var(--txt-3); font-size: 14px; }
   .versus { padding: 16px; display: grid; gap: 14px; align-content: start; }
   .versus-nums { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 12px; }
   .versus-nums div { display: grid; gap: 2px; }
   .versus-nums div:last-child { text-align: right; }
   .versus-nums b { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 72px; line-height: 0.85; }
   .versus-nums .ott b { color: var(--ott); } .versus-nums .vos b { color: var(--vos); }
-  .versus-nums em { font-style: normal; color: var(--txt-3); font-size: 13px; padding-bottom: 8px; }
+  .versus-nums em { font-style: normal; color: var(--txt-3); font-size: 14px; padding-bottom: 8px; }
   .split { display: flex; height: 12px; border-radius: 2px; overflow: hidden; background: var(--ink-3); }
   .split i { display: block; height: 100%; transition: width 0.8s var(--ease-out); }
   .split .ott { background: var(--ott); } .split .vos { background: var(--vos); }
-  .versus-meta { font-size: 13px; color: var(--txt-2); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .versus-meta { font-size: 14px; color: var(--txt-2); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .grafico { padding: 12px 16px 16px; }
   .grafico svg { display: block; width: 100%; height: auto; }
-  .leyenda { display: flex; gap: 18px; font-size: 13px; color: var(--txt-2); }
+  .leyenda { display: flex; gap: 18px; font-size: 14px; color: var(--txt-2); }
   .leyenda span { display: inline-flex; align-items: center; gap: 7px; }
   .leyenda i { width: 18px; height: 3px; border-radius: 2px; display: inline-block; }
   .tabla-wrap { overflow-x: auto; }
   .tabla { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 760px; }
-  .tabla th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .tabla th { text-align: left; font-size: 14px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); padding: 10px 14px; border-bottom: 1px solid var(--line); }
   .tabla td { padding: 11px 14px; border-bottom: 1px solid var(--line-soft); color: var(--txt-2); }
   .tabla td b { color: var(--txt); }
   .tabla tr:hover td { background: var(--ink-2); }
@@ -618,12 +629,12 @@
   .rundown { list-style: none; margin: 0; padding: 4px 12px 12px; max-height: 420px; overflow-y: auto; }
   .rundown li { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
   .rundown li:last-child { border-bottom: 0; }
-  .rundown .st { grid-row: span 2; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; align-self: start; margin-top: 2px; }
+  .rundown .st { grid-row: span 2; font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; align-self: start; margin-top: 2px; }
   .st.ok { background: var(--ok); color: var(--ok-ink); }
   .st.bloq { background: var(--live); color: #fff; }
   .st.desc { background: var(--warn); color: #2b1300; }
   .rundown q { font-weight: 700; }
-  .rundown small { color: var(--txt-2); font-size: 13px; }
+  .rundown small { color: var(--txt-2); font-size: 14px; }
   .idioma { margin-top: 12px; }
 
   /* ============ RESPONSIVE ============ */
@@ -657,7 +668,7 @@
     .sb-name { font-size: 17px; }
     .sb-info { width: 100%; height: auto; padding: 8px 12px; clip-path: none; margin-top: 4px; gap: 14px; flex-wrap: wrap; justify-content: space-between; border-radius: 4px; }
     .top-right { flex-direction: column-reverse; align-items: stretch; }
-    .status-row { justify-content: space-between; }
+    .status-row { justify-content: space-between; flex-wrap: wrap; }
     .tabs { width: 100%; }
     .tab { flex: 1; font-size: 15px; padding: 9px 6px 8px; }
     #vista-mesa { grid-template-columns: 1fr; grid-template-areas: "centro" "izq" "der"; padding: 8px; gap: 8px; }
@@ -700,7 +711,7 @@
   .tab { font-size: 16px; font-weight: 700; letter-spacing: 0.06em; background: transparent; padding: 8px 14px 7px; }
   .tab:hover, .tab[aria-selected="true"] { background: transparent; }
   .tab[aria-selected="true"] { border-bottom-width: 2px; }
-  .live { font-size: 13px; font-weight: 700; background: transparent; padding: 4px 6px; }
+  .live { font-size: 14px; font-weight: 700; background: transparent; padding: 4px 6px; }
   .live.on { background: transparent; color: #ff8f8f; }
   .live.on .dot { background: var(--live); animation: none; }
   .plate-t { font-size: 15px; font-weight: 700; letter-spacing: 0.08em; }
@@ -739,6 +750,16 @@
   .agente[aria-checked="true"] .n { color: var(--ott); }
   .agente[aria-checked="true"] small { color: var(--txt-2); }
   .agente:not([aria-checked="true"]) small { display: none; }
+  .agente:disabled small { display: block; }
+  #adaptacion-red:not([hidden]) { padding:8px 12px 12px; } #adaptacion-red summary { cursor:pointer; padding:8px 0; font-weight:600; } #adaptacion-red .adaptacion-switch { margin-right:12px; }
+  .adaptacion-switch { display:inline-flex; align-items:center; gap:8px; font-weight:600; }
+  .adaptacion-switch input { appearance:none; width:38px; height:22px; border:1px solid var(--line); border-radius:12px; background:var(--ink-4); cursor:pointer; }
+  .adaptacion-switch input::before { content:""; display:block; width:16px; height:16px; margin:2px; border-radius:50%; background:var(--txt-2); }
+  .adaptacion-switch input:checked { background:var(--ott); border-color:var(--ott); }
+  .adaptacion-switch input:checked::before { transform:translateX(16px); background:var(--ott-ink); }
+  .adaptacion-switch input:focus-visible { outline:3px solid var(--ott); outline-offset:3px; }
+  .agente { text-align:left; }
+  .agente:disabled { opacity: .65; cursor: not-allowed; }
   .agente:not([aria-checked="true"]) { background: transparent; border-color: transparent; }
   .agente:not([aria-checked="true"]) .n { grid-row: auto; }
   .paso { background: transparent; border-top: 1px solid var(--line-soft); border-radius: 0; padding: 10px 0 2px; }
@@ -791,6 +812,53 @@
   .sb-team.ott { padding-left: 18px; }
   .sb-team.vos { border-radius: 6px 0 0 6px; }
   .sb-info { border-radius: 0 6px 6px 0; padding-left: 22px; }
+  @media (max-width: 1100px) { #vista-mesa { height: auto; } }
+  @media (min-width: 1101px) { #vista-mesa { height: calc(100dvh - 124px); } }
+  #vista-stats, #vista-control { grid-template-columns: minmax(0, 1fr); }
+  .menu { position: relative; }
+  .menu-panel {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; min-width: 230px;
+    background: var(--ink-1); border: 1px solid var(--line); border-radius: 6px; padding: 6px; display: grid; gap: 2px;
+  }
+  .menu-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px;
+    background: transparent; border: 0; border-radius: 4px; cursor: pointer; text-align: left; color: var(--txt); font-size: 15px; font-weight: 600;
+  }
+  .menu-velocidad { display: grid; gap: 6px; padding: 8px 12px; font-size: 15px; font-weight: 600; }
+  .menu-item span { flex: 1; }
+  .menu-item em { font-style: normal; font-weight: 800; color: var(--ok); }
+  .menu-item[aria-pressed="false"] em { color: var(--txt-3); }
+  .menu-item:hover { background: var(--ink-3); }
+  #btn-opciones[aria-expanded="true"] { color: var(--txt); border-color: var(--ink-4); background: var(--ink-3); }
+  .tab.sin-robot { opacity: 0.55; }
+  .tabs-row { display: flex; align-items: center; justify-content: flex-end; gap: 14px; flex-wrap: wrap; }
+  .live { text-transform: none; letter-spacing: 0; font-family: var(--ui); font-weight: 600; white-space: normal; text-align: right; }
+  .status-row { flex-wrap: wrap; justify-content: flex-end; }
+  .top-right { margin-left: auto; }
+  .tabs-row .live { max-width: 210px; line-height: 1.2; }
+  .top { flex-wrap: wrap; }
+  .ayuda { display: block; margin-top: 4px; font-size: 14px; font-weight: 500; color: var(--txt-3); }
+  .perfil-plate .ayuda { color: #0b3a5a; }
+  .perfil .ayuda { margin-top: 2px; }
+  .perfil-plate b { display: block; }
+  @media (max-width: 720px) {
+    .btn-canto, .btn-resp { min-height: 44px; font-size: 16px; }
+    .cantos { padding: 4px 8px 6px; gap: 8px; }
+    .canto-btns { gap: 8px; }
+    .btn-ghost { min-height: 40px; }
+    .status-row { justify-content: stretch; }
+    .status-row > .btn-ghost, .status-row > .menu { flex: 1 1 auto; }
+    .status-row .menu .btn-ghost { width: 100%; justify-content: center; }
+    .status-row > .btn-ghost { justify-content: center; }
+    .tabs-row { flex-direction: column-reverse; align-items: stretch; gap: 4px; }
+    .live { justify-content: flex-start; text-align: left; }
+    .menu-panel { right: 0; left: auto; }
+    .centro { overflow: visible; }
+    .col { overflow: visible; }
+    .col-der, .col-izq { min-height: 0; }
+    #vista-mesa { height: auto; min-height: 0; }
+    .zocalo, .canto { filter: none; }
+  }
   @media (max-width: 720px) {
     .scorebug { row-gap: 0; }
     .sb-team.ott { border-radius: 0 6px 6px 0; }
@@ -815,6 +883,7 @@
   <symbol id="i-chair" viewBox="0 0 24 24"><path d="M7 3v18M7 12.5h10V21M7 8.5h5"/></symbol>
   <symbol id="i-stand" viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2"/><path d="M12 7.5V15M7.5 10.5h9M12 15l-3 6M12 15l3 6"/></symbol>
   <symbol id="i-stop" viewBox="0 0 24 24"><path d="M8 3h8l5 5v8l-5 5H8l-5-5V8z"/><path d="M8.5 12h7"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
   <symbol id="i-robot" viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="11" rx="2"/><path d="M12 3v4M9 11.5v1M15 11.5v1M9.5 15h5"/></symbol>
 </svg>
 
@@ -830,11 +899,21 @@
     </div>
     <div class="sb-info">
       <div class="sb-goal">
-        <div class="seg" role="group" aria-label="Partido a">
-          <button type="button" data-meta="15" aria-pressed="true">A 15</button>
-          <button type="button" data-meta="30" aria-pressed="false">A 30</button>
+        <div class="largo-partida">
+          <div class="seg" role="group" aria-label="Partido a">
+            <button type="button" data-meta="15" aria-pressed="true">A 15</button>
+            <button type="button" data-meta="30" aria-pressed="false">A 30</button>
+          </div>
+          <select class="sel-manos" id="sel-manos" aria-label="Partida corta: cantidad de manos" title="Partida corta: gana quien suma más en esas manos">
+            <option value="">Corta</option>
+            <option value="1">1 mano</option><option value="2">2 manos</option><option value="3">3 manos</option>
+            <option value="4">4 manos</option><option value="5">5 manos</option><option value="6">6 manos</option>
+            <option value="7">7 manos</option><option value="8">8 manos</option><option value="9">9 manos</option>
+            <option value="10">10 manos</option>
+          </select>
         </div>
-        <div class="track" title="Avance hacia la meta">
+        <span class="manos-texto" id="manos-texto" hidden></span>
+        <div class="track" id="track" title="Avance hacia la meta">
           <span class="t-vos"><i id="track-vos"></i></span>
           <span class="t-ott"><i id="track-ott"></i></span>
           <b class="mitad" id="track-mitad" title="Malas | Buenas" hidden></b>
@@ -853,15 +932,31 @@
 
   <div class="top-right">
     <div class="status-row">
-      <span class="live" id="badge-robot"><i class="dot"></i><span>Buscando G1…</span></span>
+      <a class="btn-ghost" href="/espectador" style="text-decoration:none"><svg class="i"><use href="#i-robot"/></svg>Modo espectador</a>
       <button type="button" class="btn-ghost" id="abrir-cajon" aria-expanded="false" aria-controls="cajon"><svg class="i"><use href="#i-scan"/></svg><span>Ver análisis</span></button>
-      <button type="button" class="btn-ghost toggle-voz" id="btn-tts" aria-pressed="true"><svg class="i"><use href="#i-vol"/></svg>Voz de Ottoman</button>
+      <div class="menu">
+        <button type="button" class="btn-ghost" id="btn-opciones" aria-haspopup="true" aria-expanded="false" aria-controls="menu-opciones"><svg class="i"><use href="#i-menu"/></svg>Opciones</button>
+        <div class="menu-panel" id="menu-opciones" hidden>
+          <div class="menu-velocidad">
+            <span id="velocidad-label">Velocidad de Ottoman</span>
+            <div class="seg seg-vel" id="sel-velocidad" role="group" aria-labelledby="velocidad-label">
+              <button type="button" data-vel="0.5" aria-pressed="false"><span class="por">×</span>0,5</button>
+              <button type="button" data-vel="1" aria-pressed="true"><span class="por">×</span>1</button>
+              <button type="button" data-vel="2" aria-pressed="false"><span class="por">×</span>2</button>
+            </div>
+          </div>
+          <button type="button" class="menu-item toggle-voz" id="btn-tts" aria-pressed="true"><svg class="i"><use href="#i-vol"/></svg><span>Voz de Ottoman</span><em>Sí</em></button>
+        </div>
+      </div>
     </div>
+    <div class="tabs-row">
+    <span class="live" id="badge-robot"><i class="dot"></i><span>Buscando al robot…</span></span>
     <nav class="tabs" role="tablist" aria-label="Secciones">
       <button class="tab" role="tab" id="tab-mesa" aria-selected="true" aria-controls="vista-mesa" data-tab="mesa">Mesa</button>
       <button class="tab" role="tab" id="tab-stats" aria-selected="false" aria-controls="vista-stats" data-tab="stats" tabindex="-1">Estadísticas</button>
-      <button class="tab" role="tab" id="tab-control" aria-selected="false" aria-controls="vista-control" data-tab="control" tabindex="-1">Control G1</button>
+      <button class="tab" role="tab" id="tab-control" aria-selected="false" aria-controls="vista-control" data-tab="control" tabindex="-1">Robot (G1)</button>
     </nav>
+    </div>
   </div>
 </header>
 
@@ -956,27 +1051,33 @@
       <div class="traza-lista" id="panel-xai-vivo"></div>
     </section>
   <section class="plate">
-      <div class="plate-h"><h3 class="plate-t">Faroles</h3><span class="modo-nombre">Este partido</span></div>
+      <div class="plate-h"><h3 class="plate-t">Mentiras</h3><span class="modo-nombre">Este partido</span></div>
       <div class="medidores">
         <div class="medidor">
-          <div class="medidor-h"><span>Cuota de farol · envido</span><b id="cuota-env">–</b></div>
+          <div class="medidor-h"><span>Cuota de mentira · envido</span><b id="cuota-env">–</b></div>
           <div class="barra"><i id="barra-env" style="width:0"></i><span class="base" style="left:35%" title="Base 14%"></span></div>
         </div>
         <div class="medidor">
-          <div class="medidor-h"><span>Cuota de farol · truco</span><b id="cuota-tru">–</b></div>
+          <div class="medidor-h"><span>Cuota de mentira · truco</span><b id="cuota-tru">–</b></div>
           <div class="barra"><i id="barra-tru" style="width:0"></i><span class="base" style="left:35%" title="Base 14%"></span></div>
           <small>Escala 0–40 %. La raya marca la base inicial de 14 %.</small>
         </div>
         <table class="faroles-tabla" id="barra-bluffs-vivo">
-          <thead><tr><th scope="col">Mintió en</th><th scope="col">Veces</th><th scope="col">Pasaron</th><th scope="col">Descubiertas</th></tr></thead>
+          <thead><tr><th scope="col">Mentiras de Ottoman</th><th scope="col">Hizo</th><th scope="col">Le creíste</th><th scope="col">Las descubriste</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
-      <p class="perfil" id="perfil-vivo">Lectura de tu juego: <b>–</b></p>
+      <p class="perfil" id="perfil-vivo">Cómo te ve Ottoman: <b>–</b></p>
     </section>
   <section class="plate">
       <div class="plate-h"><h3 class="plate-t">Cerebro de Ottoman</h3></div>
       <div class="agentes" role="radiogroup" aria-label="Arquitectura del agente" id="agentes"></div>
+      <details id="adaptacion-red" hidden>
+        <summary>Opciones avanzadas</summary>
+        <label class="adaptacion-switch"><input type="checkbox" id="adaptar-rival"><span>Adaptarse al rival</span></label>
+        <button type="button" class="btn-canto" id="reset-perfil">Reiniciar perfil</button>
+      </details>
+      <p class="perfil" id="adaptacion-status" hidden>Adaptación desactivada</p>
     </section>
   <section class="plate relato">
       <div class="plate-h"><h3 class="plate-t">Relato</h3></div>
@@ -990,9 +1091,9 @@
   <div class="cab-vista">
     <div>
       <h2>Cómo aprende Ottoman</h2>
-      <p>Además de la base estadística de 474.000 manos, Ottoman mide cuánto mentís o achicás en cada mano y ajusta sus probabilidades de farol y sus umbrales para querer.</p>
+      <p>Ottoman se fija cuánto mentís y se adapta.</p>
     </div>
-    <div class="perfil-plate"><small>Te tiene leído como</small><b id="badge-perfil-humano">Equilibrado</b></div>
+    <div class="perfil-plate"><small>Cómo te ve Ottoman</small><b id="badge-perfil-humano">Equilibrado</b><span class="ayuda" id="ayuda-perfil-humano">Según cuánto mentís y cuánto aceptás sus cantos.</span></div>
   </div>
 
   <div class="h2h">
@@ -1013,7 +1114,7 @@
 
   <section class="plate">
     <div class="plate-h">
-      <h3 class="plate-t">Cuota de farol, partido a partido</h3>
+      <h3 class="plate-t">Cuota de mentira, partido a partido</h3>
       <div class="leyenda"><span><i style="background:var(--txt)"></i>Envido</span><span><i style="background:var(--ott)"></i>Truco</span></div>
     </div>
     <div class="grafico" id="grafico-evolucion"></div>
@@ -1025,14 +1126,14 @@
       <table class="tabla">
         <thead>
           <tr>
-            <th scope="col">#</th><th scope="col">Fecha</th><th scope="col">Resultado</th><th scope="col">Manos</th>
-            <th scope="col">Faroles envido<br>total · pasaron · descub.</th>
-            <th scope="col">Faroles truco<br>total · pasaron · descub.</th>
+            <th scope="col">#</th><th scope="col">Fecha</th><th scope="col">Resultado</th><th scope="col">Modo</th><th scope="col">Manos</th>
+            <th scope="col">Mentiras envido<br>total · pasaron · descub.</th>
+            <th scope="col">Mentiras truco<br>total · pasaron · descub.</th>
             <th scope="col">Ajuste de la IA al terminar</th>
           </tr>
         </thead>
         <tbody id="tbody-historial">
-          <tr><td colspan="7">Jugá y terminá un partido para verlo acá.</td></tr>
+          <tr><td colspan="8">Jugá y terminá un partido para verlo acá.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1044,7 +1145,7 @@
   <div class="cab-vista">
     <div>
       <h2>Control del G1</h2>
-      <p>Fuera del partido, dale órdenes a Ottoman con la voz, por escrito o desde la consola: saludar, festejar, dar la mano, sentarse, caminar.</p>
+      <p>Fuera del partido, dale órdenes a Ottoman con la voz, tipeando o desde la consola: saludar, festejar, dar la mano, sentarse, caminar.</p>
     </div>
   </div>
 
@@ -1088,6 +1189,7 @@
   </div>
 </section>
 
+<script src="/voz_robots.js"></script>
 <script>
   const NOMBRE_CANTO = {
     ENVIDO: 'Envido', ENVIDO_ENVIDO: 'Envido envido', REAL_ENVIDO: 'Real envido', FALTA_ENVIDO: 'Falta envido',
@@ -1099,23 +1201,36 @@
   };
   const NOMBRE_TRUCO_BTN = { TRUCO: '¡Truco!', RETRUCO: '¡Quiero retruco!', VALE_CUATRO: '¡Quiero vale cuatro!' };
   const MODOS_RESPALDO = [
-    { codigo: 'reactivo', nombre: 'Agente Reactivo Simple', subtitulo: 'Reglas fijas condición-acción' },
-    { codigo: 'utilidad', nombre: 'Agente Basado en Utilidad (474k manos)', subtitulo: 'Maximiza utilidad esperada (estático)' },
-    { codigo: 'aprendizaje', nombre: 'Agente Híbrido con Aprendizaje Adaptativo', subtitulo: 'Utilidad + farol dinámico + modelado del rival' }
+    { codigo: 'reactivo', nombre: 'Reactivo', subtitulo: 'Reglas fijas condición-acción' },
+    { codigo: 'utilidad_adaptativa', nombre: 'Utilidad adaptativa', subtitulo: 'Utilidad + mentira dinámica + modelado del rival' }
   ];
+  // Names by technique (labels only; the codes stay as the server sends them).
+  const TECNICA = {
+    reactivo: { nombre: 'Reactivo', detalle: 'reglas fijas' },
+    utilidad_adaptativa: { nombre: 'Utilidad adaptativa', detalle: 'calcula y se adapta a vos' },
+    neuroevolucion: { nombre: 'Algoritmos genéticos', detalle: 'generación 48' },
+    refuerzo: { nombre: 'Aprendizaje por refuerzo', detalle: 'corrida 3 · generación 73' }
+  };
+  // "Equilibrado (explicación)" -> the name alone, with the explanation as small help text.
+  const partirPerfil = (txt) => {
+    const m = String(txt || '').match(/^\s*([^(]+?)\s*(?:\(([^)]*)\))?\s*$/);
+    const ayuda = (m && m[2] ? m[2] : 'Según cuánto mentís y cuánto aceptás sus cantos').replace(/engaño/gi, 'mentira');
+    return { nombre: m ? m[1] : String(txt || '–'), ayuda: ayuda.charAt(0).toUpperCase() + ayuda.slice(1) + '.' };
+  };
+  const nombreTecnica = (codigo, resp) => TECNICA[codigo]?.nombre || resp || '—';
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const nombreCanto = (c) => NOMBRE_CANTO[c] || String(c || '').replace(/_/g, ' ').toLowerCase();
-  const imgCarta = (c) => `/cartas/${encodeURIComponent(c.valor)}_${encodeURIComponent(c.palo)}.png?v=fournier`;
+  const imgCarta = (c) => `/cartas/${encodeURIComponent(c.valor)}_${encodeURIComponent(c.palo)}.png?v=propia`;
   const nombreCarta = (c) => c.nombre || `${c.valor} de ${c.palo}`;
   const naipeHTML = (c) => `<span class="naipe"><img src="${imgCarta(c)}" alt="${esc(nombreCarta(c))}" draggable="false"></span>`;
   const espera = (ms) => new Promise(r => setTimeout(r, ms));
 
-  let ultimaFraseHablada = '';
   let estadoActual = null;
   let ocupado = false;          // Ottoman "pensando" o esperando respuesta del servidor
   let metaElegida = 15;
+  let manosElegidas = null;     // partida corta: cantidad de manos, o null si es a puntos
   let ttsActivo = true;
   let cartasVistas = new Set(); // para animar sólo las cartas recién llegadas a la mesa
   let ultimoCantoKey = null;
@@ -1152,27 +1267,18 @@
   });
 
   // ==================== VOZ DE OTTOMAN (TTS) ====================
-  function hablarRobot(texto, forzar = false) {
-    if (!texto) return;
-    if (!forzar && texto === ultimaFraseHablada) return;
-    ultimaFraseHablada = texto;
-    if (!ttsActivo || !('speechSynthesis' in window)) return;
-    try {
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(texto);
-      u.lang = 'es-AR';
-      u.rate = 1.05;
-      window.speechSynthesis.speak(u);
-    } catch (e) {}
-  }
-  function repetirVozRobot() {
-    if (estadoActual?.ultima_frase_robot) hablarRobot(estadoActual.ultima_frase_robot, true);
-  }
+  // Cada frase llega una sola vez en `voz` (con id creciente) y se dice con el perfil de su robot
+  // (voz_robots.js, compartido con el modo espectador).
+  const vozRobots = VozRobots(() => ttsActivo);
+  const hablarPerfil = (frase, perfil, asiento = 1) => vozRobots.hablar(frase, perfil, asiento);
+  const procesarVoz = (data) => vozRobots.procesar(data.voz);
+  const repetirVozRobot = () => vozRobots.repetir();
   $('btn-tts').addEventListener('click', () => {
     ttsActivo = !ttsActivo;
     const b = $('btn-tts');
     b.setAttribute('aria-pressed', ttsActivo);
     b.querySelector('use').setAttribute('href', ttsActivo ? '#i-vol' : '#i-vol-off');
+    b.querySelector('em').textContent = ttsActivo ? 'Sí' : 'No';
     if (!ttsActivo && 'speechSynthesis' in window) window.speechSynthesis.cancel();
   });
 
@@ -1186,11 +1292,11 @@
       .catch(err => {
         const s = $('pip-sin');
         s.hidden = false;
-        s.textContent = `Sin acceso a la cámara (${err.message || err}). Podés jugar tocando tus cartas o por voz.`;
+        s.textContent = 'No hay cámara. Tocá tus cartas o hablá.';
       });
   } else {
     $('pip-sin').hidden = false;
-    $('pip-sin').textContent = 'Este navegador no da acceso a la cámara. Jugá tocando tus cartas o por voz.';
+    $('pip-sin').textContent = 'No hay cámara. Tocá tus cartas o hablá.';
   }
 
   function capturarFrameBase64() {
@@ -1243,6 +1349,9 @@
     const t = data.tanteador || { humano: 0, robot: 0, meta: 15 };
     const meta = t.meta || 15;
     metaElegida = meta;
+    manosElegidas = t.manos || null;
+    $('sel-manos').value = manosElegidas ? String(manosElegidas) : '';
+    $('sel-manos').classList.toggle('activa', !!manosElegidas);
     [['humano', 'pts-vos'], ['robot', 'pts-ott']].forEach(([k, id]) => {
       const el = $(id);
       if (puntosPrevios[k] !== null && puntosPrevios[k] !== t[k]) {
@@ -1251,10 +1360,18 @@
       el.textContent = t[k];
       puntosPrevios[k] = t[k];
     });
+    // A short match is counted in hands, not points: "Mano 2 de 5" / "Desempate" instead of the bar.
+    $('track').hidden = !!manosElegidas;
+    $('manos-texto').hidden = !manosElegidas;
+    if (manosElegidas) {
+      const actual = (t.manos_jugadas || 0) + (data.mano_terminada || data.partido_terminado ? 0 : 1);
+      $('manos-texto').textContent = actual > manosElegidas ? 'Desempate'
+        : `Mano ${Math.max(1, actual)} de ${manosElegidas}`;
+    }
     $('track-vos').style.width = Math.min(100, (t.humano / meta) * 100) + '%';
     $('track-ott').style.width = Math.min(100, (t.robot / meta) * 100) + '%';
     $('track-mitad').hidden = meta !== 30;
-    document.querySelectorAll('.sb-goal .seg button').forEach(b => b.setAttribute('aria-pressed', Number(b.dataset.meta) === meta));
+    document.querySelectorAll('.sb-goal .seg button').forEach(b => b.setAttribute('aria-pressed', !manosElegidas && Number(b.dataset.meta) === meta));
     $('mano-vos').hidden = data.es_mano !== 'humano';
     $('mano-ott').hidden = data.es_mano !== 'robot';
 
@@ -1266,7 +1383,10 @@
 
     const badge = $('badge-robot');
     badge.classList.toggle('on', Boolean(data.robot_conectado));
-    badge.querySelector('span').textContent = data.robot_conectado ? 'En vivo · G1 en la mesa' : 'Sin simulador · abrí sim.bat';
+    const tabRobot = $('tab-control');
+    tabRobot.classList.toggle('sin-robot', !data.robot_conectado);
+    tabRobot.title = data.robot_conectado ? '' : 'Robot no conectado';
+    badge.querySelector('span').textContent = data.robot_conectado ? 'Robot conectado' : 'Robot no conectado (se juega igual en pantalla)';
   }
 
   // ==================== RENDER: LADO DE OTTOMAN ====================
@@ -1291,14 +1411,16 @@
       const titulo = ganador === 'robot' ? 'Mano para Ottoman' : ganador === 'humano' ? 'Mano para vos' : 'Mano terminada';
       const re = data.resultado_envido;
       let envTxt = '';
-      if (re && re.pts_robot !== undefined && re.pts_humano !== undefined) {
-        envTxt = `<span class="chip">Envido: Ottoman <b>${esc(re.pts_robot)}</b> · Vos <b>${esc(re.pts_humano)}</b></span>`;
+      // The server sends Ottoman's tanto only once it is public (said aloud, or the hand is over).
+      if (re && re.pts_humano !== undefined) {
+        const ott = re.pts_robot !== undefined ? `<b>${esc(re.pts_robot)}</b>` : 'son buenas';
+        envTxt = `<span class="chip">Envido: Ottoman ${ott} · Vos <b>${esc(re.pts_humano)}</b></span>`;
       }
       const farolesHTML = bluffs.length === 0
-        ? `<span class="derecho">Jugó derecho: ningún farol esta mano</span>`
+        ? `<span class="derecho">Jugó derecho: ninguna mentira esta mano</span>`
         : bluffs.map(b => {
             const r = b.resultado === 'exitoso' ? 'le salió bien' : (b.resultado === 'descubierto' ? '¡lo descubriste!' : 'en juego');
-            return `<span class="farol"><b>Farol</b>${esc(nombreCanto(b.tipo))}: ${esc(b.detalle)} · ${r}</span>`;
+            return `<span class="farol"><b>Mentira</b>${esc(nombreCanto(b.tipo))}: ${esc(b.detalle)} · ${r}</span>`;
           }).join('');
       ver.hidden = false;
       ver.innerHTML = `
@@ -1357,30 +1479,33 @@
   }
 
   // ==================== RENDER: ZÓCALO / CANTO ====================
-  function pruebaHTML(raz) {
-    if (!raz) return '';
-    const esFarol = String(raz.decision || '').includes('FAROL');
-    return `<div class="prueba">
-      <span class="dec ${esFarol ? 'farol-dec' : ''}">${esc(raz.decision)}</span>
-      ${raz.metrica ? `<span><b>Métrica:</b> ${esc(raz.metrica)}</span>` : ''}
-      ${raz.umbral ? `<span><b>Umbral:</b> ${esc(raz.umbral)}</span>` : ''}
-    </div>`;
-  }
-
   function renderZocalo(data) {
     const zona = $('zona-zocalo');
     const cp = data.canto_pendiente;
+    if (data.robot?.ocupado) {
+      zocaloPensando(data.robot.estado === 'actuando' ? 'Ottoman juega…' : 'Ottoman está pensando…');
+      return;
+    }
     if (cp) {
       const key = `${cp.tipo}-${cp.canto}-${(data.mesa || []).length}-${data.tanteador?.humano}-${data.tanteador?.robot}`;
       const nuevo = key !== ultimoCantoKey;
       ultimoCantoKey = key;
       const pts = (cp.puntos_quiero !== undefined && cp.puntos_no_quiero !== undefined)
         ? `<span class="canto-pts">Si querés se juega ${cp.por_el_partido ? 'por el partido' : esc(cp.puntos_quiero)} · si no, Ottoman suma ${esc(cp.puntos_no_quiero)}</span>` : '';
+      const re = cp.reanudado_tras_envido && data.resultado_envido;
+      // Ottoman's tanto only once it said it (it is mano, or it won), or when the hand is over:
+      // after "Son buenas" a player keeps its number to itself.
+      // The server leaves pts_robot out until then.
+      const ottDijo = re && re.pts_robot !== undefined;
+      const tantos = re && re.pts_humano !== undefined
+        ? ` · Tus tantos: ${esc(re.pts_humano)}${ottDijo ? ` · Ottoman: ${esc(re.pts_robot)}` : ' · Ottoman: son buenas'}` : '';
+      const resultadoEnvido = re ? `<span class="canto-pts">${re.motivo ? esc(re.motivo) + ' · ' : 'Envido querido · '}${re.ganador === 'humano' ? 'Ganaste' : 'Ganó Ottoman'} ${esc(re.puntos_ganados)} ${re.puntos_ganados === 1 ? 'punto' : 'puntos'}${tantos}</span>` : '';
       zona.innerHTML = `
         <div class="canto ${nuevo ? 'entra' : ''}" role="alert">
-          <span class="canto-quien">Ottoman te canta</span>
+          <span class="canto-quien">${cp.reanudado_tras_envido ? 'Envido resuelto · Respondé al truco pendiente' : 'Ottoman te canta'}</span>
           <p class="canto-que">¡${esc(nombreCanto(cp.canto))}!</p>
           <div class="canto-resp">
+            ${resultadoEnvido}
             ${pts}
             <div class="canto-btns" id="alerta-botones">
               ${cp.opciones.map(op => `<button type="button" class="btn-resp ${op === 'QUIERO' ? 'quiero' : op === 'NO_QUIERO' ? 'noquiero' : ''}" data-resp="${esc(op)}">${esc(ETIQUETA_RESPUESTA[op] || op)}</button>`).join('')}
@@ -1396,20 +1521,19 @@
       <div class="zocalo">
         <div class="zocalo-tab"><b>Ottoman</b><small>Unitree G1</small></div>
         <div class="zocalo-body">
-          <div class="frase"><q id="frase-robot">${esc(frase)}</q>${pruebaHTML(data.aprendizaje_ia?.ultimo_razonamiento)}</div>
+          <div class="frase"><q id="frase-robot">${esc(frase)}</q></div>
           <button type="button" class="repetir" id="btn-repetir" aria-label="Escuchar de nuevo" title="Escuchar de nuevo"><svg class="i"><use href="#i-vol"/></svg></button>
         </div>
       </div>`;
     $('btn-repetir').addEventListener('click', repetirVozRobot);
   }
 
-  function zocaloPensando() {
+  function zocaloPensando(texto) {
     $('zona-zocalo').innerHTML = `
-      <div class="zocalo pensando">
+      <div class="zocalo pensando" role="status">
         <div class="zocalo-tab"><b>Ottoman</b><small>Pensando</small></div>
         <div class="zocalo-body">
-          <div class="frase"><q>Mmm… dejame pensar.</q>
-            <div class="prueba"><span>Evaluando probabilidades de <b>474k manos</b> y tu perfil de juego</span></div>
+          <div class="frase"><q>${esc(texto)}</q>
             <div class="escaneo"></div>
           </div>
         </div>
@@ -1420,7 +1544,8 @@
   function renderMano(data) {
     const div = $('mis-cartas');
     const disp = data.cartas_humano_disponibles || [];
-    const puedeTirar = !data.mano_terminada && !data.canto_pendiente && data.turno_carta === 'humano';
+    const robotOcupado = Boolean(data.robot?.ocupado);
+    const puedeTirar = !data.mano_terminada && !data.canto_pendiente && data.turno_carta === 'humano' && !robotOcupado;
     div.innerHTML = disp.length
       ? disp.map((c, i) => `<button type="button" class="carta-btn" data-i="${i}" ${puedeTirar ? '' : 'disabled'} title="${esc(c.valor + ' de ' + c.palo)}" aria-label="Jugar ${esc(c.valor + ' de ' + c.palo)}">${naipeHTML(c)}</button>`).join('')
       : `<span class="mano-vacia">${data.mano_terminada ? 'Repartí para la próxima mano.' : 'Sin cartas en la mano.'}</span>`;
@@ -1429,21 +1554,21 @@
     $('tantos-vos').textContent = data.tantos_humano ?? '–';
     const tv = $('turno-vos');
     tv.className = 'turno' + (puedeTirar ? ' vos' : '');
-    tv.textContent = data.canto_pendiente ? 'Respondé' : puedeTirar ? 'Te toca' : 'Espera';
-    if (data.canto_pendiente) tv.className = 'turno vos';
+    tv.textContent = robotOcupado ? 'Esperá' : data.canto_pendiente ? 'Respondé' : puedeTirar ? 'Te toca' : 'Esperá';
+    if (data.canto_pendiente && !robotOcupado) tv.className = 'turno vos';
 
-    const envDisp = Boolean(data.envido_disponible);
+    const envDisp = Boolean(data.envido_disponible) && !robotOcupado;
     ['btn-envido', 'btn-real-envido', 'btn-falta-envido'].forEach(id => { $(id).disabled = !envDisp; });
 
     const btnTruco = $('btn-truco');
-    if (data.siguiente_truco_humano && !data.mano_terminada && !data.canto_pendiente) {
+    if (data.siguiente_truco_humano && !data.mano_terminada && !data.canto_pendiente && !robotOcupado) {
       btnTruco.disabled = false;
       btnTruco.textContent = NOMBRE_TRUCO_BTN[data.siguiente_truco_humano] || '¡Truco!';
     } else {
       btnTruco.disabled = true;
     }
-    $('btn-mazo').disabled = Boolean(data.mano_terminada);
-    $('btn-nueva-mano').disabled = false;
+    $('btn-mazo').disabled = Boolean(data.mano_terminada) || robotOcupado;
+    $('btn-nueva-mano').disabled = robotOcupado;
     $('btn-nueva-mano').classList.toggle('llama', Boolean(data.mano_terminada) && !data.partido_terminado);
     $('btn-capturar').disabled = false;
   }
@@ -1468,8 +1593,8 @@
         <div class="filas">
           <div class="fila"><span>Manos jugadas</span><b>${st.manos_jugadas || 0}</b></div>
           <div class="fila"><span>Veces que Ottoman mintió</span><b>${total}</b></div>
-          <div class="fila"><span>Faroles en envido · de ${env.cantados_robot || 0} cantos</span><b>${env.bluffs_intentados || 0} · pasaron ${env.bluffs_exitosos || 0} · descubiertos ${env.bluffs_descubiertos || 0}</b></div>
-          <div class="fila"><span>Faroles en truco · de ${tru.cantados_robot || 0} cantos</span><b>${tru.bluffs_intentados || 0} · pasaron ${tru.bluffs_exitosos || 0} · descubiertos ${tru.bluffs_descubiertos || 0}</b></div>
+          <div class="fila"><span>Mentiras en envido · de ${env.cantados_robot || 0} cantos</span><b>${env.bluffs_intentados || 0} · pasaron ${env.bluffs_exitosos || 0} · descubiertos ${env.bluffs_descubiertos || 0}</b></div>
+          <div class="fila"><span>Mentiras en truco · de ${tru.cantados_robot || 0} cantos</span><b>${tru.bluffs_intentados || 0} · pasaron ${tru.bluffs_exitosos || 0} · descubiertos ${tru.bluffs_descubiertos || 0}</b></div>
         </div>
         <button type="button" class="btn-canto repartir" id="btn-otra" style="justify-self:start"><svg class="i"><use href="#i-reset"/></svg>Jugar otro partido</button>
       </div>`;
@@ -1479,14 +1604,17 @@
   // ==================== RENDER: RIEL DE ANÁLISIS ====================
   function renderAgentes(ia) {
     const modos = (ia?.modos_disponibles && ia.modos_disponibles.length) ? ia.modos_disponibles : MODOS_RESPALDO;
-    const activo = ia?.modo_agente || 'aprendizaje';
+    const activo = ia?.modo_agente || 'utilidad_adaptativa';
     const cont = $('agentes');
-    const firma = modos.map(m => m.codigo).join() + '|' + activo;
-    if (cont.dataset.firma === firma) { cont.querySelectorAll('.agente').forEach(b => { b.disabled = false; }); return; }
+    $('adaptacion-red').hidden = !['neuroevolucion', 'refuerzo'].includes(activo);
+    $('adaptar-rival').checked = !!ia?.adaptacion_activa;
+    $('adaptacion-status').hidden = !['neuroevolucion', 'refuerzo'].includes(activo) || !!ia?.adaptacion_activa;
+    const firma = modos.map(m => m.codigo + ':' + m.disponible).join() + '|' + activo;
+    if (cont.dataset.firma === firma) return;
     cont.dataset.firma = firma;
     cont.innerHTML = modos.map((m, i) => `
-      <button type="button" class="agente" role="radio" aria-checked="${m.codigo === activo}" data-modo="${esc(m.codigo)}" tabindex="${m.codigo === activo ? 0 : -1}">
-        <span class="n">${i + 1}</span><b>${esc(m.nombre)}</b><small>${esc(m.subtitulo)}</small>
+      <button type="button" class="agente" role="radio" aria-checked="${m.codigo === activo}" data-modo="${esc(m.codigo)}" data-disponible="${m.disponible !== false}" tabindex="${m.codigo === activo ? 0 : -1}" ${m.disponible === false ? 'disabled' : ''}>
+        <span class="n">${i + 1}</span><b>${esc(nombreTecnica(m.codigo, m.nombre))}</b><small>${m.disponible === false ? 'No disponible' : esc(TECNICA[m.codigo]?.detalle || m.subtitulo)}</small>
       </button>`).join('');
     const botones = [...cont.querySelectorAll('.agente')];
     botones.forEach((b, i) => {
@@ -1495,7 +1623,8 @@
         if (!['ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowLeft'].includes(e.key)) return;
         e.preventDefault();
         const d = (e.key === 'ArrowDown' || e.key === 'ArrowRight') ? 1 : -1;
-        const sig = botones[(i + d + botones.length) % botones.length];
+        const disponibles = botones.filter(b => !b.disabled);
+        const sig = disponibles[(disponibles.indexOf(b) + d + disponibles.length) % disponibles.length];
         sig.focus(); cambiarModoIA(sig.dataset.modo);
       });
     });
@@ -1514,29 +1643,23 @@
     $('cuota-tru').textContent = ia.prob_farol_truco_pct + ' %';
     $('barra-env').style.width = Math.min(100, ia.prob_farol_envido_pct / 40 * 100) + '%';
     $('barra-tru').style.width = Math.min(100, ia.prob_farol_truco_pct / 40 * 100) + '%';
-    $('perfil-vivo').innerHTML = `Lectura de tu juego: <b>${esc(ia.perfil_humano_detectado)}</b>`;
-    $('xai-modo').textContent = ia.arquitectura_nombre || '';
+    const pf = partirPerfil(ia.perfil_humano_detectado);
+    $('perfil-vivo').innerHTML = `Cómo te ve Ottoman: <b>${esc(pf.nombre)}</b><small class="ayuda">${esc(pf.ayuda)}</small>`;
+    $('xai-modo').textContent = nombreTecnica(ia.modo_agente, ia.arquitectura_nombre) === '—' ? '' : nombreTecnica(ia.modo_agente, ia.arquitectura_nombre);
 
     const trazas = ia.traza_razonamiento || [];
     $('panel-xai-vivo').innerHTML = trazas.length === 0
       ? `<p class="vacio-txt">Cuando Ottoman tome su próxima decisión vas a ver acá la cuenta que hizo: métrica, umbral y si eligió mentir.</p>`
       : trazas.slice(-8).map(t => {
-          const esFarol = String(t.decision || '').includes('FAROL');
+          const esFarol = String(t.decision || '').includes('MENTIRA');
           return `<article class="paso">
             <div class="paso-top"><span class="paso-fase">${esc(t.fase)}${t.hora ? `<small>${esc(t.hora)}</small>` : ''}</span><span class="paso-dec ${esFarol ? 'farol-dec' : ''}">${esc(t.decision)}</span></div>
-            ${t.metrica ? `<dl><dt>Métrica</dt><dd>${esc(t.metrica)}</dd><dt>Umbral</dt><dd>${esc(t.umbral)}</dd><dt>Engaño</dt><dd>${esc(t.farol_info)}</dd></dl>` : ''}
+            ${t.metrica ? `<dl><dt>Métrica</dt><dd>${t.acciones_probables ? t.acciones_probables.map(a => `${esc(a.accion.replaceAll("_", " ").replace(/^card (\d)$/, (_, n) => `carta ${Number(n)+1}`).replace(/^fold$/, "irse al mazo"))}: ${a.porcentaje.toFixed(1)} %`).join(", ") : esc(t.metrica)}</dd>${t.umbral ? `<dt>Umbral</dt><dd>${esc(t.umbral)}</dd>` : ""}<dt>Engaño</dt><dd>${esc(t.farol_info)}</dd></dl>` : ''}
             ${t.explicacion ? `<p>${esc(t.explicacion)}</p>` : ''}
+            ${t.inferencia ? `<p>P(tenés una brava): ${(t.inferencia.brava_probability * 100).toFixed(1)} % · Fuerza esperada: ${t.inferencia.expected_strength.toFixed(1)} · P(ganar la próxima baza): ${(t.inferencia.next_trick_win_probability * 100).toFixed(1)} %</p>` : ''}
+            ${t.perfil_rival ? `<p>Perfil: mentira ${(t.perfil_rival.bluff * 100).toFixed(1)} % · mazo ${(t.perfil_rival.fold * 100).toFixed(1)} % · acepta truco ${(t.perfil_rival.truco_accepted * 100).toFixed(1)} % · canta envido ${(t.perfil_rival.envido_called * 100).toFixed(1)} %</p>` : ''}
           </article>`;
         }).join('');
-  }
-
-  function rielPensando() {
-    $('panel-xai-vivo').innerHTML = `
-      <div class="paso calc">
-        <div class="paso-top"><span class="paso-fase">Calculando la jugada</span><span class="paso-dec">3 s</span></div>
-        <p>Utilidad esperada de cada canto y de cada carta, contra el corpus de 474k manos y el perfil del rival.</p>
-        <div class="escaneo"></div>
-      </div>`;
   }
 
   // ==================== RENDER: LOG ====================
@@ -1546,6 +1669,19 @@
     ol.innerHTML = '';
     data.log.forEach(l => { const li = document.createElement('li'); li.textContent = l; ol.appendChild(li); });
   }
+
+  // ==================== VELOCIDAD DE OTTOMAN ====================
+  function renderVelocidad(data) {
+    const r = data.robot || {};
+    document.querySelectorAll('#sel-velocidad button').forEach(b =>
+      b.setAttribute('aria-pressed', !r.instantaneo && Number(b.dataset.vel) === r.velocidad));
+  }
+  document.querySelectorAll('#sel-velocidad button').forEach(b => b.addEventListener('click', async () => {
+    try {
+      const d = await postJSON('/truco/ritmo', { velocidad: Number(b.dataset.vel) });
+      if (d && d.estado) renderizarEstado(d.estado);
+    } catch (e) {}
+  }));
 
   // ==================== RENDER PRINCIPAL ====================
   function renderizarEstado(data) {
@@ -1559,14 +1695,18 @@
     renderFinal(data);
     renderRiel(data);
     renderLog(data);
-    if (data.ultima_frase_robot) hablarRobot(data.ultima_frase_robot);
+    renderVelocidad(data);
+    procesarVoz(data);
+    programarPoll();
     if (data.aprendizaje_ia && $('vista-stats').classList.contains('activa')) renderizarEvolucionIA(data.aprendizaje_ia);
   }
 
   // ==================== ESTADÍSTICAS ====================
   function renderizarEvolucionIA(ia) {
     if (!ia) return;
-    $('badge-perfil-humano').textContent = ia.perfil_humano_detectado;
+    const pf = partirPerfil(ia.perfil_humano_detectado);
+    $('badge-perfil-humano').textContent = pf.nombre;
+    $('ayuda-perfil-humano').textContent = pf.ayuda;
 
     const vr = ia.victorias_robot || 0, vh = ia.victorias_humano || 0, tot = vr + vh;
     $('h2h-ott').textContent = vr;
@@ -1579,14 +1719,14 @@
 
     const off = (v) => (v >= 0 ? '+' : '') + v;
     $('kpis-evolucion').innerHTML = `
-      <div class="ficha-fila"><span>Cuota de farol en envido</span><b>${ia.prob_farol_envido_pct} %</b><small>Base inicial 14 %. Sube si decís “no quiero” seguido.</small></div>
-      <div class="ficha-fila"><span>Cuota de farol en truco</span><b>${ia.prob_farol_truco_pct} %</b><small>Base inicial 14 %. Se adapta a cómo respondés al truco.</small></div>
-      <div class="ficha-fila"><span>Faroles tuyos detectados</span><b>${ia.bluffs_humano_detectados} (${ia.tasa_bluff_humano_pct} %)</b><small>Ajuste del umbral para querer: envido ${off(ia.umbral_envido_offset)} · truco ${off(ia.umbral_truco_offset ?? 0)}</small></div>`;
+      <div class="ficha-fila"><span>Cuota de mentira en envido</span><b>${ia.prob_farol_envido_pct} %</b><small>Base inicial 14 %. Sube si decís “no quiero” seguido.</small></div>
+      <div class="ficha-fila"><span>Cuota de mentira en truco</span><b>${ia.prob_farol_truco_pct} %</b><small>Base inicial 14 %. Se adapta a cómo respondés al truco.</small></div>
+      <div class="ficha-fila"><span>Mentiras tuyas detectadas</span><b>${ia.bluffs_humano_detectados} (${ia.tasa_bluff_humano_pct} %)</b><small>Ajuste del umbral para querer: envido ${off(ia.umbral_envido_offset)} · truco ${off(ia.umbral_truco_offset ?? 0)}</small></div>`;
 
     const partidas = ia.partidas || [];
     const tbody = $('tbody-historial');
     if (partidas.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7">Todavía no hay partidos terminados. Cuando alguien llegue a 15 o 30 puntos va a aparecer acá.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8">Todavía no hay partidos terminados. Cuando alguien llegue a 15 o 30 puntos va a aparecer acá.</td></tr>`;
     } else {
       tbody.innerHTML = partidas.map(p => {
         const gR = p.ganador === 'robot';
@@ -1594,6 +1734,7 @@
           <td><span class="num-id">${esc(p.id)}</span></td>
           <td>${esc(p.fecha)}</td>
           <td><span class="res ${gR ? 'ott' : 'vos'}"><i></i>${gR ? 'Ottoman' : 'Vos'} ${esc(gR ? p.puntos_robot : p.puntos_humano)}–${esc(gR ? p.puntos_humano : p.puntos_robot)}</span></td>
+          <td>${esc(nombreTecnica(p.modo_agente))}</td>
           <td>${esc(p.manos_jugadas)}</td>
           <td><b>${esc(p.bluffs_envido_intentados)}</b> · ${esc(p.bluffs_envido_exitosos)} · ${esc(p.bluffs_envido_descubiertos)}</td>
           <td><b>${esc(p.bluffs_truco_intentados)}</b> · ${esc(p.bluffs_truco_exitosos)} · ${esc(p.bluffs_truco_descubiertos)}</td>
@@ -1617,65 +1758,32 @@
     const cadaN = Math.max(1, Math.ceil(serie.length / 14));
     const grid = [0, 10, 20, 30, 40].map(v => `
       <line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line-soft)" stroke-width="1"/>
-      <text x="${pl - 10}" y="${y(v) + 4}" text-anchor="end" font-size="12" fill="var(--txt-3)">${v}%</text>`).join('');
+      <text x="${pl - 10}" y="${y(v) + 4}" text-anchor="end" font-size="14" fill="var(--txt-3)">${v}%</text>`).join('');
     const etiquetas = serie.map((p, i) => (i % cadaN === 0 || i === serie.length - 1)
-      ? `<text x="${x(i)}" y="${H - 10}" text-anchor="middle" font-size="12" fill="var(--txt-3)">${esc(p.label)}</text>` : '').join('');
+      ? `<text x="${x(i)}" y="${H - 10}" text-anchor="middle" font-size="14" fill="var(--txt-3)">${esc(p.label)}</text>` : '').join('');
     const nodos = k => serie.map((p, i) => `<circle cx="${x(i)}" cy="${y(p[k])}" r="${i === serie.length - 1 ? 5 : 3}" fill="${k === 'env' ? 'var(--txt)' : 'var(--ott)'}"/>`).join('');
     const ult = serie[serie.length - 1];
     // Etiquetas finales separadas al menos 16px aunque los valores coincidan
     let yEnv = y(ult.env), yTru = y(ult.tru);
     if (Math.abs(yEnv - yTru) < 16) { const m = (yEnv + yTru) / 2; const envArriba = ult.env >= ult.tru; yEnv = m + (envArriba ? -8 : 8); yTru = m + (envArriba ? 8 : -8); }
     $('grafico-evolucion').innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cuota de farol en envido y truco a lo largo de los partidos">
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cuota de mentira en envido y truco a lo largo de los partidos">
         ${grid}
         <line x1="${pl}" x2="${W - pr}" y1="${y(14)}" y2="${y(14)}" stroke="var(--txt-3)" stroke-dasharray="5 4" stroke-width="1"/>
-        <text x="${pl + 6}" y="${y(14) - 6}" font-size="12" fill="var(--txt-3)">base 14%</text>
+        <text x="${pl + 6}" y="${y(14) - 6}" font-size="14" fill="var(--txt-3)">base 14%</text>
         <polyline fill="none" stroke="var(--txt)" stroke-width="2.5" stroke-linejoin="round" points="${linea('env')}"/>
         <polyline fill="none" stroke="var(--ott)" stroke-width="2.5" stroke-linejoin="round" points="${linea('tru')}"/>
         ${nodos('env')}${nodos('tru')}
-        <text x="${x(serie.length - 1) + 12}" y="${yEnv + 4}" font-size="13" font-weight="700" fill="var(--txt)">${esc(ult.env)}%</text>
-        <text x="${x(serie.length - 1) + 12}" y="${yTru + 4}" font-size="13" font-weight="700" fill="var(--ott)">${esc(ult.tru)}%</text>
+        <text x="${x(serie.length - 1) + 12}" y="${yEnv + 4}" font-size="14" font-weight="700" fill="var(--txt)">${esc(ult.env)}%</text>
+        <text x="${x(serie.length - 1) + 12}" y="${yTru + 4}" font-size="14" font-weight="700" fill="var(--ott)">${esc(ult.tru)}%</text>
         ${etiquetas}
       </svg>`;
-  }
-
-  // ==================== PENSAMIENTO DE OTTOMAN ====================
-  function bloquearControlesMesa(bloquear) {
-    ['btn-envido', 'btn-real-envido', 'btn-falta-envido', 'btn-truco', 'btn-mazo', 'btn-nueva-mano', 'btn-capturar']
-      .forEach(id => { const el = $(id); if (el) el.disabled = bloquear; });
-    document.querySelectorAll('#mis-cartas button, #alerta-botones button, .agente').forEach(b => { b.disabled = bloquear; });
-  }
-
-  async function simularPensamientoOttoman(cartaRecienJugadaHumano = null) {
-    bloquearControlesMesa(true);
-
-    // Mostrar al instante la carta que acaba de tirar el humano, antes de la pausa de Ottoman
-    if (cartaRecienJugadaHumano && estadoActual) {
-      const ronda = estadoActual.ronda || 1;
-      const baza = document.querySelectorAll('#mesa-cartas .baza')[ronda - 1];
-      const slot = baza?.querySelector('.slot.vos');
-      if (slot) {
-        const c = cartaRecienJugadaHumano;
-        slot.className = 'slot vos llega';
-        slot.innerHTML = `${naipeHTML(c)}<span class="who">Vos</span>`;
-        cartasVistas.add(`${ronda}-humano-${c.valor}_${c.palo}`);
-      }
-      document.querySelectorAll('#mis-cartas .carta-btn').forEach(btn => {
-        if (btn.title === `${cartaRecienJugadaHumano.valor} de ${cartaRecienJugadaHumano.palo}`) btn.remove();
-      });
-    }
-
-    zocaloPensando();
-    rielPensando();
-    hablarRobot('Pensando', true);
-    await espera(3000);
   }
 
   async function accion(fn, { pensar = true, carta = null } = {}) {
     if (ocupado) return;
     ocupado = true;
     try {
-      if (pensar) await simularPensamientoOttoman(carta);
       const d = await fn();
       if (d && d.estado) renderizarEstado(d.estado);
       else await actualizarEstadoTruco(true);
@@ -1701,22 +1809,16 @@
   const cantarTruco = () => accion(() => postJSON('/truco/truco', {}));
   const responderCanto = (respuesta) => accion(() => postJSON('/truco/responder', { respuesta }));
   const irseAlMazo = () => accion(() => postJSON('/truco/mazo'), { pensar: false });
+  $('adaptar-rival').addEventListener('change', e => accion(() => postJSON('/truco/adaptacion', { activa: e.target.checked }), { pensar: false }));
+  $('reset-perfil').addEventListener('click', () => accion(() => postJSON('/truco/perfil/reset', {}), { pensar: false }));
 
   async function nuevaMano() {
     if (ocupado) return;
     ocupado = true;
     try {
       const d = await postJSON('/truco/nuevo');
-      if (d.estado) {
-        // Si Ottoman es mano y juega primero, mostrar su pausa de 3 s antes de su jugada
-        if (d.estado.es_mano === 'robot') {
-          renderizarEstado({ ...d.estado, mesa: [], canto_pendiente: null, ultima_frase_robot: 'Pensando...' });
-          await simularPensamientoOttoman();
-        }
-        renderizarEstado(d.estado);
-      } else {
-        await actualizarEstadoTruco(true);
-      }
+      if (d.estado) renderizarEstado(d.estado);
+      else await actualizarEstadoTruco(true);
     } catch (e) {
       await actualizarEstadoTruco(true);
     } finally {
@@ -1724,8 +1826,9 @@
     }
   }
 
-  async function reiniciarPartido(meta = metaElegida) {
-    await accion(() => postJSON('/truco/reiniciar', { meta_puntos: meta }), { pensar: false });
+  async function reiniciarPartido(meta = metaElegida, manos = manosElegidas) {
+    const cuerpo = manos ? { manos } : { meta_puntos: meta };
+    await accion(() => postJSON('/truco/reiniciar', cuerpo), { pensar: false });
   }
 
   async function cambiarModoIA(modo) {
@@ -1740,8 +1843,12 @@
   $('btn-reiniciar').addEventListener('click', () => reiniciarPartido());
   document.querySelectorAll('.sb-goal .seg button').forEach(b => b.addEventListener('click', () => {
     const m = Number(b.dataset.meta);
-    reiniciarPartido(m);
+    reiniciarPartido(m, null);
   }));
+  $('sel-manos').addEventListener('change', (e) => {
+    const n = Number(e.target.value);
+    if (n) reiniciarPartido(metaElegida, n);
+  });
 
   // ==================== VOZ EN LA MESA ====================
   async function enviarVozMesa(texto) {
@@ -1876,6 +1983,15 @@
   }
 
 
+  // menú Opciones (botón que abre un panel; Escape o clic afuera lo cierra)
+  (() => {
+    const btn = $('btn-opciones'), panel = $('menu-opciones');
+    const set = (on) => { panel.hidden = !on; btn.setAttribute('aria-expanded', on); };
+    btn.addEventListener('click', (e) => { e.stopPropagation(); set(panel.hidden); });
+    document.addEventListener('click', (e) => { if (!panel.hidden && !panel.contains(e.target)) set(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) { set(false); btn.focus(); } });
+  })();
+
   // cajón de análisis
   (() => {
     const cajon = $('cajon'), abrir = $('abrir-cajon');
@@ -1889,8 +2005,15 @@
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && cajon.dataset.abierto === 'true') { set(false); abrir.focus(); } });
   })();
 
-  setInterval(() => actualizarEstadoTruco(), 2000);
+  // Sondeo: lento en reposo, rápido mientras Ottoman piensa o juega.
+  let tPoll = null;
+  function programarPoll() {
+    clearTimeout(tPoll);
+    const ms = estadoActual?.robot?.ocupado ? 350 : 2000;
+    tPoll = setTimeout(async () => { await actualizarEstadoTruco(); programarPoll(); }, ms);
+  }
   actualizarEstadoTruco();
+  programarPoll();
 </script>
 
 </body>

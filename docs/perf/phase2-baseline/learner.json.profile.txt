@@ -1,0 +1,149 @@
+         100313382 function calls (100256447 primitive calls) in 71.324 seconds
+
+   Ordered by: cumulative time
+   List reduced from 5400 to 55 due to restriction <55>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        2    0.001    0.000   51.443   25.721 bench_phase2.py:198(validation)
+        2    0.331    0.166   51.442   25.721 phase2_card_metrics.py:78(validation_predictions)
+      225    0.010    0.000   45.556    0.202 single_dim_strategy.py:627(_resolve_foreach_elementwise_overload)
+     5748   11.865    0.002   22.002    0.004 opponent_inference.py:45(seen_cards)
+        1    0.005    0.005   21.711   21.711 phase2_card_metrics.py:50(_validation_situations)
+       56    0.030    0.001   21.692    0.387 symmetric_engine.py:36(play_match)
+     1674    0.005    0.000   21.499    0.013 phase2_card_metrics.py:41(__call__)
+     1674    0.082    0.000   21.490    0.013 phase2_torch.py:80(__call__)
+     1674    0.002    0.000   21.145    0.013 phase2_torch.py:74(encode)
+     1674    0.044    0.000   21.142    0.013 phase2_network.py:42(encode_observation)
+      902    0.003    0.000   14.331    0.016 autogen.py:337(_find_foreach_variants)
+     3348    0.025    0.000   14.210    0.004 opponent_inference.py:175(update)
+     3348    0.100    0.000   13.933    0.004 phase1_network.py:13(encode_observation)
+     2400    0.017    0.000   12.739    0.005 opponent_inference.py:138(exact_inference_from_observation)
+     2400   11.312    0.005   11.376    0.005 phase2_card_metrics.py:8(prediction_metrics)
+       68    0.001    0.000    9.996    0.147 pool.py:500(_wait_for_updates)
+        3    0.000    0.000    9.433    3.144 pool.py:362(map)
+        3    0.000    0.000    9.433    3.144 pool.py:767(get)
+      800    2.623    0.003    8.241    0.010 phase2_torch.py:39(card_distribution)
+        3    0.000    0.000    7.464    2.488 pool.py:764(wait)
+     3348    0.370    0.000    6.671    0.002 opponent_inference.py:57(v3_summaries)
+ 1201/121    0.004    0.000    5.821    0.048 serialization.py:945(save)
+        1    0.000    0.000    5.812    5.812 phase2_torch.py:29(save)
+        1    0.000    0.000    5.812    5.812 serialization.py:834(__exit__)
+        1    5.812    5.812    5.812    5.812 serialization.py:1184(_save)
+     3348    0.376    0.000    5.704    0.002 opponent_inference.py:68(_summary_arrays)
+       68    0.001    0.000    5.519    0.081 pool.py:333(_maintain_pool)
+      137    0.002    0.000    5.411    0.039 connection.py:1032(wait)
+ 40297084    5.127    0.000    5.127    0.000 {method 'intersection' of 'set' objects}
+      137    0.001    0.000    5.044    0.037 connection.py:1010(_exhaustive_wait)
+ 40297084    5.006    0.000    5.006    0.000 {method 'issubset' of 'set' objects}
+     6696    2.491    0.000    4.969    0.001 {built-in method numpy.fromiter}
+      108    0.002    0.000    4.830    0.045 connection.py:246(recv)
+       85    0.002    0.000    4.734    0.056 __init__.py:1(<module>)
+      162    0.004    0.000    4.468    0.028 library.py:441(impl)
+      800    0.002    0.000    4.366    0.005 opponent_inference.py:153(inference_from_observation)
+     4134    3.868    0.001    3.896    0.001 opponent_inference.py:29(__init__)
+      204    0.002    0.000    2.958    0.015 {method 'cancel' of '_winapi.Overlapped' objects}
+  112/108    0.002    0.000    2.857    0.026 connection.py:310(_recv_bytes)
+ 16108526    2.478    0.000    2.478    0.000 opponent_inference.py:70(<genexpr>)
+        3    0.002    0.001    2.262    0.754 bench_phase2.py:47(map)
+      120    0.001    0.000    2.256    0.019 connection.py:202(send)
+      127    0.001    0.000    2.237    0.018 connection.py:284(_send_bytes)
+    42/25    0.002    0.000    1.894    0.076 library.py:272(define)
+       72    0.000    0.000    1.593    0.022 queues.py:374(empty)
+       68    0.001    0.000    1.590    0.023 pool.py:289(_join_exited_workers)
+      828    0.001    0.000    1.589    0.002 process.py:224(exitcode)
+    30361    1.425    0.000    1.425    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+        1    0.000    0.000    1.325    1.325 _shard_utils.py:1(<module>)
+        1    0.001    0.001    1.322    1.322 autogen.py:509(auto_register_op_variants)
+     1074    1.270    0.001    1.270    0.001 {built-in method torch.tensor}
+        8    0.077    0.010    1.098    0.137 opponent_inference.py:124(compatible_mask)
+    16828    0.012    0.000    1.064    0.000 {method 'any' of 'numpy.ndarray' objects}
+    16828    0.006    0.000    1.052    0.000 _methods.py:55(_any)
+     1600    0.825    0.001    0.864    0.001 opponent_inference.py:34(distribution)
+
+
+         100313382 function calls (100256447 primitive calls) in 71.324 seconds
+
+   Ordered by: internal time
+   List reduced from 5400 to 35 due to restriction <35>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+     5748   11.865    0.002   22.002    0.004 opponent_inference.py:45(seen_cards)
+     2400   11.312    0.005   11.376    0.005 phase2_card_metrics.py:8(prediction_metrics)
+   400/68    9.335    0.023    0.001    0.000 {built-in method _winapi.WaitForMultipleObjects}
+        1    5.812    5.812    5.812    5.812 serialization.py:1184(_save)
+ 40297084    5.127    0.000    5.127    0.000 {method 'intersection' of 'set' objects}
+ 40297084    5.006    0.000    5.006    0.000 {method 'issubset' of 'set' objects}
+     4134    3.868    0.001    3.896    0.001 opponent_inference.py:29(__init__)
+      800    2.623    0.003    8.241    0.010 phase2_torch.py:39(card_distribution)
+     6696    2.491    0.000    4.969    0.001 {built-in method numpy.fromiter}
+ 16108526    2.478    0.000    2.478    0.000 opponent_inference.py:70(<genexpr>)
+    30361    1.425    0.000    1.425    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+     1074    1.270    0.001    1.270    0.001 {built-in method torch.tensor}
+     1600    0.825    0.001    0.864    0.001 opponent_inference.py:34(distribution)
+      554    0.697    0.001    0.745    0.001 opponent_inference.py:50(truco_call)
+      808    0.677    0.001    0.677    0.001 {method 'sum' of 'torch._C.TensorBase' objects}
+        8    0.381    0.048    0.381    0.048 {method 'run_backward' of 'torch._C._EngineBase' objects}
+     3348    0.376    0.000    5.704    0.002 opponent_inference.py:68(_summary_arrays)
+     3348    0.370    0.000    6.671    0.002 opponent_inference.py:57(v3_summaries)
+        2    0.331    0.166   51.442   25.721 phase2_card_metrics.py:78(validation_predictions)
+      815    0.315    0.000    0.315    0.000 {built-in method _io.open_code}
+     8278    0.241    0.000    0.241    0.000 {built-in method torch._C._nn.linear}
+      318    0.237    0.001    0.237    0.001 opponent_inference.py:38(declared_tantos)
+    13539    0.222    0.000    0.222    0.000 {method 'cumsum' of 'numpy.ndarray' objects}
+       98    0.170    0.002    0.170    0.002 opponent_inference.py:41(son_buenas)
+     3117    0.151    0.000    0.152    0.000 {built-in method nt.stat}
+    36984    0.128    0.000    0.147    0.000 {built-in method builtins.sum}
+   2453/0    0.105    0.000    0.000          {built-in method builtins.exec}
+     3348    0.100    0.000   13.933    0.004 phase1_network.py:13(encode_observation)
+     2072    0.093    0.000    0.093    0.000 opponent_inference.py:168(reset)
+     1674    0.082    0.000   21.490    0.013 phase2_torch.py:80(__call__)
+        8    0.077    0.010    1.098    0.137 opponent_inference.py:124(compatible_mask)
+     1619    0.075    0.000    0.075    0.000 {built-in method nt._getfinalpathname}
+      815    0.075    0.000    0.075    0.000 {built-in method marshal.loads}
+      815    0.059    0.000    0.136    0.000 <frozen importlib._bootstrap_external>:755(_compile_bytecode)
+      216    0.050    0.000    0.164    0.001 {built-in method _pickle.dumps}
+
+
+Sun Nov  8 20:01:36 2026    docs\perf\phase2-baseline\learner.json.pstats
+
+         100313382 function calls (100256447 primitive calls) in 71.324 seconds
+
+   Ordered by: cumulative time
+   List reduced from 5400 to 35 due to restriction <'compatible_mask|backward|adam.py|cross_entropy|optimizer.py'>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        8    0.077    0.010    1.098    0.137 opponent_inference.py:124(compatible_mask)
+        8    0.000    0.000    0.382    0.048 _tensor.py:566(backward)
+        8    0.000    0.000    0.382    0.048 __init__.py:255(backward)
+        8    0.000    0.000    0.382    0.048 graph.py:1100(_engine_run_backward)
+        8    0.381    0.048    0.381    0.048 {method 'run_backward' of 'torch._C._EngineBase' objects}
+        8    0.000    0.000    0.024    0.003 functional.py:3478(cross_entropy)
+        8    0.024    0.003    0.024    0.003 {built-in method torch._C._nn.cross_entropy_loss}
+        8    0.000    0.000    0.016    0.002 optimizer.py:546(wrapper)
+        8    0.000    0.000    0.015    0.002 optimizer.py:59(_use_grad)
+        8    0.000    0.000    0.015    0.002 adam.py:215(step)
+        8    0.000    0.000    0.014    0.002 optimizer.py:140(maybe_fallback)
+        8    0.000    0.000    0.014    0.002 adam.py:903(adam)
+        8    0.002    0.000    0.013    0.002 adam.py:348(_single_tensor_adam)
+        8    0.000    0.000    0.001    0.000 optimizer.py:1065(zero_grad)
+        8    0.000    0.000    0.001    0.000 adam.py:140(_init_group)
+       80    0.000    0.000    0.000    0.000 optimizer.py:97(_get_value)
+        8    0.000    0.000    0.000    0.000 optimizer.py:170(_default_to_fused_or_foreach)
+        1    0.000    0.000    0.000    0.000 adam.py:36(__init__)
+        1    0.000    0.000    0.000    0.000 optimizer.py:406(__init__)
+        1    0.000    0.000    0.000    0.000 optimizer.py:1(<module>)
+       16    0.000    0.000    0.000    0.000 optimizer.py:187(<genexpr>)
+        2    0.000    0.000    0.000    0.000 optimizer.py:717(state_dict)
+        8    0.000    0.000    0.000    0.000 optimizer.py:485(_accelerator_graph_capture_health_check)
+        2    0.000    0.000    0.000    0.000 optimizer.py:778(pack_group)
+       88    0.000    0.000    0.000    0.000 adam.py:948(<genexpr>)
+        1    0.000    0.000    0.000    0.000 optimizer.py:1144(add_param_group)
+        1    0.000    0.000    0.000    0.000 optimizer.py:88(OptimizerVariable)
+        1    0.000    0.000    0.000    0.000 optimizer.py:598(_patch_step_function)
+       26    0.000    0.000    0.000    0.000 optimizer.py:247(_to_scalar)
+        1    0.000    0.000    0.000    0.000 optimizer.py:544(profile_hook_step)
+       10    0.000    0.000    0.000    0.000 optimizer.py:221(_get_scalar_dtype)
+        1    0.000    0.000    0.000    0.000 optimizer.py:441(OptimizerCapturableVariable)
+        8    0.000    0.000    0.000    0.000 optimizer.py:532(_optimizer_step_code)
+        1    0.000    0.000    0.000    0.000 optimizer.py:57(ArgMappingException)
+        1    0.000    0.000    0.000    0.000 optimizer.py:61(GuardInstallException)

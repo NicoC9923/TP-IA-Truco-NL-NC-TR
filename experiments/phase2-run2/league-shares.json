@@ -1,0 +1,3 @@
+{"self": 0.30, "snapshot": 0.20, "phase1": 0.10, "bluffer": 0.05,
+ "cautious": 0.05, "aggressive": 0.05, "calculating": 0.05,
+ "reactive": 0.10, "adaptive_utility": 0.10}

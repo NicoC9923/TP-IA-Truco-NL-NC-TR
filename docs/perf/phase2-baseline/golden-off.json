@@ -1,0 +1,47 @@
+{
+  "golden": {
+    "model": "01ef69a121847831d157ce0f3ba8d8ead7661870bce3561bbf650456b62bfcc0",
+    "optimizer": "0f1ca1d48b1ec53c12667a511dbe07dfaab4ccda3b3c109a799b7d4d2280c073",
+    "log": "3756f48ced48336a92c5b1d57923cebe6e85d274d1c5dcf8693e343bc11b13e8",
+    "samples": 688,
+    "updates": 24,
+    "checkpoints": {
+      "checkpoint_000002.pt": "c2bc31e8338c81d02c2effd74afb172903592fee556c043d7d8b0e106336ac06",
+      "checkpoint_000004.pt": "4e5b3dc47681cc070746381ca4cd85109c8033b7743912dbec79ba44ba37f8e3"
+    },
+    "snapshots": {
+      "generation_000001.pt": "7120f429670ad5e424099365af8c068ff2c9f678f43824c39c2592eaad497794",
+      "generation_000002.pt": "db052ab9af711a0122ca314b3e0efbe2d24093638efbdae83c1e47b576ae11b6"
+    }
+  },
+  "workers": 1,
+  "resume": false,
+  "resume_round": null,
+  "auxiliary": false,
+  "configuration": {
+    "generations": 2,
+    "matches_per_generation": 16,
+    "matches_per_round": 8,
+    "block_size": 4,
+    "workers": 1,
+    "seed": 35,
+    "check_seed_base": 10000,
+    "target": "mixed",
+    "minibatch": 32,
+    "panel_path": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p2-engine-fix\\experiments\\phase2-selection-panel\\panel-v0-measuring.json",
+    "panel_pairs": 2,
+    "head_to_head_pairs": 2,
+    "auxiliary": false,
+    "card_prediction_situations": 8,
+    "progress": true,
+    "champions_dir": null
+  },
+  "environment": {
+    "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "torch": "2.15.0+cpu",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "cpu": "AMD64 Family 26 Model 68 Stepping 0, AuthenticAMD",
+    "logical_cpus": 16,
+    "revision": "8a454b8f783de23d181380d28c8d30888e74da95"
+  }
+}

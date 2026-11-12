@@ -1,0 +1,20 @@
+PHASE 2 FINAL EXAM, RUN 3. Pre-registration, 2026-11-11, ADR 0061 (exam) and ADR 0062 (greedy play).
+Frozen before any game (approved by an independent advisor in the user's absence, under the user's standing authorization). One run; no retry, extension, reselection or threshold change. Config: experiments/phase2-run3-exam/config.json (identities, hashes, seeds); tool: proyecto/phase2_final_exam.py part-e --config experiments/phase2-run3-exam/config.json --workers 12.
+
+RUN 3 OUTCOME (fixed facts)
+- Ended on the 12 h time cap (43,200 s active; done.json train 0) after 12,487,920 matches; generations 1-100 checked, generation 101 partial. Promotions: 2, 11, 19, 22, 56, 61, 73. Moved once into an Orca terminal by deterministic resume (operational note in experiments/phase2-run3/RULE.txt).
+
+IDENTITIES (the tool refuses on any mismatch)
+- C1 (first candidate): run 3 champion, champions/phase2-run3/reigning_champion.pt SHA256 9866d6e406ef23502976d201cf185702aae9aec46388c37ba3a32ce050c20a47, tensors equal to training_output/phase2-run3/generation_000073.pt (SHA256 3949141192c4024396b0a86a84120197845ebb276f65a797461dca9d45a24811), sidecar generation 73, selection greedy, prior 5; encoder v3 (1635 inputs).
+- C2 (second candidate): run 3 last fully checked generation 100, training_output/phase2-run3/generation_000100.pt SHA256 a57a6b5cd6e3b95f4ab2fbc8b221e948c9e4ca97ea9e9547b76deddbac16358e; greedy, prior 5; encoder v3.
+- B (baseline): shipped run 2 g38, champions/phase2/reigning_champion.pt SHA256 95eee708e8839233c27e4b3d710b6b5da74f3a149f7fe5ce8deef4cb720b60bf, sidecar selection greedy; greedy, prior 5; encoder v1 (1628 inputs).
+- Opponents, index order: 0 AU fixed Adaptive Utility; 1 R Reactive; 2 P1 phase 1 g48 (0b3e04fa...47f7, encoder v1); 3 H1 v1s1-g23 (41354252...b31c); 4 H2 v1s2-g2 (5f00bfba...3e79). All three evaluated networks play greedy; there is no Part T.
+
+PROTOCOL, STATISTICS AND DECISION
+- Identical to experiments/phase2-final-exam/RULE.txt Part E: validation partition 0, start 0-0, target 15 for even pair index and 30 for odd; mirror pairs; fresh policies, profiles and RNGs every game; the same deal and action seeds for C1, C2 and B within a block; 1000 pairs per opponent.
+- Deal seed = 2*((93001 + k)*10^9 + i); action seed = 2^133 + (((k*1000 + i)*2 + game)*2 + seat). Audited by the tool against every namespace used since run 2.
+- Pass for candidate c: primary = paired gain over B vs AU > 0 by one-sided Holm over {C1, C2} at overall alpha 0.025 (a test rejects when p <= its level); guardrails = 95% lower bound of the paired gain > -0.02 against each of R, P1, H1, H2; balance = equal-weight mean gain over the five opponents > 0.
+- Decision: if C1 passes, C1 ships; else if C2 passes, C2 ships; else B (run 2 g38) stays. Report every gain, interval and win rate whatever the outcome.
+
+CLAIMS
+- AU, R and the panel were run 3 training/selection opponents (familiar). P1, H1 and H2 were never in run 3's training or selection. C1 was selected by run 3's own promotion checks; C2 is fixed by rule (last checked generation). Run 3 differs from run 2 in inputs, target, training temperature, check size and selection, so the exam does not isolate any one change. It decides shipping; it is not an estimate of general strength.

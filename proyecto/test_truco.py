@@ -128,7 +128,7 @@ class TestMazoYFalta(unittest.TestCase):
 
 class TestAprendizajePublico(unittest.TestCase):
     def test_partidas_por_modo_conservan_o_actualizan_aprendizaje(self):
-        for modo in ("reactivo", "utilidad", "aprendizaje"):
+        for modo in ("reactivo", "utilidad_adaptativa"):
             with self.subTest(modo=modo), tempfile.TemporaryDirectory() as tmp:
                 ruta = str(Path(tmp) / "h.json")
                 partida = PartidaTruco(robot=None, historial_path=ruta, rng=random.Random(0))
@@ -144,7 +144,7 @@ class TestAprendizajePublico(unittest.TestCase):
                     else:
                         partida.irse_al_mazo_humano()
                 final = partida.estado_publico()["aprendizaje_ia"]
-                if modo != "aprendizaje":
+                if modo != "utilidad_adaptativa":
                     self.assertEqual([final[c] for c in campos], [inicial[c] for c in campos])
                 else:
                     self.assertNotEqual([final[c] for c in campos], [inicial[c] for c in campos])
@@ -153,6 +153,18 @@ class TestAprendizajePublico(unittest.TestCase):
                 recargada = PartidaTruco(robot=None, historial_path=ruta, rng=random.Random(0)).estado_publico()["aprendizaje_ia"]
                 self.assertEqual([recargada[c] for c in campos], [final[c] for c in campos])
                 self.assertEqual(recargada["partidas"][0]["modo_agente"], modo)
+
+    def test_old_mode_history_is_exposed_as_adaptive_utility(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "history.json"
+            path.write_text(json.dumps({"parametros_ia": {}, "partidas": [
+                {"id": 1, "modo_agente": "utilidad"},
+                {"id": 2, "modo_agente": "aprendizaje"},
+                {"id": 3, "modo_agente": "reactivo"},
+            ]}), encoding="utf-8")
+            summary = PartidaTruco(historial_path=str(path), rng=random.Random(0)).estado_publico()["aprendizaje_ia"]
+            self.assertEqual([p["modo_agente"] for p in summary["partidas"]],
+                             ["reactivo", "utilidad_adaptativa", "utilidad_adaptativa"])
 
     def test_envido_querido_revela_farol_y_actualiza_umbral(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -205,6 +217,32 @@ class TestAprendizajePublico(unittest.TestCase):
 
 
 class TestServidorHTTP(unittest.TestCase):
+    def test_adaptive_utility_mode_endpoint(self):
+        from servidor_truco import crear_servidor
+        with tempfile.TemporaryDirectory() as tmp:
+            partida = PartidaTruco(historial_path=str(Path(tmp) / "h.json"), rng=random.Random(0))
+            servidor = crear_servidor(partida, puerto=0, sin_robot=True)
+            hilo = threading.Thread(target=servidor.serve_forever, daemon=True)
+            hilo.start()
+            try:
+                def change(mode):
+                    conn = http.client.HTTPConnection("127.0.0.1", servidor.server_port)
+                    conn.request("POST", "/truco/modo_ia", json.dumps({"modo": mode}))
+                    response = conn.getresponse()
+                    status, data = response.status, json.loads(response.read())
+                    conn.close()
+                    return status, data
+                self.assertEqual(change("reactivo")[0], 200)
+                self.assertEqual(change("utilidad")[0], 400)
+                self.assertEqual(partida.estado_publico()["aprendizaje_ia"]["modo_agente"], "reactivo")
+                status, data = change("utilidad_adaptativa")
+                self.assertEqual(status, 200)
+                summary = data["estado"]["aprendizaje_ia"]
+                self.assertEqual(summary["modo_agente"], "utilidad_adaptativa")
+                self.assertEqual([m["nombre"] for m in summary["modos_disponibles"]], ["Reactivo", "Utilidad adaptativa", "Red neuronal · Algoritmos genéticos", "Red neuronal · Aprendizaje por refuerzo"])
+            finally:
+                servidor.shutdown(); hilo.join(); servidor.server_close()
+
     def test_fallo_robot_avisa_una_vez_por_cambio(self):
         from servidor_truco import crear_servidor
         with tempfile.TemporaryDirectory() as tmp:
@@ -532,17 +570,55 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual(resultados[0], resultados[1])
         self.assertEqual(partidas[0].estado_publico(), partidas[1].estado_publico())
 
+    def _partida_robot_mano(self, semilla, nombre="h.json"):
+        """Robot is mano and opens with a truco: the human is the pie and has not played yet (ADR 0068)."""
+        partida = PartidaTruco(robot=None, historial_path=str(Path(self._tmpdir.name) / nombre), rng=random.Random(semilla))
+        partida.mano_terminada = True
+        partida.nueva_mano()
+        return partida
+
     def test_envido_suspende_truco_robot_y_lo_restituye(self):
-        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(1))
-        partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+        partida = self._partida_robot_mano(172)
         original = partida.estado_publico()["canto_pendiente"].copy()
         self.assertEqual(original["tipo"], "TRUCO")
         self.assertTrue(partida.estado_publico()["envido_disponible"])
         estado = partida.responder_canto_humano("ENVIDO")["estado"]
         while estado["canto_pendiente"] and estado["canto_pendiente"]["tipo"] == "ENVIDO":
             estado = partida.responder_canto_humano("NO_QUIERO")["estado"]
-        self.assertEqual(estado["canto_pendiente"], original)
+        self.assertEqual(estado["canto_pendiente"]["canto"], original["canto"])
+        self.assertEqual(estado["canto_pendiente"]["opciones"], ["QUIERO", "NO_QUIERO", "RETRUCO"])
+        self.assertTrue(estado["canto_pendiente"]["reanudado_tras_envido"])
         self.assertEqual(estado["canto_pendiente"]["puntos_quiero"], 2)
+
+    def test_robot_no_canta_envido_tras_truco_querido(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(25))
+        estado = partida.cantar_truco_humano("TRUCO")["estado"]
+        self.assertEqual(estado["apuesta_truco"], "TRUCO")
+        estado = partida.jugar_carta_humano(estado["cartas_humano_disponibles"][0])["estado"]
+        self.assertNotEqual((estado["canto_pendiente"] or {}).get("tipo"), "ENVIDO")
+
+    def test_retruco_no_ofrece_envido_tras_truco_querido(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(1))
+        estado = partida.cantar_truco_humano("TRUCO")["estado"]
+        estado = partida.jugar_carta_humano(estado["cartas_humano_disponibles"][0])["estado"]
+        self.assertEqual(estado["canto_pendiente"]["canto"], "RETRUCO")
+        self.assertEqual(estado["canto_pendiente"]["opciones"], ["QUIERO", "NO_QUIERO", "VALE_CUATRO"])
+
+    def test_envido_querido_devuelve_estado_despues_del_turno_robot(self):
+        partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(2))
+        estado = partida.estado_publico()
+        estado = partida.jugar_carta_humano(estado["cartas_humano_disponibles"][0])["estado"]
+        self.assertEqual(estado["canto_pendiente"]["tipo"], "ENVIDO")
+        resultado = partida.responder_canto_humano("QUIERO")
+        self.assertEqual(resultado["estado"], partida.estado_publico())
+
+    def test_rechazar_real_envido_muestra_resultado_antes_del_truco(self):
+        partida = self._partida_robot_mano(172)
+        estado = partida.responder_canto_humano("ENVIDO")["estado"]
+        self.assertEqual(estado["canto_pendiente"]["canto"], "REAL_ENVIDO")
+        estado = partida.responder_canto_humano("NO_QUIERO")["estado"]
+        self.assertEqual(estado["resultado_envido"], {"ganador": "robot", "puntos_ganados": 2, "motivo": "No querido por vos"})
+        self.assertTrue(estado["canto_pendiente"]["reanudado_tras_envido"])
 
     def test_truco_humano_vuelve_despues_del_envido_robot(self):
         partida = PartidaTruco(robot=None, historial_path=self.tmp_hist, rng=random.Random(2))
@@ -555,13 +631,11 @@ class TestTrucoReglasYMotor(unittest.TestCase):
                         (estado["canto_pendiente"] and estado["canto_pendiente"]["tipo"] == "TRUCO"))
 
     def test_truco_robot_se_reanuda_tras_cada_resolucion_del_envido(self):
-        casos = [(11, None, "QUIERO", 2), (1, None, "NO_QUIERO", 1),
-                 (54, "QUIERO", "QUIERO", 5), (54, "NO_QUIERO", "NO_QUIERO", 2)]
+        casos = [(18, None, "QUIERO", 2), (5, None, "NO_QUIERO", 1),
+                 (172, "QUIERO", "QUIERO", 5), (172, "NO_QUIERO", "NO_QUIERO", 2)]
         for i, (semilla, respuesta_humana, respuesta_envido, puntos) in enumerate(casos):
             with self.subTest(semilla=semilla, respuesta=respuesta_envido):
-                partida = PartidaTruco(robot=None, historial_path=str(Path(self._tmpdir.name) / f"robot{i}.json"),
-                                       rng=random.Random(semilla))
-                partida.jugar_carta_humano(partida.estado_publico()["cartas_humano_disponibles"][0])
+                partida = self._partida_robot_mano(semilla, f"robot{i}.json")
                 original = copy.deepcopy(partida.estado_publico()["canto_pendiente"])
                 self.assertEqual(original["tipo"], "TRUCO")
                 self.assertEqual(original["quien_canto"], "robot")
@@ -576,7 +650,8 @@ class TestTrucoReglasYMotor(unittest.TestCase):
                 self.assertEqual(resultado["respuesta"], respuesta_envido)
                 estado = resultado["estado"]
                 self.assertTrue(estado["envido_resuelto"])
-                self.assertEqual(estado["canto_pendiente"], original)
+                self.assertEqual(estado["canto_pendiente"], {**original, "opciones": ["QUIERO", "NO_QUIERO", "RETRUCO"],
+                                                            "reanudado_tras_envido": True})
                 self.assertIn("QUIERO", original["opciones"])
                 self.assertIn("NO_QUIERO", original["opciones"])
                 self.assertEqual(sum(estado["tanteador"][j] for j in ("humano", "robot")), puntos)
@@ -645,10 +720,10 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         partida.irse_al_mazo_humano()
         aprendizaje = partida.estado_publico()["aprendizaje_ia"]
         paso = aprendizaje["traza_razonamiento"][0]
-        self.assertEqual(paso["decision"], "ENVIDO (FAROL)")
+        self.assertEqual(paso["decision"], "ENVIDO (MENTIRA)")
         self.assertIn("tantos", paso["metrica"])
         self.assertTrue(paso["umbral"])
-        self.assertIn("Farol", paso["farol_info"])
+        self.assertIn("Mentira", paso["farol_info"])
         self.assertEqual(aprendizaje["ultimo_razonamiento"], paso)
     def test_carta_ajena_no_cambia_mano_mesa_ni_turno(self):
         partida = PartidaTruco(robot=None, historial_path=self.tmp_hist)
@@ -751,7 +826,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
 
     def test_primera_ejecucion_crea_historial_desde_semilla(self):
         carpeta = Path(self._tmpdir.name)
-        for nombre in ('partida_truco.py', 'truco_ia.py', 'truco_reglas.py', 'historial_truco.py', 'truco_stats.json', 'historial_partidas.seed.json'):
+        for nombre in ('partida_truco.py', 'truco_ia.py', 'truco_reglas.py', 'historial_truco.py', 'truco_stats.json', 'historial_partidas.seed.json', 'opponent_profile.py', 'opponent_inference.py', 'phase1_network.py', 'symmetric_engine.py', 'ritmo.py', 'voz_jugador.py'):
             shutil.copy(PROYECTO_DIR / nombre, carpeta / nombre)
         subprocess.run([sys.executable, '-c', 'from partida_truco import PartidaTruco; PartidaTruco(robot=None)'], cwd=carpeta, check=True, capture_output=True)
         historial = carpeta / 'historial_partidas.json'
@@ -833,7 +908,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         partida = PartidaTruco(robot=None, meta_puntos=15, historial_path=self.tmp_hist)
         partida.es_mano_humano = True
         partida.nueva_mano(primera_vez=True)
-        # Forzar farol de Envido y Truco al 100% con cartas bajas para Ottoman
+        # Forzar mentira de Envido y Truco al 100% con cartas bajas para Ottoman
         partida.ia.prob_farol_envido = 1.0
         partida.ia.prob_farol_truco = 1.0
         partida.cartas_robot = [
@@ -854,7 +929,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
             es_farol=partida.ia.ultimo_canto_fue_farol,
             detalle_farol=partida.ia.ultimo_detalle_farol,
         )
-        # El humano dice NO QUIERO: el farol de Ottoman resulta exitoso
+        # El humano dice NO QUIERO: la mentira de Ottoman resulta exitoso
         partida.responder_canto_humano("NO_QUIERO")
 
         self.assertEqual(partida.estadisticas_partida["envido"]["bluffs_intentados"], 1)
@@ -867,7 +942,7 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         p_truco_ini = ia.prob_farol_truco
 
         # Si el humano siempre se retira ("NO QUIERO") ante cantos de Truco del robot,
-        # la IA incrementa su frecuencia de farol en Truco
+        # la IA incrementa su frecuencia de mentira en Truco
         for _ in range(5):
             ia.registrar_respuesta_humano_a_canto("TRUCO", quiso=False, era_farol_robot=True)
         self.assertGreater(ia.prob_farol_truco, p_truco_ini)
@@ -937,17 +1012,12 @@ class TestTrucoReglasYMotor(unittest.TestCase):
         self.assertEqual((c_reac["valor"], c_reac["palo"]), (1, "Espada"))
         self.assertEqual(partida.ia.ultimo_razonamiento["modo_codigo"], "reactivo")
 
-        # 2. En modo Basado en Utilidad (474k), abre con su intermedia fuerte (7 de Oro) y reserva el Ancho
-        partida.cambiar_modo_ia("utilidad")
-        self.assertEqual(partida.ia.modo_agente, "utilidad")
+        # Adaptive Utility preserves the former learning-mode card choice and trace.
+        est = partida.cambiar_modo_ia("utilidad_adaptativa")
+        self.assertEqual(est["aprendizaje_ia"]["modo_agente"], "utilidad_adaptativa")
         c_util = partida.ia.elegir_carta_a_jugar(mano_media, ronda=1)
         self.assertEqual((c_util["valor"], c_util["palo"]), (7, "Oro"))
         self.assertGreaterEqual(len(partida.ia.traza_razonamiento), 2)
-
-        # 3. Volver a modo Aprendizaje Adaptativo
-        est = partida.cambiar_modo_ia("aprendizaje")
-        self.assertEqual(est["aprendizaje_ia"]["modo_agente"], "aprendizaje")
-        self.assertTrue(len(est["aprendizaje_ia"]["traza_razonamiento"]) >= 2)
 
     def test_turno_automatico_cuando_robot_es_mano(self):
         partida = PartidaTruco(robot=None, meta_puntos=15, historial_path=self.tmp_hist)

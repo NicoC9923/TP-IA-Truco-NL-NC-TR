@@ -7,7 +7,7 @@ The Truco UI (`proyecto/voz.html`) is styled as a live TV broadcast of a Truco m
 - **Scene:** a dimmed classroom with a projector, viewed from several meters away. The UI is dark only, and that is deliberate.
 - **Material:** flat broadcast plates on deep studio navy. The lower-third, the canto and the final plate have slanted cuts made with `clip-path` and `--cut: 14px`; the scorebug is square-cornered. Shadows are minimal (`--shadow-1` 0 1px 2px, `--shadow-2` 0 2px 8px) and plates carry no drop-shadow filters. There is no glow, no glass and no gradient text. The only gradient is the radial "studio light" on the table shot.
 - **Teams carry color:** Ottoman is scorebug yellow `--ott #ffcc29` and Vos is celeste `--vos #5cc6ff`. Every reference to a player uses that player's color: score, turn tag, baza winner, card slots, the lower-third tab.
-- **Red is reserved** (`--live #f03c3c`) for EN VIVO (simulator connected), FAROL (a bluff), blocked commands and Al mazo.
+- **Red is reserved** (`--live #f03c3c`) for EN VIVO (simulator connected), MENTIRA (a bluff), blocked commands and Al mazo.
 
 ## Tokens
 
@@ -36,11 +36,11 @@ The Truco UI (`proyecto/voz.html`) is styled as a live TV broadcast of a Truco m
 - **Table shot:** Ottoman's row (face-down backs, flipped to faces at the end of a hand), then three baza frames (Ottoman's card on top, yours below, the winner tag, the active baza outlined in yellow), then the lower-third, then your hand, then the call row.
 - **Lower-third (zócalo):** a yellow name tab and a white bar with Ottoman's line in quotes. Under the line sits its "proof": the decision badge, the metric and the threshold from `ultimo_razonamiento`. While Ottoman thinks it switches to navy with a scan bar.
 - **Canto:** replaces the lower-third. A full-width yellow slab wipes in with the canto at display size, the stakes, and the response buttons (green for quiero, dark red for no quiero, black for raises).
-- **Reveal (hole-card cam):** Ottoman's three cards flip face up. Cards it kept are outlined in yellow ("Se la guardó"). The verdict shows who won the hand, Ottoman's real tantos, the envido result, and each FAROL with its outcome (or "Jugó derecho").
+- **Reveal (hole-card cam):** Ottoman's three cards flip face up. Cards it kept are outlined in yellow ("Se la guardó"). The verdict shows who won the hand, Ottoman's real tantos, the envido result, and each MENTIRA with its outcome (or "Jugó derecho").
 - **Layout:** the table shot takes the page. A slim 220px strip on the left holds the inputs: the camera with its two buttons and status line, push-to-talk with a short phrase hint, and the text field. At 1100px and below the strip drops under the table.
 - **Analysis drawer:** hidden by default. "Ver análisis" in the top bar opens it on the right, below the header, and the table shifts left so nothing is covered. Cerrar or Esc closes it. In order it holds:
   - Por qué jugó así (the decision trace)
-  - Faroles (bluff-quota meters, this match's bluff table, the read on your play)
+  - Mentiras (bluff-quota meters, this match's bluff table, the read on your play)
   - Cerebro (agent nameplates; only the active one shows its description)
   - Relato (the play-by-play log)
 - The lower-third's proof line keeps Ottoman's latest reasoning visible while the drawer is closed.

@@ -1,0 +1,13 @@
+Pre-registered (2026-11-08, before training): seed 2 matched comparison of encoders.
+Runs (from scratch, seed 2, otherwise identical to the v2/v3 seed 1 runs: workers 12, population 64, pairs 16, generations 100, patience 50,
+validation-pairs 1000, check-batch 200, early-stop reject-only, promotion-threshold 0.55, finalists 8, finalist-pairs-multiplier 4,
+output-init-sigma 0.3, fitness-mode classic, points-weight 0.1, style-strength 0.5, styles-after-first-promotion):
+  training_output/phase1_encoder_v2_seed2 (--encoder v2), then training_output/phase1_encoder_v3_seed2 (--encoder v3).
+Existing v1 baseline: experiments/phase1-seed2/reigning_champion.npy (v1 seed 2 terminal champion, gen 2; it used generations 1000/patience 50 and stopped at gen 52).
+Each run's terminal reigning champion is frozen before evaluation.
+Comparisons (proyecto/panel_evaluation.py, panel-v1, 4000 direct pairs, 1000 per member, ADR 0031 decision rule):
+  C1: v2 seed 2 vs v1 seed 2   -> schedule seeds 9211 (direct) / 9212 (panel)
+  C2: v3 seed 2 vs v2 seed 2   -> schedule seeds 9213 (direct) / 9214 (panel)
+  C3 (descriptive): v3 seed 2 vs v1 seed 2 -> 9215 / 9216
+Interpretation: v2 "replicates" if C1 is promising. v3's seed 1 failure "replicates" if C2 is NOT promising AND its direct rate is < 50%.
+If C2 is promising, the seed 1 v3 result is treated as seed-dependent. No retries, no other checkpoints; reference results descriptive only.

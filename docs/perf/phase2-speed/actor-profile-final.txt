@@ -1,0 +1,117 @@
+matches=40 samples=1461 wall=0.929s
+         1068803 function calls (1067079 primitive calls) in 0.929 seconds
+
+   Ordered by: cumulative time
+   List reduced from 450 to 60 due to restriction <60>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.001    0.001    0.929    0.929 phase2_trainer.py:212(_league_chunk)
+       10    0.003    0.000    0.928    0.093 phase2_trainer.py:154(_league_block)
+       40    0.025    0.001    0.887    0.022 symmetric_engine.py:39(play_match)
+     1946    0.063    0.000    0.761    0.000 phase2_torch.py:142(__call__)
+     1946    0.002    0.000    0.515    0.000 phase2_torch.py:136(encode)
+     1946    0.033    0.000    0.513    0.000 phase2_network.py:44(encode_observation)
+     2705    0.052    0.000    0.376    0.000 phase1_network.py:13(encode_observation)
+     2633    0.046    0.000    0.259    0.000 opponent_inference.py:148(v3_summaries)
+     1946    0.011    0.000    0.131    0.000 phase2_torch.py:81(_q_values)
+     2705    0.080    0.000    0.119    0.000 opponent_inference.py:166(_summary_arrays)
+     7040    0.008    0.000    0.097    0.000 opponent_inference.py:39(_ordered_sum)
+     8221    0.004    0.000    0.091    0.000 fromnumeric.py:48(_wrapfunc)
+     7040    0.003    0.000    0.088    0.000 fromnumeric.py:2838(cumsum)
+     5838    0.086    0.000    0.086    0.000 {built-in method torch._C._nn.linear}
+     7040    0.080    0.000    0.080    0.000 {method 'cumsum' of 'numpy.ndarray' objects}
+     3964    0.010    0.000    0.080    0.000 opponent_inference.py:291(update)
+     1181    0.011    0.000    0.031    0.000 opponent_inference.py:55(__init__)
+       10    0.000    0.000    0.030    0.003 phase2_torch.py:38(__init__)
+     2326    0.003    0.000    0.028    0.000 symmetric_engine.py:19(bluff)
+     9604    0.027    0.000    0.027    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+     3964    0.014    0.000    0.026    0.000 opponent_inference.py:112(seen_cards)
+    16210    0.010    0.000    0.024    0.000 {built-in method builtins.min}
+     1946    0.006    0.000    0.021    0.000 opponent_inference.py:87(same_posterior)
+     1961    0.005    0.000    0.020    0.000 opponent_inference.py:68(_total)
+    20747    0.013    0.000    0.019    0.000 {built-in method builtins.sum}
+      730    0.005    0.000    0.018    0.000 random.py:350(shuffle)
+       72    0.002    0.000    0.018    0.000 phase1_network.py:116(__call__)
+     1946    0.006    0.000    0.017    0.000 phase2_torch.py:98(_hooked)
+       30    0.000    0.000    0.016    0.001 linear.py:96(__init__)
+    23391    0.011    0.000    0.015    0.000 truco_reglas.py:23(valor_carta_truco)
+    28470    0.009    0.000    0.013    0.000 random.py:242(_randbelow_with_getrandbits)
+    77832    0.009    0.000    0.013    0.000 symmetric_engine.py:26(<lambda>)
+       10    0.000    0.000    0.013    0.001 _compile.py:42(inner)
+       10    0.000    0.000    0.013    0.001 eval_frame.py:1527(_fn)
+       10    0.000    0.000    0.013    0.001 random.py:49(manual_seed)
+       10    0.000    0.000    0.013    0.001 random.py:62(_manual_seed_impl)
+      308    0.001    0.000    0.013    0.000 engine_policies.py:15(__call__)
+       30    0.000    0.000    0.013    0.000 traceback.py:214(format_stack)
+       30    0.000    0.000    0.012    0.000 linear.py:117(reset_parameters)
+     3247    0.002    0.000    0.012    0.000 {method 'sum' of 'numpy.ndarray' objects}
+       30    0.000    0.000    0.012    0.000 init.py:554(kaiming_uniform_)
+      581    0.001    0.000    0.012    0.000 phase2_torch.py:175(observe_hand)
+       70    0.012    0.000    0.012    0.000 {method 'uniform_' of 'torch._C.TensorBase' objects}
+     1946    0.005    0.000    0.011    0.000 numeric.py:2535(array_equal)
+       72    0.002    0.000    0.011    0.000 opponent_inference.py:194(summaries)
+     1181    0.002    0.000    0.011    0.000 numeric.py:679(flatnonzero)
+       30    0.000    0.000    0.011    0.000 traceback.py:221(extract_stack)
+       30    0.000    0.000    0.010    0.000 traceback.py:377(extract)
+       30    0.001    0.000    0.010    0.000 traceback.py:399(_extract_from_extended_frame_gen)
+     3892    0.010    0.000    0.010    0.000 {built-in method torch.relu}
+     3247    0.001    0.000    0.010    0.000 _methods.py:47(_sum)
+     2338    0.001    0.000    0.010    0.000 {method 'any' of 'numpy.ndarray' objects}
+      602    0.005    0.000    0.010    0.000 opponent_profile.py:34(observe)
+     3597    0.007    0.000    0.010    0.000 numeric.py:170(ones)
+    48904    0.009    0.000    0.009    0.000 {method 'extend' of 'list' objects}
+      241    0.009    0.000    0.009    0.000 {built-in method nt.stat}
+     8544    0.009    0.000    0.009    0.000 {built-in method numpy.asarray}
+      553    0.000    0.000    0.009    0.000 opponent_inference.py:64(_values)
+     2338    0.001    0.000    0.009    0.000 _methods.py:55(_any)
+      553    0.009    0.000    0.009    0.000 {method 'tolist' of 'numpy.ndarray' objects}
+
+
+         1068803 function calls (1067079 primitive calls) in 0.929 seconds
+
+   Ordered by: internal time
+   List reduced from 450 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+     5838    0.086    0.000    0.086    0.000 {built-in method torch._C._nn.linear}
+     2705    0.080    0.000    0.119    0.000 opponent_inference.py:166(_summary_arrays)
+     7040    0.080    0.000    0.080    0.000 {method 'cumsum' of 'numpy.ndarray' objects}
+     1946    0.063    0.000    0.761    0.000 phase2_torch.py:142(__call__)
+     2705    0.052    0.000    0.376    0.000 phase1_network.py:13(encode_observation)
+     2633    0.046    0.000    0.259    0.000 opponent_inference.py:148(v3_summaries)
+     1946    0.033    0.000    0.513    0.000 phase2_network.py:44(encode_observation)
+     9604    0.027    0.000    0.027    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+       40    0.025    0.001    0.887    0.022 symmetric_engine.py:39(play_match)
+     3964    0.014    0.000    0.026    0.000 opponent_inference.py:112(seen_cards)
+    20747    0.013    0.000    0.019    0.000 {built-in method builtins.sum}
+       70    0.012    0.000    0.012    0.000 {method 'uniform_' of 'torch._C.TensorBase' objects}
+     1181    0.011    0.000    0.031    0.000 opponent_inference.py:55(__init__)
+     1946    0.011    0.000    0.131    0.000 phase2_torch.py:81(_q_values)
+    23391    0.011    0.000    0.015    0.000 truco_reglas.py:23(valor_carta_truco)
+     3892    0.010    0.000    0.010    0.000 {built-in method torch.relu}
+     3964    0.010    0.000    0.080    0.000 opponent_inference.py:291(update)
+    16210    0.010    0.000    0.024    0.000 {built-in method builtins.min}
+      241    0.009    0.000    0.009    0.000 {built-in method nt.stat}
+     8544    0.009    0.000    0.009    0.000 {built-in method numpy.asarray}
+    77832    0.009    0.000    0.013    0.000 symmetric_engine.py:26(<lambda>)
+    48904    0.009    0.000    0.009    0.000 {method 'extend' of 'list' objects}
+      553    0.009    0.000    0.009    0.000 {method 'tolist' of 'numpy.ndarray' objects}
+    28470    0.009    0.000    0.013    0.000 random.py:242(_randbelow_with_getrandbits)
+    57852    0.008    0.000    0.008    0.000 {method 'index' of 'tuple' objects}
+     7040    0.008    0.000    0.097    0.000 opponent_inference.py:39(_ordered_sum)
+     1474    0.008    0.000    0.008    0.000 opponent_inference.py:94(_keep)
+     1946    0.007    0.000    0.007    0.000 {method 'numpy' of 'torch._C.TensorBase' objects}
+     3597    0.007    0.000    0.010    0.000 numeric.py:170(ones)
+73605/73585    0.007    0.000    0.007    0.000 {built-in method builtins.len}
+     1946    0.007    0.000    0.007    0.000 {built-in method torch.from_numpy}
+     1946    0.006    0.000    0.017    0.000 phase2_torch.py:98(_hooked)
+    49834    0.006    0.000    0.006    0.000 {method 'append' of 'list' objects}
+    19770    0.006    0.000    0.006    0.000 module.py:1963(__getattr__)
+     4651    0.006    0.000    0.006    0.000 opponent_profile.py:75(rates)
+     1946    0.006    0.000    0.021    0.000 opponent_inference.py:87(same_posterior)
+     1181    0.005    0.000    0.005    0.000 {method 'nonzero' of 'numpy.ndarray' objects}
+     1946    0.005    0.000    0.011    0.000 numeric.py:2535(array_equal)
+      602    0.005    0.000    0.010    0.000 opponent_profile.py:34(observe)
+    30745    0.005    0.000    0.005    0.000 {method 'get' of 'dict' objects}
+
+

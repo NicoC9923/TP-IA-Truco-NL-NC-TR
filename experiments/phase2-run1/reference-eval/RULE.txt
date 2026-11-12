@@ -1,0 +1,15 @@
+PHASE 2 RUN 1 REFERENCE EVALUATION / OVERFITTING AUDIT: PRE-REGISTERED RULE
+Written 2026-11-09 after training ended and before any evaluation match, at code 454e8f5 (train/phase2-run1; tool proyecto/phase2_reference_evaluation.py, reviewed: 0 must-fix). One run, no retries, no reselection. Descriptive only (ADR 0021): nothing here changes training, promotion or the champion checkpoint choice except the pre-registered overfitting flag below.
+
+Networks (snapshots, no sidecar; explicit --temperature 0.05 --profile-prior 5, the run's settings):
+- gen4  = training_output/phase2/generation_000004.pt  sha256 818ae82f15e08bbd6ebc98fc7229d4e78dba723c89e84b948ca19a8575204805
+- gen10 = training_output/phase2/generation_000010.pt  sha256 0bf75b100602aaeec9012f14a3bb17d8fabe84025e7be8d8974265c5fea94ada
+- gen28 = training_output/phase2/generation_000028.pt  sha256 66ed791f4dd113e350dc99e141c1ecead1917b3055e79a47d5b09920d54ad57f
+gen28 is both the 8-hour reigning champion and the final (12-hour) reigning champion: no promotion happened after generation 28. champions/phase2/reigning_champion.pt (sha256 05f18949...) holds tensors identical to gen28 (verified). Deduplicated as the RULE.txt amendment requires, so the primary diagnostic "final minus 8-hour" is zero by construction: no overfitting flag can be raised, and gen28 stays the published champion.
+
+Opponents: Reactive and Adaptive Utility. Adaptation on and off. 400 mirror pairs per (network, opponent, adaptation), mixed targets, validation deal partition (disjoint from training), schedule seed 56001 (not reserved; not used by #28, the aborted attempt 52001/53000+, or run 1 54001/55000+). Same deals and action seeds for every network. Fresh policy and profile per mirror pair. 12 workers.
+
+Command (from the worktree root):
+python proyecto/phase2_reference_evaluation.py --network gen4=training_output/phase2/generation_000004.pt --network gen10=training_output/phase2/generation_000010.pt --network gen28=training_output/phase2/generation_000028.pt --temperature 0.05 --profile-prior 5 --pairs 400 --schedule-seed 56001 --target mixed --workers 12 --output experiments/phase2-run1/reference-eval/results.json
+
+Reported (descriptive): per-cell win rate with 95% margin; equal-weight score over both opponents; paired differences gen28-gen10, gen28-gen4, gen10-gen4 with adaptation on (does the panel progress carry over to held-out opponents?); adaptation on-minus-off per network. Per ADR 0021 these opponents are hand-written and only two; results do not certify strength against people or strong networks.

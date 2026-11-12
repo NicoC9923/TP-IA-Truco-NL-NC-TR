@@ -1,0 +1,4 @@
+cold pool + 24 trivial jobs 0.25488339999719756
+warm pool + 24 trivial jobs 0.00456329999724403
+job bytes 29976 1000 roundtrips seconds 0.009800200001336634
+full result bytes 13800 1000 roundtrips seconds 0.1466115000002901

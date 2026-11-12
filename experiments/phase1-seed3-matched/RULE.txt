@@ -1,0 +1,9 @@
+Pre-registered (2026-11-08, before training): seed 3 matched comparison, v2 vs v1 (third seed for the only replicated change).
+Runs from scratch, seed 3, identical settings except the encoder: workers 12, population 64, pairs 16, generations 100, patience 50,
+validation-pairs 1000, check-batch 200, early-stop reject-only, promotion-threshold 0.55, finalists 8, finalist-pairs-multiplier 4,
+output-init-sigma 0.3, fitness-mode classic, points-weight 0.1, style-strength 0.5, styles-after-first-promotion:
+  training_output/phase1_encoder_v1_seed3 (--encoder v1), then training_output/phase1_encoder_v2_seed3 (--encoder v2).
+Terminal reigning champions frozen before evaluation.
+Comparison C1s3: v2 seed 3 vs v1 seed 3 with proyecto/panel_evaluation.py, panel-v1, 4000 direct pairs (schedule seed 9221), 1000 per member (9222), ADR 0031 rule.
+Interpretation: v2 replicates on a third seed if C1s3 is promising. Seed-level summary across seeds 1-3 reported per seed (equal weight per seed), not pooled over matches.
+No retries, no other checkpoints; reference results descriptive only.

@@ -1,0 +1,46 @@
+         1830111 function calls (1830041 primitive calls) in 0.488 seconds
+
+   Ordered by: cumulative time
+   List reduced from 159 to 18 due to restriction <18>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    0.488    0.488 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\phase1_trainer.py:20(_evaluate)
+        2    0.001    0.001    0.488    0.244 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\symmetric_engine.py:36(play_match)
+       81    0.004    0.000    0.481    0.006 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\phase1_network.py:116(__call__)
+       81    0.004    0.000    0.476    0.006 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\phase1_network.py:13(encode_observation)
+       81    0.000    0.000    0.347    0.004 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:135(update)
+       81    0.106    0.001    0.230    0.003 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:45(seen_cards)
+       81    0.010    0.000    0.123    0.002 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:57(v3_summaries)
+       81    0.011    0.000    0.099    0.001 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:68(_summary_arrays)
+      162    0.033    0.000    0.072    0.000 {built-in method numpy.fromiter}
+   533579    0.062    0.000    0.062    0.000 {method 'intersection' of 'set' objects}
+   533579    0.062    0.000    0.062    0.000 {method 'issubset' of 'set' objects}
+        3    0.003    0.001    0.045    0.015 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:38(declared_tantos)
+     7941    0.004    0.000    0.043    0.000 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:98(_tantos)
+        7    0.011    0.002    0.041    0.006 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:50(truco_call)
+     7963    0.020    0.000    0.039    0.000 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\truco_reglas.py:73(calcular_envido)
+   407772    0.039    0.000    0.039    0.000 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:70(<genexpr>)
+     9880    0.004    0.000    0.030    0.000 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:93(_strength)
+       45    0.030    0.001    0.030    0.001 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:29(__init__)
+
+
+         1830111 function calls (1830041 primitive calls) in 0.488 seconds
+
+   Ordered by: internal time
+   List reduced from 159 to 12 due to restriction <12>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+       81    0.106    0.001    0.230    0.003 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:45(seen_cards)
+   533579    0.062    0.000    0.062    0.000 {method 'intersection' of 'set' objects}
+   533579    0.062    0.000    0.062    0.000 {method 'issubset' of 'set' objects}
+   407772    0.039    0.000    0.039    0.000 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:70(<genexpr>)
+      162    0.033    0.000    0.072    0.000 {built-in method numpy.fromiter}
+       45    0.030    0.001    0.030    0.001 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:29(__init__)
+     7963    0.020    0.000    0.039    0.000 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\truco_reglas.py:73(calcular_envido)
+      492    0.013    0.000    0.013    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+        7    0.011    0.002    0.041    0.006 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:50(truco_call)
+       81    0.011    0.000    0.099    0.001 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:68(_summary_arrays)
+    30224    0.010    0.000    0.014    0.000 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\truco_reglas.py:23(valor_carta_truco)
+       81    0.010    0.000    0.123    0.002 E:\Tools\GitHub-Repositories\TP-IA-Truco-NL-NC-TR\.orca\worktrees\TP-IA-Truco-NL-NC-TR\p1-perf\proyecto\opponent_inference.py:57(v3_summaries)
+
+

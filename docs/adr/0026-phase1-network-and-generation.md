@@ -1,0 +1,16 @@
+# Phase 1 network and minimal generation evaluation
+
+The phase 1 policy uses a 64-input, 24-hidden-unit tanh multilayer perceptron with twelve action logits. The input is padded to a fixed width and includes card slots, public table, trick outcomes, call state, relative score, the weighted inference summaries and the measured opponent profile. The trainer starts each mirror pair with neutral profiles and updates each profile after every hand using observable decisions and carries it into the second match. The genome is a flat NumPy array; a per-action additive logit bias changes its action distribution without changing its weights.
+
+The minimal trainer evaluates each genome against peers in the same generation, on seeded mirror pairs. The best genome survives unchanged; tournament selection, uniform crossover, and Gaussian mutation produce the next population. Worker processes evaluate pairs because Python game simulation is CPU-bound under the GIL. Process results are consumed in job order so fixed seeds reproduce the same population and logs except elapsed console time. Fitness normalizes the point difference by the winning score, including any overshoot beyond the target. The champion's match log supplies the behavior rates and an example hand. Diversity is the mean per-weight population standard deviation.
+
+This follows common fixed-topology neuroevolution practice: a stochastic masked policy, tournament selection, elitism, and process-parallel rollout evaluation. A thread pool was rejected because the measured engine throughput did not improve with threads. Deterministic argmax was rejected because mixed strategies are needed; using existing agents was rejected by ADR 0021. Minimal defaults favor quick demonstrations over statistical strength; the fuller league, promotion, and checkpoints are separate work.
+
+
+## Phase 1 learning review amendment
+
+The output weights and biases initialize independently with sigma 0.3 by default (`--output-init-sigma`); the hidden layer stays at 0.1. The genome shape is unchanged, so existing champions remain loadable. The Sonnet learning review (F3) found early behavior consistent with nearly uniform policies and estimated that output logits were too small for decisive choices; increasing only the output scale avoids a new temperature gene and its compatibility cost. This is a proposed improvement, not proof of better learning.
+
+## Encoder version amendment
+
+ADR 0035 defines an experimental v2 encoder while retaining this topology and the v1 default.

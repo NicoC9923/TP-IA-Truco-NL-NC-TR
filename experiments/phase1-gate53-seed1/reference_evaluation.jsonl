@@ -1,0 +1,10 @@
+{"phase": 1, "generation": 1, "reference_opponent": "reactive", "win_rate": 0.2835, "margin_of_error": 0.019251373451776885}
+{"phase": 1, "generation": 1, "reference_opponent": "adaptive_utility", "win_rate": 0.1455, "margin_of_error": 0.014815433326928534}
+{"phase": 1, "generation": 7, "reference_opponent": "reactive", "win_rate": 0.569, "margin_of_error": 0.020635910040102016}
+{"phase": 1, "generation": 7, "reference_opponent": "adaptive_utility", "win_rate": 0.186, "margin_of_error": 0.01609963989674318}
+{"phase": 1, "generation": 18, "reference_opponent": "reactive", "win_rate": 0.494, "margin_of_error": 0.02084219036712071}
+{"phase": 1, "generation": 18, "reference_opponent": "adaptive_utility", "win_rate": 0.198, "margin_of_error": 0.01638281753271733}
+{"phase": 1, "generation": 26, "reference_opponent": "reactive", "win_rate": 0.5875, "margin_of_error": 0.020387952781449604}
+{"phase": 1, "generation": 26, "reference_opponent": "adaptive_utility", "win_rate": 0.154, "margin_of_error": 0.015162325366199951}
+{"phase": 1, "generation": 76, "reference_opponent": "reactive", "win_rate": 0.5965, "margin_of_error": 0.020561119133452342}
+{"phase": 1, "generation": 76, "reference_opponent": "adaptive_utility", "win_rate": 0.22, "margin_of_error": 0.01693724387939875}

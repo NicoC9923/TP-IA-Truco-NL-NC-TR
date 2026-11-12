@@ -1,0 +1,7 @@
+# Frozen card probe
+
+The single preregistered pilot ran after training on the published phase 2 run 1 generation 28 champion. It collects only public decision observations, then attaches the simulation's original opponent hand as a label. A linear head on frozen champion features and an identically initialized linear head on a frozen random trunk were fitted with the same schedule. Reactive and Adaptive Utility supplied opponent behavior, never labels. The four predictors share the same held-out situations and exact-compatible hand support.
+
+All requested 10,000/2,000/2,000 train/development/test situations were collected; 10 epochs were attempted. The total command took 270.438 seconds of the 600-second budget. `RESULTS.txt` gives scores and match-grouped intervals. The snapshot describes what can be predicted from features; it does not establish improved play or that the champion probe beats the random control. Scores were not used to select or alter a champion. There was no repeated pilot.
+
+The immutable champion's hash, identity, seeds, collection and fit times, examples, and predictor summaries are in `champions/phase2/card-probe-report.json`; its companion JSONL is the common test evidence and the compressed NPZ contains split identities and cached frozen features. The complete evidence, rule, code, runner and logs were copied and hash-verified under `TP-IA-Truco-training-archive/phase2-probe`; `manifest.json` records every archived file hash.

@@ -1,0 +1,1284 @@
+{
+  "checkpoint": "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-training-archive\\seeds-phase1-seeds\\training_output\\phase1_seed1\\checkpoint_0070.npz",
+  "checkpoint_sha256": "a01a05a03a1c192dcdb6876dadc88ccc902fcf1e5acec26c9523f3da980c86ad",
+  "population_indices": [
+    24,
+    4,
+    39,
+    38,
+    11,
+    48,
+    55,
+    3,
+    62,
+    63,
+    35,
+    34,
+    54,
+    13,
+    2,
+    58
+  ],
+  "card_decisions": 2000,
+  "observations": 2782,
+  "matches_scheduled": 128,
+  "bank_seed_namespace": "odd 2*(10^20 + match_index)+1, index < 10^9",
+  "profile": "fresh default profile",
+  "inference": "uniform opponent card, strict win",
+  "near_alias_groups": "connected components; endpoints may exceed radius",
+  "aliasing": {
+    "exact": {
+      "observations": 0,
+      "rate": 0.0,
+      "groups": 0,
+      "pairs": 0,
+      "examples": []
+    },
+    "near": {
+      "observations": 0,
+      "rate": 0.0,
+      "groups": 0,
+      "pairs": 0,
+      "examples": []
+    },
+    "radius": 0.01
+  },
+  "networks": {
+    "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p1-input-audit\\champions\\phase1\\reigning_champion.npy": {
+      "sha256": "35506d1ddfa38fb61498be6f9e1c03eaf744f3b1274b01cba23851e6075ab4b4",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.47580716909773285,
+        "cheapest_winning_mass": 0.3183248970541063,
+        "stronger_winning_mass": 0.15748227204362655,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.5298719580195346
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.49770038890153123
+          }
+        },
+        "error_rate_ratio": 0.9392842579587553,
+        "error_rate_ratio_ci95": [
+          0.9031561946941669,
+          0.9773177229823452
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.8650793650793651,
+          "best_card_mass": 0.5191087333966267
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.08641975308641975,
+          "best_card_mass": 0.3381223117154054
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": -0.2802304450827005,
+        "mean_strength_correlation": 0.1080938637249783
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.2287093696835211
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.1542866006479622
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": false,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p1-input-audit\\experiments\\phase1-seed1\\reigning_champion.npy": {
+      "sha256": "7b7205711cfaf76dbdaf0e5a5293f873c9e9faa01a0f727590db59219a08507c",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.39194457375745717,
+        "cheapest_winning_mass": 0.2687754690489545,
+        "stronger_winning_mass": 0.1231691047085027,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.43951456511243164
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.49221272751185374
+          }
+        },
+        "error_rate_ratio": 1.1199008328334727,
+        "error_rate_ratio_ci95": [
+          1.008985581323306,
+          1.2517511398114851
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.20238095238095238,
+          "best_card_mass": 0.3819282448032052
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.5709876543209876,
+          "best_card_mass": 0.4332408502677671
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.16324362010896956,
+        "mean_strength_correlation": -0.0035519158303871563
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.17211041028333104
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.13811130759811116
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": false,
+        "H3": false
+      }
+    },
+    "E:\\Tools\\GitHub-Repositories\\TP-IA-Truco-NL-NC-TR\\.orca\\worktrees\\TP-IA-Truco-NL-NC-TR\\p1-input-audit\\experiments\\phase1-gate53-seed1\\reigning_champion.npy": {
+      "sha256": "b117897789e7fd3a428c88d00213dbb7c0091bc42ab30a5d1d0888bcab169971",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5487056641825239,
+        "cheapest_winning_mass": 0.36416698328609887,
+        "stronger_winning_mass": 0.18453868089642508,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.47552900946264565
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.4856472289420791
+          }
+        },
+        "error_rate_ratio": 1.0212778175002766,
+        "error_rate_ratio_ci95": [
+          0.9340760892927186,
+          1.1205555904061946
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.0992063492063492,
+          "best_card_mass": 0.25187988815197704
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.6327160493827161,
+          "best_card_mass": 0.5221007723859747
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": -0.061530240785159486,
+        "mean_strength_correlation": -0.08800362240053872
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.033446849789760154
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.026147331409311782
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": false,
+        "H3": false
+      }
+    },
+    "population_24": {
+      "sha256": "c1ebb552f1bc00dd546d6a92e454e440250ba5931e96b105025c33b0a5e6a493",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.4957778646442793,
+        "cheapest_winning_mass": 0.34203535000032287,
+        "stronger_winning_mass": 0.1537425146439564,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.42880458046859243
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.49502536171744627
+          }
+        },
+        "error_rate_ratio": 1.1544311424483586,
+        "error_rate_ratio_ci95": [
+          1.076740469659199,
+          1.2386515998987297
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.2976190476190476,
+          "best_card_mass": 0.4068784464124059
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.5154320987654321,
+          "best_card_mass": 0.41921819423642526
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.5183714020697107,
+        "mean_strength_correlation": -0.0342833751006263
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.01526847103602906
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.02210697739889693
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": false,
+        "H3": false
+      }
+    },
+    "population_4": {
+      "sha256": "f525c98198d45390f6f1d29c9e9541186bde300d7c74509fc0acb7efaa0674ca",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5330727132224572,
+        "cheapest_winning_mass": 0.36561160579224294,
+        "stronger_winning_mass": 0.16746110743021433,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.48324483693598974
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.4948806041448537
+          }
+        },
+        "error_rate_ratio": 1.0240784097821727,
+        "error_rate_ratio_ci95": [
+          0.9424397496794105,
+          1.1143005466816396
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.6706349206349206,
+          "best_card_mass": 0.5091166511258479
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.2037037037037037,
+          "best_card_mass": 0.3387687002003801
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.253427644813016,
+        "mean_strength_correlation": 0.07159439953868399
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.126017663929927
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.06130617324343509
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "population_39": {
+      "sha256": "407efd24998d999d3d4bc9c4114fd9d1c22159fd47930d11b8750ccbc3176758",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5593213320420244,
+        "cheapest_winning_mass": 0.38507612070107217,
+        "stronger_winning_mass": 0.17424521134095217,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.49441826295316615
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.49229018093217713
+          }
+        },
+        "error_rate_ratio": 0.9956957859762745,
+        "error_rate_ratio_ci95": [
+          0.8914650013149588,
+          1.114673561187812
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.8452380952380952,
+          "best_card_mass": 0.7078624566874723
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.16666666666666666,
+          "best_card_mass": 0.23762558973866382
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.4151034078322383,
+        "mean_strength_correlation": 0.11892570395742973
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.055120926249519975
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.02360235477295406
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "population_38": {
+      "sha256": "e25c82db11751adb6b19e7efeb52709f0453b3848a465e573a762b84f5cd745c",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5121513126162737,
+        "cheapest_winning_mass": 0.3496569576529961,
+        "stronger_winning_mass": 0.1624943549632777,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.4574388012655578
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.47979548068235794
+          }
+        },
+        "error_rate_ratio": 1.0488735965443854,
+        "error_rate_ratio_ci95": [
+          0.9934393983441436,
+          1.104592961732172
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.3611111111111111,
+          "best_card_mass": 0.40192746119785555
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.5617283950617284,
+          "best_card_mass": 0.4528667336938957
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.31205370798364523,
+        "mean_strength_correlation": 0.16413545052897724
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.08882237690924293
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.07185714858334366
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": false,
+        "H3": false
+      }
+    },
+    "population_11": {
+      "sha256": "ee99d7f813e310366a52f7b4dc681a356bd6b2c25bdb0f127f13d60aafba2fab",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5575035502069221,
+        "cheapest_winning_mass": 0.3816920061134239,
+        "stronger_winning_mass": 0.17581154409349822,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.5119112337292434
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.4810134991070235
+          }
+        },
+        "error_rate_ratio": 0.9396423977705437,
+        "error_rate_ratio_ci95": [
+          0.8624344673857599,
+          1.0275765058524147
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.4722222222222222,
+          "best_card_mass": 0.4922528567029396
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.3950617283950617,
+          "best_card_mass": 0.38108871471015804
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.4171135533853798,
+        "mean_strength_correlation": 0.14588716820338624
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.04549463923563204
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.03181264178957087
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": false,
+        "H3": false
+      }
+    },
+    "population_48": {
+      "sha256": "12fcba7e8d6fa22ddf666e5508ed92b7bbf219f75980772472590e117cc967ab",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.53110605794754,
+        "cheapest_winning_mass": 0.35946980735095224,
+        "stronger_winning_mass": 0.17163625059658771,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.48725625690257995
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.49212907583730275
+          }
+        },
+        "error_rate_ratio": 1.010000526141416,
+        "error_rate_ratio_ci95": [
+          0.9499068734642246,
+          1.0766028951357685
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.6468253968253969,
+          "best_card_mass": 0.5227275864012235
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.2716049382716049,
+          "best_card_mass": 0.3386437234193289
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.08995112103623358,
+        "mean_strength_correlation": -0.08508424425638501
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.018247940920282608
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.024661469294779765
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "population_55": {
+      "sha256": "ce6020f4b3f44710621cce3fb90050198a5aafaddd75feb2ccf41838eb914127",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5242570224438552,
+        "cheapest_winning_mass": 0.3667599302621763,
+        "stronger_winning_mass": 0.1574970921816789,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.45642649703513266
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.5013321250549168
+          }
+        },
+        "error_rate_ratio": 1.098385234668634,
+        "error_rate_ratio_ci95": [
+          1.007301579044849,
+          1.2017148320882518
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.3968253968253968,
+          "best_card_mass": 0.46261309031992104
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.35802469135802467,
+          "best_card_mass": 0.3572034598731718
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.6067733371152118,
+        "mean_strength_correlation": -0.050376627113035935
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.04120482446553169
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.04813391473109322
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": false,
+        "H3": false
+      }
+    },
+    "population_3": {
+      "sha256": "9c7dec1800dee143f37aeb07e744d635f801097a9f339c4fe8150713dda4ec4a",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5035778625603204,
+        "cheapest_winning_mass": 0.344373792037494,
+        "stronger_winning_mass": 0.1592040705228265,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.4837862574729859
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.5319931544273044
+          }
+        },
+        "error_rate_ratio": 1.0996450316842874,
+        "error_rate_ratio_ci95": [
+          1.035893540764734,
+          1.1704836916150387
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.6904761904761905,
+          "best_card_mass": 0.528104491844311
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.1882716049382716,
+          "best_card_mass": 0.3148033605521719
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.29690525301609905,
+        "mean_strength_correlation": 0.08718481120470539
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.0970654474720659
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.06958700488226978
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "population_62": {
+      "sha256": "2348764f0f68825a674c622edb2fe1e0eefbfc625528c8402fe82e2457a5b765",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5527615523929046,
+        "cheapest_winning_mass": 0.3830430238053511,
+        "stronger_winning_mass": 0.16971852858755349,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.44012762520477233
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.4856783035832309
+          }
+        },
+        "error_rate_ratio": 1.1034942497809943,
+        "error_rate_ratio_ci95": [
+          0.9522774431984181,
+          1.2993646742943956
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.753968253968254,
+          "best_card_mass": 0.6412494748526154
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.2006172839506173,
+          "best_card_mass": 0.27851446250818646
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.31941576397772575,
+        "mean_strength_correlation": 0.1287795681737162
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.052665352194646235
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.05332881230484381
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "population_63": {
+      "sha256": "9419234fef68a08f48ec3147dff543f27b34132ffa04f9d95522558a3134969d",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.49362261035055705,
+        "cheapest_winning_mass": 0.34271409289823074,
+        "stronger_winning_mass": 0.1509085174523263,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.46752030346082474
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.4677760659440771
+          }
+        },
+        "error_rate_ratio": 1.0005470617668561,
+        "error_rate_ratio_ci95": [
+          0.9212190343055856,
+          1.0887602733421737
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.7380952380952381,
+          "best_card_mass": 0.5407774897045569
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.22530864197530864,
+          "best_card_mass": 0.3696877859213817
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 3.9067176273512785e-05,
+        "mean_strength_correlation": 0.20268671452796524
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.053694346900151506
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.04230500513457213
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": false,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "population_35": {
+      "sha256": "993b23509e5b68cfd240a1238a562cc13a1a99bb5bb3e70ebb1d4f0d57515a5d",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5546424773885325,
+        "cheapest_winning_mass": 0.3851982291759681,
+        "stronger_winning_mass": 0.1694442482125644,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.46295007118752746
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.4885908031758463
+          }
+        },
+        "error_rate_ratio": 1.055385523373065,
+        "error_rate_ratio_ci95": [
+          0.939005322988379,
+          1.1931651968595811
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.4126984126984127,
+          "best_card_mass": 0.4770359279930393
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.3549382716049383,
+          "best_card_mass": 0.3533105377950708
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.19456132115047015,
+        "mean_strength_correlation": 0.048123249556378055
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.038035218264934806
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.04063681836064345
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": false,
+        "H3": false
+      }
+    },
+    "population_34": {
+      "sha256": "775561c2d464fb57bb8d3245c3765fe34a5290519f4eb47c8a281cd9a3ed52a0",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5741069987297751,
+        "cheapest_winning_mass": 0.3979470397629191,
+        "stronger_winning_mass": 0.17615995896685593,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.5205980679192015
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.49502921322148125
+          }
+        },
+        "error_rate_ratio": 0.9508856135407544,
+        "error_rate_ratio_ci95": [
+          0.853243984079918,
+          1.059194957621025
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.8015873015873016,
+          "best_card_mass": 0.6280222811456779
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.16049382716049382,
+          "best_card_mass": 0.2606856569120038
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.12551132986464886,
+        "mean_strength_correlation": -0.02028151961188441
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.08539555992785904
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.023395502491552478
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "population_54": {
+      "sha256": "558ffdf6900ec9b1e3a032c83920306060257fda4d4dd9527ffda2de61ebc8ad",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.49197198016732085,
+        "cheapest_winning_mass": 0.34636611691323377,
+        "stronger_winning_mass": 0.14560586325408703,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.4964915024236699
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.5000585440663338
+          }
+        },
+        "error_rate_ratio": 1.0071844968650037,
+        "error_rate_ratio_ci95": [
+          0.9219409423450715,
+          1.1008231528944035
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.7777777777777778,
+          "best_card_mass": 0.57727501886874
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.13580246913580246,
+          "best_card_mass": 0.28697044669208305
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.3576714418414255,
+        "mean_strength_correlation": 0.008326370062681944
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.06253837196717879
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.03722914964267772
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "population_13": {
+      "sha256": "4f2b2e4d78f5809181e7d0be7efc9d32b5628978a030e88dbadff92db1876bb6",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.46533270693538376,
+        "cheapest_winning_mass": 0.32652431159855266,
+        "stronger_winning_mass": 0.13880839533683106,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.5664071682074294
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.5145002609980898
+          }
+        },
+        "error_rate_ratio": 0.9083576089377274,
+        "error_rate_ratio_ci95": [
+          0.8177524392469664,
+          1.010285697591542
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.8968253968253969,
+          "best_card_mass": 0.6726815531330843
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.09567901234567901,
+          "best_card_mass": 0.2428076314122922
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.08042851959594043,
+        "mean_strength_correlation": 0.10965908986989653
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.05221865422926583
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.013215172487641839
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": false,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "population_2": {
+      "sha256": "a9b7aa48acf327a1c01486d6bbeff695365819257853edf3fc844104fa9757bc",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5193545209768226,
+        "cheapest_winning_mass": 0.360873114131043,
+        "stronger_winning_mass": 0.15848140684577952,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.4827014677856424
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.48268317884332024
+          }
+        },
+        "error_rate_ratio": 0.9999621112767565,
+        "error_rate_ratio_ci95": [
+          0.9206591673237255,
+          1.090495024879424
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.8253968253968254,
+          "best_card_mass": 0.5679817831471898
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.12037037037037036,
+          "best_card_mass": 0.3128117687055295
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.30729990799509,
+        "mean_strength_correlation": 0.03685027216284267
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.0636019902364242
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.04348229600728775
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": true,
+        "H3": false
+      }
+    },
+    "population_58": {
+      "sha256": "060af4611b6496db45ed7a85db9a7b233d63a5a2d89c3369afc5964e405ae3e1",
+      "h1": {
+        "opportunities": 600,
+        "winning_mass": 0.5548592044022594,
+        "cheapest_winning_mass": 0.3818349497784765,
+        "stronger_winning_mass": 0.17302425462378285,
+        "pairwise": {
+          "agree": {
+            "pairs": 162,
+            "error_rate": 0.46071719066640854
+          },
+          "disagree": {
+            "pairs": 390,
+            "error_rate": 0.4988336160873397
+          }
+        },
+        "error_rate_ratio": 1.0827328048380338,
+        "error_rate_ratio_ci95": [
+          1.011739797269548,
+          1.1591902839535073
+        ],
+        "bootstrap_unit": "decision"
+      },
+      "h2": {
+        "first": {
+          "opportunities": 252,
+          "best_card_argmax_rate": 0.34523809523809523,
+          "best_card_mass": 0.40648573311451247
+        },
+        "other": {
+          "opportunities": 324,
+          "best_card_argmax_rate": 0.44753086419753085,
+          "best_card_mass": 0.4047020910261741
+        }
+      },
+      "preference_probe": {
+        "sweeps": 4437,
+        "mean_face_value_correlation": 0.3089423561950957,
+        "mean_strength_correlation": 0.047109699238887914
+      },
+      "mistakes": {
+        "fold_guaranteed_hand": {
+          "opportunities": 3,
+          "mean_probability": 0.01734883309128166
+        },
+        "decline_high_envido": {
+          "opportunities": 18,
+          "mean_probability": 0.041014363905399115
+        },
+        "accept_known_losing_envido": {
+          "opportunities": 0,
+          "mean_probability": null
+        },
+        "lose_last_trick": {
+          "opportunities": 0,
+          "mean_probability": null
+        }
+      },
+      "interpretation": {
+        "H1": true,
+        "H2": false,
+        "H3": false
+      }
+    }
+  },
+  "seconds": 26.38550359999863
+}

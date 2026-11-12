@@ -358,10 +358,19 @@ class Robot:
         return self.verificar_estado()
 
     def hacer_gesto(self, nombre: str, duracion: float = 2.0,
-                    esperar: bool = True) -> EstadoRobot:
-        """Ejecuta un gesto expresivo ('festejando', 'desafiando', 'mazo', 'saludando', 'dar_la_mano')."""
+                    esperar: bool = True, asiento: int = 1) -> EstadoRobot:
+        """Ejecuta un gesto expresivo ('festejando', 'desafiando', 'mazo', 'saludando', 'dar_la_mano').
+
+        `asiento=2` is the rival G1 of robot-vs-robot mode (local simulator only;
+        elsewhere it does nothing)."""
         self._exigir_conexion()
         metodo = getattr(self._cliente, "Gesto", None)
+        if asiento != 1:
+            if metodo is not None and getattr(self._cliente, "GESTO_POR_ASIENTO", False):
+                metodo(nombre, duracion=duracion, asiento=int(asiento))
+                if esperar:
+                    time.sleep(duracion)
+            return self.verificar_estado()
         if metodo is not None:
             metodo(nombre, duracion=duracion)
             if esperar:
@@ -371,17 +380,17 @@ class Robot:
             return self.saludar()
         return self.verificar_estado()
 
-    def festejar(self, esperar: bool = True) -> EstadoRobot:
+    def festejar(self, esperar: bool = True, asiento: int = 1) -> EstadoRobot:
         """Levanta ambos brazos en señal de festejo."""
-        return self.hacer_gesto("festejando", duracion=2.2, esperar=esperar)
+        return self.hacer_gesto("festejando", duracion=2.2, esperar=esperar, asiento=asiento)
 
-    def desafiar(self, esperar: bool = True) -> EstadoRobot:
+    def desafiar(self, esperar: bool = True, asiento: int = 1) -> EstadoRobot:
         """Pose desafiante al cantar Truco o Falta Envido."""
-        return self.hacer_gesto("desafiando", duracion=1.8, esperar=esperar)
+        return self.hacer_gesto("desafiando", duracion=1.8, esperar=esperar, asiento=asiento)
 
-    def gesto_mazo(self, esperar: bool = True) -> EstadoRobot:
+    def gesto_mazo(self, esperar: bool = True, asiento: int = 1) -> EstadoRobot:
         """Cruza brazos y gira el torso al irse al mazo o rechazar."""
-        return self.hacer_gesto("mazo", duracion=1.8, esperar=esperar)
+        return self.hacer_gesto("mazo", duracion=1.8, esperar=esperar, asiento=asiento)
 
     def repartir(self, esperar: bool = True) -> EstadoRobot:
         """Se sienta en la mesa (si no lo estaba) y ejecuta la animacion de repartir cartas."""
@@ -394,6 +403,51 @@ class Robot:
     def pararse(self) -> EstadoRobot:
         """Pone al robot de pie para poder caminar."""
         return self.hacer_gesto("pararse", duracion=0.2, esperar=False)
+
+    # ---------- mesa de Truco (solo el simulador local) ----------
+    def _mesa(self, metodo: str):
+        """The table method of the client, or None (DDS / real robot: no table)."""
+        self._exigir_conexion()
+        return getattr(self._cliente, metodo, None)
+
+    def repartir_cartas(self, mano_robot, mano_rival=None) -> bool:
+        """New hand on the 3D table: the robot (seat 1) gets `mano_robot` in hand.
+
+        `mano_rival` is only used when seat 2 is a robot (step 2); a human's
+        cards appear on the table as they are played.
+        """
+        metodo = self._mesa("RepartirCartas")
+        if metodo is None:
+            return False
+        manos = {"1": [dict(valor=c["valor"], palo=c["palo"]) for c in mano_robot]}
+        if mano_rival:
+            manos["2"] = [dict(valor=c["valor"], palo=c["palo"]) for c in mano_rival]
+        return metodo(manos) == 0
+
+    def tirar_carta(self, carta: dict, asiento: int = 1) -> bool:
+        """Shows `carta` played by `asiento` (1 = robot, 2 = rival) on the table."""
+        metodo = self._mesa("JugarCarta")
+        if metodo is None:
+            return False
+        return metodo(int(asiento), {"valor": carta["valor"], "palo": carta["palo"]}) == 0
+
+    def elegir_camara(self, nombre: str) -> str | None:
+        """'general', 'detras_robot_1' or 'detras_robot_2'. Returns the camera
+        really shown: against a human the behind-robot cameras stay disabled."""
+        metodo = self._mesa("Camara")
+        if metodo is None:
+            return None
+        respuesta = metodo(nombre)
+        if not respuesta.get("ok"):
+            raise ValueError(respuesta.get("error", "camara invalida"))
+        return respuesta.get("camara")
+
+    def modo_mesa(self, modo: str) -> bool:
+        """'humano' (human vs robot, the default) or 'robots' (robot vs robot)."""
+        metodo = self._mesa("ModoMesa")
+        if metodo is None:
+            return False
+        return bool(metodo(modo).get("ok"))
 
     def _exigir_conexion(self) -> None:
         if self._cliente is None:

@@ -1,0 +1,13 @@
+Pilot executed once at revision e7daa6a9c208fba57efecef281ecb77f07c6c25a on 2026-11-10. The first launcher failed before the Python command because PowerShell interpreted a keep-awake flag as a signed integer; no lock or matches existed. The corrected launcher ran the single pilot and exited 0; output.txt is empty because the command emitted no console output. The launcher, command, exit record, exclusive lock, report, feature cache, weights and raw per-situation evidence are preserved. The corrected run used a visible Orca terminal and a keep-awake flag. Notification identity was tested from that terminal before launching.
+
+Requested and obtained train/dev/test: 10000/2000/2000 situations; 1846 disjoint matches, including 261 test matches. Collection 186.281 s, fit 67.375 s, total 270.438 s; 10 epochs attempted, dev losses 6.942934 champion and 6.939123 random control. All 2000 test situations were scored. Match-cluster 95% intervals are descriptive, situation-weighted and not pairwise superiority tests.
+
+Predictor | Combination log loss (95% interval) | Hidden-card top-N accuracy (95% interval)
+Exact | 6.950327 (6.858365, 7.042289) | 0.097583 (0.087850, 0.107317)
+Weighted | 6.943350 (6.851683, 7.035018) | 0.104667 (0.094504, 0.114829)
+Champion probe | 6.955361 (6.863127, 7.047594) | 0.112083 (0.101273, 0.122893)
+Random-trunk control | 6.943507 (6.851096, 7.035917) | 0.107083 (0.097286, 0.116880)
+
+Report and per-situation summaries were independently recomputed, cache split counts and unique match/seed identities checked, both probe files loaded with the dedicated loader, and report RULE hash verified. These describe cards predictable from frozen features; they do not show stronger play or prove superiority over the formula. Champion SHA256 before and after: 05f189491a1d6ca7a4d7cebfa556a16e70d7512028e6bb224d61d87a35d4cdcd.
+
+Evidence SHA256: test JSONL c69fa7cd2e8e3b2eea481236f2703c612fcc2e9b81a9f87468953efecbb83d0b; feature cache 714501992c8b98750ed05ef35e4175072f3eb9099010945895301604094b4c69; report fc8d9d4cbc456ef064331936cdaebf767f6860e85be06631c8b5b08cc15050bf; champion probe bc952a3975a8f2a4eb3f7ecf36983bd36d9ccad873929563e9d9d76d7455b1ac; control probe ce8971142f0988fb59115fbec349f21640dd09a5fd157fce559ca17c999b47a6.

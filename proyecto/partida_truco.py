@@ -12,25 +12,92 @@ Gestiona:
 
 from __future__ import annotations
 
+import copy
+import functools
+import queue
 import random
 import re
 import threading
+from collections import deque
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import truco_reglas as tr
-from truco_ia import AgenteTrucoIA
+from truco_ia import AgenteTrucoIA, PHASE1_CHAMPION
+from opponent_profile import OpponentProfile
+from phase1_network import NetworkPolicy
+from symmetric_engine import bluff as is_bluff
+from ritmo import Ritmo, SEGUIR, CARTA as EVT_CARTA, BAZA as EVT_BAZA, MANO as EVT_MANO
+import voz_jugador as vj
+
+MENSAJE_ROBOT_OCUPADO = "Ottoman está jugando. Esperá a que termine."
+_EVENTO_DE_GESTO = {"desafiar": "desafio", "gesto_mazo": "mazo"}
+
+
+def _es_error_de_conexion(error: Exception) -> bool:
+    """True when `error` means the simulator connection is gone (by name, so
+    this module does not import the simulator)."""
+    return isinstance(error, OSError) or type(error).__name__ in ("ErrorTransporte", "NoHaySimulador")
+
+
+def _entrada_humana(funcion):
+    """A human action: serialized with the robot's worker and rejected while the robot is acting."""
+    @functools.wraps(funcion)
+    def envoltura(self, *args, **kwargs):
+        with self.lock:
+            if self._profundidad == 0 and self._robot_ocupado():
+                return {"error": MENSAJE_ROBOT_OCUPADO, "estado": self.estado_publico()}
+            self._profundidad += 1
+            try:
+                return funcion(self, *args, **kwargs)
+            finally:
+                self._profundidad -= 1
+    return envoltura
 
 
 class PartidaTruco:
     def __init__(self, robot=None, meta_puntos: int = 15, historial_path: Optional[str] = None,
-                 rng: random.Random | None = None):
+                 rng: random.Random | None = None, champions_dir=None,
+                 ritmo: Optional[Ritmo] = None, rng_voz: random.Random | None = None):
         self.robot = robot
+        # Pacing: instant (synchronous robot, as before) unless the caller opts in.
+        self.ritmo = ritmo if ritmo is not None else Ritmo.instantaneo()
+        self._rng_voz = rng_voz if rng_voz is not None else random.Random()
+        # One lock for the game state; the server shares it with its own requests.
+        self.lock = threading.RLock()
+        self._profundidad = 0
+        self._epoca = 0
+        self._cancelar = threading.Event()
+        self._trabajos: "deque" = deque()
+        self._hilo_robot: Optional[threading.Thread] = None
+        self._robot_estado = "ocioso"        # ocioso | pensando | actuando
+        self._vista_congelada: Optional[Dict] = None
+        self._efectos: Optional[Dict] = None
+        self._pausa_pendiente = 0.0
+        self._voz: List[Dict] = []
+        self._voz_id = 0
         self.rng = rng if rng is not None else random.Random()
         self._robot_lock = threading.Lock()
-        self.ia = AgenteTrucoIA(historial_path=historial_path, rng=self.rng)
+        # Card moves on the 3D table: ordered and never dropped, unlike gestures.
+        self._cola_mesa: "queue.Queue" = queue.Queue()
+        self._hilo_mesa: Optional[threading.Thread] = None
+        # True while spectator mode owns the 3D table (ADR 0064): nothing of this
+        # match (cards, gestures) is sent to it until the table is handed back.
+        self._mesa_cedida = False
+        self.ia = AgenteTrucoIA(historial_path=historial_path, rng=self.rng, champions_dir=champions_dir)
+        profile_path = Path(historial_path).with_name('opponent_profile.json') if historial_path else Path(__file__).with_name('opponent_profile.json')
+        self.opponent_profile = OpponentProfile(profile_path)
+        # Legacy aggregates include interruptions and cannot be converted reliably.
+        # Preserve them and accumulate v3 semantics independently from neutral.
+        self.opponent_profile_v3 = OpponentProfile(profile_path.with_name('opponent_profile_v3.json'))
+        self.opponent_profile_phase2 = OpponentProfile(profile_path.with_name('opponent_profile_phase2.json'), prior_strength=5)
+        self.adapt_to_opponent = True
+        self.network = None
 
         self.puntos_humano = 0
         self.puntos_robot = 0
         self.meta_puntos = meta_puntos
+        # Short match (ADR 0069): number of hands, or None for a points target.
+        self.manos_partida: Optional[int] = None
         self.partido_terminado = False
         self.ganador_partido: Optional[str] = None
 
@@ -60,7 +127,7 @@ class PartidaTruco:
         self.canto_pendiente: Optional[Dict] = None
         self.truco_en_espera: Optional[Dict] = None
 
-        # Seguimiento de mentiras (bluffs) en la mano y en la partida
+        # Seguimiento de mentiras en la mano y en la partida
         self.bluffs_mano_actual: List[Dict] = []
         self._ultimo_bluff_envido_mano: Optional[Dict] = None
         self._ultimo_bluff_truco_mano: Optional[Dict] = None
@@ -98,11 +165,18 @@ class PartidaTruco:
         """Ejecuta gestos en el G1 sentado frente a la mesa sin bloquear la respuesta web."""
         if self.robot is None:
             return
+        self._emitir(("gesto", evento))
+
+    def _reaccion_robot_ahora(self, evento: str) -> None:
+        if self.robot is None or self._mesa_cedida:
+            return
 
         def _worker():
             if not self._robot_lock.acquire(blocking=False):
                 return
             try:
+                if self._mesa_cedida or self.robot is None:
+                    return
                 if evento == "repartir":
                     if hasattr(self.robot, "repartir"):
                         self.robot.repartir(esperar=True)
@@ -133,7 +207,122 @@ class PartidaTruco:
 
         threading.Thread(target=_worker, daemon=True).start()
 
+    # ---------- las cartas en la mesa 3D ----------
+    def _mesa_3d(self, metodo: str, *args) -> None:
+        """Queues a card move for the simulator's table, in game order.
+
+        A single worker sends them one by one, so the robot's answer never
+        overtakes the human's card. Without a simulator (or with an old one)
+        it does nothing: the web game never waits for, nor depends on, the 3D.
+
+        Inside a robot turn the move is staged even with no simulator: it may
+        reconnect during the think time, and the robot is checked again when
+        the move goes out (`_mesa_3d_ahora`), so its card is not lost.
+        """
+        if self.robot is None:
+            if self._efectos is not None:
+                self._emitir(("mesa", metodo, args))
+            return
+        if not hasattr(self.robot, metodo):
+            return
+        self._emitir(("mesa", metodo, args))
+
+    def _mesa_3d_ahora(self, metodo: str, args) -> None:
+        if self._mesa_cedida or self.robot is None or not hasattr(self.robot, metodo):
+            return
+        self._cola_mesa.put((metodo, args))
+        if self._hilo_mesa is None or not self._hilo_mesa.is_alive():
+            self._hilo_mesa = threading.Thread(target=self._trabajar_mesa, daemon=True)
+            self._hilo_mesa.start()
+
+    def _trabajar_mesa(self) -> None:
+        while True:
+            item = self._cola_mesa.get()
+            if isinstance(item, threading.Event):   # `ceder_mesa_3d` waiting for us to be idle
+                item.set()
+                continue
+            metodo, args = item
+            try:
+                robot = self.robot
+                if robot is not None and not self._mesa_cedida:
+                    getattr(robot, metodo)(*args)
+            except Exception as error:
+                if _es_error_de_conexion(error):
+                    self._perder_robot()
+
+    ESPERA_CEDER = 2.0      # seconds `ceder_mesa_3d` waits for a move already in flight
+
+    def ceder_mesa_3d(self, espera=ESPERA_CEDER) -> bool:
+        """Spectator mode takes the 3D table. The match itself goes on (a robot turn
+        being thought is not cancelled: its chained steps would be lost and the hand
+        would freeze), but none of its cards or gestures reach the table: queued
+        moves are dropped, and this waits briefly for one already in flight.
+        `espera=None` drains it completely, with no game lock held while waiting.
+        True if the table worker is idle."""
+        with self.lock:
+            self._mesa_cedida = True
+            while True:
+                try:
+                    self._cola_mesa.get_nowait()
+                except queue.Empty:
+                    break
+            hilo = self._hilo_mesa
+        # Gestures use their own worker; wait for one already sent before changing modes.
+        with self._robot_lock:
+            pass
+        if hilo is None or not hilo.is_alive():
+            return True
+        listo = threading.Event()
+        self._cola_mesa.put(listo)
+        return listo.wait(espera)
+
+    def recuperar_mesa_3d(self) -> None:
+        """The human plays again: the table comes back and shows this match's hand
+        (the frozen one while the robot is still thinking)."""
+        with self.lock:
+            self._mesa_cedida = False
+            self.sincronizar_mesa_3d()
+
+    @property
+    def mesa_cedida(self) -> bool:
+        return self._mesa_cedida
+
+    def _perder_robot(self) -> None:
+        """The simulator went away: forget it so the next request reconnects."""
+        self.robot = None
+        aviso = getattr(self, "al_perder_robot", None)
+        if aviso is not None:
+            aviso()
+
+    def sincronizar_mesa_3d(self) -> None:
+        """Rebuilds the current hand on the 3D table (e.g. after connecting).
+
+        While the robot is still thinking its move is not on the table yet (it
+        is staged and goes out after the wait), so the table is rebuilt from
+        the frozen view the human sees: never the live one, which would show
+        the card early and then lay it a second time.
+        """
+        with self.lock:
+            if self._mesa_cedida:
+                return
+            mesa = self.mesa
+            if self._vista_congelada is not None and self._robot_estado == "pensando":
+                mesa = self._vista_congelada["mesa"]
+            self._mesa_3d("modo_mesa", "humano")
+            self._mesa_3d("repartir_cartas", list(self.cartas_robot))
+            for jugada in list(mesa):
+                asiento = 1 if jugada["quien"] == "robot" else 2
+                self._mesa_3d("tirar_carta", jugada["carta"], asiento)
+
     def registrar(self, mensaje: str) -> None:
+        """Adds a log line. Inside a robot turn it is staged with the turn's other
+        effects, so the log keeps the order things were seen and heard."""
+        if self._efectos is not None:
+            self._efectos["lista"].append(("log", mensaje))
+            return
+        self._registrar_ahora(mensaje)
+
+    def _registrar_ahora(self, mensaje: str) -> None:
         self.log_mensajes.append(mensaje)
         if len(self.log_mensajes) > 60:
             self.log_mensajes = self.log_mensajes[-60:]
@@ -143,21 +332,242 @@ class PartidaTruco:
             limpio = mensaje.encode("ascii", errors="ignore").decode("ascii")
             print(f"  [TRUCO] {limpio}")
 
-    def decir_robot(self, frase: str) -> None:
-        if frase:
+    # ---------- ritmo humano: voz, efectos diferidos y turno asíncrono del robot ----------
+    def _emitir(self, efecto: tuple) -> None:
+        """Applies an effect now, or stages it while a robot turn is being 'thought'."""
+        if self._efectos is not None:
+            self._efectos["lista"].append(efecto)
+            self._efectos["algo"] = True
+        else:
+            self._aplicar_efecto(efecto)
+
+    def _aplicar_efecto(self, efecto: tuple) -> None:
+        tipo = efecto[0]
+        if tipo == "voz":
+            self._voz_id += 1
+            self._voz.append(dict(efecto[1], id=self._voz_id))
+            del self._voz[:-8]
+            # The bubble and the log show only what was said out loud (ADR 0066).
+            frase = efecto[1]["frase"]
             self.ultima_frase_robot = frase
             self.registrar(f"🤖 Ottoman: \"{frase}\"")
+        elif tipo == "log":
+            self._registrar_ahora(efecto[1])
+        elif tipo == "mesa":
+            self._mesa_3d_ahora(efecto[1], efecto[2])
+        elif tipo == "gesto":
+            self._reaccion_robot_ahora(efecto[1])
+
+    def _hablar(self, accion: str, texto: Optional[str] = None, pendiente: Optional[str] = None,
+                asiento: int = 1) -> None:
+        """The robot in `asiento` says what a player would (voz_jugador) and makes the matching gesture.
+
+        `pendiente` is the call being answered (voz_jugador name), so the think
+        time knows that accepting a truco or a real envido is a big decision.
+        """
+        frase = texto if texto is not None else vj.frase(accion, self._rng_voz)
+        if self._efectos is not None:
+            self._efectos["acciones"].append(accion)
+            if pendiente is not None:
+                self._efectos["pendiente"] = pendiente
+        if frase:
+            self._emitir(("voz", {"asiento": asiento, "accion": accion, "frase": frase,
+                                  "perfil": vj.perfil_voz(asiento)}))
+        evento = _EVENTO_DE_GESTO.get(vj.gesto(accion))
+        if evento:
+            self._reaccion_robot(evento)
+
+    def _robot_ocupado(self) -> bool:
+        return self._robot_estado != "ocioso"
+
+    def cancelar_turno_robot(self) -> None:
+        """Drops any pending robot turn (reset, new game). Safe from any thread."""
+        with self.lock:
+            self._epoca += 1
+            self._cancelar.set()
+            self._cancelar = threading.Event()
+            self._trabajos.clear()
+            self._robot_estado = "ocioso"
+            self._vista_congelada = None
+            self._efectos = None
+            self._pausa_pendiente = 0.0
+            self._hilo_robot = None
+
+    def _diferir(self, trabajo, respaldo=None):
+        """Runs a robot decision now (instant pacing) or after its think time.
+
+        `respaldo` is what the robot does instead if the decision raises (e.g.
+        accept the human's truco), so a call never stays unanswered.
+        Returns the job's result in instant mode, otherwise a `pensando` answer.
+        """
+        if self.ritmo.es_instantaneo:
+            return trabajo()
+        with self.lock:
+            # Queued from inside a running job (answer -> tanto -> card): the robot
+            # already thought it out, so it only takes a short SEGUIR pause.
+            encadenado = self._efectos is not None
+            self._trabajos.append((trabajo, encadenado, respaldo))
+            if self._robot_estado == "ocioso":
+                self._robot_estado = "pensando"
+            if self._hilo_robot is None or not self._hilo_robot.is_alive():
+                self._hilo_robot = threading.Thread(
+                    target=self._bucle_robot, args=(self._epoca, self._cancelar), daemon=True)
+                self._hilo_robot.start()
+            return {"pensando": True, "estado": self.estado_publico()}
+
+    def _bucle_robot(self, epoca: int, cancelar: threading.Event) -> None:
+        """Worker: for each queued decision, decide, wait the think time, then reveal it.
+
+        The decision is computed first (it is instant) but nothing it causes is
+        visible, audible or sent to the 3D table until the think time has passed:
+        the public state stays frozen at what it was before.
+        """
+        while True:
+            with self.lock:
+                if epoca != self._epoca:
+                    return
+                if not self._trabajos:
+                    self._robot_estado = "ocioso"
+                    self._vista_congelada = None
+                    self._hilo_robot = None
+                    return
+                trabajo, encadenado, respaldo = self._trabajos.popleft()
+                self._robot_estado = "pensando"
+                self._vista_congelada = copy.deepcopy(self._estado_vivo())
+                efectos = self._efectos = {"lista": [], "algo": False, "carta": False,
+                                           "acciones": [], "pendiente": None}
+                bazas_antes = len(self.ganadores_ronda)
+                extra, self._pausa_pendiente = self._pausa_pendiente, 0.0
+                try:
+                    trabajo()
+                except Exception as error:  # a broken decision must not freeze the game
+                    self._recuperar_turno_roto(efectos, error, respaldo)
+                finally:
+                    self._efectos = None
+                cerro_baza = len(self.ganadores_ronda) != bazas_antes and not self.mano_terminada
+            if efectos["algo"]:
+                if encadenado:
+                    pensar = self.ritmo.retraso(SEGUIR)
+                else:
+                    pensar = self.ritmo.retraso_pensar(efectos["acciones"], efectos["pendiente"])
+                if cancelar.wait(pensar + extra):
+                    return
+                with self.lock:
+                    if epoca != self._epoca:
+                        return
+                    for efecto in efectos["lista"]:
+                        self._aplicar_efecto(efecto)
+                    self._robot_estado = "actuando"
+                if efectos["carta"] and cancelar.wait(self.ritmo.retraso(EVT_CARTA)):
+                    return
+            elif efectos["lista"]:  # nothing to think about, only log lines
+                with self.lock:
+                    if epoca != self._epoca:
+                        return
+                    for efecto in efectos["lista"]:
+                        self._aplicar_efecto(efecto)
+            with self.lock:
+                if epoca != self._epoca:
+                    return
+                self._vista_congelada = None
+                if cerro_baza and self._trabajos:
+                    self._pausa_pendiente = self.ritmo.retraso(EVT_BAZA)
+
+    def _recuperar_turno_roto(self, efectos: Dict, error: Exception, respaldo=None) -> None:
+        """After a decision raised: reveal none of it, then keep the hand moving.
+
+        A call of the human waiting for the robot's answer gets the job's
+        `respaldo` answer (QUIERO). Otherwise, if it is still the robot's turn to
+        play a card, with nothing pending, it plays its first card (always
+        legal), so the human is never stuck.
+        """
+        efectos.update(lista=[], carta=False, acciones=[], pendiente=None)
+        self.registrar(f"[ERROR] turno del robot: {type(error).__name__}: {error}")
+        if respaldo is not None and not self.mano_terminada:
+            try:
+                if respaldo():
+                    return
+            except Exception as error:
+                self.registrar(f"[ERROR] respuesta de respaldo del robot: {type(error).__name__}: {error}")
+        if (self.mano_terminada or self.turno_carta != "robot" or self.canto_pendiente is not None
+                or self.truco_en_espera is not None or not self.cartas_robot_disponibles):
+            return
+        try:
+            self._robot_tira_carta(selected=self.cartas_robot_disponibles[0])
+        except Exception as error:
+            self.registrar(f"[ERROR] carta de respaldo del robot: {type(error).__name__}: {error}")
+
+    def _respaldo_truco(self, nivel: str, pts_q: int):
+        """Fallback for a broken answer to the human's `nivel`: the robot says quiero.
+        Returns a callable that is True when it answered."""
+        def aceptar() -> bool:
+            if (self.canto_pendiente is not None or self.apuesta_truco == nivel
+                    or (self.truco_en_espera is not None and self.truco_en_espera.get("quien_canto") != "humano")):
+                return False                      # something else is pending: leave it
+            self.truco_en_espera = None
+            self.apuesta_truco = nivel
+            self.puntos_truco_actuales = pts_q
+            self.quien_tiene_quiero_truco = "robot"
+            self._hablar(vj.QUIERO, pendiente=vj.accion_de_canto(nivel))
+            self._avanzar_turno_robot_si_corresponde()
+            return True
+        return aceptar
+
+    def _respaldo_envido(self, canto: str, pts_q: int):
+        """Fallback for a broken answer to the human's envido: the robot says quiero."""
+        def aceptar() -> bool:
+            if self.envido_resuelto or self.canto_pendiente is not None:
+                return False
+            self.puntos_envido_acumulados = pts_q
+            self._hablar(vj.QUIERO, pendiente=vj.accion_de_canto(canto))
+            self._resolver_tantos_envido(pts_q)
+            self._avanzar_turno_robot_si_corresponde()
+            return True
+        return aceptar
+
+    def decir_robot(self, frase: str) -> None:
+        """Marks that the robot does something. The free text is never shown nor
+        logged: it can carry what a player would not say (its tanto, its reasons).
+        The bubble and the log show the spoken phrase instead (`_aplicar_efecto`)."""
+        if self._efectos is not None:
+            self._efectos["algo"] = True
 
     # ---------- ciclo de partida y mano ----------
     def cambiar_modo_ia(self, modo: str) -> Dict:
-        """Cambia la arquitectura activa de la IA ('reactivo', 'utilidad', 'aprendizaje')."""
+        """Change the active agent mode."""
+        modo = modo.strip().lower()
+        if not self.ia.mode_available(modo):
+            return self.estado_publico()
+        if modo == 'neuroevolucion':
+            champion = self.ia.champions_dir / PHASE1_CHAMPION
+            self.network = NetworkPolicy.load(champion, seed=self.rng.randrange(2**32), explain=True)
+        elif modo == 'refuerzo':
+            from phase2_game_policy import GamePhase2Policy
+            self.network = GamePhase2Policy.load(self.ia.champions_dir / 'phase2/reigning_champion.pt', seed=self.rng.randrange(2**32))
+            self.opponent_profile_phase2.prior_strength = self.network.profile.prior_strength
         info = self.ia.set_modo_agente(modo)
         self.registrar(f"🧠 Arquitectura IA cambiada a: {info['nombre']}")
         return self.estado_publico()
 
-    def reiniciar_partido(self, meta_puntos: Optional[int] = None) -> Dict:
-        if meta_puntos in (15, 30):
-            self.meta_puntos = meta_puntos
+    def reset_profile(self):
+        """Reset the persisted opponent profile and pending observations."""
+        self.opponent_profile.reset()
+        self.opponent_profile_v3.reset()
+        self.opponent_profile_phase2.reset()
+        self._human_decisions.clear()
+
+    def reiniciar_partido(self, meta_puntos: Optional[int] = None, manos: Optional[int] = None) -> Dict:
+        """New match to 15 or 30 points, or a short match of `manos` hands (1-10).
+
+        A short match keeps 30 as its points target (falta envido, network inputs);
+        after the last hand the one ahead wins, and while level one more hand is played.
+        """
+        self.cancelar_turno_robot()
+        self.adapt_to_opponent = True
+        if manos is not None and 1 <= manos <= 10:
+            self.manos_partida, self.meta_puntos = manos, 30
+        elif meta_puntos in (15, 30):
+            self.manos_partida, self.meta_puntos = None, meta_puntos
         self.puntos_humano = 0
         self.puntos_robot = 0
         self.partido_terminado = False
@@ -165,9 +575,11 @@ class PartidaTruco:
         self.es_mano_humano = True
         self.estadisticas_partida = self._crear_estadisticas_vacias()
         self.nueva_mano(primera_vez=True)
-        self.decir_robot(f"¡Partido nuevo a {self.meta_puntos} puntos! Vos sos mano.")
+        largo = f"de {self.manos_partida} manos" if self.manos_partida else f"a {self.meta_puntos} puntos"
+        self.decir_robot(f"¡Partido nuevo {largo}! Vos sos mano.")
         return self.estado_publico()
 
+    @_entrada_humana
     def nueva_mano(self, primera_vez: bool = False) -> Dict:
         """Mezcla y reparte 3 cartas para cada jugador y ejecuta el turno inicial si el robot es mano."""
         if self.partido_terminado:
@@ -176,6 +588,7 @@ class PartidaTruco:
         if not primera_vez and not self.mano_terminada:
             return {"error": "Terminá la mano antes de repartir de nuevo.", "estado": self.estado_publico()}
 
+        self.cancelar_turno_robot()
         if not primera_vez and self.mano_terminada:
             self.es_mano_humano = not self.es_mano_humano
 
@@ -211,20 +624,28 @@ class PartidaTruco:
         self._humano_canto_truco_mano = False
         self._mano_analizada = False
         self.ia.limpiar_traza_mano()
+        self._network_history = []
+        self._human_decisions = []
+        self._human_pending = None
+        if self.network:
+            self.network.inference.reset()
 
         self.mano_terminada = False
         self.ganador_mano = None
+        self.ultima_frase_robot = ""  # the bubble only shows this hand's spoken phrases
 
         mano_str = "HUMANO" if self.es_mano_humano else "OTTOMAN (Robot)"
         self.registrar(f"--- NUEVA MANO (Mano: {mano_str}) | Humano {self.puntos_humano} - Ottoman {self.puntos_robot} ---")
 
         # Animación de repartir las cartas en la mesa del simulador
         self._reaccion_robot("repartir")
+        self._mesa_3d("repartir_cartas", list(self.cartas_robot))
 
         if self.es_mano_humano:
             self.decir_robot("Ya repartí. Sos mano, tirá una carta o cantá.")
         else:
             self.decir_robot("Soy mano esta vuelta, ahí reparto y juego yo...")
+            self._pausa_pendiente = self.ritmo.retraso(EVT_MANO)
             self._avanzar_turno_robot_si_corresponde()
 
         return self.estado_publico()
@@ -233,6 +654,15 @@ class PartidaTruco:
         if self._mano_analizada:
             return
         self._mano_analizada = True
+        revealed = not self.cartas_humano_disponibles
+        hand = tuple((c['valor'], c['palo']) for c in self.cartas_humano)
+        for decision in self._human_decisions:
+            decision['revealed'] = revealed
+            decision['bluff'] = is_bluff(decision['action'], hand) if revealed else None
+        self.opponent_profile.observe(self._human_decisions, 0)
+        self.opponent_profile_v3.observe(self._human_decisions, 0, semantics='v3')
+        phase2_decisions = [dict(d, legal_actions=d.get('legal_actions', ())) for d in self._human_decisions]
+        self.opponent_profile_phase2.observe(phase2_decisions, 0, semantics='phase2')
         self.estadisticas_partida["manos_jugadas"] += 1
         self.ia.analizar_mano_humano(
             self.cartas_humano,
@@ -242,10 +672,19 @@ class PartidaTruco:
             cartas_truco_reveladas=[m["carta"] for m in self.mesa if m["quien"] == "humano"],
         )
 
+    def _fin_por_manos(self) -> Optional[str]:
+        """Winner of a short match once its hands are played and points are not level."""
+        if (self.manos_partida is None or not self.mano_terminada
+                or self.estadisticas_partida["manos_jugadas"] < self.manos_partida
+                or self.puntos_humano == self.puntos_robot):
+            return None
+        return "humano" if self.puntos_humano > self.puntos_robot else "robot"
+
     def _verificar_fin_partido(self) -> None:
         if self.partido_terminado:
             return
-        if self.puntos_humano >= self.meta_puntos:
+        por_manos = self._fin_por_manos()
+        if self.puntos_humano >= self.meta_puntos or por_manos == "humano":
             self.partido_terminado = True
             self.ganador_partido = "humano"
             self.mano_terminada = True
@@ -259,7 +698,7 @@ class PartidaTruco:
             )
             self.decir_robot("¡Me ganaste el partido en buena ley! Te doy la mano, campeón.")
             self._reaccion_robot("fin_partido")
-        elif self.puntos_robot >= self.meta_puntos:
+        elif self.puntos_robot >= self.meta_puntos or por_manos == "robot":
             self.partido_terminado = True
             self.ganador_partido = "robot"
             self.mano_terminada = True
@@ -274,17 +713,20 @@ class PartidaTruco:
             self.decir_robot("¡Gané el partido! Qué baile te pegué, hermano.")
             self._reaccion_robot("festejo")
 
-    def puede_cantar_envido(self) -> bool:
-        """El envido solo se puede cantar en 1ra ronda, antes de resolverse y sin truco ya querido."""
+    def puede_cantar_envido(self, quien: str = "humano") -> bool:
+        """El envido solo se puede cantar en 1ra ronda, antes de resolverse, sin truco ya querido
+        y antes de que quien canta haya tirado su carta de la 1ra baza (ADR 0068)."""
         return (
             not self.mano_terminada
             and self.ronda_actual == 1
+            and not any(m["ronda"] == 1 and m["quien"] == quien for m in self.mesa)
             and not self.envido_resuelto
             and (self.canto_pendiente is None or self.canto_pendiente["tipo"] == "TRUCO")
             and self.apuesta_truco == "NADA"
         )
 
     # ---------- jugadas de cartas ----------
+    @_entrada_humana
     def jugar_carta_humano(self, carta: Dict) -> Dict:
         """El humano tira una carta a la mesa (por cámara, clic o voz)."""
         if self.mano_terminada:
@@ -315,6 +757,7 @@ class PartidaTruco:
         if carta_jugada is None:
             return {"error": "Esa carta no está en tu mano", "estado": self.estado_publico()}
 
+        self._record_human('card_%d' % self.cartas_humano.index(carta_jugada))
         self.cartas_humano_disponibles.remove(carta_jugada)
         nombre_c = tr.nombre_carta(carta_jugada["valor"], carta_jugada["palo"])
         self.mesa.append(
@@ -326,6 +769,7 @@ class PartidaTruco:
             }
         )
         self.registrar(f"👤 Humano jugó: {nombre_c} (Ronda {self.ronda_actual})")
+        self._mesa_3d("tirar_carta", carta_jugada, 2)
 
         cartas_ronda = [m for m in self.mesa if m["ronda"] == self.ronda_actual]
         if len(cartas_ronda) == 2:
@@ -342,6 +786,32 @@ class PartidaTruco:
             return
         if not self.cartas_robot_disponibles:
             return
+        self._diferir(self._turno_robot_ahora)
+
+    def _turno_robot_ahora(self) -> None:
+        """The robot's decision and its effects, without any waiting."""
+        if self.mano_terminada or self.canto_pendiente is not None or self.turno_carta != "robot":
+            return
+        if not self.cartas_robot_disponibles:
+            return
+
+        if self.ia.modo_agente in ('neuroevolucion', 'refuerzo'):
+            actions = ['card_%d' % i for i, card in enumerate(self.cartas_robot) if card in self.cartas_robot_disponibles] + ['fold']
+            if self.puede_cantar_envido("robot"):
+                actions += ['envido', 'real_envido', 'falta_envido']
+            if self.quien_tiene_quiero_truco in ('ambos', 'robot') and self._siguiente_nivel_truco():
+                actions.append(self._siguiente_nivel_truco().lower())
+            action = self._network_decide(actions)
+            if action == 'fold':
+                self._hablar(vj.MAZO)
+                self._adjudicar_mano('humano', 2 if not self.mesa and not self.envido_resuelto and self.apuesta_truco == 'NADA' else self.puntos_truco_actuales, motivo='Ottoman se fue al mazo')
+            elif action.startswith('card_'):
+                self._robot_tira_carta_network(int(action[-1]))
+            elif action in ('envido', 'real_envido', 'falta_envido'):
+                self._robot_canta_envido(action.upper(), '', es_farol=self.ia.ultimo_canto_fue_farol)
+            else:
+                self._robot_canta_truco(action.upper(), '', es_farol=self.ia.ultimo_canto_fue_farol)
+            return
 
         carta_humano_en_baza = next(
             (m["carta"] for m in self.mesa if m["ronda"] == self.ronda_actual and m["quien"] == "humano"),
@@ -349,7 +819,7 @@ class PartidaTruco:
         )
 
         # 1. En 1ra ronda, antes de tirar su 1ra carta, evaluar si cantar Envido
-        if self.ronda_actual == 1 and not self.envido_resuelto and len(self.cartas_robot_disponibles) == 3:
+        if self.puede_cantar_envido("robot") and len(self.cartas_robot_disponibles) == 3:
             canto_e, frase_e = self.ia.decidir_iniciar_envido(
                 self.cartas_robot,
                 es_mano=(not self.es_mano_humano),
@@ -386,11 +856,62 @@ class PartidaTruco:
         # 3. Tirar la carta elegida por la IA
         self._robot_tira_carta(carta_humano_en_baza)
 
-    def _robot_tira_carta(self, carta_humano_en_baza: Optional[Dict] = None) -> None:
+    def _network_decide(self, actions, pending=None):
+        stored_profile = (self.opponent_profile_phase2 if self.network.encoder == 'phase2' else
+                          self.opponent_profile_v3 if self.network.encoder == 'v3' else self.opponent_profile)
+        profile = stored_profile if self.adapt_to_opponent else OpponentProfile(prior_strength=stored_profile.prior_strength)
+        self.network.profile = profile
+        if self.network.encoder == 'phase2':
+            self.network.adapt = self.adapt_to_opponent
+        cards = tuple((c['valor'], c['palo']) for c in self.cartas_robot)
+        reveal = None
+        if self.resultado_envido_detalle and 'pts_humano' in self.resultado_envido_detalle:
+            reveal = {'declarations': ((0, self.resultado_envido_detalle['pts_humano']), (1, self.resultado_envido_detalle['pts_robot']))}
+        obs = {'player': 1, 'hand': cards,
+               'available': tuple(i for i, card in enumerate(self.cartas_robot) if card in self.cartas_robot_disponibles),
+               'score': (self.puntos_humano, self.puntos_robot), 'target': self.meta_puntos,
+               'mano': 0 if self.es_mano_humano else 1,
+               'table': tuple((0 if m['quien'] == 'humano' else 1, (m['carta']['valor'], m['carta']['palo'])) for m in self.mesa),
+               'tricks': tuple(None if w == 'parda' else 0 if w == 'humano' else 1 for w in self.ganadores_ronda),
+               'truco': self.puntos_truco_actuales, 'pending': pending, 'history': tuple(self._network_history),
+               'envido_done': self.envido_resuelto, 'envido_reveal': reveal,
+               'raise_owner': {'humano': 0, 'robot': 1}.get(self.quien_tiene_quiero_truco)}
+        action = self.network(obs, tuple(actions))
+        bluff = is_bluff(action, cards)
+        self.ia.ultimo_canto_fue_farol = bool(bluff)
+        belief = self.network.last_belief
+        greedy = getattr(self.network, 'greedy', False)
+        probabilities = sorted(self.network.last_probabilities.items(), key=lambda p: p[1], reverse=True)[:3]
+        # A greedy network picks the highest legal value; showing sampling percentages would be false.
+        metric = 'Elige la jugada de mayor valor' if greedy else ', '.join('%s: %.1f%%' % (a, p * 100) for a, p in probabilities)
+        self.ia._registrar_razonamiento('Red neuronal', action.upper(), metric,
+            '', 'Mentira' if bluff else 'Sin mentira', '')
+        trace = self.ia.traza_razonamiento[-1]
+        trace.update(inferencia=belief, es_farol=bluff,
+                     perfil_rival=profile.rates() if self.adapt_to_opponent else None)
+        if greedy:
+            trace['seleccion'] = 'greedy'
+        else:
+            trace['acciones_probables'] = [{'accion': a, 'porcentaje': p * 100} for a, p in probabilities]
+        self._network_history.append((1, action))
+        return action
+
+    def _record_human(self, action, pending=None):
+        self._network_history.append((0, action))
+        legal = [action]
+        if self.puede_cantar_envido():
+            legal.extend(('envido', 'real_envido', 'falta_envido'))
+        self._human_decisions.append({'player': 0, 'action': action, 'hand_index': 0, 'legal_actions': legal,
+                                      'observation': {'pending': pending}, 'revealed': False, 'bluff': None})
+
+    def _robot_tira_carta_network(self, index):
+        self._robot_tira_carta(selected=self.cartas_robot[index])
+
+    def _robot_tira_carta(self, carta_humano_en_baza: Optional[Dict] = None, selected=None) -> None:
         if not self.cartas_robot_disponibles or self.mano_terminada:
             return
 
-        carta = self.ia.elegir_carta_a_jugar(
+        carta = selected or self.ia.elegir_carta_a_jugar(
             self.cartas_robot_disponibles,
             ronda=self.ronda_actual,
             carta_rival_mesa=carta_humano_en_baza,
@@ -407,6 +928,10 @@ class PartidaTruco:
             }
         )
         self.decir_robot(f"Juego el {nombre_c}.")
+        self._hablar(vj.CARTA)
+        if self._efectos is not None:
+            self._efectos["carta"] = True
+        self._mesa_3d("tirar_carta", carta, 1)
 
         cartas_ronda = [m for m in self.mesa if m["ronda"] == self.ronda_actual]
         if len(cartas_ronda) == 2:
@@ -496,6 +1021,7 @@ class PartidaTruco:
                 self._ultimo_bluff_truco_mano["resultado"] = "descubierto"
                 self.estadisticas_partida["truco"]["bluffs_descubiertos"] += 1
 
+        self.registrar(f"Mano para {'OTTOMAN' if ganador == 'robot' else 'HUMANO'}{sufijo}: +{puntos}")
         if ganador == "robot":
             self.puntos_robot += puntos
             self.decir_robot(f"¡Esa mano es mía{sufijo}! Sumo {puntos} {'punto' if puntos == 1 else 'puntos'}.")
@@ -538,6 +1064,8 @@ class PartidaTruco:
         es_farol: bool = False,
         detalle_farol: str = "",
     ) -> None:
+        if self.ia.modo_agente not in ('neuroevolucion', 'refuerzo'):
+            self._network_history.append((1, 'envido' if canto == 'ENVIDO_ENVIDO' else canto.lower()))
         pts_q, pts_nq = self._valores_envido(canto)
         self.ultimo_canto_envido = canto
         self.por_el_partido = canto == "FALTA_ENVIDO" and tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos)[1]
@@ -556,8 +1084,7 @@ class PartidaTruco:
             self._ultimo_bluff_envido_mano = evento_b
 
         self.decir_robot(frase or f"¡{canto.replace('_', ' ')}!")
-        if canto == "FALTA_ENVIDO":
-            self._reaccion_robot("desafio")
+        self._hablar(vj.accion_de_canto(canto))
         self.canto_pendiente = {
             "tipo": "ENVIDO",
             "canto": canto,
@@ -569,6 +1096,7 @@ class PartidaTruco:
             "opciones": ["QUIERO", "NO_QUIERO"] + self._opciones_subir_envido(canto),
         }
 
+    @_entrada_humana
     def cantar_envido_humano(self, canto: str) -> Dict:
         """El humano inicia o sube el canto de Envido."""
         canto = canto.upper().strip()
@@ -588,19 +1116,41 @@ class PartidaTruco:
                 self.canto_pendiente = None
             elif self.canto_pendiente["tipo"] == "ENVIDO":
                 return self.responder_canto_humano(canto)
+            elif self.canto_pendiente["tipo"] == "TRUCO":
+                # "El envido está primero" is only for a human who has not played yet (ADR 0068).
+                return {"error": "No podés cantar envido ahora.", "estado": self.estado_publico()}
             else:
                 return {"error": "Primero respondé al canto pendiente.", "estado": self.estado_publico()}
 
-        if not self.puede_cantar_envido():
+        # Raising inside an envido exchange already under way is always allowed (ADR 0068 only limits starting it).
+        subiendo = self.puntos_envido_acumulados > 0 and not self.envido_resuelto and self.ronda_actual == 1
+        if not (subiendo or self.puede_cantar_envido()):
             return {"error": "No podés cantar envido ahora.", "estado": self.estado_publico()}
 
         self._humano_canto_envido_mano = True
+        self._record_human('envido' if canto == 'ENVIDO_ENVIDO' else canto.lower(), self._human_pending)
+        self._human_pending = None
         pts_q, pts_nq = self._valores_envido(canto)
         self.ultimo_canto_envido = canto
         self.por_el_partido = canto == "FALTA_ENVIDO" and tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos)[1]
         self.registrar(f"👤 Humano cantó: {canto.replace('_', ' ')}")
 
-        resp, frase = self.ia.responder_envido(
+        return self._diferir(lambda: self._responder_envido_robot(canto, pts_q, pts_nq),
+                             respaldo=self._respaldo_envido(canto, pts_q))
+
+    def _responder_envido_robot(self, canto: str, pts_q: int, pts_nq: int) -> Dict:
+        """The robot answers the human's envido call."""
+        if self.ia.modo_agente in ('neuroevolucion', 'refuerzo'):
+            pending = {'kind': 'envido', 'caller': 0, 'call': canto.lower(), 'accepted': pts_q, 'declined': pts_nq}
+            actions = ['quiero', 'no_quiero', 'fold'] + [('envido' if a == 'ENVIDO_ENVIDO' else a.lower()) for a in self._opciones_subir_envido(canto)]
+            choice = self._network_decide(actions, pending)
+            if choice == 'fold':
+                self._hablar(vj.MAZO)
+                self._adjudicar_mano('humano', self.puntos_truco_actuales + pts_nq, motivo='Ottoman se fue al mazo')
+                return {'respuesta': 'MAZO', 'estado': self.estado_publico()}
+            resp, frase = ('ENVIDO_ENVIDO' if choice == 'envido' else choice.upper()), ''
+        else:
+            resp, frase = self.ia.responder_envido(
             self.cartas_robot,
             canto,
             es_mano=(not self.es_mano_humano),
@@ -608,7 +1158,7 @@ class PartidaTruco:
             puntos_humano=self.puntos_humano,
             puntos_robot=self.puntos_robot,
             meta_puntos=self.meta_puntos,
-        )
+            )
 
         if resp in ("ENVIDO_ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"):
             self.puntos_envido_acumulados = pts_q
@@ -622,15 +1172,17 @@ class PartidaTruco:
 
         if resp == "QUIERO":
             self.puntos_envido_acumulados = pts_q
+            self._hablar(vj.QUIERO, pendiente=vj.accion_de_canto(canto))
             res = self._resolver_tantos_envido(pts_q, frase_inicial=frase)
             self._avanzar_turno_robot_si_corresponde()
+            res["estado"] = self.estado_publico()
             return res
 
         # NO_QUIERO del robot
         self.envido_resuelto = True
         self.puntos_humano += pts_nq
         self.decir_robot(frase or "No quiero, son buenas.")
-        self._reaccion_robot("mazo")
+        self._hablar(vj.NO_QUIERO, pendiente=vj.accion_de_canto(canto))
         self.resultado_envido_detalle = {
             "ganador": "humano",
             "puntos_ganados": pts_nq,
@@ -641,6 +1193,12 @@ class PartidaTruco:
         self._avanzar_turno_robot_si_corresponde()
         return {"respuesta": "NO_QUIERO", "frase": frase, "ganador": "humano", "estado": self.estado_publico()}
 
+    def _cerrar_envido_querido(self, pts_q: int) -> Dict:
+        res = self._resolver_tantos_envido(pts_q)
+        self._avanzar_turno_robot_si_corresponde()
+        res["estado"] = self.estado_publico()
+        return res
+
     def _resolver_tantos_envido(self, puntos_en_juego: int, frase_inicial: str = "") -> Dict:
         self.envido_resuelto = True
         self.canto_pendiente = None
@@ -649,14 +1207,16 @@ class PartidaTruco:
         if pts_humano > pts_robot or (pts_humano == pts_robot and self.es_mano_humano):
             ganador_e = "humano"
             if self.ultimo_canto_envido == "FALTA_ENVIDO":
-                puntos_en_juego, _ = tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos, ganador_e)
+                puntos_en_juego = (self.meta_puntos - self.puntos_humano if self.manos_partida is not None else
+                                   tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos, ganador_e)[0])
             self.puntos_humano += puntos_en_juego
             msg = f"{frase_inicial} Tenés {pts_humano} contra mis {pts_robot}, ¡son buenas! (+{puntos_en_juego} pts)".strip()
             self.decir_robot(msg)
         else:
             ganador_e = "robot"
             if self.ultimo_canto_envido == "FALTA_ENVIDO":
-                puntos_en_juego, _ = tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos, ganador_e)
+                puntos_en_juego = (self.meta_puntos - self.puntos_robot if self.manos_partida is not None else
+                                   tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos, ganador_e)[0])
             self.puntos_robot += puntos_en_juego
             msg = f"{frase_inicial} ¡Canto {pts_robot} y matan tus {pts_humano}! (+{puntos_en_juego} pts para mí)".strip()
             self.decir_robot(msg)
@@ -671,6 +1231,8 @@ class PartidaTruco:
                 self._ultimo_bluff_envido_mano["resultado"] = "descubierto"
                 self.estadisticas_partida["envido"]["bluffs_descubiertos"] += 1
 
+        self._hablar(vj.TANTO, texto=vj.frase_tanto(
+            pts_robot, pts_humano, robot_es_mano=not self.es_mano_humano))
         self.resultado_envido_detalle = {
             "ganador": ganador_e,
             "pts_humano": pts_humano,
@@ -679,7 +1241,7 @@ class PartidaTruco:
         }
         self._verificar_fin_partido()
         self._reanudar_truco()
-        return {
+        respuesta = {
             "respuesta": "QUIERO",
             "ganador": ganador_e,
             "pts_humano": pts_humano,
@@ -687,6 +1249,9 @@ class PartidaTruco:
             "puntos_ganados": puntos_en_juego,
             "estado": self.estado_publico(),
         }
+        if self._tanto_robot_oculto():
+            del respuesta["pts_robot"]        # a pie that lost keeps its number to itself
+        return respuesta
 
     # ---------- Truco / Retruco / Vale Cuatro (Humano <-> Robot) ----------
     def _siguiente_nivel_truco(self) -> Optional[str]:
@@ -708,6 +1273,8 @@ class PartidaTruco:
         es_farol: bool = False,
         detalle_farol: str = "",
     ) -> None:
+        if self.ia.modo_agente not in ('neuroevolucion', 'refuerzo'):
+            self._network_history.append((1, nivel.lower()))
         pts_q, pts_nq = self._puntos_nivel_truco(nivel)
         self.estadisticas_partida["truco"]["cantados_robot"] += 1
 
@@ -716,20 +1283,20 @@ class PartidaTruco:
             evento_b = {
                 "tipo": "TRUCO",
                 "canto": nivel,
-                "detalle": detalle_farol or f"Cantó {nivel} de farol con cartas bajas",
+                "detalle": detalle_farol or f"Cantó {nivel} de mentira con cartas bajas",
                 "resultado": "pendiente",
             }
             self.bluffs_mano_actual.append(evento_b)
             self._ultimo_bluff_truco_mano = evento_b
 
         self.decir_robot(frase or f"¡{nivel.replace('_', ' ')}!")
-        self._reaccion_robot("desafio")
+        self._hablar(vj.accion_de_canto(nivel))
         opciones = ["QUIERO", "NO_QUIERO"]
         if nivel == "TRUCO":
             opciones.append("RETRUCO")
         elif nivel == "RETRUCO":
             opciones.append("VALE_CUATRO")
-        if self.ronda_actual == 1 and not self.envido_resuelto:
+        if self.puede_cantar_envido():
             opciones.extend(["ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO"])
 
         self.canto_pendiente = {
@@ -742,6 +1309,7 @@ class PartidaTruco:
             "opciones": opciones,
         }
 
+    @_entrada_humana
     def cantar_truco_humano(self, nivel_pedido: Optional[str] = None) -> Dict:
         """El humano canta Truco, Retruco o Vale Cuatro."""
         if self.mano_terminada:
@@ -765,6 +1333,8 @@ class PartidaTruco:
             return {"error": "Cantá el nivel de truco disponible.", "estado": self.estado_publico()}
         nivel = nivel_pedido or sig_nivel
         self._humano_canto_truco_mano = True
+        self._record_human(nivel.lower(), self._human_pending)
+        self._human_pending = None
         pts_q, pts_nq = self._puntos_nivel_truco(nivel)
         self.registrar(f"👤 Humano cantó: {nivel.replace('_', ' ')}")
 
@@ -773,7 +1343,13 @@ class PartidaTruco:
             None,
         )
 
-        if nivel == "TRUCO" and self.ronda_actual == 1 and not self.envido_resuelto:
+        return self._diferir(lambda: self._robot_responde_truco_humano(nivel, pts_q, pts_nq, carta_humano_en_baza),
+                             respaldo=self._respaldo_truco(nivel, pts_q))
+
+    def _robot_responde_truco_humano(self, nivel, pts_q, pts_nq, carta_humano_en_baza) -> Dict:
+        """The robot answers the human's truco call (or jumps in with the envido first)."""
+        self._respondiendo(nivel)
+        if self.ia.modo_agente not in ('neuroevolucion', 'refuerzo') and nivel == "TRUCO" and self.puede_cantar_envido("robot"):
             canto_e, _ = self.ia.decidir_iniciar_envido(
                 self.cartas_robot,
                 es_mano=(not self.es_mano_humano),
@@ -795,15 +1371,36 @@ class PartidaTruco:
 
         return self._responder_truco_robot(nivel, pts_q, pts_nq, carta_humano_en_baza)
 
+    def _respondiendo(self, canto: str) -> None:
+        """Inside a robot turn: any answer to `canto` (even "el envido está primero")
+        is timed as answering it, so answering a truco is a big decision (ADR 0070)."""
+        if self._efectos is not None:
+            self._efectos["pendiente"] = vj.accion_de_canto(canto)
+
     def _responder_truco_robot(self, nivel, pts_q, pts_nq, carta_humano_en_baza):
-        resp, frase = self.ia.responder_canto_truco(
+        self._respondiendo(nivel)
+        if self.ia.modo_agente in ('neuroevolucion', 'refuerzo'):
+            pending = {'kind': 'truco', 'caller': 0, 'level': pts_q}
+            actions = ['quiero', 'no_quiero', 'fold']
+            if pts_q < 4:
+                actions.append('retruco' if pts_q == 2 else 'vale_cuatro')
+            if self.puede_cantar_envido("robot"):
+                actions += ['envido', 'real_envido', 'falta_envido']
+            choice = self._network_decide(actions, pending)
+            if choice in ('envido', 'real_envido', 'falta_envido'):
+                self.truco_en_espera = {'tipo': 'TRUCO', 'canto': nivel, 'quien_canto': 'humano', 'puntos_quiero': pts_q, 'puntos_no_quiero': pts_nq, 'opciones': ['QUIERO', 'NO_QUIERO']}
+                self._robot_canta_envido(choice.upper(), '', es_farol=self.ia.ultimo_canto_fue_farol)
+                return {'respuesta': choice.upper(), 'estado': self.estado_publico()}
+            resp, frase = ('NO_QUIERO' if choice == 'fold' else choice.upper()), ''
+        else:
+            resp, frase = self.ia.responder_canto_truco(
             self.cartas_robot_disponibles,
             nivel,
             self.ganadores_ronda,
             carta_rival_mesa=carta_humano_en_baza,
             puntos_humano=self.puntos_humano,
             meta_puntos=self.meta_puntos,
-        )
+            )
 
         if resp in ("RETRUCO", "VALE_CUATRO"):
             self.apuesta_truco = nivel
@@ -822,12 +1419,13 @@ class PartidaTruco:
             self.puntos_truco_actuales = pts_q
             self.quien_tiene_quiero_truco = "robot"
             self.decir_robot(frase or "¡Quiero!")
+            self._hablar(vj.QUIERO, pendiente=vj.accion_de_canto(nivel))
             self._avanzar_turno_robot_si_corresponde()
             return {"respuesta": "QUIERO", "frase": frase, "estado": self.estado_publico()}
 
         # NO_QUIERO -> El robot se va al mazo
         self.decir_robot(frase or "No quiero, me voy al mazo.")
-        self._reaccion_robot("mazo")
+        self._hablar(vj.NO_QUIERO, pendiente=vj.accion_de_canto(nivel))
         self._adjudicar_mano("humano", pts_nq, motivo=f"{nivel} no querido")
         return {"respuesta": "NO_QUIERO", "frase": frase, "estado": self.estado_publico()}
 
@@ -837,13 +1435,18 @@ class PartidaTruco:
         if not pendiente or self.partido_terminado:
             return
         if pendiente["quien_canto"] == "robot":
+            pendiente["opciones"] = [op for op in pendiente["opciones"]
+                                    if op not in ("ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO")]
+            pendiente["reanudado_tras_envido"] = True
             self.canto_pendiente = pendiente
         else:
             carta = next((m["carta"] for m in self.mesa
                           if m["ronda"] == self.ronda_actual and m["quien"] == "humano"), None)
-            self._responder_truco_robot(pendiente["canto"], pendiente["puntos_quiero"],
-                                       pendiente["puntos_no_quiero"], carta)
+            self._diferir(lambda: self._responder_truco_robot(
+                pendiente["canto"], pendiente["puntos_quiero"], pendiente["puntos_no_quiero"], carta),
+                respaldo=self._respaldo_truco(pendiente["canto"], pendiente["puntos_quiero"]))
 
+    @_entrada_humana
     def responder_canto_humano(self, respuesta: str) -> Dict:
         """El humano responde ('QUIERO', 'NO_QUIERO' o retruca/sube) al canto pendiente del robot."""
         if self.canto_pendiente is None:
@@ -851,20 +1454,24 @@ class PartidaTruco:
 
         resp = respuesta.upper().strip()
         pendiente = self.canto_pendiente
+        if (pendiente["tipo"] == "TRUCO" and resp in ("ENVIDO", "REAL_ENVIDO", "FALTA_ENVIDO")
+                and resp not in pendiente["opciones"]):
+            return {"error": "No podés cantar envido ahora.", "estado": self.estado_publico()}
         if resp not in pendiente["opciones"]:
             return {"error": "Elegí una de las opciones del canto pendiente.", "estado": self.estado_publico()}
         tipo = pendiente["tipo"]
         canto_robot = pendiente["canto"]
         era_farol = bool(pendiente.get("es_farol", False))
 
+        if resp in ('QUIERO', 'NO_QUIERO'):
+            self._record_human(resp.lower(), {'kind': tipo.lower()})
+
         if tipo == "ENVIDO":
             if resp == "QUIERO":
                 self.ia.registrar_respuesta_humano_a_canto("ENVIDO", quiso=True, era_farol_robot=era_farol)
                 pts_q = pendiente["puntos_quiero"]
                 self.puntos_envido_acumulados = pts_q
-                res = self._resolver_tantos_envido(pts_q)
-                self._avanzar_turno_robot_si_corresponde()
-                return res
+                return self._diferir(lambda: self._cerrar_envido_querido(pts_q))
             if resp == "NO_QUIERO":
                 self.ia.registrar_respuesta_humano_a_canto("ENVIDO", quiso=False, era_farol_robot=era_farol)
                 if self._ultimo_bluff_envido_mano is not None and self._ultimo_bluff_envido_mano["resultado"] == "pendiente":
@@ -874,6 +1481,9 @@ class PartidaTruco:
                 self.envido_resuelto = True
                 self.canto_pendiente = None
                 self.puntos_robot += pts_nq
+                self.resultado_envido_detalle = {
+                    "ganador": "robot", "puntos_ganados": pts_nq, "motivo": "No querido por vos",
+                }
                 self.decir_robot(f"¡Achicaste! Sumo {pts_nq} {'punto' if pts_nq == 1 else 'puntos'} del envido.")
                 self._reaccion_robot("festejo")
                 self._verificar_fin_partido()
@@ -889,6 +1499,7 @@ class PartidaTruco:
                     resp = "ENVIDO_ENVIDO"
                 self.puntos_envido_acumulados = pendiente["puntos_quiero"]
                 self.canto_pendiente = None
+                self._human_pending = {'kind': 'envido'}
                 return self.cantar_envido_humano(resp)
 
         elif tipo == "TRUCO":
@@ -925,10 +1536,12 @@ class PartidaTruco:
                 self.puntos_truco_actuales = pendiente["puntos_quiero"]
                 self.quien_tiene_quiero_truco = "humano"
                 self.canto_pendiente = None
+                self._human_pending = {'kind': 'truco'}
                 return self.cantar_truco_humano(resp)
 
         return {"error": f"Respuesta '{resp}' no válida en este momento.", "estado": self.estado_publico()}
 
+    @_entrada_humana
     def irse_al_mazo_humano(self) -> Dict:
         """El humano se va; sin cantos ni cartas en primera baza rige el valor de casa de 2 puntos."""
         if self.mano_terminada:
@@ -936,6 +1549,8 @@ class PartidaTruco:
 
         if self.canto_pendiente is not None and self.canto_pendiente["tipo"] == "TRUCO":
             return self.responder_canto_humano("NO_QUIERO")
+
+        self._record_human('fold')
 
         pts = self.puntos_truco_actuales
         if self.canto_pendiente is not None and self.canto_pendiente["tipo"] == "ENVIDO":
@@ -951,6 +1566,7 @@ class PartidaTruco:
         return {"mensaje": "Te fuiste al mazo", "estado": self.estado_publico()}
 
     # ---------- comando por voz en la mesa de Truco ----------
+    @_entrada_humana
     def procesar_voz_truco(self, texto: str) -> Dict:
         """Interpreta un canto o jugada dicha por micrófono durante la partida de Truco."""
         t = (texto or "").lower().strip()
@@ -1023,18 +1639,56 @@ class PartidaTruco:
 
     # ---------- serialización de estado para la UI ----------
     def estado_publico(self) -> Dict:
+        """Public state. While the robot is thinking it is the state before its move."""
+        with self.lock:
+            if self._vista_congelada is not None:
+                estado = dict(self._vista_congelada)
+            else:
+                estado = self._estado_vivo()
+            estado["robot"] = {
+                "nombre": "Ottoman",
+                "estado": self._robot_estado,
+                "ocupado": self._robot_estado != "ocioso",
+                "pensando": self._robot_estado == "pensando",
+                "velocidad": self.ritmo.velocidad,
+                "instantaneo": self.ritmo.es_instantaneo,
+            }
+            estado["voz"] = [dict(v) for v in self._voz[-6:]]
+            return estado
+
+    def _tanto_robot_oculto(self) -> bool:
+        """True while the robot's envido number is private: it was pie, lost the
+        envido and only said "son buenas", and the hand is not over (ADR 0070)."""
+        r = self.resultado_envido_detalle
+        return (r is not None and "pts_robot" in r and not self.mano_terminada
+                and self.es_mano_humano and r.get("ganador") == "humano")
+
+    def _resultado_envido_publico(self) -> Optional[Dict]:
+        r = self.resultado_envido_detalle
+        if r is None:
+            return None
+        if self._tanto_robot_oculto():
+            r = {k: v for k, v in r.items() if k != "pts_robot"}
+            r["robot_son_buenas"] = True
+        return dict(r)
+
+    def _estado_vivo(self) -> Dict:
         siguiente_truco = self._siguiente_nivel_truco() if self.quien_tiene_quiero_truco in ("ambos", "humano") else None
         aprendizaje = self.ia.resumen_aprendizaje()
+        aprendizaje['adaptacion_activa'] = self.adapt_to_opponent
+        profile = (self.opponent_profile_phase2 if self.ia.modo_agente == 'refuerzo' else
+                   self.opponent_profile_v3 if self.network is not None and self.network.encoder == 'v3' and self.ia.modo_agente == 'neuroevolucion' else self.opponent_profile)
+        aprendizaje['perfil_rival'] = profile.rates()
         if not self.mano_terminada:
             def vista_publica(paso):
                 if paso is None:
                     return None
-                return {"fase": paso["fase"], "decision": paso["decision"].replace(" (FAROL)", "")}
+                return {"fase": paso["fase"], "decision": paso["decision"].replace(" (MENTIRA)", "")}
 
             aprendizaje["ultimo_razonamiento"] = vista_publica(aprendizaje["ultimo_razonamiento"])
             aprendizaje["traza_razonamiento"] = [vista_publica(paso) for paso in aprendizaje["traza_razonamiento"]]
 
-        # Al terminar la mano, revelar las 3 cartas de Ottoman y si hizo farol
+        # Al terminar la mano, revelar las 3 cartas de Ottoman y si dijo una mentira
         cartas_robot_reveladas = None
         tantos_robot_revelados = None
         if self.mano_terminada:
@@ -1059,6 +1713,8 @@ class PartidaTruco:
                 "humano": self.puntos_humano,
                 "robot": self.puntos_robot,
                 "meta": self.meta_puntos,
+                "manos": self.manos_partida,
+                "manos_jugadas": self.estadisticas_partida["manos_jugadas"],
             },
             "partido_terminado": self.partido_terminado,
             "ganador_partido": self.ganador_partido,
@@ -1077,7 +1733,7 @@ class PartidaTruco:
             "envido_disponible": self.puede_cantar_envido(),
             "envido_resuelto": self.envido_resuelto,
             "por_el_partido": self.por_el_partido,
-            "resultado_envido": self.resultado_envido_detalle,
+            "resultado_envido": self._resultado_envido_publico(),
             "apuesta_truco": (self.truco_en_espera["canto"] if self.truco_en_espera else self.apuesta_truco),
             "puntos_truco_actuales": (self.truco_en_espera["puntos_quiero"] if self.truco_en_espera else self.puntos_truco_actuales),
             "siguiente_truco_humano": siguiente_truco,

@@ -1,0 +1,8 @@
+{"version": 3, "members": [
+  {"name": "v2s1-g46", "kind": "phase1", "encoder": "v2", "path": "../phase1-encoder-v2-seed1/reigning_champion.npy", "sha256": "9659d27a3c70f369751d48a9ba4d97f555f4d8cf20931cbbd23f06c90ecd7fe6"},
+  {"name": "v2s2-g25", "kind": "phase1", "encoder": "v2", "path": "../phase1-seed2-matched/v2/reigning_champion.npy", "sha256": "3f25fb0b59b5c7a10c4666bb2450717f822ad6d13c8283a217069645a7f68a06"},
+  {"name": "run1-g12", "kind": "phase2", "encoder": "phase2", "path": "generation_000012.pt", "sha256": "681f456ba206f9455bc71aa63141ef279a4fdb2bb62bb78046bba0490f56fed4", "temperature": 0.05, "profile_prior": 5},
+  {"name": "run1-g28", "kind": "phase2", "encoder": "phase2", "path": "generation_000028.pt", "sha256": "66ed791f4dd113e350dc99e141c1ecead1917b3055e79a47d5b09920d54ad57f", "temperature": 0.05, "profile_prior": 5},
+  {"name": "reactive", "kind": "reference", "agent": "reactive"},
+  {"name": "adaptive_utility", "kind": "reference", "agent": "adaptive_utility"}
+]}

@@ -1,0 +1,5 @@
+PHASE league 67.07510399999592
+gen 1 | best 0.679 | avg 0.430 | first champion | 96.32 s | league 67.08 s | check 0.00 s
+PHASE league 60.56733130000066
+gen 2 | best 0.675 | avg 0.436 | not promoted 47% +/-4 (200/1000 pairs) | 98.32 s | league 60.60 s | check 8.93 s
+before v2 TOTAL 194.70700429999852

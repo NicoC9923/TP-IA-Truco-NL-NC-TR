@@ -47,7 +47,8 @@ class SimuladorLocal(SimuladorOficial):
             self.mundo, self.robot, self.mundo.limites,
             telemetria=lambda: self._ultima_telemetria,
             verboso=self.verboso,
-            puerto=self.puerto if self.puerto is not None else PUERTO)
+            puerto=self.puerto if self.puerto is not None else PUERTO,
+            cartas=self.cartas.mesa if self.cartas is not None else None)
         self.servidor.arrancar_en_hilo()
 
     def cerrar(self) -> None:

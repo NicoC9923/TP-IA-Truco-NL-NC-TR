@@ -1,0 +1,33 @@
+PHASE 2 RUN 3. Pre-registration, 2026-11-10, ADR 0062 (with its two amendments) and ADR 0061.
+Frozen when the user approves it, before training. One run; no retry, no extension, no change of settings except the single generation-size change below.
+
+INPUTS (hashes checked before the night and recorded in the checkpoint config)
+- Warm start: champions/phase2/reigning_champion.pt, run 2 g38, SHA256 95eee708e8839233c27e4b3d710b6b5da74f3a149f7fe5ce8deef4cb720b60bf; new encoder-v3 columns zero-initialised.
+- Equity table: experiments/phase2-run3/equity-table.json SHA256 290d2f75f7fc70c9adc1bb31d6711268829963ca4caf7564bd6ab4bd6aeb87b5 (200,000 greedy self-play matches of g38, seed 67001; held-out check seed 67002: monotone, Brier 0.1795 vs 0.2013 for the score difference).
+- Panel, held-out manifest and league shares: the run 2 files (experiments/phase2-run2/{panel.json,held-out.json,league-shares.json}).
+
+PILOTS (exploratory go/no-go, already run; outputs in training_output/phase2-run3-pilot*/pilot.json)
+- T=0.05: greedy 68.67% vs fixed Adaptive Utility (warm start 69.33%, same 300 pairs), greedy_disagreement 0.55. Passed the rule.
+- T=0.02 (chosen, ADR 0062 amendment): greedy 73.17% [70.02, 76.32] (warm start 69.33%), greedy_disagreement 0.40, 291.6 matches/s -> 124,560 matches per generation for ~7.5 min generations with a 5% check share. Passed the rule.
+
+COMMAND (once): powershell -File experiments/phase2-run3/run_run3.ps1, in a visible terminal, keep-awake on, done.json at the end. It runs:
+  py -u proyecto/phase2_trainer.py --output training_output/phase2-run3 --champions-dir champions/phase2-run3 --generations 1000 --matches-per-generation 124560 --matches-per-round 240 --workers 12 --seed 65001 --check-seed-base 66000 --target mixed --lr 0.0003 --minibatch 512 --temperature 0.02 --profile-prior 5 --patience 40 --time-cap-seconds 43200 --panel-path experiments/phase2-run2/panel.json --no-panel-rotation --held-out-manifest experiments/phase2-run2/held-out.json --league-shares experiments/phase2-run2/league-shares.json --timing-log --panel-pairs 300 --head-to-head-pairs 300 --pool-recent 8 --pool-diverse 4 --encoder-version 3 --warm-start champions/phase2/reigning_champion.pt --target-blend 0.5 --equity-table experiments/phase2-run3/equity-table.json --check-selection greedy
+- Training rollouts sample at T=0.02; checks and panel play challenger and champion greedy (phase 2 panel members greedy too; phase 1 members and references as in run 2). Promotion thresholds of ADR 0047 unchanged: panel gain >= 0.01 with paired 95% lower bound > 0, and >= 47.5% direct.
+- Stops at the first of 43,200 s of training or 40 consecutive checks without promotion. A smoke test of this exact flag set (tiny sizes, throwaway seeds and folder) ran a greedy check with all six members before freezing.
+
+SINGLE GENERATION-SIZE CHANGE
+- If the mean duration of generations 2 and 3 (check included) exceeds 600 s, the coordinator stops the run at the next generation boundary and resumes once from that checkpoint with M2 = 124560 * 450 / (that mean duration), rounded down to a multiple of 240, via run_run3.ps1 -Resume <checkpoint> -NewMatchesPerGeneration M2. The change is logged by the trainer; a second change is refused. Downtime is excluded from the cap.
+
+SEEDS (audited in proyecto/phase2_run3_pilot.py against earlier namespaces)
+- Training 65001; checks 66000-66999; equity 67001/67002 and pilot 63001 / deal base 92001 (exponent 132) already used.
+- Reserved for run 3's final exam (ADR 0061, its own RULE before play): deal bases from 93001, action seed exponent 133.
+
+AFTER THE RUN
+- The ADR 0061 exam with fresh seeds: C1 run 3 champion, C2 last fully checked generation, both greedy; baseline the shipped g38 greedy; same five opponents, thresholds and Holm. Its RULE is written and approved before any game. If neither passes, g38 stays.
+- README, archive with hashes, push; nothing ships from training alone.
+
+CLAIMS
+- Reference opponents and the panel are familiar (run 2 league). Phase 1 g48 and the two held-out networks stay out of training and selection, so the exam can detect specialisation. Run 3 differs from run 2 in inputs, target, training temperature, check size, check selection and snapshot span per match; it is not an isolated comparison of any one change.
+
+OPERATIONAL NOTE (2026-11-10, not a settings change)
+- At the user's request the run was moved from a separate PowerShell window into an Orca terminal: stopped at 20:02:33 right after checkpoint_007270.pt (generation 15, round 7271; generations 1-14 logged), and resumed from that checkpoint with the same runner and flags (ADR 0042 deterministic resume). Downtime (~20 s) is excluded from the time cap. Not a retry.
