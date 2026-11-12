@@ -46,13 +46,13 @@
   .sb-team.a { background: var(--a); color: var(--a-ink); }
   .sb-team.b { background: var(--b); color: var(--b-ink); }
   .sb-name { display: flex; flex-direction: column; gap: 3px; font-family: var(--display); font-weight: 800; font-size: 19px; letter-spacing: 0.03em; text-transform: uppercase; line-height: 1; max-width: 230px; }
-  .sb-name small { font-family: var(--ui); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; }
-  .mano-tag { font-family: var(--ui); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; padding: 2px 6px; border-radius: 3px; width: max-content; background: currentColor; }
+  .sb-name small { font-family: var(--ui); font-size: 14px; font-weight: 700; letter-spacing: 0.12em; }
+  .mano-tag { font-family: var(--ui); font-size: 14px; font-weight: 700; letter-spacing: 0.12em; padding: 2px 6px; border-radius: 3px; width: max-content; background: currentColor; }
   .sb-team.a .mano-tag span { color: var(--a); }
   .sb-team.b .mano-tag span { color: var(--b); }
   .sb-num { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 50px; line-height: 1; min-width: 1.1em; text-align: right; }
   .sb-info { display: flex; align-items: center; gap: 18px; background: var(--ink-2); padding: 0 18px; border-radius: 0 6px 6px 0; }
-  .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--txt-3); }
+  .lbl { font-size: 14px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--txt-3); }
   .info-v { font-family: var(--display); font-weight: 800; font-size: 22px; text-transform: uppercase; line-height: 1; }
   .info { display: grid; gap: 4px; }
   .top-right { display: flex; align-items: center; gap: 8px; }
@@ -60,7 +60,7 @@
   .live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--txt-3); }
   .live.on { background: var(--live); color: #fff; }
   .live.on .dot { background: #fff; }
-  .btn-ghost { display: inline-flex; align-items: center; gap: 7px; background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 7px 11px; cursor: pointer; color: var(--txt-2); font-size: 13px; font-weight: 600; white-space: nowrap; text-decoration: none; }
+  .btn-ghost { display: inline-flex; align-items: center; gap: 7px; background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 7px 11px; cursor: pointer; color: var(--txt-2); font-size: 14px; font-weight: 600; white-space: nowrap; text-decoration: none; }
   .btn-ghost:hover:not(:disabled) { background: var(--ink-3); color: var(--txt); }
 
   /* ============ SETUP ============ */
@@ -85,7 +85,7 @@
   .btn-go:hover:not(:disabled) { background: #ffd95c; }
   .btn-sec { background: var(--ink-3); color: var(--txt); }
   .btn-sec:hover:not(:disabled) { background: var(--ink-4); }
-  .aviso { color: var(--txt-2); font-size: 13px; }
+  .aviso { color: var(--txt-2); font-size: 14px; }
   .err { color: #ff8a8a; }
 
   /* ============ MATCH ============ */
@@ -96,14 +96,14 @@
     background: radial-gradient(120% 70% at 50% 48%, #13306a 0%, #0b1a3d 55%, #07122b 100%);
     border: 1px solid var(--line-soft);
   }
-  .lado { display: flex; align-items: center; gap: 16px; min-height: calc(var(--card-h) + 8px); }
+  .lado { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-height: calc(var(--card-h) + 8px); }
   .quien { display: grid; gap: 5px; width: 220px; flex: none; }
   .quien-n { font-family: var(--display); font-weight: 800; font-size: 19px; text-transform: uppercase; line-height: 1; }
   .lado.a .quien-n { color: var(--a); } .lado.b .quien-n { color: var(--b); }
-  .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; width: max-content; background: var(--ink-3); color: var(--txt-2); }
+  .tag { font-size: 14px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 7px; border-radius: 3px; width: max-content; background: var(--ink-3); color: var(--txt-2); }
   .lado.a .tag.on { background: var(--a); color: var(--a-ink); }
   .lado.b .tag.on { background: var(--b); color: var(--b-ink); }
-  .cartas { display: flex; gap: 10px; align-items: flex-end; flex: 1; }
+  .cartas { display: flex; gap: 10px; align-items: flex-end; flex: 1 1 auto; }
   .naipe { display: block; height: var(--card-h); aspect-ratio: 262 / 400; border-radius: 6px; overflow: hidden; background: #fff; box-shadow: var(--shadow-1); }
   .naipe img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .naipe.jugada { opacity: 0.28; }
@@ -122,7 +122,7 @@
   .baza { display: grid; justify-items: center; gap: 6px; border: 1.5px solid rgba(179, 193, 223, 0.18); border-radius: 8px; padding: 8px 6px 10px; }
   .baza-h { display: flex; gap: 8px; align-items: center; }
   .baza-n { font-family: var(--display); font-weight: 800; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
-  .gana { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; }
+  .gana { font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; }
   .gana.a { background: var(--a); color: var(--a-ink); } .gana.b { background: var(--b); color: var(--b-ink); } .gana.parda { background: var(--txt-2); color: var(--ink-0); }
   .par { display: flex; gap: 8px; align-items: center; min-height: var(--card-mesa-h); }
   .par .naipe, .par .vacio { height: var(--card-mesa-h); }
@@ -142,7 +142,7 @@
   .ctl[aria-pressed="true"] { border-color: var(--txt-2); background: var(--ink-3); }
   .ctl[aria-pressed="false"] { color: var(--txt-3); }
 
-  .relato { margin: 0; padding: 0 12px 10px; list-style: none; font-size: 13px; color: var(--txt-2); max-height: 180px; overflow-y: auto; }
+  .relato { margin: 0; padding: 0 12px 10px; list-style: none; font-size: 14px; color: var(--txt-2); max-height: 180px; overflow-y: auto; }
   .relato li { padding: 5px 0; border-bottom: 1px solid var(--line-soft); }
   .relato li:first-child { color: var(--txt); }
   .relato b.a { color: var(--a); } .relato b.b { color: var(--b); }
@@ -155,35 +155,86 @@
   .piensa.b { border-top-color: var(--b); }
   .piensa-n { font-family: var(--display); font-weight: 800; font-size: 18px; text-transform: uppercase; }
   .piensa.a .piensa-n { color: var(--a); } .piensa.b .piensa-n { color: var(--b); }
-  .op { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 13.5px; }
+  .op { display: grid; grid-template-columns: 1fr; gap: 3px; font-size: 14px; }
   .op .bar { grid-column: 1 / -1; height: 5px; background: var(--ink-4); border-radius: 3px; overflow: hidden; }
   .op .bar i { display: block; height: 100%; background: var(--txt-2); }
   .piensa.a .op.elegida .bar i { background: var(--a); }
   .piensa.b .op.elegida .bar i { background: var(--b); }
   .op.elegida b { color: var(--txt); }
   .op span { color: var(--txt-2); }
-  .nota { font-size: 12.5px; color: var(--txt-3); }
-  .dato { font-size: 13px; color: var(--txt-2); }
+  .nota { font-size: 14px; color: var(--txt-3); }
+  .dato { font-size: 14px; color: var(--txt-2); }
   .dato b { color: var(--txt); font-weight: 700; }
-  .bloqueo { font-size: 12.5px; color: #ffd2a8; }
-  .decide { font-size: 12px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
+  .bloqueo { font-size: 14px; color: #ffd2a8; }
+  .decide { font-size: 14px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--txt-3); }
 
   /* Final */
   .final { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; background: rgba(4, 11, 28, 0.88); }
   .final-box { width: min(560px, 92%); display: grid; gap: 14px; }
   .final-cab { padding: 16px 20px; clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
   .final-cab.a { background: var(--a); color: var(--a-ink); } .final-cab.b { background: var(--b); color: var(--b-ink); }
-  .final-cab small { font-size: 12px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
+  .final-cab small { font-size: 14px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; }
   .final-cab h2 { margin: 2px 0 6px; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 38px; line-height: 0.9; text-transform: uppercase; }
   .final-score { font-family: var(--display); font-style: italic; font-weight: 900; font-size: 26px; }
-  .final-detalle { font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .final-detalle { font-size: 14px; font-weight: 700; margin-top: 2px; }
   .final-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .frase-ia { font-size: 16px; font-weight: 600; color: var(--txt); line-height: 1.3; }
+  .op .bar { height: 8px; }
+  .lado.a .tag.mano { background: var(--a); color: var(--a-ink); }
+  .lado.b .tag.mano { background: var(--b); color: var(--b-ink); }
+  .tag.mano { font-size: 16px; padding: 5px 14px; letter-spacing: 0.08em; font-weight: 800; }
+
+  /* Top bar: the same pattern as voz.html (status row, then robot badge) */
+  .top { flex-wrap: wrap; }
+  .top-right { flex-direction: column; align-items: flex-end; gap: 8px; margin-left: auto; }
+  .status-row, .tabs-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  .live { text-transform: none; letter-spacing: 0; font-family: var(--ui); font-weight: 600; background: transparent; padding: 4px 6px; }
+  .live.on { color: #ff8f8f; } .live.on .dot { background: var(--live); }
+  .btn-ghost { min-height: 40px; }
+  .sb-name small { white-space: normal; }
+
+  /* Picker: a centered card; the scoreboard shows only once a match starts */
+  .setup { min-height: calc(100dvh - 90px); align-content: center; margin: 0 auto; width: 100%; }
+  .setup h1, .setup > p { text-align: center; }
+  .elige select.sel { width: 100%; max-width: 100%; min-width: 0; }
+  .elige { min-width: 0; }
+  .seg button { font-size: 16px; }
+  .elige label { font-size: 18px; }
+
+  /* "Más" menu */
+  .menu { position: relative; }
+  .menu-panel { position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; min-width: 280px; background: var(--ink-1); border: 1px solid var(--line); border-radius: 6px; padding: 6px; display: grid; gap: 2px; }
+  .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 12px; background: transparent; border: 0; border-radius: 4px; cursor: pointer; text-align: left; color: var(--txt); font-size: 15px; font-weight: 600; }
+  .menu-item span { flex: 1; }
+  .menu-item em { font-style: normal; font-weight: 800; color: var(--ok); }
+  .menu-item[aria-pressed="false"] em { color: var(--txt-3); }
+  .menu-item:hover { background: var(--ink-3); }
+  .menu-camara { display: grid; gap: 6px; padding: 8px 12px 10px; font-size: 15px; font-weight: 600; }
+  .ctl[aria-expanded="true"] { background: var(--ink-3); }
+  .ctl { min-height: 40px; }
 
   @media (max-width: 1100px) { .juego { grid-template-columns: minmax(0, 1fr); } }
   @media (max-width: 640px) {
     .asientos { grid-template-columns: 1fr; }
     .quien { width: 110px; }
-    .sb-name { max-width: 120px; font-size: 16px; }
+    .top { padding: 8px 8px 0; }
+    .scorebug { width: 100%; flex-wrap: wrap; row-gap: 2px; }
+    .sb-team { flex: 1 1 0; min-width: 0; justify-content: space-between; padding: 8px 12px; }
+    .sb-team.a { border-radius: 6px 0 0 6px; } .sb-team.b { border-radius: 0 6px 6px 0; }
+    .sb-name { max-width: none; min-width: 0; font-size: 16px; }
+    .sb-num { font-size: 42px; }
+    .sb-info { flex: 1 1 100%; border-radius: 6px; padding: 8px 12px; gap: 14px; justify-content: space-between; flex-wrap: wrap; }
+    .top-right { align-items: stretch; width: 100%; }
+    .status-row, .tabs-row { justify-content: flex-start; }
+    .status-row .btn-ghost { flex: 1; justify-content: center; }
+    :root { --card-mesa-h: 62px; --card-h: 96px; }
+    .par { gap: 4px; } .baza { padding: 6px 2px 8px; }
+    .controles { position: relative; }
+    .menu { position: static; }
+    .menu-panel { left: 8px; right: 8px; min-width: 0; top: calc(100% - 4px); }
+    .fila-largo .seg { display: flex; width: 100%; }
+    .fila-largo .seg button { flex: 1; padding: 8px 4px; font-size: 15px; white-space: nowrap; }
     .dicho { max-width: 100%; }
     .lado { flex-wrap: wrap; }
   }
@@ -197,6 +248,7 @@
   <symbol id="i-step" viewBox="0 0 24 24"><path d="M5 5l10 7-10 7zM19 5v14"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="i-brain" viewBox="0 0 24 24"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h1V4zM15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h-1V4z"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
   <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4v4h4"/></symbol>
   <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 9.5a3.5 3.5 0 0 1 0 5M19 7a7 7 0 0 1 0 10"/></symbol>
@@ -207,11 +259,11 @@
 <header class="top">
   <div class="scorebug" role="group" aria-label="Tanteador">
     <div class="sb-team a">
-      <span class="sb-name"><small>Asiento 1 · poncho rojo</small><span id="nombre-a">IA 1</span><span class="mano-tag" id="mano-a" hidden><span>Mano</span></span></span>
+      <span class="sb-name"><small>Asiento 1 · rojo</small><span id="nombre-a">IA 1</span><span class="mano-tag" id="mano-a" hidden><span>Mano</span></span></span>
       <b class="sb-num" id="pts-a">0</b>
     </div>
     <div class="sb-team b">
-      <span class="sb-name"><small>Asiento 2 · poncho celeste</small><span id="nombre-b">IA 2</span><span class="mano-tag" id="mano-b" hidden><span>Mano</span></span></span>
+      <span class="sb-name"><small>Asiento 2 · celeste</small><span id="nombre-b">IA 2</span><span class="mano-tag" id="mano-b" hidden><span>Mano</span></span></span>
       <b class="sb-num" id="pts-b">0</b>
     </div>
     <div class="sb-info">
@@ -221,8 +273,10 @@
     </div>
   </div>
   <div class="top-right">
-    <span class="live" id="badge-3d"><i class="dot"></i><span>Sin 3D</span></span>
-    <a class="btn-ghost" href="/"><svg class="i"><use href="#i-back"/></svg>Jugar vos</a>
+    <div class="status-row">
+      <a class="btn-ghost" href="/"><svg class="i"><use href="#i-back"/></svg>Jugar contra Ottoman</a>
+    </div>
+    <div class="tabs-row"><span class="live" id="badge-3d"><i class="dot"></i><span>Sin 3D</span></span></div>
   </div>
 </header>
 
@@ -232,15 +286,15 @@
   <p>Dos IAs juegan entre sí. Elegí quién se sienta en cada lado y mirá la partida.</p>
   <div class="plate"><div class="plate-b">
     <div class="asientos">
-      <div class="elige"><label for="ia-a">Asiento 1 · poncho rojo</label><select class="sel" id="ia-a"></select></div>
-      <div class="elige b"><label for="ia-b">Asiento 2 · poncho celeste</label><select class="sel" id="ia-b"></select></div>
+      <div class="elige"><label for="ia-a">Asiento 1 · rojo</label><select class="sel" id="ia-a"></select></div>
+      <div class="elige b"><label for="ia-b">Asiento 2 · celeste</label><select class="sel" id="ia-b"></select></div>
     </div>
     <div class="fila-largo">
-      <span class="lbl">Largo</span>
+      <span class="lbl">Cuánto dura</span>
       <div class="seg" role="group" aria-label="Largo de la partida">
-        <button type="button" data-meta="15" aria-pressed="true">A 15</button>
-        <button type="button" data-meta="30" aria-pressed="false">A 30</button>
-        <button type="button" data-corta aria-pressed="false">Corta</button>
+        <button type="button" data-meta="15" aria-pressed="true">A 15 puntos</button>
+        <button type="button" data-meta="30" aria-pressed="false">A 30 puntos</button>
+        <button type="button" data-corta aria-pressed="false">3 manos</button>
       </div>
       <select class="sel" id="sel-manos" aria-label="Cantidad de manos" hidden>
         <option value="1">1 mano</option><option value="2">2 manos</option><option value="3" selected>3 manos</option>
@@ -274,24 +328,28 @@
 
     <nav class="controles" aria-label="Controles">
       <button type="button" class="ctl prim" id="btn-pausa"><svg class="i"><use href="#i-pause"/></svg><span>Pausa</span></button>
-      <button type="button" class="ctl" id="btn-paso"><svg class="i"><use href="#i-step"/></svg>Siguiente jugada</button>
       <div class="seg" role="group" aria-label="Velocidad">
-        <button type="button" data-vel="0.5" aria-pressed="false">×0.5</button>
+        <button type="button" data-vel="0.5" aria-pressed="false">×0,5</button>
         <button type="button" data-vel="1" aria-pressed="true">×1</button>
         <button type="button" data-vel="2" aria-pressed="false">×2</button>
       </div>
-      <span class="sep"></span>
       <button type="button" class="ctl" id="btn-voz" aria-pressed="true" title="Lo que dice cada IA en voz alta"><svg class="i"><use href="#i-vol"/></svg>Voz</button>
-      <button type="button" class="ctl" id="btn-ver" aria-pressed="true"><svg class="i"><use href="#i-eye"/></svg>Ver cartas</button>
-      <button type="button" class="ctl" id="btn-piensa" aria-pressed="true"><svg class="i"><use href="#i-brain"/></svg>Qué piensa cada IA</button>
-      <span class="sep"></span>
-      <label class="lbl" for="sel-camara" id="lbl-camara">Cámara 3D</label>
-      <select class="sel" id="sel-camara" style="padding:6px 8px">
-        <option value="mesa">Toda la mesa</option><option value="general">Junto al asiento 1</option>
-        <option value="detras_robot_1">Detrás del asiento 1</option><option value="detras_robot_2">Detrás del asiento 2</option>
-      </select>
-      <span class="sep"></span>
-      <button type="button" class="ctl" id="btn-cambiar"><svg class="i"><use href="#i-back"/></svg>Cambiar IAs</button>
+      <button type="button" class="ctl" id="btn-cambiar"><svg class="i"><use href="#i-back"/></svg>Elegir otras IAs</button>
+      <div class="menu">
+        <button type="button" class="ctl" id="btn-mas" aria-haspopup="true" aria-expanded="false" aria-controls="menu-mas"><svg class="i"><use href="#i-menu"/></svg>Más</button>
+        <div class="menu-panel" id="menu-mas" hidden>
+          <button type="button" class="menu-item" id="btn-paso"><svg class="i"><use href="#i-step"/></svg><span>Siguiente jugada</span></button>
+          <button type="button" class="menu-item" id="btn-ver" aria-pressed="true"><svg class="i"><use href="#i-eye"/></svg><span>Ver cartas</span><em>Sí</em></button>
+          <button type="button" class="menu-item" id="btn-piensa" aria-pressed="true"><svg class="i"><use href="#i-brain"/></svg><span>Qué piensa cada IA</span><em>Sí</em></button>
+          <div class="menu-camara" id="fila-camara">
+            <label for="sel-camara" id="lbl-camara">Cámara 3D</label>
+            <select class="sel" id="sel-camara">
+              <option value="mesa">Toda la mesa</option><option value="general">Junto al asiento 1</option>
+              <option value="detras_robot_1">Detrás del asiento 1</option><option value="detras_robot_2">Detrás del asiento 2</option>
+            </select>
+          </div>
+        </div>
+      </div>
     </nav>
 
     <section class="plate">
@@ -302,7 +360,7 @@
 
   <aside class="panel" id="panel" aria-label="Qué piensa cada IA">
     <section class="plate">
-      <div class="plate-h"><h2 class="plate-t">Qué piensa cada IA</h2><span class="lbl">Solo en pantalla</span></div>
+      <div class="plate-h"><h2 class="plate-t">Qué piensa cada IA</h2></div>
       <div class="piensa a" id="piensa-a"></div>
       <div class="piensa b" id="piensa-b"></div>
     </section>
@@ -316,6 +374,15 @@
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const imgCarta = (c) => `/cartas/${encodeURIComponent(c.valor)}_${encodeURIComponent(c.palo)}.png?v=propia`;
   const LADO = ['a', 'b'];
+  // Names by technique (labels only; the keys stay as the server sends them).
+  const TECNICA = {
+    refuerzo: { nombre: 'Aprendizaje por refuerzo', detalle: 'corrida 3 · generación 73' },
+    genetico: { nombre: 'Algoritmos genéticos', detalle: 'generación 48' },
+    utilidad: { nombre: 'Utilidad adaptativa', detalle: '' },
+    reactivo: { nombre: 'Reactivo', detalle: '' },
+  };
+  const nombreIA = (clave, respaldo) => TECNICA[clave]?.nombre || respaldo || 'IA';
+  const etiquetaIA = (clave, respaldo) => nombreIA(clave, respaldo) + (TECNICA[clave]?.detalle ? ` · ${TECNICA[clave].detalle}` : '');
 
   let estado = null;
   let ultimoId = 0;
@@ -339,7 +406,7 @@
   // ---------- setup ----------
   async function cargarModelos() {
     const d = await fetch('/espectador/modelos').then(r => r.json());
-    const opciones = d.modelos.map(m => `<option value="${esc(m.clave)}"${m.disponible ? '' : ' disabled'}>${esc(m.nombre)}${m.disponible ? '' : ' (no disponible)'}</option>`).join('');
+    const opciones = d.modelos.map(m => `<option value="${esc(m.clave)}"${m.disponible ? '' : ' disabled'}>${esc(etiquetaIA(m.clave, m.nombre))}${m.disponible ? '' : ' (no disponible)'}</option>`).join('');
     $('ia-a').innerHTML = opciones; $('ia-b').innerHTML = opciones;
     const disp = d.modelos.filter(m => m.disponible).map(m => m.clave);
     $('ia-a').value = disp.includes('refuerzo') ? 'refuerzo' : disp[0];
@@ -360,9 +427,11 @@
     document.querySelectorAll('.setup .seg button').forEach(x => x.setAttribute('aria-pressed', x === b));
     const corta = b.hasAttribute('data-corta');
     $('sel-manos').hidden = !corta; $('aviso-corta').hidden = !corta;
+    if (corta) b.textContent = textoManos();
     largoElegido = corta ? { tipo: 'manos', manos: Number($('sel-manos').value) } : { tipo: 'puntos', meta: Number(b.dataset.meta) };
   }));
-  $('sel-manos').addEventListener('change', () => { largoElegido = { tipo: 'manos', manos: Number($('sel-manos').value) }; });
+  const textoManos = () => { const n = Number($('sel-manos').value); return `${n} ${n === 1 ? 'mano' : 'manos'}`; };
+  $('sel-manos').addEventListener('change', () => { largoElegido = { tipo: 'manos', manos: Number($('sel-manos').value) }; document.querySelector('[data-corta]').textContent = textoManos(); });
   $('btn-empezar').addEventListener('click', async () => {
     $('btn-empezar').disabled = true; $('setup-error').hidden = true;
     try {
@@ -385,13 +454,21 @@
     $('btn-voz').querySelector('use').setAttribute('href', vozActiva ? '#i-vol' : '#i-vol-off');
     if (!vozActiva) voz.callar();
   });
-  $('btn-ver').addEventListener('click', () => { verCartas = !verCartas; $('btn-ver').setAttribute('aria-pressed', verCartas); pintarMesa(); });
+  $('btn-ver').addEventListener('click', () => { verCartas = !verCartas; $('btn-ver').setAttribute('aria-pressed', verCartas); $('btn-ver').querySelector('em').textContent = verCartas ? 'Sí' : 'No'; pintarMesa(); });
   $('btn-piensa').addEventListener('click', () => {
-    verPanel = !verPanel; $('btn-piensa').setAttribute('aria-pressed', verPanel);
+    verPanel = !verPanel; $('btn-piensa').setAttribute('aria-pressed', verPanel); $('btn-piensa').querySelector('em').textContent = verPanel ? 'Sí' : 'No';
     $('panel').hidden = !verPanel; $('juego').classList.toggle('sin-panel', !verPanel);
   });
   $('sel-camara').addEventListener('change', (e) => accion('/espectador/camara', { nombre: e.target.value }));
   $('btn-cambiar').addEventListener('click', () => accion('/espectador/detener'));
+  // "Más" menu: a button that opens a panel; Escape or a click outside closes it.
+  (() => {
+    const btn = $('btn-mas'), panel = $('menu-mas');
+    const set = (on) => { panel.hidden = !on; btn.setAttribute('aria-expanded', on); };
+    btn.addEventListener('click', (e) => { e.stopPropagation(); set(panel.hidden); });
+    document.addEventListener('click', (e) => { if (!panel.hidden && !panel.contains(e.target)) set(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) { set(false); btn.focus(); } });
+  })();
 
   async function accion(url, body) {
     try {
@@ -405,7 +482,7 @@
   function reiniciarVista() { ultimoId = 0; relato = []; dichos = [null, null]; mesaVista = 0; vista += 1; }
 
   // ---------- render ----------
-  const nombreDe = (i) => estado?.partida?.asientos?.[i]?.nombre || `IA ${i + 1}`;
+  const nombreDe = (i) => { const a = estado?.partida?.asientos?.[i]; return a ? nombreIA(a.ia, a.nombre) : `IA ${i + 1}`; };
 
   function pintar(d) {
     const semilla = d.partida ? d.partida.semilla : null;
@@ -423,14 +500,15 @@
     const p = d.partida;
     $('setup').hidden = !!p;
     $('juego').hidden = !p;
+    document.querySelector('.scorebug').hidden = !p;
     const conectado = !!d.robot_conectado;
     $('badge-3d').classList.toggle('on', conectado);
     $('badge-3d').lastElementChild.textContent = conectado ? 'En vivo 3D' : 'Sin 3D';
-    $('sel-camara').hidden = $('lbl-camara').hidden = !conectado;
+    $('fila-camara').hidden = !conectado;
     if (!p) { $('nombre-a').textContent = 'IA 1'; $('nombre-b').textContent = 'IA 2'; ['pts-a', 'pts-b'].forEach(id => $(id).textContent = '0'); return; }
     p.asientos.forEach((a, i) => {
-      $('nombre-' + LADO[i]).textContent = a.nombre;
-      $('quien-' + LADO[i]).textContent = a.nombre;
+      $('nombre-' + LADO[i]).textContent = nombreDe(i);
+      $('quien-' + LADO[i]).textContent = nombreDe(i);
       $('pts-' + LADO[i]).textContent = a.puntos;
       $('mano-' + LADO[i]).hidden = !a.es_mano;
     });
@@ -477,6 +555,7 @@
       const turno = $('turno-' + l);
       turno.textContent = a.pensando ? 'Pensando…' : (a.es_mano ? 'Es mano' : 'Es pie');
       turno.classList.toggle('on', a.pensando);
+      turno.classList.toggle('mano', !!a.es_mano && !a.pensando);
       const dicho = $('dicho-' + l);
       const d = dichos[i];
       if (a.pensando && !d) { dicho.hidden = false; dicho.className = 'dicho pensando'; dicho.textContent = 'Pensando…'; }
@@ -503,14 +582,45 @@
     mesaVista = p.mesa.length;
   }
 
+  // One plain sentence per decision, built only from what the page already receives.
+  const mayus = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  function fraseDecision(r) {
+    const d = String(r.decision || '');
+    const bajo = d.toLowerCase();
+    let f;
+    if (/^\d+ de /i.test(d)) f = `Juega el ${d}`;
+    else if (bajo === 'quiero') f = 'Acepta el canto';
+    else if (bajo === 'no quiero') f = 'No acepta el canto';
+    else if (bajo.includes('mazo')) f = 'Se va al mazo';
+    else if (bajo === 'quiero retruco') f = 'Acepta y sube a retruco';
+    else if (bajo === 'quiero vale cuatro') f = 'Acepta y sube a vale cuatro';
+    else if (/^(envido|real envido|falta envido|truco)$/.test(bajo)) f = `Canta ${bajo}`;
+    else f = d;
+    f += '.';
+    if (r.tipo === 'red') {
+      const ops = r.opciones || [];
+      const otra = ops.filter(o => o.etiqueta !== d)[0];
+      if (otra) f += ` También miró: ${otra.etiqueta}.`;
+    } else if (r.tipo === 'umbral') {
+      const e = String(r.explicacion || '');
+      if (/inferior|menor|no alcanza/i.test(e)) f += ' Su mano no alcanza.';
+      else if (/superior|mayor|alcanza/i.test(e)) f += ' Su mano le alcanza.';
+    } else if (r.tipo === 'regla') {
+      const t = String(r.regla || r.explicacion || '').replace(/^Regla condici[oó]n-acci[oó]n:\s*/i, '').trim();
+      if (t) f = mayus(t);
+    }
+    return f;
+  }
+
   function pintarPanel() {
     const p = estado?.partida;
     p.asientos.forEach((a, i) => {
       const r = a.razonamiento;
-      let html = `<span class="piensa-n">${esc(a.nombre)}</span>`;
+      let html = `<span class="piensa-n">${esc(nombreDe(i))}</span>${TECNICA[a.ia]?.detalle ? `<span class="nota">${esc(TECNICA[a.ia].detalle)}</span>` : ''}`;
       if (!r) html += '<span class="nota">Todavía no decidió nada en esta mano.</span>';
+      else if (!r.decision) html += '<span class="decide">Está pensando…</span>';
       else {
-        html += `<span class="decide">${r.decision ? 'Decidió: ' + esc(r.decision) : 'Está pensando…'}</span>`;
+        html += `<span class="frase-ia">${esc(fraseDecision(r))}</span>`;
         if (r.tipo === 'red') {
           const ops = r.opciones || [];
           const usaProb = ops.length && ops[0].probabilidad !== undefined;
@@ -520,14 +630,8 @@
             const v = vals[k];
             const ancho = usaProb ? v * 100 : (max === min ? 100 : 20 + 80 * (v - min) / (max - min));
             const elegida = r.decision && o.etiqueta === r.decision;
-            const num = usaProb ? `${(v * 100).toFixed(1)}%` : `valor ${v.toFixed(2)}`;
-            return `<div class="op${elegida ? ' elegida' : ''}"><b>${esc(o.etiqueta)}</b><span>${num}</span><span class="bar"><i style="width:${ancho.toFixed(0)}%"></i></span></div>`;
+            return `<div class="op${elegida ? ' elegida' : ''}"><b>${esc(o.etiqueta)}</b><span class="bar"><i style="width:${ancho.toFixed(0)}%"></i></span></div>`;
           }).join('');
-          html += `<span class="nota">${esc(r.nota || '')}</span>`;
-        } else if (r.tipo === 'umbral') {
-          html += `<span class="dato">${esc(r.fase)}</span><span class="dato"><b>Mide:</b> ${esc(r.metrica)}</span><span class="dato"><b>Umbral:</b> ${esc(r.umbral)}</span><span class="nota">${esc(r.explicacion)}</span>`;
-        } else if (r.tipo === 'regla') {
-          html += `<span class="dato">${esc(r.fase || '')}</span><span class="dato"><b>Regla:</b> ${esc(r.regla || r.explicacion || '')}</span>`;
         }
         if (r.envido_bloqueado) html += `<span class="bloqueo">${esc(r.envido_bloqueado)}</span>`;
       }
@@ -542,17 +646,17 @@
     if (!div.hidden) return;
     const g = p.ganador;
     div.hidden = false; div.className = 'final';
-    const titulo = g === null || g === undefined ? 'Partida cortada' : `Ganó ${esc(p.asientos[g].nombre)}`;
+    const titulo = g === null || g === undefined ? 'Partida cortada' : `Ganó ${esc(nombreDe(g))} (asiento ${g + 1})`;
     div.innerHTML = `<div class="final-box" role="dialog" aria-labelledby="final-t">
       <div class="final-cab ${g === null || g === undefined ? '' : LADO[g]}">
         <small>Final de la partida · ${esc(p.largo_texto)}</small>
         <h2 id="final-t">${titulo}</h2>
         <span class="final-score">${p.asientos[0].puntos} a ${p.asientos[1].puntos}</span>
-        <div class="final-detalle">${esc(p.asientos[0].nombre)} ${p.asientos[0].puntos} · ${esc(p.asientos[1].nombre)} ${p.asientos[1].puntos}</div>
+        <div class="final-detalle">${esc(nombreDe(0))} ${p.asientos[0].puntos} · ${esc(nombreDe(1))} ${p.asientos[1].puntos}</div>
       </div>
       <div class="final-btns">
         <button type="button" class="btn btn-go" id="btn-revancha"><svg class="i"><use href="#i-reset"/></svg>Revancha</button>
-        <button type="button" class="btn btn-sec" id="btn-otras"><svg class="i"><use href="#i-back"/></svg>Cambiar IAs</button>
+        <button type="button" class="btn btn-sec" id="btn-otras"><svg class="i"><use href="#i-back"/></svg>Elegir otras IAs</button>
       </div></div>`;
     $('btn-revancha').addEventListener('click', () => accion('/espectador/revancha'));
     $('btn-otras').addEventListener('click', () => accion('/espectador/detener'));
