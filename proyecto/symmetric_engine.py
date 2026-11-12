@@ -134,7 +134,8 @@ def play_match(policy_a, policy_b, *, seed=0, target=15, starting_score=(0, 0), 
                         declarations.append((pie, values[pie] if values[pie] > values[mano] else 'son buenas'))
                         envido_reveal = {'declarations': tuple(declarations)}
                         if pending['call'] == 'falta_envido':
-                            points = rules.puntos_falta_envido(score[0], score[1], target, ('humano', 'robot')[winner])[0]
+                            points = (target - score[winner] if max_hands is not None else
+                                      rules.puntos_falta_envido(score[0], score[1], target, ('humano', 'robot')[winner])[0])
                         else:
                             points = pending['accepted']
                     score[winner] += points

@@ -175,6 +175,8 @@ class PartidaTruco:
             if not self._robot_lock.acquire(blocking=False):
                 return
             try:
+                if self._mesa_cedida or self.robot is None:
+                    return
                 if evento == "repartir":
                     if hasattr(self.robot, "repartir"):
                         self.robot.repartir(esperar=True)
@@ -250,11 +252,12 @@ class PartidaTruco:
 
     ESPERA_CEDER = 2.0      # seconds `ceder_mesa_3d` waits for a move already in flight
 
-    def ceder_mesa_3d(self) -> bool:
+    def ceder_mesa_3d(self, espera=ESPERA_CEDER) -> bool:
         """Spectator mode takes the 3D table. The match itself goes on (a robot turn
         being thought is not cancelled: its chained steps would be lost and the hand
         would freeze), but none of its cards or gestures reach the table: queued
         moves are dropped, and this waits briefly for one already in flight.
+        `espera=None` drains it completely, with no game lock held while waiting.
         True if the table worker is idle."""
         with self.lock:
             self._mesa_cedida = True
@@ -264,11 +267,14 @@ class PartidaTruco:
                 except queue.Empty:
                     break
             hilo = self._hilo_mesa
+        # Gestures use their own worker; wait for one already sent before changing modes.
+        with self._robot_lock:
+            pass
         if hilo is None or not hilo.is_alive():
             return True
         listo = threading.Event()
         self._cola_mesa.put(listo)
-        return listo.wait(self.ESPERA_CEDER)
+        return listo.wait(espera)
 
     def recuperar_mesa_3d(self) -> None:
         """The human plays again: the table comes back and shows this match's hand
@@ -1201,14 +1207,16 @@ class PartidaTruco:
         if pts_humano > pts_robot or (pts_humano == pts_robot and self.es_mano_humano):
             ganador_e = "humano"
             if self.ultimo_canto_envido == "FALTA_ENVIDO":
-                puntos_en_juego, _ = tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos, ganador_e)
+                puntos_en_juego = (self.meta_puntos - self.puntos_humano if self.manos_partida is not None else
+                                   tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos, ganador_e)[0])
             self.puntos_humano += puntos_en_juego
             msg = f"{frase_inicial} Tenés {pts_humano} contra mis {pts_robot}, ¡son buenas! (+{puntos_en_juego} pts)".strip()
             self.decir_robot(msg)
         else:
             ganador_e = "robot"
             if self.ultimo_canto_envido == "FALTA_ENVIDO":
-                puntos_en_juego, _ = tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos, ganador_e)
+                puntos_en_juego = (self.meta_puntos - self.puntos_robot if self.manos_partida is not None else
+                                   tr.puntos_falta_envido(self.puntos_humano, self.puntos_robot, self.meta_puntos, ganador_e)[0])
             self.puntos_robot += puntos_en_juego
             msg = f"{frase_inicial} ¡Canto {pts_robot} y matan tus {pts_humano}! (+{puntos_en_juego} pts para mí)".strip()
             self.decir_robot(msg)

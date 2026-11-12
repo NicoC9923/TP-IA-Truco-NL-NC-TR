@@ -59,6 +59,7 @@ class ServidorTruco(ThreadingHTTPServer):
         self._espectador = None
         # Which match the 3D table shows: the human one, or a spectator match.
         self.mesa_en_espectador = False
+        self._mesa_lock = threading.RLock()
 
     @property
     def espectador(self):
@@ -75,28 +76,27 @@ class ServidorTruco(ThreadingHTTPServer):
 
         The human match keeps its state (a robot turn being thought finishes),
         but sends nothing to the table until it is handed back."""
-        with self.lock:
-            self.mesa_en_espectador = True
-            self.partida.ceder_mesa_3d()
-            ya_conectado = self.robot
-            robot = self.asegurar_robot()
-            # A fresh connection was already handed over (and resynced) by asegurar_robot;
-            # setting it again could undo a loss the table worker just reported.
-            if robot is None or robot is ya_conectado:
-                self.espectador.mesa.robot = robot
+        with self._mesa_lock:
+            with self.lock:
+                self.mesa_en_espectador = True
+            # Draining can wait for transport or gesture workers that need the game lock.
+            self.partida.ceder_mesa_3d(espera=None)
+            self.asegurar_robot()
+            with self.lock:
+                self.espectador.mesa.robot = self.robot
 
     def mesa_para_humano(self):
-        """The human plays again: pause the spectator match and give the table back."""
-        with self.lock:
-            if not self.mesa_en_espectador:
-                return
-            self.mesa_en_espectador = False
-            if self._espectador is not None:
-                self._espectador.pausar()
-                # Drop the spectator's queued moves and wait for one in flight, so a
-                # late modo_mesa('robots') or camera change never lands on the human's table.
-                self._espectador.mesa.soltar()
-            self.partida.recuperar_mesa_3d()        # resyncs the human's hand
+        """Pause spectator playback and drain its table before rebuilding the human hand."""
+        with self._mesa_lock:
+            with self.lock:
+                if not self.mesa_en_espectador:
+                    return
+                self.mesa_en_espectador = False
+                reproductor = self._espectador
+            if reproductor is not None:
+                reproductor.pausar()
+                reproductor.mesa.soltar(espera=None)
+            self.partida.recuperar_mesa_3d()
 
     def perder_robot(self):
         """The simulator connection died: drop it so the next request reconnects."""
@@ -496,6 +496,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
         self.server.asegurar_robot()  # outside the lock: connecting can be slow
+        if self.path.startswith("/truco/"):
+            self.server.mesa_para_humano()
         with self.server.lock:
             codigo, respuesta = self._procesar_post(datos)
             if respuesta is not None:
@@ -510,8 +512,6 @@ class Handler(BaseHTTPRequestHandler):
         partida_truco = self.server.partida
         agente = self.server.agente
         detector_vision = self.server.detector
-        if self.path.startswith("/truco/"):
-            self.server.mesa_para_humano()
         if self.path == "/comando":
             texto = str(datos.get("texto", "")).strip()
             idioma = str(datos.get("idioma", "es"))
@@ -642,6 +642,10 @@ class Handler(BaseHTTPRequestHandler):
             except ModeloNoCargado as error:
                 print(f"  [AVISO] {error}")
                 return 409, {"error": "No se pudo cargar esa IA", "ia": error.clave}
+        if (accion in ("seguir", "paso") and reproductor.partida is not None
+                and not self.server.mesa_en_espectador):
+            self.server.mesa_para_espectador()
+            reproductor.resincronizar_mesa(self.server.robot)
         acciones = {"pausa": reproductor.pausar, "seguir": reproductor.seguir,
                     "paso": reproductor.paso, "detener": reproductor.detener}
         if accion not in acciones:

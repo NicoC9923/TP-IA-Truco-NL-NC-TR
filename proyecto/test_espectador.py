@@ -80,6 +80,14 @@ class TestFaltaEnvidoEnPartidaCorta(unittest.TestCase):
             self.assertEqual(max(r.points), 30)
             self.assertLess(min(r.points), 30)
 
+    def test_falta_ends_short_match_even_when_leader_is_in_buenas(self):
+        for seed in range(12):
+            r = play_match(self._Canta(), self._Quiere(), seed=seed, target=30,
+                           starting_score=(20, 16), max_hands=10)
+            self.assertEqual(len(r.deals), 1)
+            self.assertEqual(r.points[r.winner], 30)
+            self.assertEqual([d['action'] for d in r.decisions], ['falta_envido', 'quiero'])
+
     def test_regla_de_la_falta(self):
         import truco_reglas as rules
         for lider, otro in ((0, 0), (3, 1), (14, 9)):
@@ -493,6 +501,42 @@ class TestMesaRemota(unittest.TestCase):
         self.assertNotIn(('elegir_camara', 'detras_robot_1'), robot.llamadas)
         self.assertTrue(all(v not in ('robots', 'detras_robot_1') for c in robot.llamadas[humano:] for v in c[1:2]))
 
+    def test_handover_waits_for_transport_without_holding_game_lock(self):
+        srv = self._servidor()
+        entered, release = threading.Event(), threading.Event()
+
+        class BlockedRobot(RobotGrabador):
+            def modo_mesa(self, modo):
+                if modo == 'robots':
+                    entered.set()
+                    release.wait(5)
+                    with srv.lock:
+                        pass
+                super().modo_mesa(modo)
+
+        robot = BlockedRobot()
+        srv.robot = srv.partida.robot = robot
+        srv.mesa_en_espectador = True
+        srv.espectador.mesa.robot = robot
+        srv.espectador.mesa.empezar()
+        self.assertTrue(entered.wait(2))
+        handover = threading.Thread(target=srv.mesa_para_humano, daemon=True)
+        handover.start()
+        try:
+            # Simulate a transport lasting longer than the old two-second drain timeout.
+            time.sleep(2.1)
+            self.assertTrue(handover.is_alive())
+            self.assertNotIn(('modo_mesa', 'humano'), robot.llamadas)
+            self.assertTrue(srv.lock.acquire(timeout=0.2))
+            srv.lock.release()
+        finally:
+            release.set()
+            handover.join(3)
+        self.assertFalse(handover.is_alive())
+        self._esperar(lambda: ('modo_mesa', 'humano') in robot.llamadas)
+        self.assertLess(robot.llamadas.index(('modo_mesa', 'robots')),
+                        robot.llamadas.index(('modo_mesa', 'humano')))
+
     def test_el_hilo_unico_mantiene_el_orden(self):
         robot = RobotGrabador()
         mesa = E.MesaRemota(robot)
@@ -571,6 +615,30 @@ class TestReproductor(unittest.TestCase):
             self.assertEqual(len(r.partida.eventos), antes)
         finally:
             r.cerrar()
+
+    def test_rematch_drops_notification_from_previous_match(self):
+        entered, release = threading.Event(), threading.Event()
+        old_events, heard = [], []
+        notify = self.r._avisar
+
+        def delayed(event, generation):
+            if not old_events:
+                old_events.append(event)
+                entered.set()
+                release.wait(3)
+            notify(event, generation)
+
+        self.r._avisar = delayed
+        self.r.oyentes = [heard.append]
+        self.r.empezar(('reactivo', 'reactivo'), seed=1)
+        self.assertTrue(entered.wait(2))
+        try:
+            self.r.empezar(('reactivo', 'reactivo'), seed=2)
+        finally:
+            release.set()
+        self._esperar(lambda: heard)
+        self.assertFalse(any(event is old_events[0] for event in heard))
+        self.assertIs(heard[0], self.r.partida.eventos[0])
 
     def test_paso_avisa_a_los_oyentes_sin_el_lock(self):
         bloqueados = []
@@ -670,6 +738,30 @@ class TestEndpoints(unittest.TestCase):
         self.assertTrue(all(e['id'] > ultimo for e in nuevos['eventos']))
         self.assertEqual(self._post('/espectador/revancha', {})[0], 200)
         self.assertEqual(self._post('/espectador/detener', {})[1]['estado'], 'sin_partida')
+
+    def test_resume_reclaims_and_rebuilds_table_after_human_turn(self):
+        robot = RobotGrabador()
+        self.srv.robot = self.srv.partida.robot = robot
+        try:
+            self._post('/espectador/empezar', {'ias': ['reactivo', 'reactivo']})
+            self._post('/espectador/pausa', {})
+            self._post('/espectador/paso', {})
+            self._post('/truco/ritmo', {'velocidad': 1})
+            self.assertFalse(self.srv.mesa_en_espectador)
+            self.assertIsNone(self.srv.espectador.mesa.robot)
+            self._post('/espectador/seguir', {})
+            self.assertTrue(self.srv.mesa_en_espectador)
+            self.assertTrue(self.srv.partida.mesa_cedida)
+            self.assertIs(self.srv.espectador.mesa.robot, robot)
+            deadline = time.monotonic() + 3
+            while (not robot.llamadas or robot.llamadas[-1] != ('repartir_cartas',)) and time.monotonic() < deadline:
+                time.sleep(0.01)
+            modes = [c for c in robot.llamadas if c[0] == 'modo_mesa']
+            self.assertEqual(modes[-1], ('modo_mesa', 'robots'))
+            self.assertEqual(robot.llamadas[-1], ('repartir_cartas',))
+        finally:
+            self.srv.mesa_para_humano()
+            self.srv.robot = self.srv.partida.robot = None
 
     def test_una_ia_que_no_carga(self):
         crear = E.crear_politica

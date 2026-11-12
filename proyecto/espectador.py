@@ -781,9 +781,10 @@ class MesaRemota:
                 return
             self._cola.put((metodo, args))
 
-    def soltar(self, espera=None):
+    def soltar(self, espera=ESPERA_SOLTAR):
         """Hands the table over: drops what is queued, stops sending and waits
-        (briefly) for a move already in flight. True if the worker is idle."""
+        for a move already in flight (fully when `espera=None`).
+        True if the worker is idle."""
         listo = threading.Event()
         with self._lock:
             self.robot = None
@@ -793,7 +794,7 @@ class MesaRemota:
                 except queue.Empty:
                     break
             self._cola.put(listo)
-        return listo.wait(self.ESPERA_SOLTAR if espera is None else espera)
+        return listo.wait(espera)
 
     def _trabajar(self):
         while True:
@@ -855,6 +856,7 @@ class Reproductor:
         self.velocidad = 1.0
         self._cond = threading.Condition()
         self._lock_partida = threading.RLock()
+        self._lock_oyentes = threading.RLock()
         self._generacion = 0
         self._hilo = threading.Thread(target=self._bucle, daemon=True, name='espectador-reloj')
         self._hilo.start()
@@ -871,7 +873,7 @@ class Reproductor:
             except BaseException:
                 partida.cancelar()
                 raise
-        with self._lock_partida:
+        with self._lock_oyentes, self._lock_partida:
             if self.partida is not None:
                 self.partida.cancelar()
             self.partida = partida
@@ -891,7 +893,7 @@ class Reproductor:
 
     def detener(self):
         """Back to choosing the AIs."""
-        with self._lock_partida:
+        with self._lock_oyentes, self._lock_partida:
             if self.partida is not None:
                 self.partida.cancelar()
             self.partida = None
@@ -923,13 +925,14 @@ class Reproductor:
         with self._lock_partida:
             if self.partida is None:
                 return self.snapshot()
+            generacion = self._generacion
             mostrados = self.partida.avanzar_jugada()
             if self.partida.terminada:
                 with self._cond:
                     self.estado = 'terminada'
         # Listeners (voice, gestures) run outside the lock: a slow one never blocks the page.
         for evento in mostrados:
-            self._avisar(evento)
+            self._avisar(evento, generacion)
         return self.snapshot()
 
     def poner_velocidad(self, velocidad):
@@ -958,12 +961,17 @@ class Reproductor:
             self._cond.notify_all()
 
     # ---- the loop ----
-    def _avisar(self, evento):
-        for oyente in self.oyentes:
-            try:
-                oyente(evento)
-            except Exception:                                # noqa: BLE001
-                pass
+    def _avisar(self, evento, generacion):
+        # Serialize notifications with match replacement, without holding the game lock.
+        # A stopped clock or a delayed step must never speak/gesture in the next match.
+        with self._lock_oyentes:
+            for oyente in self.oyentes:
+                if self._generacion != generacion:
+                    return
+                try:
+                    oyente(evento)
+                except Exception:                            # noqa: BLE001
+                    pass
 
     def _bucle(self):
         while True:
@@ -987,7 +995,7 @@ class Reproductor:
                     if self._generacion == generacion and self.estado == 'jugando':
                         self.estado = 'terminada'
                 continue
-            self._avisar(evento)
+            self._avisar(evento, generacion)
             if evento['kind'] == 'match_end':
                 with self._cond:
                     if self._generacion == generacion:

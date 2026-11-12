@@ -747,6 +747,21 @@ class TestCartaConSimuladorQueVuelve(Base):
         self.assertTrue(partida._cola_mesa.empty())
 
 
+class TestShortFaltaInBuenas(Base):
+    def test_trailing_winner_reaches_30_and_ends_match(self):
+        partida = self.crear(Ritmo.instantaneo())
+        self.sin_cantos(partida)
+        partida.reiniciar_partido(manos=10)
+        self.repartir(partida, TestTantoDeLaPartida.HUMANO_33,
+                      TestTantoDeLaPartida.ROBOT_27, robot_es_mano=False)
+        partida.puntos_humano, partida.puntos_robot = 16, 20
+        with patch.object(partida.ia, "responder_envido", return_value=("QUIERO", "")):
+            partida.cantar_envido_humano("FALTA_ENVIDO")
+        self.assertTrue(partida.partido_terminado)
+        self.assertEqual(partida.ganador_partido, "humano")
+        self.assertEqual(partida.puntos_humano, 30)
+
+
 class TestTantoDelRobotPrivado(Base):
     """The robot's number reaches the page only once it said it, or when the hand is over."""
 
